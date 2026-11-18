@@ -1,4 +1,3 @@
-/** Forest capability 3: the Stories and Library switches (ADR-1002 D1, D2), and the glass sheet's two looks. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { flipSwitch, globeLayers, LAUNCH_FACE, LAUNCH_SWITCHES, sheetFaces } from "./globe-switches.js";

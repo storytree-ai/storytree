@@ -1,13 +1,4 @@
-/**
- * Capability 16 · Build and launch, contracts 16.1 and 16.2: the words an agent gives `pnpm storytree` in a
- * storytree checkout reach the command as written, or the command refuses them and does nothing.
- * Each runs the checkout's own `storytree` script through the pnpm running these tests, with no shell
- * of the test's own in between: pnpm appends each word to the script's line, as a JSON string on
- * Windows and single-quoted elsewhere, and hands that line to a shell (ADR-0851).
- * Both the door's own answer and the script's run under a throwaway storytree home where storytree is not
- * running, so neither reads nor writes the computer's library, whose warnings (a branch's tables ahead of a
- * shared library's) would otherwise land on the stderr these tests read.
- */
+// Capability 16 · Build and launch
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
@@ -18,13 +9,11 @@ import { fileURLToPath } from "node:url";
 
 const checkout = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
-// Set before the door loads: it mounts the families its home names as it loads.
 const home = mkdtempSync(path.join(tmpdir(), "storytree-arguments-home-"));
 process.env.STORYTREE_HOME = home;
 const { run } = await import("./index.js");
 after(() => rmSync(home, { recursive: true, force: true }));
 
-/** `pnpm -s storytree <words…>` in the checkout, by the pnpm these tests run under. */
 function pnpmStorytree(...words: string[]) {
   const pnpm = process.env.npm_execpath;
   assert.ok(pnpm !== undefined, "run these tests through pnpm (pnpm test), which names itself in npm_execpath");

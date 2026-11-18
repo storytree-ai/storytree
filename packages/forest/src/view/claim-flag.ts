@@ -1,16 +1,4 @@
-/**
- * Capability 5 · Agent capability claims: the world's claim mark is a flag (ADR-0968). Each capability a running session
- * claims carries one pennant in that session's colour on a dark pole, standing at a point inside its territory, its size
- * constant on screen and its pole upright, and a pennant however far out the globe is zoomed (never a dot). It drops in with
- * one ring at its foot, stands still while held, furls and greys when its holder goes quiet, and lifts away when the claim
- * goes. On an island with no code yet the claimed share is marked as a lot, a dashed white line inside its border.
- * Each claim is a group named `territory-claim:<capability>` carrying `userData { claim, capability, colour, faded }`,
- * the handle the capture seam, the visibility switch and the tests read. A capability a session points the owner's eye at
- * (5.8) pulses: a steady ring in that session's colour marks its foot, and a second opens slowly from it, again and again,
- * held still under reduced motion, both constant on screen, in a group named `territory-pointer:<capability>`; a pointer at
- * a gate pulses the same at the gate's posts, in `territory-pointer:<a>|<b>` (5.9). Nothing here moves the camera. Plain
- * three.js, so it is read without a browser.
- */
+// Capability 5 · Agent capability claims
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, Quaternion, RingGeometry, Vector3, type Material, type Object3D } from "three";
 import type { ClaimTint, PointerTint } from "@storytree/forest";
 import { pennantOutline, quietHsl } from "@storytree/session-management/claim-mark";
@@ -23,20 +11,12 @@ type Claimed = ReadonlyMap<string, ClaimTint>;
 const INK = "#0d1114";
 const SHADOW = { colour: "#080b0e", opacity: 0.45 };
 const LOT = { colour: "#f4f7f8", opacity: 0.72 };
-/**
- * One unit of the mock-up the flag was drawn in, in ground units: today's band of 1.2 ground units was 0.6 of one on the
- * website's capture (ADR-0968's increment, "Units"). An island of the size the drawn sizes were judged on spans about 44.
- */
 const MOCK_UNIT = 2;
 const ISLAND_WIDTH = 44;
-/** The lot's line: this far inside the share's border, in dashes this long and this far apart, in mock units. */
 const LOT_INSET = 0.5, LOT_ON = 0.75, LOT_OFF = 0.6;
-/** Lifted just above the territories (`TERRITORY_LIFT`) so the lot lies on them. */
 const LOT_LIFT = 0.06;
-/** Drawn after the land, the borders and the file circles, and never hidden by the ground it stands on. */
 const FLAG_ORDER = 6;
 
-/** The flag's scale `k` for islands `islandPx` wide on screen, fitted to the three drawn sizes (90, 200 and 480 px wide: 0.6, 0.9, 1.3), and never below 0.4. */
 export function flagScale(islandPx: number): { k: number } {
   const anchors = [[90, 0.6], [200, 0.9], [480, 1.3]] as const;
   const [[x0, y0], [x1, y1]] = islandPx <= 200 ? [anchors[0], anchors[1]] : [anchors[1], anchors[2]];
@@ -44,15 +24,9 @@ export function flagScale(islandPx: number): { k: number } {
   return { k: Math.min(1.6, Math.max(0.4, k)) };
 }
 
-/** One pulse of a pointer, in seconds: slow, so it draws the eye without flashing (5.8). */
 export const POINTER_PULSE_S = 2.4;
-/** A pointer's rings on screen, in CSS px: the steady one's radius, how far the pulse opens past it, and their lines' width. */
 const POINTER_PX = { mark: 7, reach: 28, line: 2.5 };
 
-/**
- * A pointer's ring at `now` seconds: `open` how far it has opened (0 at the foot, 1 at its widest) and its `opacity`, fading
- * as it opens. It loops, one pulse every POINTER_PULSE_S; under reduced motion it holds half open, steady.
- */
 export function pointerPulse(now: number, reduced: boolean): { open: number; opacity: number } {
   if (reduced) return { open: 0.5, opacity: 0.7 };
   const p = (((now / POINTER_PULSE_S) % 1) + 1) % 1;
@@ -60,19 +34,12 @@ export function pointerPulse(now: number, reduced: boolean): { open: number; opa
   return { open, opacity: 0.9 * (1 - open) };
 }
 
-/** A claim's quiet turning: from `from` to `to` (0 held, 1 quiet), starting at `at` seconds. */
 export type QuietTurn = { from: number; to: number; at: number };
 
 const easeBack = (t: number) => { const c = 1.70158; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
 const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 
-/**
- * Where a claim's life stands at `now` (seconds), for a claim that `arrived` then (absent: it was standing when the globe
- * first drew) and was `left` then (absent: still held). `lift` is in px at k = 1, up on screen; `ring` is the arrival
- * ring's progress, absent when none shows; `lot` the lot's strength; `live` whether a transition still wants frames.
- * Reduced motion jumps every transition to its end (ADR-0968 D2).
- */
 export function claimMoment({ arrived, left, quiet, now, reduced }: { arrived?: number | undefined; left?: number | undefined; quiet: QuietTurn; now: number; reduced: boolean }) {
   const a = reduced || arrived === undefined ? 1 : clamp01((now - arrived) / 1.2);
   const out = left === undefined ? 0 : reduced ? 1 : clamp01((now - left) / 0.8);
@@ -89,7 +56,6 @@ export function claimMoment({ arrived, left, quiet, now, reduced }: { arrived?: 
   };
 }
 
-/** The session's colour, greyed by `q` (0 held, 1 quiet), by the rule every claim mark shares. */
 function greyed(colour: string, q: number): Color {
   if (q === 0) return new Color(colour);
   const hsl = quietHsl(new Color(colour).getHSL({ h: 0, s: 0, l: 0 }), q);
@@ -99,7 +65,6 @@ function greyed(colour: string, q: number): Color {
 const flatMaterial = (colour: Color | string, opacity = 1) =>
   new MeshBasicMaterial({ color: new Color(colour), transparent: true, opacity, side: DoubleSide, forceSinglePass: true, depthTest: false, depthWrite: false });
 
-/** Triangles from flat [x, y] corners, in the flag's own screen frame (px, y up). */
 function triangles(corners: readonly (readonly [number, number])[]): BufferGeometry {
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new Float32BufferAttribute(corners.flatMap(([x, y]) => [x, y, 0]), 3));
@@ -107,7 +72,6 @@ function triangles(corners: readonly (readonly [number, number])[]): BufferGeome
 }
 const disc = (cx: number, cy: number, rx: number, ry = rx, sides = 16): [number, number][] =>
   Array.from({ length: sides }, (_, i) => [i, i + 1]).flatMap(([i, j]) => [[cx, cy], [cx + rx * Math.cos(2 * Math.PI * i! / sides), cy + ry * Math.sin(2 * Math.PI * i! / sides)], [cx + rx * Math.cos(2 * Math.PI * j! / sides), cy + ry * Math.sin(2 * Math.PI * j! / sides)]] as [number, number][]);
-/** A line `width` wide through `points`, with round joins and caps. */
 function stroke(points: readonly (readonly [number, number])[], width: number, closed = false): [number, number][] {
   const h = width / 2;
   const runs = closed ? points.map((p, i) => [p, points[(i + 1) % points.length]!] as const) : points.slice(1).map((p, i) => [points[i]!, p] as const);
@@ -117,7 +81,6 @@ function stroke(points: readonly (readonly [number, number])[], width: number, c
     return [[ax + nx, ay + ny], [bx + nx, by + ny], [bx - nx, by - ny], [ax + nx, ay + ny], [bx - nx, by - ny], [ax - nx, ay - ny]];
   }), ...points.flatMap(([x, y]) => disc(x, y, h, h, 8))];
 }
-/** The flag's own marks at scale `k`, furled by `q`, replacing what `drawing` held: a pennant on a pole over a shadow. */
 function drawFlag(drawing: Group, colour: string, k: number, q: number): void {
   for (const child of [...drawing.children]) { child.removeFromParent(); disposeMark(child); }
   const fill = greyed(colour, q);
@@ -145,7 +108,6 @@ function disposeMark(root: Object3D): void {
   });
 }
 
-/** Where a claimed capability's flag stands: the seed of its territory's cell nearest the middle of its cells' seeds, the point its nameplate uses (`capabilityPlates`). */
 function footOf(map: ClaimLand, at: number): Point | undefined {
   const sites = map.cells.filter((cell) => cell.territory === at).map((cell) => cell.site);
   if (sites.length === 0) return undefined;
@@ -153,15 +115,10 @@ function footOf(map: ClaimLand, at: number): Point | undefined {
   return sites.reduce((best, p) => Math.hypot(p.x - middle.x, p.z - middle.z) < Math.hypot(best.x - middle.x, best.z - middle.z) ? p : best);
 }
 
-/** An island's territories as cut, each cell with its seed. */
 export type ClaimLand = Omit<DrawnLand, "cells"> & { readonly cells: readonly { readonly site: Point; readonly polygon: readonly Point[]; readonly territory: number }[] };
 
 type Life = { colour: string; faded: boolean; arrived?: number; left?: number; quiet: QuietTurn; drawn?: string };
 
-/**
- * An island's claim marks, kept across changes of its claims so each can play its life: `claims` says who holds what now,
- * `frame` poses every mark for the eye and the moment and says whether it wants another frame. `root` goes on the plate.
- */
 export class ClaimMarks {
   readonly root = new Group();
   private land: { map: ClaimLand; onSurface: (point: Point) => Vector3; normalAt: (point: Point) => Vector3; unsurveyed: boolean; coast?: readonly (readonly Point[])[] | undefined; gates?: ReadonlyMap<string, Point> | undefined } | undefined;
@@ -175,17 +132,14 @@ export class ClaimMarks {
     this.root.name = "claim-marks";
   }
 
-  /** The island's land the marks stand on; `unsurveyed` when it has no surveyed code, so a claimed share is a lot. */
   setLand(map: ClaimLand, onSurface: (point: Point) => Vector3, normalAt: (point: Point) => Vector3, unsurveyed: boolean, coast?: readonly (readonly Point[])[],
     gates?: ReadonlyMap<string, Point>): void {
     this.land = { map, onSurface, normalAt, unsurveyed, coast, gates };
     for (const [capability, life] of this.lives) this.remove(capability, life, false);
     for (const capability of this.pointed.keys()) this.removePointer(capability);
-    // Set again under drawn marks (an island built in steps), they stand at once at their last pose, not a frame later.
     if (this.posed !== undefined) this.frame(this.posed.now, { ...this.posed, eye: this.posedEye });
   }
 
-  /** The claims held now, at `now` seconds. A new one arrives, unless `standing` (the globe's first drawing); one gone lifts away. */
   claims(claimed: Claimed, now: number, { standing, reduced }: { standing: boolean; reduced: boolean }): void {
     for (const [capability, tint] of claimed) {
       const life = this.lives.get(capability);
@@ -204,13 +158,11 @@ export class ClaimMarks {
     for (const [capability, life] of this.lives) if (!claimed.has(capability) && life.left === undefined) life.left = now;
   }
 
-  /** The capabilities pointed at now, each in its session's colour (5.8): a new one pulses, one no longer pointed at goes. */
   pointers(pointed: ReadonlyMap<string, PointerTint>): void {
     for (const capability of this.pointed.keys()) if (!pointed.has(capability)) this.removePointer(capability);
     this.pointed = new Map(pointed);
   }
 
-  /** Poses every mark at `now` for an eye at `zoom` (CSS px per world unit) turned by `eye`; true while a transition still wants frames. */
   frame(now: number, { zoom, eye, reduced }: { zoom: number; eye: Quaternion; reduced: boolean }): boolean {
     this.posed = { now, zoom, reduced };
     this.posedEye.copy(eye);
@@ -228,14 +180,11 @@ export class ClaimMarks {
       mark.userData = { claim: true, capability, colour: life.colour, faded: life.faded };
       const flag = mark.getObjectByName("claim-flag") as Group;
       const drawing = flag.getObjectByName("flag-drawing") as Group;
-      // One drawing per size and furl, so a standing flag is drawn once.
       const key = `${life.colour}|${Math.round(k * 20)}|${Math.round(moment.quiet * 50)}`;
       if (life.drawn !== key) { drawFlag(drawing, life.colour, Math.round(k * 20) / 20, Math.round(moment.quiet * 50) / 50); life.drawn = key; }
       const drawnK = Math.round(k * 20) / 20;
-      // Upright and constant on screen: turned to the eye, one world unit a CSS pixel.
       flag.parent!.updateWorldMatrix(true, false);
       flag.parent!.getWorldQuaternion(this.turned);
-      // It hides with its island once the island turns away.
       flag.visible = facing(this.turned, eye) > 0;
       flag.quaternion.copy(this.turned.invert().multiply(eye));
       const plateScale = new Vector3().setFromMatrixScale(flag.parent!.matrixWorld).x || 1;
@@ -258,13 +207,11 @@ export class ClaimMarks {
       const lot = mark.getObjectByName(`claim-lot:${capability}`) as LineSegments | undefined;
       if (lot !== undefined) (lot.material as LineBasicMaterial).opacity = LOT.opacity * moment.lot;
     }
-    // A pointer pulses in place while it stands, so it wants every frame unless reduced motion holds it still.
     const pulse = pointerPulse(now, reduced);
     for (const [capability, tint] of this.pointed) {
       const { colour } = tint;
       const mark = this.pointerOf(capability, tint);
       if (mark === undefined) continue;
-      // Sized on screen, as a flag is, so it catches the eye at every zoom.
       mark.updateWorldMatrix(true, false);
       const plateScale = new Vector3().setFromMatrixScale(mark.matrixWorld).x || 1;
       const px = 1 / zoom / plateScale;
@@ -276,7 +223,6 @@ export class ClaimMarks {
       dot.geometry = new RingGeometry(POINTER_PX.mark * px - POINTER_PX.line * px, POINTER_PX.mark * px, 32);
       for (const one of [ring, dot]) (one.material as MeshBasicMaterial).color.set(colour);
       (ring.material as MeshBasicMaterial).opacity = pulse.opacity;
-      // It hides with its island once the island turns away, as a flag does.
       mark.getWorldQuaternion(this.turned);
       ring.visible = dot.visible = facing(this.turned, eye) > 0;
       live ||= !reduced;
@@ -289,10 +235,6 @@ export class ClaimMarks {
     for (const capability of this.pointed.keys()) this.removePointer(capability);
   }
 
-  /**
-   * A pointer's pulsing ring at its capability's foot, or at its gate's posts (keyed `<a>|<b>`), made on first need; none when
-   * its capability has no ground here, or no gate stands between its pair.
-   */
   private pointerOf(capability: string, { colour, gate }: PointerTint): Group | undefined {
     const existing = this.root.getObjectByName(`territory-pointer:${capability}`) as Group | undefined;
     if (existing !== undefined || this.land === undefined) return existing;
@@ -325,7 +267,6 @@ export class ClaimMarks {
     if (mark !== undefined) { mark.removeFromParent(); disposeMark(mark); }
   }
 
-  /** The marks of a claim, made on first need; none when its capability has no ground here. */
   private markOf(capability: string, life: Life): Group | undefined {
     const existing = this.root.getObjectByName(`territory-claim:${capability}`) as Group | undefined;
     if (existing !== undefined || this.land === undefined) return existing;

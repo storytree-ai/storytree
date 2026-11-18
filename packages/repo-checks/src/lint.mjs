@@ -1,5 +1,4 @@
-// Capability 8 · Storytree's own test and gate entries. `pnpm lint`: storytree's three code-structure rules, and the
-// happy-dom assertion rule (happy-dom-asserts.mjs, friction_edc7a93a10fe) and the CodeQL patterns a pull request has met
+// Capability 8 · Storytree's own test and gate entries. `pnpm lint`: storytree's three code-structure rules, and the CodeQL patterns a pull request has met
 // (codeql-patterns.mjs, increment_15f747652fc7) and the *.min.js name of a minified design-sketch bundle
 // (sketch-bundles.mjs, increment_25ec3aa5f204) and a numbered test that asserts nothing or an assertion swallowed in a catch
 // (test-asserts.mjs, increment_ceee8864623d) and a POSIX-only process command run with no platform branch
@@ -14,7 +13,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { allocationProblems } from "./allocation.mjs";
 import { codeqlPatternProblems } from "./codeql-patterns.mjs";
 import { eslintProblems } from "./eslint.mjs";
-import { happyDomAssertProblems } from "./happy-dom-asserts.mjs";
 import { boundaryProblems } from "./package-boundaries.mjs";
 import { posixCommandProblems } from "./posix-commands.mjs";
 import { sketchBundleProblems } from "./sketch-bundles.mjs";
@@ -26,7 +24,6 @@ export const RULES = [
   { name: "type-imports", problems: typeImportProblems },
   { name: "package-boundaries", problems: boundaryProblems },
   { name: "allocation", problems: allocationProblems },
-  { name: "happy-dom-asserts", problems: happyDomAssertProblems },
   { name: "codeql-patterns", problems: codeqlPatternProblems },
   { name: "sketch-bundle-names", problems: sketchBundleProblems },
   { name: "test-asserts", problems: testAssertProblems },

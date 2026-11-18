@@ -11,12 +11,10 @@ const { privateKey, publicKey } = await generateKeyPair("RS256");
 const { privateKey: strangerKey } = await generateKeyPair("RS256");
 const jwks = { keys: [{ ...(await exportJWK(publicKey)), kid: "k1", alg: "RS256", use: "sig" }] };
 
-/** A WorkOS access token as its JWT template stamps it, signed by the client's key unless told otherwise. */
 const token = (claims: Record<string, unknown> = {}, key = privateKey) => new SignJWT({ sid: "session_01", aud: "storytree-identity", ...claims })
   .setProtectedHeader({ alg: "RS256", kid: "k1" }).setSubject(account.id)
   .setIssuedAt().setExpirationTime("5m").sign(key);
 
-/** Stands in for the official desktop SDK: it owns PKCE, the deep link and protected token storage. */
 function desktop(protectedStorage = true) {
   let signedIn: { accessToken: string; user: typeof account } | undefined;
   let next: () => Promise<{ accessToken: string; user: typeof account }> = async () => ({ accessToken: await token(), user: account });
@@ -85,7 +83,6 @@ test("6.3 · unprotected storage refuses sign-in and reads no token; a token or 
   assert.notEqual(app.signedIn(), undefined, "keys that could not be fetched keep the session");
 });
 
-/** Stands in for the official SDK's main-process session manager. */
 function fakeEngine(): SignInEngine & { calls: string[]; token: string | null; failExchange: boolean } {
   const engine = {
     calls: [] as string[],

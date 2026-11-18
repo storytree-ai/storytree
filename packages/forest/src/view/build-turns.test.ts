@@ -1,13 +1,9 @@
-/**
- * Capability 3 · Story node render (the forest story): the islands' builds take turns, a few to a task (3.87), so opening
- * a map with every island laid out runs no long task that builds several. Plain functions, so read without a browser.
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { BuildTurns, buildInSteps } from "./build-turns.js";
 
-/** A page whose tasks run only when the test says, one at a time, on a clock each build moves. */
 function tasks() {
   const queued: (() => void)[] = [];
   let ms = 0;

@@ -1,4 +1,4 @@
-/** Capability 4 · Drill-down: a capability's contract rows, in Chrome with the panel's own styles, put their icons in one column. */
+// Capability 4 · Drill-down
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -21,7 +21,6 @@ const capability: CapabilityLine = {
 const panel: StoryPanel = { story: "s", title: "Story s", description: "What s is.", capabilities: [capability] };
 
 test("4.53 every contract row's icons end at one right edge, whether its title fits one line or wraps", async t => {
-  // Chrome is installed on the three CI runner images; no browser download during tests.
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });

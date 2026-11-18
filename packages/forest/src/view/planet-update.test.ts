@@ -1,4 +1,3 @@
-/** A live update redraws only what changed (ADR-0836 D1): an update that changed nothing on show changes nothing. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { workStates } from "@storytree/arc-surface";

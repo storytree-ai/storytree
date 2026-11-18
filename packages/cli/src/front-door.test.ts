@@ -1,7 +1,4 @@
-/**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35, 1.36, 1.45 and 1.48-1.51 in the command line story, each running the
- * real, built `storytree` command in a throwaway folder and storytree home.
- */
+// Capability 1 · Front door
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
@@ -76,10 +73,6 @@ test("1.2 in a folder that is not a project, it exits non-zero with \"not a stor
 
 test("1.3 with storytree stopped, it says \"storytree isn't running\" within a second", async () => {
   await inWorld(command, async (world) => {
-    // Starting the command is the machine's, and a loaded machine stretches it for every command alike: the second
-    // is on top of the same command refusing a folder that is no project, which starts it the same way and stops
-    // before it looks for a running storytree. Each is taken beside the other, three times, and the best of each
-    // compared, so ten sibling test files starting at once charge both, not the stopped answer alone.
     const floors: number[] = [];
     const runs: number[] = [];
     for (let round = 0; round < 3; round += 1) {
@@ -125,7 +118,6 @@ test("1.5 `storytree` alone lists the families", async () => {
 
 test("1.6 `--help` after a command prints its usage and summary, and runs nothing; an inner family's help heads with its full path", async () => {
   await inWorld(command, async (world) => {
-    // In a folder that is no project, and without the --arc it needs: run, it would refuse.
     const ran = await storytree(command.script, ["question", "new", "--help"], { cwd: world.elsewhere, home: world.home });
 
     assert.equal(ran.code, 0, ran.stderr);
@@ -149,7 +141,6 @@ test("1.7 a command it does not have answers with the real command for that job,
       [["board"], /storytree noticeboard/],
       [["sessions"], /storytree session list/],
       [["machines"], /storytree machine list/],
-      // `plan` reads the plan; its next word, when it names what to plan, points to the plan_* tools' twins.
       [["plan", "contract", "--help"], /: run storytree library new contract --capability <capability>/],
       [["plan", "story"], /: run storytree library new <story\|capability\|contract>/],
       [["plan", "arc"], /: run storytree arc new --title <t>/],
@@ -158,7 +149,6 @@ test("1.7 a command it does not have answers with the real command for that job,
       [["questoin", "list"], /storytree question\b/],
     ];
     for (const [argv, answer] of asked) {
-      // In a folder that is no project: the refusal needs no library.
       const ran = await storytree(command.script, argv, { cwd: world.elsewhere, home: world.home });
 
       assert.equal(ran.code, 2, `${argv.join(" ")}: ${ran.stderr}`);
@@ -197,7 +187,6 @@ test("1.15 a command kept waiting on the library, here for another session's wri
       const pid = backends[0]!.pid;
       waitingElsewhere = unrelated.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))")
         .then(() => undefined, (error: unknown) => error);
-      // Keep the same lock key queued in another database, as concurrent CLI tests can.
       await waitUntil(async () => {
         const { rows } = await elsewhere.query("SELECT 1 FROM pg_locks WHERE pid = $1 AND locktype = 'advisory' AND NOT granted", [pid]);
         return rows.length > 0;
@@ -205,8 +194,6 @@ test("1.15 a command kept waiting on the library, here for another session's wri
       await other.query("BEGIN");
       await other.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
       running = world.run(["library", "new", "definition", "--term", "Mailer", "--meaning", "Sends the mail.", "--project", world.project]);
-      // Only this world's command can queue behind this connection's project write lock.
-      // A waiter elsewhere on the shared test server must not release it early.
       await waitUntil(async () => {
         const { rows } = await other.query(`SELECT 1 FROM pg_locks
           WHERE locktype = 'advisory' AND NOT granted
@@ -218,14 +205,12 @@ test("1.15 a command kept waiting on the library, here for another session's wri
       const ran = await running;
 
       assert.equal(ran.code, 0, ran.stderr);
-      // Windows PowerShell 5.1 reads any captured stderr as a failed command, and a truncated pipe ends it (seen 2026-10-08).
       assert.doesNotMatch(ran.stderr, /another session is writing/);
     } finally {
       await other.end();
       await elsewhere.end();
       await waitingElsewhere;
       await unrelated.end();
-      // Release the lock and reap the command even when observing its wait fails.
       await running;
     }
   });
@@ -453,10 +438,6 @@ test("1.42 the command line asks the arm checks its parts contribute: its own pa
   });
 });
 
-/**
- * Writes into `home`'s factory a plugin contributing an arm check, which denies what the home's experiment setting says
- * its arm denies, and returns the settings that mount it in the place of experiments, a part the host does not have.
- */
 function armPlugin(home: string): Record<string, unknown> {
   const plugin = path.join(home, "factory", "plugins", "my-arms");
   mkdirSync(plugin, { recursive: true });
@@ -473,7 +454,6 @@ export const armChecks = [{ name: "my-arm", verdict(door, verb, home = process.e
   return { factory: path.join(home, "factory"), "parts-off": ["experiments"], "stand-ins": { experiments: "my-arms" } };
 }
 
-/** A settings file's object, empty when there is none. */
 function readSettingsFile(file: string): Record<string, unknown> {
   return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown> : {};
 }
@@ -494,7 +474,6 @@ test("1.18 storytree doors prints the front-door reading: every command walked f
     assert.deepEqual(of("storytree library search"), { door: "command", verb: "storytree library search", declared: true, consumers: both, judged: false, calls: 1, sessions: 1 });
     assert.deepEqual(of("storytree noticeboard"), { door: "command", verb: "storytree noticeboard", declared: true, consumers: both, judged: false, calls: 0, sessions: 0 }, "a family's bare command is declared");
     assert.deepEqual(of("check_setup"), { door: "tool", verb: "check_setup", declared: true, consumers: both, judged: false, calls: 0, sessions: 0 });
-    // Each verb's consumers come from where its story declares it (ADR-1045 D1), on both doors.
     assert.deepEqual(of("storytree settings show")?.consumers, ["user"], "a settings verb is a person's");
     assert.deepEqual(of("storytree auth list")?.consumers, ["user"], "a kept family's verb declares its own");
     assert.deepEqual(of("storytree session close-out")?.consumers, ["agent"], "an agent-only verb is an agent's");
@@ -610,7 +589,6 @@ test("1.49 a command that writes a library takes --project, --arc or --increment
       const theirArc = (await product.createArc({ title: "Ricky's site goes live", intent: "Ship it", endState: "It is live" })).id;
       const arc = ["arc", "new", "--title", "Launch", "--intent", "Ship the site", "--end-state", "It is live"];
 
-      // A declared verb, a verb whose every flag is a field, and a family kept in the command line are refused the same.
       for (const unnamed of [arc, ["library", "new", "definition", "--term", "Stack", "--meaning", "What runs it"], ["capability", "built", "capability_000000000000"]]) {
         const refused = await world.run(unnamed);
         assert.equal(refused.code, 2, `${unnamed.join(" ")}: ${refused.stderr}`);

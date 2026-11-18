@@ -1,18 +1,10 @@
-/**
- * Capability 15 · The printed table. A reading for a person in a terminal: the short window's numbers with the long window's beside
- * them, leading with what the owner asked to see first (every command and tool with its consumers and its use, one with
- * no call marked unused, or not judged when a person or the watcher may call it (ADR-1045 D1, ADR-1280 D1), and the misses), then follows, the
- * repoint hints each refused word offered and which were followed (ADR-1045 D3), failures, refusals, door share per step and the splits (ADR-0983 D2). The
- * same two readings as JSON, for a script that compares numbers rather than printed text.
- */
+// Capability 15 · The printed table
 import type { Door, Reading } from "./reading.js";
 
-/** The two readings as JSON: the short window and the long. */
 export function doorsJson(short: Reading, long: Reading): string {
   return `${JSON.stringify({ short, long }, null, 2)}\n`;
 }
 
-/** The two readings as plain text. */
 export function doorsTable(short: Reading, long: Reading): string {
   const sd = span(short);
   const ld = span(long);
@@ -69,7 +61,6 @@ export function doorsTable(short: Reading, long: Reading): string {
   return `${out.join("\n")}\n`;
 }
 
-/** A titled block of rows, its columns padded apart by at least two spaces; "none" when it has no rows. */
 function section(out: string[], title: string, heads: readonly string[], rows: readonly (readonly string[])[]): void {
   out.push("", rows.length === 0 ? `${title}: none.` : title);
   if (rows.length === 0) return;

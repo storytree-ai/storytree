@@ -1,4 +1,3 @@
-/** Removing a project from a terminal: a thin front door onto the app setup's own removal. */
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -15,11 +14,6 @@ const command = new BuiltCommand();
 before(() => command.build());
 after(() => command.remove());
 
-/**
- * The app in `home` shows another project while `body` runs, as a computer where the user works on
- * one project and deletes another does: with none chosen the app shows the first project on the
- * shared test server, which could be the one the test deletes.
- */
 async function showingAnother(home: string, body: () => Promise<void>): Promise<void> {
   const other = uniqueProjectName();
   const server = await connect({ url: testServerUrl() });
@@ -92,7 +86,7 @@ test("a folder whose project was deleted (from another computer) is refused by a
       const deleted = await storytree(command.script, ["project", "delete", project, "--confirm", project, "--no-snapshot"], { cwd: elsewhere, home });
       assert.equal(deleted.code, 0, deleted.stderr);
     });
-    writeFileSync(path.join(folder, ".storytree.json"), `${JSON.stringify({ project })}\n`); // the other computer's folder still names it
+    writeFileSync(path.join(folder, ".storytree.json"), `${JSON.stringify({ project })}\n`);
 
     const listed = await run(["arc", "list"]);
     assert.notEqual(listed.code, 0);

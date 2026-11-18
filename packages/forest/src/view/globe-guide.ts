@@ -1,36 +1,21 @@
-/** Capability 3 · Story node render. */
+// Capability 3 · Story node render
 import { Box3, Vector3, type Camera, type Mesh, type Object3D } from "three";
 import { turnToIsland, type GlobeTurn } from "@storytree/forest";
-/** A point is `at` a place of the scene in world coordinates, as the scene stands at the call. */
 export type GlobeTarget = { kind: "story"; story: string } | { kind: "capability"; capability: string } | { kind: "note"; note: string } | { kind: "point"; at: readonly [number, number, number] } | { kind: "core" };
 export type GlobePose = { turn: GlobeTurn; framing: number; sideOffset: number };
-/** Framing is the short half-side in globe radii; offset is CSS pixels right; duration is milliseconds. */
 export type CameraStop = { target: GlobeTarget; framing?: number; sideOffset?: number; duration?: number };
 export type ScreenPosition = { x: number; y: number; visible: boolean };
-/** An island's land as drawn, in CSS pixels on the canvas: the screen box round its ground. */
 export type IslandBox = { story: string; x: number; y: number; width: number; height: number };
-/** `moving` says a stop's glide is still under way; `notes` lists the Library's notes drawn on the globe, by id; `islands`
- * gives each drawn island on the near side its screen box (3.51). */
 export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: GlobeTarget): ScreenPosition | undefined;
-  /** Each target's `position`, all read at once (3.41). */
   positions(targets: readonly GlobeTarget[]): (ScreenPosition | undefined)[]; cancel(): void; moving(): boolean; notes(): string[]; islands(): IslandBox[] };
-/** The controls a globe view hands over, with the panel width (CSS pixels) it last placed itself beside (3.40, 3.45). */
 export type PlacedGlobeControls = GlobeControls & { aside(): number };
-/** The short way round from `from` to face the way `to` does, as a yaw to ease toward. */
 const nearestYaw = (from: number, to: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
 export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; size(): { width: number; height: number }; read(): GlobePose; write(pose: GlobePose): void; invalidate(): void;
-  /** The view the glass sheet opens on and Home returns to, as the canvas is now, or that whole map at a `framing` asked for (3.66). */
   opening(framing?: number): GlobePose }): GlobeControls & { frame(milliseconds: number): boolean; home(pose: GlobePose, duration?: number): boolean; slide(to: Omit<GlobePose, "turn">, duration?: number): boolean;
-    /** The pose on show, with the zoom and offset the glide under way ends on: what the next slide moves from (3.40). */
     heading(): GlobePose;
-    /** Aims the last stop at the whole sheet again, at the opening the host now gives, unless something has moved it since (3.66). */
     reframe(): boolean } {
-  // A slide (3.40) moves the zoom and offset only, leaving the turn to whatever turns it meanwhile.
   let motion: { from: GlobePose; to: GlobePose; elapsed: number; duration: number; slide?: boolean } | undefined;
-  // 3.44: the host draws a written zoom and offset on its next render, so until it has, the pose written is the one on show.
   let written: GlobePose | undefined;
-  // 3.66: the whole-map stop last asked for on the sheet, until a hand, Home or another stop moves it: a map swapped in can
-  // hand the guide its sheet a frame after the stop, so the host aims it again at the sheet that arrives.
   let whole: CameraStop | undefined;
   const toWhole = (stop: CameraStop): boolean => {
     const from = current(), opening = host.opening(stop.framing);
@@ -63,8 +48,6 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
     host.invalidate();
     return true;
   }
-  // 3.41: every target placed in one update of the world's matrices and one walk of the scene, so the page's locator reads a
-  // large map's islands each frame at the cost of one, not one per island.
   function positions(targets: readonly GlobeTarget[]): (ScreenPosition | undefined)[] {
     const world = host.world(), camera = host.camera();
     world.updateMatrixWorld(true); camera.updateMatrixWorld(true);
@@ -76,8 +59,6 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       const found = findTarget(world, target, name => named.get(name));
       if (found === undefined) return undefined;
       const projected = found.point.clone().project(camera);
-      // On the glass sheet nothing is round the back: an island or a note hung under the glass is hidden only as `isDrawn`
-      // says, from whichever side the eye looks (3.63, ADR-1062 D4).
       const near = target.kind === "core" || sheet || underTheGlass(found.object) || found.point.clone().sub(centre).dot(facing) <= 0;
       let marked = target.kind !== "story";
       if (!marked) found.object.traverseVisible(object => {
@@ -92,7 +73,6 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
     stop(stop) {
       const world = host.world(); world.updateMatrixWorld(true);
       whole = undefined;
-      // 3.66: the glass sheet has no core to face; its whole map is the view it opens on, zoomed as asked.
       if (stop.target.kind === "core" && onTheSheet(world)) {
         if (!toWhole(stop)) return false;
         whole = stop;
@@ -102,11 +82,9 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       if (target === undefined || globe === undefined) return false;
       const from = current();
       const facing = stop.target.kind === "core" ? from.turn : turnToIsland(globe.worldToLocal(target.point.clone()));
-      // Take the short way round the poles, retaining the app's north-up yaw/pitch turn.
       const to = { turn: { yaw: nearestYaw(from.turn.yaw, facing.yaw), pitch: facing.pitch }, framing: stop.framing ?? from.framing, sideOffset: stop.sideOffset ?? from.sideOffset };
       return go(from, to, stop.duration ?? 600);
     },
-    // 3.37: back to the opening view, facing the way it opened however many times it was spun round.
     home(pose, duration = 600) {
       whole = undefined;
       const from = current();
@@ -116,16 +94,12 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       const from = current();
       return go(from, { ...to, turn: from.turn }, duration, true);
     },
-    // A glide cut short by another still lands its offset (`cancel`, `go` from the pose on show), so a panel's slide is measured
-    // from where the one under way ends: one closing mid-slide comes home, not past it.
     heading() {
       const now = current();
       return motion === undefined ? now : { ...now, framing: motion.to.framing, sideOffset: motion.to.sideOffset };
     },
     position: target => positions([target])[0],
     positions,
-    // A slide cut short by a drag or the wheel still ends beside the panel; its zoom is left where the wheel takes it, so
-    // the zoom on show is the wheel's from here, not a pose the guide wrote.
     cancel() {
       whole = undefined;
       const cut = motion;
@@ -142,12 +116,10 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       host.world().traverse(object => { if (object.name.startsWith("knowledge-point:")) notes.push(object.name.slice("knowledge-point:".length)); });
       return notes;
     },
-    // 3.51: the ground's own box, its eight corners projected, so a turned island is boxed as the camera sees it.
     islands() {
       const world = host.world(), camera = host.camera(), { width, height } = host.size();
       world.updateMatrixWorld(true); camera.updateMatrixWorld(true);
       const centre = world.getObjectByName("globe")?.getWorldPosition(new Vector3()) ?? new Vector3(), facing = camera.getWorldDirection(new Vector3());
-      // 3.51: on the glass sheet no island is round the back, whatever the tilt.
       const sheet = onTheSheet(world);
       const boxes: IslandBox[] = [];
       world.traverse(object => {
@@ -186,7 +158,6 @@ function findTarget(world: Object3D, target: GlobeTarget, byName = (name: string
   return { object, point: object.localToWorld(point) };
 }
 
-/** Three's raycaster includes invisible objects; every picker must check their ancestors too. */
 function underTheGlass(object: Object3D): boolean {
   for (let at: Object3D | null = object; at !== null; at = at.parent) if (at.name === "sheet:under") return true;
   return false;
@@ -197,7 +168,6 @@ export function isDrawn(object: Object3D): boolean {
   return true;
 }
 
-/** Whether the world is drawn on the glass sheet, where nothing lies round the back of anything (ADR-1043 D1). */
 function onTheSheet(world: Object3D): boolean {
   return world.getObjectByName("sheet:glass") !== undefined;
 }

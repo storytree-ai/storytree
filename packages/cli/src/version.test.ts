@@ -1,4 +1,4 @@
-/** Capability 1 · Front door, contract 1.9: `storytree --version` names the build it comes from. */
+// Capability 1 · Front door
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";

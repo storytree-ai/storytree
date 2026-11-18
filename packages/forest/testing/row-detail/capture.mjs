@@ -1,14 +1,9 @@
-// Pictures for the owner's look at contracts 7.2 and 7.8: a running session folded, its subagent counted by its "+N", then expanded to its worktrees and its subagent, with no Running or Files block.
-// The actual desktop page, built by ../sessions-list/build.mjs; all activity here is synthetic.
-// Run both through `node ~/.storytree/your-factory/plugins/micks-dev-loop/src/heavy-lock.mjs --`, from storytree's checkout root. --smoke builds its own page
-// into its build folder's smoke/, takes no pictures and skips the fixed rests, so a test proves every wait below still resolves in a real browser.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, buildFolder, captureSeed, fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildCapture, buildFolder, captureSeed, fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-// Pictures and measurements go to the package's evidence set of this name (a scratch folder unless --retake); nothing here reads them.
 const evidence = path.join(here, '../../evidence', 'row-detail');
 const smoke = process.argv.includes('--smoke');
 const dist = smoke ? buildFolder(here, 'smoke') : buildFolder(path.join(here, '../sessions-list'), 'production');
@@ -57,15 +52,12 @@ await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, set
   }, seed);
   await page.goto(`${origin}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.body.dataset.state === 'ready', null, { timeout: 15000 }).catch(async error => { console.error(errors, await page.evaluate(() => [document.body.dataset.state, document.body.innerText.slice(0, 400)])); throw error; });
-  // The map's first layout keeps a slow runner's page busy past a click's 30 s: let it settle under its own longer bound first.
   await settle(page, smoke ? 2 : 12);
-  // By exact name: a /^Close/ pattern also matched the arc board's Closed scope button, and clicking it switched the board's scope.
   for (const name of ['Close help', 'Close app menu']) { const button = page.getByRole('button', { name, exact: true }); if (await button.isVisible().catch(() => false)) await button.click(); }
-  await page.locator('[data-rail-tab="sessions"]').click(); // the sessions list is the left rail's Sessions tab (ADR-1219)
+  await page.locator('[data-rail-tab="sessions"]').click();
   const list = page.getByRole('complementary', { name: 'Running sessions', exact: true });
   const row = list.locator(`.session-row[data-session-id="${ids.builder}"]`);
   await row.waitFor();
-  // Every row's detail starts closed (forest 7.8), and the running builder's subagent waits behind its "+1" until it is expanded (7.2), as the folded picture shows it.
   await row.locator('.session-children', { hasText: '+1' }).waitFor();
   const helper = list.locator(`.session-row[data-session-id="${ids.helper}"]`);
   if (!smoke) { await page.waitForTimeout(500); await list.screenshot({ path: path.join(out, 'folded.png') }); }
@@ -76,7 +68,6 @@ await withCapture({ folder: evidence, dist }, async ({ browser, origin, out, set
   await row.getByRole('button', { name: /^Show detail/ }).click();
   const detail = list.locator('li', { has: page.locator(`.session-row[data-session-id="${ids.builder}"]`) }).locator('.session-detail');
   await detail.locator('.session-detail-worktrees li').first().waitFor();
-  // Its detail is its words, its worktrees and its children: no Running or Files block (7.8).
   const blocks = await detail.locator('.session-detail-label').allTextContents();
   assert.deepEqual(await detail.locator('.session-detail-worktrees li').evaluateAll(items => items.map(item => [item.textContent, item.title])),
     trees.map(tree => [path.basename(tree), tree]), 'each worktree by its folder name, its full path on hover');

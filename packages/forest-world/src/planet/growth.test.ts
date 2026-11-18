@@ -9,7 +9,6 @@ const island = (story: string, capabilities: string[], files: string[] = []): Is
   ...(files.length ? { land: { territories: [], files: files.map(path => ({ path, lines: 10 })) } } : {}),
 });
 const end = (w: GrowthWindow) => w.start + w.seconds;
-// Recorded: a and b are planned with no links; later b builds on a, and c arrives building on b.
 const stages: { id: string; scene: ForestScene }[] = [
   { id: 'stories', scene: { islands: [island('a', ['a1']), island('b', ['b1'])], links: [] } },
   { id: 'same', scene: { islands: [island('a', ['a1']), island('b', ['b1'])], links: [] } },
@@ -22,21 +21,17 @@ test('5.1 a growth replays only what the recording holds, in its stages\' order,
   assert.deepEqual([...plan.islands.keys()].sort(), ['a', 'b', 'c']);
   assert.deepEqual([...plan.roads.keys()].sort(), ['b1->a1', 'c1->b1']);
   assert.deepEqual([...plan.capabilities.keys()].sort(), ['a1', 'a2', 'b1', 'c1']);
-  // A stage that adds nothing takes no time; the next stage starts after everything earlier has finished.
   assert.deepEqual(plan.stages.map(s => s.id), ['stories', 'linked']);
   const linked = plan.stages[1]!.start;
   for (const story of ['a', 'b']) assert.ok(end(plan.islands.get(story)!) <= linked, `${story} rose in its own stage`);
   for (const w of [...plan.roads.values(), plan.capabilities.get('a2')!, plan.islands.get('c')!]) assert.ok(w.start >= linked);
-  // Causal: a road leaves its built-on island once settled; the dependent rises when it arrives.
   const road = plan.roads.get('c1->b1')!;
   assert.ok(road.start >= end(plan.islands.get('b')!));
   assert.ok(Math.abs(plan.islands.get('c')!.start - end(road)) < 1e-9, 'c rises as its road arrives');
-  // Parts joining a standing island fill in one after another from their stage's start, never before it.
   const joined = growthPlan([{ id: 'one', scene: { islands: [island('a', ['a1'])], links: [] } },
     { id: 'two', scene: { islands: [island('a', ['a1', 'a2', 'a3'])], links: [] } }]);
   const [a2, a3] = ['a2', 'a3'].map(c => joined.capabilities.get(c)!.start);
   assert.ok(a2! >= joined.stages[1]!.start && a3! > a2!, 'a3 follows a2, both inside their stage');
-  // A link whose ends are not both recorded is never drawn.
   const orphan = growthPlan([{ id: 'x', scene: { islands: [island('a', ['a1'])], links: [{ from: 'z9', to: 'a1' }] } }]);
   assert.deepEqual([...orphan.roads.keys()], []);
 });
@@ -46,16 +41,13 @@ test('5.1 within one saved reading, islands nothing reaches start spread over a 
   const [a, b, c] = ['a', 'b', 'c'].map(s => plan.islands.get(s)!);
   assert.ok(b!.start >= end(plan.roads.get('b1->a1')!) - 1e-9 && c!.start >= end(plan.roads.get('c1->b1')!) - 1e-9);
   assert.ok(a!.start < b!.start && b!.start < c!.start);
-  // Roads are still drawing while islands rise: one interleaved arrival, not islands then roads.
   assert.ok(plan.roads.get('c1->b1')!.start < c!.start);
-  // Islands only on a cycle nothing reaches still rise, after the rest.
   const cycle = growthPlan([{ id: 'c', scene: { islands: [island('a', ['a1']), island('p', ['p1']), island('q', ['q1'])],
     links: [{ from: 'p1', to: 'q1' }, { from: 'q1', to: 'p1' }] } }]);
   assert.deepEqual([...cycle.islands.keys()].sort(), ['a', 'p', 'q']);
 });
 
 test('5.1 a part that moves to another island takes its roads with it: drawn where it now stands, a road waits for that island to rise', () => {
-  // Recorded: a2 builds on a1 inside a; later a2 is moved to a new story m, still building on a1.
   const plan = growthPlan([
     { id: 'one', scene: { islands: [island('a', ['a1', 'a2'])], links: [{ from: 'a2', to: 'a1' }] } },
     { id: 'moved', scene: { islands: [island('a', ['a1']), island('m', ['a2'])], links: [{ from: 'a2', to: 'a1' }] } },
@@ -64,7 +56,6 @@ test('5.1 a part that moves to another island takes its roads with it: drawn whe
   assert.ok(road.start >= plan.stages[1]!.start, 'the road draws in the stage that put a2 on m, not in the one that had it on a');
   assert.ok(Math.abs(m.start - end(road)) < 1e-9, 'm rises as the road arrives');
   assert.ok(plan.capabilities.get('a2')!.start >= m.start, 'a2 fills in behind m rising');
-  // Recorded as the plan was edited: the stage that moves a2 carries none of its links yet, and the next carries them again.
   const later = growthPlan([
     { id: 'one', scene: { islands: [island('a', ['a1', 'a2'])], links: [{ from: 'a2', to: 'a1' }] } },
     { id: 'moved', scene: { islands: [island('a', ['a1']), island('m', ['a2'])], links: [] } },
@@ -113,7 +104,6 @@ test('5.4 the globe given a growth hides what has not risen, and ends as the glo
   const half = plateGrowth(0.5);
   assert.ok(half.visible && half.scale > 0 && half.scale < 1 && half.sink > 0 && half.sink < 1);
   assert.deepEqual(plateGrowth(1), { visible: true, scale: 1, sink: 0 });
-  // At its end every island is whole and every crossing has arrived.
   const plan = growthPlan(stages, { fromPoint: true, seconds: 12 });
   for (const w of [plan.globe!, ...plan.islands.values(), ...plan.roads.values()]) assert.equal(growthProgress(w, plan.seconds, false), 1);
 });
@@ -129,9 +119,7 @@ test('5.5 a recorded date falls in the replay where it fell between the dated st
   assert.deepEqual(plan.stages.map(s => s.at), [dated[0]!.at, dated[2]!.at], 'each stage keeps the date it was recorded');
   assert.ok(Math.abs(growthMoment(plan, dated[0]!.at) - stories!.start) < 1e-9);
   assert.ok(Math.abs(growthMoment(plan, dated[2]!.at) - linked!.start) < 1e-9);
-  // Between two stages, in proportion; a stage that added nothing (11:00) moves nothing.
   assert.ok(Math.abs(growthMoment(plan, '2026-10-01T10:30:00.000Z') - (stories!.start + (linked!.start - stories!.start) / 4)) < 1e-9);
-  // After the last stage, toward the recording's end, reached as the growth ends; outside the recording, held at its edges.
   assert.ok(Math.abs(growthMoment(plan, '2026-10-01T13:00:00.000Z') - (linked!.start + plan.seconds) / 2) < 1e-9);
   assert.equal(growthMoment(plan, '2026-10-01T14:00:00.000Z'), plan.seconds);
   assert.equal(growthMoment(plan, '2026-10-02T00:00:00.000Z'), plan.seconds);
@@ -139,7 +127,6 @@ test('5.5 a recorded date falls in the replay where it fell between the dated st
   const dates = ['2026-10-01T09:00:00.000Z', '2026-10-01T10:10:00.000Z', '2026-10-01T11:59:00.000Z', '2026-10-01T12:01:00.000Z', '2026-10-01T15:00:00.000Z'];
   const moments = dates.map(d => growthMoment(plan, d));
   assert.ok(moments.every((m, i) => i === 0 || m >= moments[i - 1]!), 'a later date is never earlier in the replay');
-  // A recording with no dates places every date at its first stage.
   assert.equal(growthMoment(growthPlan(stages), '2026-10-01T13:00:00.000Z'), 0);
 });
 

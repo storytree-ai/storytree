@@ -1,8 +1,4 @@
-/**
- * Capability 1 · Front door. A verb's words after `storytree <family> <verb>`: the words it takes in order, and its flags,
- * `--name value` or `--name=value`, each kept in the order given. A verb names the flags that are
- * switches (`--current`), which take no value. After `--`, every word is taken in order.
- */
+// Capability 1 · Front door
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -19,47 +15,35 @@ export class Args {
     this.#cwd = cwd;
   }
 
-  /** The flags given, by name, in the order first given. */
   get names(): readonly string[] {
     return [...this.#flags.keys()];
   }
 
-  /** Whether flag `name` was given. */
   has(name: string): boolean {
     return this.#flags.has(name);
   }
 
-  /** Flag `name`'s value, the last given, read from a file when it is `@file`; undefined when not given. */
   text(name: string): string | undefined {
     const value = this.#flags.get(name)?.at(-1);
     return value === undefined ? undefined : this.read(value);
   }
 
-  /** Every value given for flag `name`, each read from its file when it is `@file`. */
   texts(name: string): string[] {
     return (this.#flags.get(name) ?? []).map((value) => this.read(value));
   }
 
-  /** Flag `name`'s value, or a refusal saying the verb needs it. */
   need(name: string, usage: string): string {
     const value = this.text(name);
     if (value === undefined) throw new Refusal(`this needs --${name}\nusage: storytree ${usage}`, { code: 2 });
     return value;
   }
 
-  /** The word at `index`, or a refusal naming what is missing. */
   word(index: number, what: string, usage: string): string {
     const word = this.words[index];
     if (word === undefined) throw new Refusal(`this needs ${what}\nusage: storytree ${usage}`, { code: 2 });
     return word;
   }
 
-  /**
-   * `value`, or the text of the file it names when it is `@file` (relative to the folder the command
-   * runs in), without a leading byte-order mark: PowerShell 5.1's `Set-Content -Encoding utf8` writes one.
-   * An `@` value holding whitespace that names no file is prose (`@storytree/cli now …`), kept as written;
-   * a one-word one is a path, so a mistyped file is refused rather than stored as its own name.
-   */
   read(value: string): string {
     if (!value.startsWith("@") || value.length === 1) return value;
     const file = path.resolve(this.#cwd, value.slice(1));
@@ -73,7 +57,6 @@ export class Args {
   }
 }
 
-/** Parse `tokens`, taking `switches` as flags with no value. */
 export function parseArgs(tokens: readonly string[], switches: readonly string[], cwd: string): Args {
   const words: string[] = [];
   const flags = new Map<string, string[]>();
@@ -108,7 +91,6 @@ export function parseArgs(tokens: readonly string[], switches: readonly string[]
   return new Args(words, flags, cwd);
 }
 
-/** Comma-separated ids: refuse a shell-joined word, never infer its intended ids. */
 export function commaSeparatedIds(value: string, name: string): string[] {
   const ids = value.split(",").map((one) => one.trim()).filter((one) => one !== "");
   if (ids.some((id) => /\s/.test(id))) {

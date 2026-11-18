@@ -1,8 +1,3 @@
-// A stand-in for the storytree app, for the doctor's test that storytree is opened when closed:
-// started as `stub-app.mjs <dataDir> <serverDataDir> <testPid>`, it writes the owner record the app's
-// Postgres keeps beside its data directory: the test Postgres's own (`<serverDataDir>.owner.json`, so
-// its port, token and sign-in metadata agree with any handoff the test placed), naming itself. It
-// lives only as long as its test, not the short-lived doctor command that launches it detached.
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -11,7 +6,6 @@ const parent = Number(testPid);
 if (!Number.isInteger(parent) || parent <= 0) throw new Error("the stand-in needs its test owner's PID");
 
 function stop() {
-  // This is only the stand-in's disposable home, never the shared test Postgres's directory.
   rmSync(path.dirname(dataDir), { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   process.exit();
 }

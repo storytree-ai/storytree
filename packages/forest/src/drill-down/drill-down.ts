@@ -1,156 +1,87 @@
-/**
- * Capability 4 · Drill-down (the forest story): what the panel a click on a story node opens says.
- * It explains the story in plain words: its sentences, and below them one capability, the one selected
- * on the island: its sentences, its health as the agent reports it, and its contracts on request (ADR-0659).
- * The island draws how the capabilities connect, so the panel carries no diagram of its own.
- *
- * Its shelf: the user's agent writes every description, and storytree writes none (ADR-0625 D1),
- * so a missing one says so. Each contract shows whether the agent reported it red before green,
- * from the history the library keeps (ADR-0630 D2): the page already holds that history, since the
- * live reading hands on the library's changes, health saves included. Storytree's own column shows
- * only where something wrote it. Front covers are not shown here (ADR-0659 D4).
- *
- * Everything here is a pure function of what the app hands the page, so it is tested without one.
- */
+// Capability 4 · Drill-down
 import type { AnnotatedContract, AnnotatedStory, AnnotatedTree, CapabilityStatus, CapabilityWhy, Change, EarlierVerdict, HealthColumn, HealthSource, HealthState, OpenWait } from "@storytree/library";
 
 
 import { grove, type PartStates } from "../capability-tree/capability-tree.js";
 import { microscope, type Microscope, type ScopeSurvey } from "./microscope.js";
 
-/** One contract, as the panel lists it on request. */
 export interface ContractLine {
   id: string;
   title: string;
-  /** Its health as the agent reports it now: the agent's word. */
   reported: HealthState;
-  /** What the agent reported over time, in words: "red, then green", "green only", "not reported yet". */
   trail: string;
-  /** Storytree's own column, only where something wrote it. */
   verified?: HealthState;
-  /** Where storytree saw it, verified locally or read from CI, when its entry says (ADR-1193 D3). */
   source?: HealthSource;
-  /** The verdict storytree last saw for it, when the latest run did not reproduce it: "not re-run" (ADR-0825 D2). */
   lastSeen?: EarlierVerdict;
-  /** The run that last judged it passing or failing: when, and the tests it named, when its entry kept them (Fable's F2.4). */
   ran?: { at: string; tests?: string[] };
-  /**
-   * The gear: storytree's run of its tests, coloured by CI's newest reading wherever CI read it, else by the newest reading,
-   * else not run (question_32b645261409, Mick's answer A with CI over local). Every contract not marked for agentic user
-   * acceptance testing has one; a marked one only where a run reached it.
-   */
   gear?: CheckReading;
-  /** The newest reading, a local run's, when it came after the CI reading the gear shows: said in the opened row alone. */
   local?: CheckReading;
-  /**
-   * Agentic user acceptance testing's state, only on a contract whose proof is marked for it (ADR-1294 D1): the robot. It
-   * reads "not-run" until a run writes a verdict (increment_eab89906c217).
-   */
   acceptance?: AcceptanceState;
 }
 
-/** One reading of storytree's run of a contract's tests: its state, where it was seen and when, where its entry says. */
 export interface CheckReading {
   state: HealthState;
   source?: HealthSource;
   at?: string;
 }
 
-/** Where agentic user acceptance testing stands on a contract marked for it. */
 export type AcceptanceState = "passed" | "failed" | "not-run";
 
-/** Why a capability is not healthy, and who moves it, with its contracts named for the owner (ADR-0825 D1). */
 export interface WhyLine {
   reason: CapabilityWhy["reason"];
   mover: CapabilityWhy["mover"];
-  /** The contracts carrying the reason, each by the number its title starts with, else its title. */
   contracts: string[];
-  /** The earliest time one of them was recorded so, when a time was recorded. */
   since?: string;
-  /** Where storytree saw the contracts carrying it, local before CI, when their entries say. */
   sources?: HealthSource[];
 }
 
-/** One capability, as the panel explains it. */
 export interface CapabilityLine {
   id: string;
   title: string;
-  /** Its sentences, or NO_DESCRIPTION. */
   description: string;
-  /** Its health as the agent reports it, rolled up from its contracts. */
   reported: HealthState;
-  /** Storytree's own column, only where something wrote it for one of its contracts. */
   verified?: HealthState;
-  /** Where storytree saw its contracts, local before CI, when their entries say (ADR-1193 D3). */
   sources?: HealthSource[];
-  /** Its word, as the library gives it: proposed, healthy, unhealthy or untested (ADR-0744). */
   status: CapabilityStatus;
   contracts: ContractLine[];
-  /** Why it is not healthy; absent when it is healthy, and when it is report-only. */
   why?: WhyLine;
-  /** Built, in a project nothing verifies (ADR-0630): it leads with the agent's report instead of its word. */
   reportOnly?: true;
-  /** The arcs that park it, when it is not proven and parked on purpose (ADR-0992 D6): its card names them. */
   parkedOn?: { arc: string; title: string }[];
-  /**
-   * The open increments naming it, in the library's order: the active ones first, then parked order (ADR-1253 D1), each with
-   * what still holds it, when something does (5.28): the first is the one the lead names as moving it (4.49).
-   */
   openWork?: { increment: string; title: string; active?: true; waits?: OpenWait[] }[];
 }
 
-/** An edge of the story (ADR-1282 D1): one capability depending on another of the story, with the edge's own contracts. */
 export interface EdgeLine {
   from: string;
   fromTitle: string;
   to: string;
   toTitle: string;
-  /** What passes between the two, in its own words; absent when nobody has written it. */
   description?: string;
-  /** Its contracts, each a line as a capability's contracts carry, never either capability's own. */
   contracts: ContractLine[];
 }
 
-/** The panel for one story. */
 export interface StoryPanel {
   story: string;
   title: string;
   description: string;
-  /** In build order. */
   capabilities: CapabilityLine[];
-  /** The edges between its capabilities, which a picked gate lists (ADR-1282 D1); present when it has any. */
   edges?: EdgeLine[];
-  /** Present for a mapped story (ADR-0993 D3), which shows no health: its file and line counts once its survey has read them. */
   mapped?: { files?: number; lines?: number };
-  /**
-   * The story's own extra checks, then each capability's, named with its capability; present when it has any. Its
-   * risk rating is switched off (question_0de2b8280384), so the panel carries none.
-   */
   checks?: ExtraCheck[];
-  /** What the panel's microscope shows of the story, its capabilities and their parts (ADR-1350 D2); present when it has capabilities. */
   microscope?: Microscope;
 }
 
-/** An extra check only this story or one of its capabilities carries; standard unit and integration tests are not listed. */
 export interface ExtraCheck {
   check: string;
   trigger: NonNullable<AnnotatedStory["guardrails"]>[number]["trigger"];
   capability?: string;
 }
 
-/** What stands in for a description nobody has written. */
 export const NO_DESCRIPTION = "no description yet";
 
-/** The words for each reported state in a trail. */
 const WORD: Readonly<Record<HealthState, string>> = { passing: "green", failing: "red", "not-checked": "not checked" };
 
-/** A story's code survey as the panel reads it: its files' lines, and for the microscope their capabilities, imports, edges and parts. */
 type SurveyedFiles = ScopeSurvey;
 
-/**
- * The panel for story `story` of `tree`, or undefined if the tree has no such story. `history` is the project's changes from the start,
- * and `survey` its code's survey by story, which counts a mapped story's files and lines.
- */
 export function drillDown(tree: AnnotatedTree, story: string, states: PartStates, history: readonly Change[], survey: Readonly<Record<string, SurveyedFiles>> = {}): StoryPanel | undefined {
   const found = tree.stories.find(({ id }) => id === story);
   if (found === undefined) return undefined;
@@ -204,7 +135,6 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
   return { story: found.id, title: found.title, description: sentences(found.description), capabilities, ...(edges.length === 0 ? {} : { edges }), ...(mapped === undefined ? {} : { mapped }), ...(checks.length === 0 ? {} : { checks }), ...(scope === undefined ? {} : { microscope: scope }) };
 }
 
-/** Contracts in the order their numbers say ("6.2 · …" before "6.10 · …"), the unnumbered after them, each kept in the library's order. */
 function numbered<T extends { title: string }>(contracts: readonly T[]): T[] {
   const number = (title: string): number[] | undefined => /^(\d+)\.(\d+) · /.exec(title)?.slice(1).map(Number);
   return [...contracts].sort((one, other) => {
@@ -214,7 +144,6 @@ function numbered<T extends { title: string }>(contracts: readonly T[]): T[] {
   });
 }
 
-/** `story`'s own extra checks, then each of its capabilities'. */
 function extraChecks(story: AnnotatedStory): ExtraCheck[] {
   return [
     ...(story.guardrails ?? []).map(({ check, trigger }) => ({ check, trigger })),
@@ -237,11 +166,6 @@ function contractLine(contract: AnnotatedContract, trail: readonly HealthState[]
   };
 }
 
-/**
- * A contract's gear, from storytree's run alone: CI's newest reading wherever CI read it, so a later local pass never hides a
- * failing CI, with that local reading kept beside it for the opened row; else the newest reading; else not run. A contract
- * marked for agentic user acceptance testing has a gear only where a run reached it.
- */
 function gearOf({ health: { verified, ci }, proof }: AnnotatedContract): Pick<ContractLine, "gear" | "local"> {
   const newest = written(verified) ? verified : undefined;
   const shown = ci ?? newest;
@@ -254,10 +178,6 @@ function checkReadingOf({ state, source, at }: HealthColumn): CheckReading {
   return { state, ...(source === undefined ? {} : { source }), ...(at === undefined ? {} : { at }) };
 }
 
-/**
- * `why` with its contract ids turned into what the owner reads: the number their title starts with ("8.1 · …"), else the title;
- * with the sources of the contracts carrying it, from their lines.
- */
 function whyLine({ reason, mover, contracts, since }: CapabilityWhy, all: readonly AnnotatedContract[], lines: readonly ContractLine[]): WhyLine {
   const titles = new Map(all.map(({ id, title }) => [id, title]));
   const named = contracts.map((id) => /^(\d+\.\d+) · /.exec(titles.get(id) ?? "")?.[1] ?? titles.get(id) ?? id);
@@ -265,27 +185,22 @@ function whyLine({ reason, mover, contracts, since }: CapabilityWhy, all: readon
   return { reason, mover, contracts: named, ...(since === undefined ? {} : { since }), ...(sources === undefined ? {} : { sources }) };
 }
 
-/** The sources some contract lines say, local before CI; undefined when none says one. */
 function sourcesOf(lines: readonly ContractLine[]): HealthSource[] | undefined {
   const said = SOURCES.filter((source) => lines.some((line) => line.source === source));
   return said.length === 0 ? undefined : said;
 }
 
-/** The sources, in the order they are said. */
 const SOURCES: readonly HealthSource[] = ["local", "ci"];
 
-/** The run a verified column's passing or failing entry records, with the tests it named; a not-checked one is no run of its tests. */
 function ranOf({ state, at, tests }: HealthColumn): { ran?: NonNullable<ContractLine["ran"]> } {
   if (at === undefined || state === "not-checked") return {};
   return { ran: { at, ...(tests === undefined ? {} : { tests: [...tests] }) } };
 }
 
-/** Whether a column has an entry: a contract's column carries its time once something wrote it. */
 function written(column: HealthColumn): boolean {
   return column.at !== undefined;
 }
 
-/** Each contract's reported states, oldest first, from the history's health saves. */
 function reportedTrails(history: readonly Change[]): Map<string, HealthState[]> {
   const trails = new Map<string, HealthState[]>();
   for (const change of history) {
@@ -297,7 +212,6 @@ function reportedTrails(history: readonly Change[]): Map<string, HealthState[]> 
   return trails;
 }
 
-/** A trail in words, each change of state once: "red, then green"; a single state is "green only". */
 function trailWords(trail: readonly HealthState[]): string {
   const steps = trail.filter((state, index) => state !== "not-checked" && state !== trail[index - 1]);
   if (steps.length === 0) return "not reported yet";

@@ -1,8 +1,4 @@
-/**
- * Capability 3 · Story node render: the selected island's roads drawn sandy and faint, the borders quietened and cut
- * open at each gate, a post either side of every gate (ADR-1236 D1, rollout 2 step 3); a road takes no click, so a click on
- * it picks what lies under it (3.15), and a picked gate is ringed (3.88).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Box3, Color, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, PerspectiveCamera, Raycaster, Vector3, type Object3D } from "three";
@@ -25,7 +21,6 @@ const links = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "c", to
 const docks = [{ local: { x: R, z: 0 }, links: ["z1->a", "z2->b"] }];
 const map = linkLayout(shares, coast, links, docks);
 const roads = islandRoads(map, links, docks, capabilityPlates(map));
-// Six capabilities where b's road to e must go under a third territory (ADR-1253 D3).
 const sixShares = ["a", "b", "c", "d", "e", "f"].map((capability, i) => ({ capability, title: `${i + 1} · ${capability.toUpperCase()}`, lines: 900 - 120 * i }));
 const sixLinks = [{ from: "z1", to: "a" }, { from: "z2", to: "b" }, { from: "a", to: "b" }, { from: "c", to: "a" }, { from: "b", to: "e" }, { from: "a", to: "f" },
   { from: "e", to: "c" }, { from: "b", to: "a" }, { from: "c", to: "e" }];
@@ -39,7 +34,6 @@ const toSegment = (p: Point, a: Point, b: Point) => {
 test("3.77 the selected island's borders are quietened and cut open at every gate and every stretch of open road; any other island's are whole", () => {
   assert.ok(roads.gates.length > 0);
   const ground = (lines: LineSegments) => { const g = lines.userData.ground as number[]; return Array.from({ length: g.length / 4 }, (_, i) => [{ x: g[4 * i]!, z: g[4 * i + 1]! }, { x: g[4 * i + 2]!, z: g[4 * i + 3]! }] as const); };
-  // The six capabilities' island has open road as well as gates.
   const sixRoads = islandRoads(sixMap, sixLinks, docks, capabilityPlates(sixMap));
   assert.ok(sixRoads.passes.length > 0, "open road to cut");
   for (const [island, routed] of [[map, roads], [sixMap, sixRoads]] as const) {
@@ -50,7 +44,6 @@ test("3.77 the selected island's borders are quietened and cut open at every gat
       assert.ok(ground(whole).some(([a, b]) => toSegment(opening.at, a, b) < 1e-6), "it stands on a border");
       for (const [a, b] of ground(cut)) assert.ok(toSegment(opening.at, a, b) > opening.opening / 2 - 1e-6, "no border line across its opening");
     }
-    // A line cut short stops at an opening's edge, on the line it stands on or one meeting it at a corner, and no further back.
     for (const end of ground(cut).flat()) if (!wholeEnds.some((p) => Math.hypot(p.x - end.x, p.z - end.z) < 1e-9)) {
       assert.ok(openings.some((o) => Math.abs(Math.hypot(o.at.x - end.x, o.at.z - end.z) - o.opening / 2) < 1e-6), "a border line stops at the edge of an opening");
     }
@@ -131,7 +124,6 @@ test("3.79 · no settlement symbol is drawn: each territory's roads meet at a ju
       assert.ok(p.getY(k) > 0, "on the land");
       high = Math.max(high, p.getY(k));
       if (raised > relief.scale * 0.1) topReach = Math.max(topReach, d);
-      // The step's foot, round the light's side and the side away from it.
       const toward = d > 0 ? (x * -Math.SQRT1_2 + z * -Math.SQRT1_2) / d : 0, colour = new Color(c.getX(k), c.getY(k), c.getZ(k));
       if (raised < 1e-6 && toward > 0.9) lit.push(colour);
       if (raised < 1e-6 && toward < -0.9) away.push(colour);
@@ -152,14 +144,12 @@ test("3.88 · a gate picks the pair of capabilities whose territories it joins, 
   const land = territoryLand(map, flat, coast, new Map(), roads);
   const marks = islandRoadMarks(roads, flat, landFill(map, land), islandRelief(map, roads));
   roads.gates.forEach((g, i) => assert.deepEqual(gateOf(marks.getObjectByName(`gate-post:${i}:1`)!), { gate: i, between: g.between }, "every gate picks itself and its two sides"));
-  // Its two sides are the land either side of the border it stands on: each a capability's territory, or open land.
   const sideAt = (m: typeof map, p: Point) => { const cell = m.cells.reduce((b, c) => (Math.hypot(c.site.x - p.x, c.site.z - p.z) < Math.hypot(b.site.x - p.x, b.site.z - p.z) ? c : b)); return cell.territory < 0 ? "open" : m.territories[cell.territory]!.capability!; };
   const sides = (m: typeof map, g: (typeof roads.gates)[number]) => [-1, 1].map((k) => sideAt(m, { x: g.at.x - g.along.z * k * 0.8, z: g.at.z + g.along.x * k * 0.8 })).sort();
   roads.gates.forEach((g) => assert.deepEqual(g.between, sides(map, g), "a gate joins the two territories either side of it"));
   const into = (link: string) => roads.gates.find((g) => g.entrances.includes(link))!;
   assert.deepEqual(into("d->c").between, ["c", "d"], "d depends on c: the gate joins c and d");
   assert.deepEqual(into("c->a").between, ["a", "c"], "c depends on a: the gate joins a and c");
-  // A link from d to a shares one gate into a with c's: whichever way they run, it picks the two sides it stands between.
   const through = [...links, { from: "d", to: "a" }], laid = linkLayout(shares, coast, through, docks), more = islandRoads(laid, through, docks, capabilityPlates(laid));
   const shared = more.gates.findIndex((g) => g.entrances.length > 1);
   assert.deepEqual(more.gates[shared]!.entrances, ["c->a", "d->a"], "two links' gates together shared");
@@ -210,7 +200,6 @@ test("3.88 · a click on a gate picks the gate, and the selection that click mak
   assert.equal(gateAfterSelection(picked, "other"), undefined, "selecting another puts it out");
 });
 
-/** A click straight down on `at` over `world`, as an eye far above it sees it. */
 const clickAt = (world: Object3D, at: Point) => {
   const camera = new PerspectiveCamera(30, 1, 0.1, 1000);
   camera.position.set(at.x, 300, at.z);

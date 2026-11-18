@@ -1,10 +1,8 @@
-/** Capability 6 · Social sign-in and session. */
+// Capability 6 · Social sign-in and session
 import { setTimeout } from "node:timers/promises";
 import { TokenRefused, workosTokenVerifier } from "./workos-token.js";
 
-/** Only this reviewed identity crosses into a CLI answer or feedback draft. */
 export interface SignedInUser { readonly id: string; readonly email: string }
-/** Private refresh-token persistence. The host must serialize commands sharing a store. */
 export interface SessionStore {
   read(): Promise<string | undefined>;
   write(refreshToken: string): Promise<void>;
@@ -26,7 +24,6 @@ const expired = () => new SignInError("The sign-in code expired. Start sign-in a
 const cancelled = () => new SignInError("Sign-in cancelled.");
 const api = "https://api.workos.com/user_management/";
 
-/** Public-client device authorization. No API key, provider secret, or unverified identity is accepted. */
 export function createIdentityClient(config: ClientConfiguration) {
   if (!/^client_[A-Za-z0-9_-]+$/.test(config.clientId)) throw new Error("Sign-in needs a public WorkOS client ID.");
   const request = config.fetch ?? fetch;
@@ -38,7 +35,6 @@ export function createIdentityClient(config: ClientConfiguration) {
     body: new URLSearchParams({ client_id: config.clientId, ...fields }),
   }, signal);
   const check = workosTokenVerifier(config.clientId, request);
-  /** The exchange's user, only once its access token verifies against the client's published keys. */
   const resolve = async (data: Record<string, unknown>): Promise<SignedInUser> => {
     const account = data.user;
     if (typeof account !== "object" || account === null) throw refused();
@@ -47,7 +43,6 @@ export function createIdentityClient(config: ClientConfiguration) {
     try { return await check(String(data.access_token), { id, email, emailVerified }); }
     catch (error) { throw error instanceof TokenRefused ? refused() : unavailable(); }
   };
-  // Serialize one instance; a CLI host uses withSessionStore to serialize across processes too.
   let active = false;
   const exclusive = async <T>(act: () => Promise<T>) => {
     if (active) throw new SignInError("A sign-in command is already running. Finish or cancel it first.");
@@ -57,7 +52,6 @@ export function createIdentityClient(config: ClientConfiguration) {
   return {
     signIn: (show: (prompt: DevicePrompt) => void | Promise<void>, signal?: AbortSignal): Promise<SignedInUser> => exclusive(async () => {
       if (signal?.aborted) throw cancelled();
-      // Explicit sign-in replaces the local session; failures remain signed out.
       await config.store.clear();
       const authorization = await post("authorize/device", {}, signal);
       if (!authorization.ok) throw unavailable();
@@ -84,7 +78,6 @@ export function createIdentityClient(config: ClientConfiguration) {
             return user;
           }
           if (result.data.error === "authorization_pending") continue;
-          // RFC 8628 section 3.5: add five seconds, for this and all subsequent requests.
           if (result.data.error === "slow_down") { interval += 5; continue; }
           if (result.data.error === "access_denied") throw new SignInError("Sign-in was denied. Storytree still works without an account.");
           if (result.data.error === "expired_token") throw expired();
@@ -103,7 +96,6 @@ export function createIdentityClient(config: ClientConfiguration) {
       if (result.data.error === "invalid_grant" && result.status === 400) { await config.store.clear(); return null; }
       if (!result.ok) throw unavailable();
       const { refreshToken } = tokens(result.data);
-      // Refresh tokens rotate: keep the replacement even if WorkOS's keys are temporarily unreachable.
       await config.store.write(refreshToken);
       try { return await resolve(result.data); }
       catch (error) {
@@ -111,7 +103,6 @@ export function createIdentityClient(config: ClientConfiguration) {
         throw error;
       }
     }),
-    /** Local sign-out: no claim to revoke a browser's hosted WorkOS cookie. */
     signOut: (): Promise<void> => exclusive(() => config.store.clear()),
   };
 }
@@ -128,7 +119,6 @@ function caller(request: typeof fetch) {
     }
   };
 }
-/** True when the session was refused, as opposed to WorkOS being unreachable. */
 function isRefused(error: unknown): boolean { return error instanceof SignInError && error.message === refused().message; }
 
 function object(value: unknown): Record<string, unknown> {

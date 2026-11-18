@@ -1,8 +1,7 @@
-/** Capability 5 · Portable user identity. */
+// Capability 5 · Portable user identity
 import { IdentityVerificationError } from "./service.js";
 import { IdentityConflictError, type StorytreeUser } from "./store.js";
 
-/** Server-side fetch boundary; the authorized host supplies its initialized, private identity service. */
 export function createIdentityHandler(service: { resolve(accessToken: string): Promise<StorytreeUser> }) {
   return async (request: Request): Promise<Response> => {
     const reply = (status: number, body: unknown) => Response.json(body, {
@@ -15,7 +14,6 @@ export function createIdentityHandler(service: { resolve(accessToken: string): P
     if (!match?.[1]) return reply(401, { error: "Sign in again." });
     try {
       const user = await service.resolve(match[1]);
-      // Provider subjects and the replaceable WorkOS pointer never cross this boundary.
       return reply(200, { id: user.id, email: user.firstVerifiedEmail });
     } catch (error) {
       if (error instanceof IdentityVerificationError) return reply(401, { error: "Sign in again." });

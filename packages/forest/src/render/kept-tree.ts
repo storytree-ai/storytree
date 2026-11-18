@@ -1,11 +1,4 @@
-/**
- * Capability 3 · Story node render. The project's tree the forest last drew, kept in the page's storage so the next start draws it at
- * once, marked as not yet fresh, while the first read crosses the network. The forest owns its key
- * and judges the shape, so a tree kept by an older build is not drawn. Beside it the forest keeps what
- * it drew the tree with: the code's survey, the order the stories were created in and where each
- * capability stands, so the kept drawing is laid out as the fresh one will be and a start on an
- * unchanged project lays the globe out once.
- */
+// Capability 3 · Story node render
 import { pageKept, type Kept, type PageStorage } from "@storytree/arc-surface";
 import type { AnnotatedTree, Change, StorySurvey } from "@storytree/library";
 
@@ -22,22 +15,17 @@ function isAnnotatedTree(value: unknown): value is AnnotatedTree {
       && story.capabilities.every((capability) => hasNode(capability) && Array.isArray(capability.dependsOn) && Array.isArray(capability.contracts)));
 }
 
-/** Project `project`'s kept tree; `storage` is the page's own unless handed one. */
 export function keptTree(project: string, storage?: PageStorage | null): Kept<AnnotatedTree> {
   const key = `${KEPT_TREE_KEY}${project}`;
   return storage === undefined ? pageKept(key, isAnnotatedTree) : pageKept(key, isAnnotatedTree, storage);
 }
 
-/** What the forest drew its kept tree with, as kept: the survey without its tests, which nothing drawn reads (about 40% of it for storytree itself). */
 interface Drawing {
   survey: Record<string, StorySurvey>;
-  /** The stories in the order they were created: the ties in a row go by it. */
   created: string[];
-  /** Each capability that is not planned, and where it stands. */
   parts: Record<string, Exclude<PartState, "planned">>;
 }
 
-/** What the kept tree is drawn with: the forest scene's history, work states and survey. */
 export interface KeptDrawing {
   survey: Readonly<Record<string, StorySurvey>>;
   created: readonly Pick<Change, "type" | "action" | "recordId">[];
@@ -52,7 +40,6 @@ function isDrawing(value: unknown): value is Drawing {
     && value.created.every((id) => typeof id === "string") && Object.values(value.parts).every((state) => PARTS.has(state));
 }
 
-/** What to keep of a drawing of `tree` with `history`, `states` and `survey`, as the forest scene was handed them. */
 export function drawingOf(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], states: PartStates,
   survey: Readonly<Record<string, StorySurvey>>): Drawing {
   const parts: Drawing["parts"] = {};
@@ -67,7 +54,6 @@ export function drawingOf(tree: AnnotatedTree, history: readonly Pick<Change, "t
   };
 }
 
-/** What project `project`'s kept tree was drawn with, read back as the forest scene takes it; `storage` is the page's own unless handed one. */
 export function keptDrawing(project: string, storage?: PageStorage | null): { read(): KeptDrawing | undefined; write(drawing: Drawing): void } {
   const key = `${KEPT_DRAWING_KEY}${project}`;
   const kept = storage === undefined ? pageKept(key, isDrawing) : pageKept(key, isDrawing, storage);

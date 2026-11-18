@@ -1,11 +1,4 @@
-/**
- * Capability 16 · Build and launch. The `storytree` command, built into one plain Node script: what a person's shell runs, with no
- * tsx and only its staged native dependencies beside it. esbuild bundles it with everything it imports (the library,
- * Session management, pg and zod included).
- *
- * `pnpm --filter @storytree/cli build` writes it to packages/cli/dist/; tests build it into a
- * directory of their own with buildCommand().
- */
+// Capability 16 · Build and launch
 import path from "node:path";
 import { buildLauncher, LAUNCHER_PROGRAM, partsFromList, stageNativeProbes } from "@storytree/app-setup/bins";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -15,7 +8,6 @@ import { embedTreeSitterWasm } from "@storytree/map/tree-sitter-bundle";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-/** Build the `storytree` command into `outdir`, and return the path of its script. */
 export async function buildCommand(outdir: string): Promise<string> {
   await build({
     entryPoints: { storytree: path.join(here, "storytree.ts") },
@@ -24,24 +16,16 @@ export async function buildCommand(outdir: string): Promise<string> {
     bundle: true,
     platform: "node",
     format: "esm",
-    // What a verb needs only sometimes goes into chunks of its own, loaded when first used, so an
-    // answer that needs no database ("storytree isn't running", the help) comes back quickly.
     splitting: true,
     chunkNames: "chunks/[name]-[hash]",
     target: "node24",
     logLevel: "warning",
-    // Under a coverage run (`pnpm survey:coverage`), the code survey traces the bundle back to its files.
     sourcemap: process.env.NODE_V8_COVERAGE !== undefined,
-    // pg is CommonJS and requires Node's own modules; an ES module has no `require` of its own.
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
     external: ["koffi", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@huggingface/transformers"],
-    // The parts storytree's own story packages name in their manifests, packed for each host package it holds from the
-    // parts list Plugin loader writes for it, as Setup's builds do (ADR-1021); and tree-sitter's wasm, which the code
-    // survey parses Python with (map 8.48).
     plugins: [partsFromList(), embedTreeSitterWasm()],
   });
   await stageNativeProbes(outdir);
-  // On Windows the command a setup check puts on the path is a program built beside this script (ADR-0854).
   if (process.platform === "win32") buildLauncher(path.join(outdir, LAUNCHER_PROGRAM), process.arch === "arm64" ? "arm64" : "x64");
   return path.join(outdir, "storytree.mjs");
 }

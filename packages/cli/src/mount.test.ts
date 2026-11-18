@@ -1,7 +1,4 @@
-/**
- * Capability 1 · Front door: contract 1.23, the command line mounting a declared family whole, and contract 1.24, the
- * mount of a declared verb called with a context whose library cannot open. The families and verbs are this test's own.
- */
+// Capability 1 · Front door
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -55,7 +52,6 @@ const weed = verb({
   },
 });
 
-/** A verb only an agent's tool serves: the command line declares it absent. */
 const prune = verb({
   command: { absent: "the garden is pruned with a tool" },
   tool: { name: "prune", description: "prune the garden" },
@@ -74,7 +70,6 @@ const garden: VerbFamily<CommandCaller> = {
   retired: { mow: { why: "the lawn is gone", instead: "garden look" } },
 };
 
-/** A context whose caller is handed with no library opened, and which counts each time the writer is asked for. */
 function contextOf(): { context: Context; writers: number[] } {
   const writers: number[] = [];
   const caller = { library: { name: "p" }, project: "p", session: "claude-1", folder: "/work", log: {} } as unknown as Awaited<ReturnType<Context["activityContext"]>>;
@@ -143,7 +138,6 @@ const status = verb({
   },
 });
 
-/** Runs `work` with only `shell`'s session variables set, restoring the shell's own after. */
 async function inShell<T>(shell: Readonly<Record<string, string>>, work: () => Promise<T>): Promise<T> {
   const names = [...(WATCHED_HARNESSES as readonly WatchedHarness[]).flatMap((harness) => harness.shellSession === undefined ? [] : [harness.shellSession]), SESSION_ENV];
   const saved = Object.fromEntries(names.map((name) => [name, process.env[name]]));
@@ -173,7 +167,6 @@ test("1.24 · the command line mounts a callerless verb without opening the libr
     await assert.rejects(mounted.act(parseArgs(stray, [], context.cwd), context), (error: unknown) => error instanceof Refusal && error.code === 2 && error.message.endsWith("\nusage: storytree journey status") && !error.message.includes("extra"));
   }
 
-  // A verb that is not callerless opens the caller.
   const { callerless: _callerless, ...called } = status;
   await assert.rejects(command(called).act(parseArgs([], [], context.cwd), context), /the library was opened/);
 });

@@ -1,4 +1,4 @@
-// Capability 3 · The caller: which session, which of its agents and which harness made a call, from the lines given.
+// Capability 3 · The caller
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Line } from "@storytree/library";
@@ -21,7 +21,6 @@ test("3.1 · a call carrying its id is named by the hook line left under that id
 
   assert.equal(requestOf(lines, claudeMeta), mine);
   assert.deepEqual(agentOf(lines, claudeMeta), { subagent: "a1", type: "explorer", task: "sweep" });
-  // After /clear the server keeps the id it started with; the hook's line names the window's new session.
   assert.deepEqual(seenCaller(lines, { session: "s-old", harness: "claude-code" }, claudeMeta), { session: "s-new", harness: "claude-code" });
 
   const codex = requested({ session: "c1", harness: "codex", call: "call_9", agent: "orchestrator" });
@@ -40,7 +39,6 @@ test("3.2 · with no hook line, a Codex call on its session's thread is the orch
   assert.deepEqual(agentOf([started], { threadId: "t-2", sessionId: "c1" }), { subagent: "t-2", type: "worker" });
   assert.equal(agentOf([], {}), "unknown");
   assert.equal(agentOf([], { threadId: "t-2" }), "unknown", "a thread with no session names no agent");
-  // A hook line from an earlier call, nearer in time, is never taken for this one.
   const earlier = requested({ session: "s", harness: "claude-code", call: "toolu_0", agent: "orchestrator" });
   assert.equal(agentOf([earlier], { "claudecode/toolUseId": "toolu_1" }), "unknown");
 });

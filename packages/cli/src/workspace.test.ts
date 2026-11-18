@@ -1,9 +1,4 @@
-/**
- * Capability 11 · Workspace (the command line story): integration tests run the real,
- * built `storytree` command in a project folder that is a git clone with an origin beside it. The
- * agent's session reaches the command as its shell does, in CLAUDE_CODE_SESSION_ID or
- * CODEX_THREAD_ID.
- */
+// Capability 11 · Workspace
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { copyFileSync, linkSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
@@ -18,7 +13,6 @@ import { removeTemp } from "@storytree/test-waits";
 import { BuiltCommand, inWorld, storytree, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
-/** A folder holding a `gh` that is a copy of Node: `gh api …` runs the project folder's `api` script. */
 let ghFolder: string;
 
 before(async () => {
@@ -44,7 +38,6 @@ function git(cwd: string, ...args: string[]): string {
   return execFileSync("git", ["-c", "user.name=storytree test", "-c", "user.email=test@storytree.invalid", ...args], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
-/** Make the world's project folder a git repository with an origin beside it, and park an increment. */
 async function withRepository(world: World): Promise<string> {
   const origin = path.join(path.dirname(world.folder), "origin.git");
   git(path.dirname(world.folder), "init", "--bare", "-b", "main", origin);
@@ -120,7 +113,6 @@ test("11.3 from a shell no agent session runs, it is refused saying to run it fr
 test("11.8 work with an open pull request is refused naming it and --despite-open-pulls, with nothing made or claimed; with the flag, the workspace is made beside it", async () => {
   await inWorld(command, async (world) => {
     const increment = await withRepository(world);
-    // gh's GraphQL answers that an open pull request is on a branch a workspace made for this increment.
     const pulls = [{ number: 41, headRefName: `claude/${increment.replace(/_/g, "-")}-a1b2c3`, isDraft: false, isInMergeQueue: false, isCrossRepository: false, headRepository: { nameWithOwner: "acme/app" } }];
     writeFileSync(path.join(world.folder, "api"), openPulls(pulls));
     const env = { CLAUDE_CODE_SESSION_ID: "claude-9", PATH: [ghFolder, process.env.PATH ?? process.env.Path ?? ""].join(path.delimiter) };
@@ -162,7 +154,6 @@ test("11.8 an open pull request from a fork, on a branch named for the work, ref
   });
 });
 
-/** An `api` script for the fake `gh` that answers GraphQL with `pulls` as the repository's open pull requests, on one page. */
 function openPulls(pulls: unknown[]): string {
   const answer = { data: { repository: { nameWithOwner: "acme/app", pullRequests: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: pulls } } } };
   return `process.stdout.write(${JSON.stringify(JSON.stringify(answer))});\n`;
@@ -291,7 +282,7 @@ test("11.12 `workspace release --holder <session> --reason` is the session manag
     const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "…" });
     const log = await openActivityLog(testServerUrl());
     try {
-      assert.equal((await world.run(["settings", "set", "idle-after", "10m"])).code, 0); // far longer than any process start
+      assert.equal((await world.run(["settings", "set", "idle-after", "10m"])).code, 0);
       assert.equal((await claim({ log, library, project: world.project, session: "quiet", harness: "claude-code", quietMs: 1_000 }, increment.id, "building the form")).ok, true);
       const before = await logged(log, world.project);
       const live = await world.run(["workspace", "release", increment.id, "--holder", "quiet", "--reason", "quiet, messaged"], { CLAUDE_CODE_SESSION_ID: "manager" });
@@ -300,7 +291,7 @@ test("11.12 `workspace release --holder <session> --reason` is the session manag
       assert.deepEqual(await logged(log, world.project), before, "a refusal writes nothing");
 
       assert.equal((await world.run(["settings", "set", "idle-after", "1s"])).code, 0);
-      await new Promise((done) => setTimeout(done, 1_300)); // the holder says nothing for longer than idle-after
+      await new Promise((done) => setTimeout(done, 1_300));
       const ran = await world.run(["workspace", "release", increment.id, "--holder", "quiet", "--reason", "quiet 24h after the manager's message"], { CLAUDE_CODE_SESSION_ID: "manager" });
       assert.equal(ran.code, 0, ran.stderr);
       assert.match(ran.stdout, /quiet/);
@@ -326,7 +317,7 @@ test("11.15 `workspace stale` lists each claimed increment whose holder is quiet
       assert.match(none.stdout, /No claimed increment is stale/);
 
       assert.equal((await claim({ log, library, project: world.project, session: "quiet", harness: "claude-code", quietMs: 1_000 }, increment.id, "building the form")).ok, true);
-      await new Promise((done) => setTimeout(done, 1_300)); // the holder says nothing for longer than idle-after
+      await new Promise((done) => setTimeout(done, 1_300));
       const before = await logged(log, world.project);
       const ran = await world.run(["workspace", "stale"]);
       assert.equal(ran.code, 0, ran.stderr);
@@ -543,7 +534,6 @@ test("11.17 `workspace claim` and `workspace attach` from (or `attach --folder` 
       assert.equal(attached.code, 0, attached.stderr);
       assert.deepEqual((await readClaims(log, world.project)).map(({ session, branch: on }) => [session, on]), [["claude-fix-2", branch]]);
 
-      // A fix session started in the main checkout names the fix worktree with --folder: the branch it takes over is that worktree's.
       await holdFor("claude-fix-2");
       const named = await run(["workspace", "attach", increment, "--folder", fixing, "--reason", "fix PR #12 from main"], world.folder, "claude-fix-3");
       assert.equal(named.code, 0, named.stderr || named.stdout);
@@ -578,7 +568,6 @@ test("11.18 `workspace claim` takes several capabilities, as words or a comma li
   });
 });
 
-/** The project's log as its claims and closes wrote it: without the door's own record of each command's answer (ADR-0983 D1). */
 async function logged(log: ActivityLog, project: string): Promise<{ lines: Line[] }> {
   return { lines: (await log.since(project, 0)).lines.filter((line) => line.kind !== "door-answered") };
 }

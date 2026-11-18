@@ -1,4 +1,4 @@
-/** Capability 2 · Who wrote it: each contract runs the built command against the real library. */
+// Capability 2 · Who wrote it
 import assert from "node:assert/strict";
 import { userInfo } from "node:os";
 import { after, before, test } from "node:test";

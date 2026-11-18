@@ -1,8 +1,4 @@
-/**
- * Capability 3 · Story node render (the forest story): each capability's territory on its story's
- * island (ADR-0804 D2, D3). An island is cut into cells; each capability holds one connected run of
- * them, its area following its lines of code, with a border where two territories meet.
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -26,7 +22,6 @@ test("3.14 each capability is one connected territory whose share of the island 
     const share = cells.reduce((sum, cell) => sum + area(cell.polygon), 0) / total;
     const wanted = shares[at]!.lines / 1000;
     assert.ok(Math.abs(share - wanted) <= wanted * 0.1, `${territory.capability ?? "Unclaimed"} holds ${share.toFixed(3)} of the island, wanted ${wanted}`);
-    // One connected run: every cell of the territory is reached from its first across shared edges.
     const reached = new Set([cells[0]!.index]);
     for (let grew = true; grew;) {
       grew = false;
@@ -58,7 +53,6 @@ test("3.15 a point on a territory's land picks that capability; open sea picks n
 });
 
 test("3.14 cut to a real coast, every territory's cells lie on the land, the areas following the lines", () => {
-  // A C-shaped island: a square 20 across with a bay cut into its east side.
   const coast = [[{ x: -10, z: -10 }, { x: 10, z: -10 }, { x: 10, z: -3 }, { x: 0, z: -3 }, { x: 0, z: 3 }, { x: 10, z: 3 }, { x: 10, z: 10 }, { x: -10, z: 10 }]];
   const onLand = (x: number, z: number) => Math.abs(x) <= 10 && Math.abs(z) <= 10 && !(x > 0 && Math.abs(z) < 3);
   const cut = territories(shares, coast);

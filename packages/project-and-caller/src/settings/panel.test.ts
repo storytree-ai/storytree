@@ -7,7 +7,6 @@ import { renderSettings } from "../view/render.js";
 import { settingsActions } from "./panel.js";
 import { readSettings, setSetting } from "./settings.js";
 
-// Capability 2, proposed contracts 2.7–2.9.
 test("2.7 the panel reads every setting and writes through the CLI's writers", async () => {
   await withTempDir(async (home) => {
     const panel = settingsActions(home);

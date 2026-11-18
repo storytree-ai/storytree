@@ -1,9 +1,4 @@
-/**
- * Capability 3 · Story node render: an arc selected draws a hollow ring round each capability its open work names, round its
- * settlement or its nameplate, dimming nothing (3.83, ADR-1299); with no arc selected open work draws nothing (3.84); at every
- * zoom, every ring one width on screen (3.86) (ADR-1253 D1, ADR-1272 D2); a selected capability ringed in the pick's gold (3.91);
- * and the gate of an edge whose contract the open work makes true ringed the same (3.92, ADR-1279 D4).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Mesh, MeshBasicMaterial, type Object3D, Vector3 } from "three";
@@ -23,7 +18,6 @@ const map = linkLayout(shares, coast, links, docks);
 const roads = islandRoads(map, links, docks, capabilityPlates(map));
 const plates = new Map(capabilityPlates(map).map((plate) => [plate.capability, plate]));
 const flat = (p: Point) => new Vector3(p.x, 0, p.z);
-/** The distances from `centre` of every corner of `mesh`'s triangles. */
 const reaches = (mesh: Mesh, centre: Point) => {
   const position = mesh.geometry.getAttribute("position");
   return Array.from({ length: position.count }, (_, i) => Math.hypot(position.getX(i) - centre.x, position.getZ(i) - centre.z));
@@ -35,7 +29,6 @@ test("3.83 · an arc selected rings each capability its open work names, a hollo
   for (const ring of marks.rings) {
     const settlement = roads.settlements.get(ring.capability)!;
     assert.deepEqual({ x: ring.x, z: ring.z }, settlement.at, "round its settlement");
-    // The symbol's 24-unit box is as large as its size: its corners lie 0.71 of the size from its middle.
     assert.ok(ring.radius > settlement.size * 0.71 && ring.radius < settlement.size * 1.2, "sized to the symbol, with a little room");
   }
   const bare = openWorkMarks(map, new Set(["a"]));
@@ -45,7 +38,6 @@ test("3.83 · an arc selected rings each capability its open work names, a hollo
 
 test("3.83 · the open-work layer draws each ring hollow on the land, dims no territory, and takes no pointer", () => {
   const marks = openWorkMarks(map, new Set(["a"]), roads);
-  // Near enough that the ring is sized to its settlement, not to the least it is across on screen.
   const zoom = 40, width = RING_PX / zoom;
   const layer = openWorkLayer(marks, flat, zoom);
   const ring = layer.getObjectByName("open-work-ring:a") as Mesh;
@@ -64,7 +56,6 @@ test("3.84 · with no arc selected open work draws nothing on the map", () => {
 
 test("3.86 · an arc selected rings its capabilities at every zoom, with no ring round the island; one width on screen at every zoom", () => {
   const layer = openWorkLayer(openWorkMarks(map, new Set(["a", "c"]), roads), flat, 1);
-  /** A ring's line across, in CSS pixels at `zoom`. */
   const onScreen = (name: string, centre: Point, zoom: number) => { const d = reaches(layer.getObjectByName(name) as Mesh, centre); return (Math.max(...d) - Math.min(...d)) * zoom; };
   const far = 0.3, near = 3;
   assert.deepEqual([...new Set(layer.children.map((mark) => mark.name.split(":")[0]!))].sort(), ["open-work-ring"], "the capabilities' rings, no dim and no island ring");
@@ -78,7 +69,6 @@ test("3.86 · an arc selected rings its capabilities at every zoom, with no ring
   const drawn = (ring as Mesh).geometry;
   assert.equal(sizeOpenWork(layer, near * 1.01), false, "a zoom that barely moves redraws nothing");
   assert.equal((ring as Mesh).geometry, drawn);
-  // Where its settlement is drawn only a few pixels wide, the ring keeps the least it is across on screen, so it still reads.
   const settlement = roads.settlements.get("a")!, small = RING_LEAST_PX / 4 / settlement.size;
   sizeOpenWork(layer, small);
   const across = Math.max(...reaches(ring as Mesh, settlement.at)) * 2 * small;
@@ -101,7 +91,6 @@ test("3.91 · a selected capability is ringed in the pick's gold round its settl
   const hits: unknown[] = [];
   ring.raycast({} as never, hits as never);
   assert.deepEqual(hits, [], "it takes no pointer, so a click still picks the land");
-  // An arc selected that rings the same capability: its blue ring, and the gold one round it, each still seen.
   const both = openWorkLayer(openWorkMarks(map, new Set(["a", "c"]), roads, "c"), flat, 2);
   const named = (name: string) => both.getObjectByName(name) as Mesh;
   assert.deepEqual(both.children.filter((o) => o.name.includes("ring:")).map((o) => o.name).sort(), ["open-work-ring:a", "open-work-ring:c", "picked-ring:c"]);

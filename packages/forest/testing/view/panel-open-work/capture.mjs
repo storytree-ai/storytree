@@ -1,8 +1,3 @@
-// A capability's panel lists its open work in order (rollout 2, step 4c; ADR-1253 D1): the real desktop page on storytree's own
-// live library, read with the app's own reads (the capture kit's liveAnswers), so the open work is the library's as it stands.
-// The island of the capability with the most open work is clicked, then its territory, whose detail lists the open increments naming
-// it: the active one first, then the rest in parked order. `node --import tsx capture.mjs` (append --retake to write into
-// src/view/evidence/panel-open-work). Reads only: every write the page could ask keeps the stand-in's quiet answer.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -23,7 +18,6 @@ const routed = route(path.join(here, '../../../../..'));
 if (routed.status !== 'routed') throw new Error(`no library to read: ${routed.message ?? routed.status}`);
 const storytree = await connect(routed.library);
 const tree = await (await storytree.openProject(routed.project)).projectTree();
-// The capability with the most open work as the library stands, one with an active increment before one without.
 const [story, capability] = tree.stories.flatMap(each => each.capabilities.map(one => [each, one]))
   .filter(([, one]) => (one.openWork?.length ?? 0) >= 2)
   .sort(([, a], [, b]) => Number(b.openWork.some(({ active }) => active)) - Number(a.openWork.some(({ active }) => active)) || b.openWork.length - a.openWork.length)[0] ?? [];
@@ -33,8 +27,6 @@ const expected = capability.openWork;
 const listed = page => page.evaluate(() => [...document.querySelectorAll('.story-panel .panel-open-work li')].map(li => ({
   increment: li.dataset.incrementId, title: li.querySelector('[data-open-increment]').childNodes[0].textContent.trimEnd(), active: li.classList.contains('active'),
 })));
-/** Stands the eye on its line of sight near, where an island's territories are large enough to click and its settlements show
- * (3.86), as the wheel would, and lets the map draw it (the open-work capture's close-up). */
 const closeUp = async (page, settle) => {
   await page.evaluate(({ zoom, radius, fov }) => {
     const { camera, size, invalidate } = window.__globe;
@@ -59,18 +51,11 @@ try {
         const island = await page.evaluate(id => window.storytreeGlobe.islands().find(i => i.story === id), story.id);
         await page.mouse.click(island.x, island.y);
         await page.waitForFunction(id => document.body.dataset.selected === id, story.id, { timeout: 60_000 });
-        // Each island's roads, its settlements with them, are routed off the page after its territories' first search lands, one
-        // island at a time, so on the live library the settlement clicked can come minutes in.
         await page.waitForFunction(id => window.__globe.scene.getObjectByName(`settlement:${id}`) !== undefined, capability.id, { timeout: 600_000, polling: 500 });
-        // The panel draws no tree to pick from (ADR-1285): the capability is picked on the island, at its settlement, which takes
-        // no ray, so the click lands on its territory. Faced now, beside the panel as it stands, and closed up: at the map's own
-        // zoom a big island's territories are a few pixels across, so a click beside a settlement picks its neighbour.
         await page.evaluate(id => window.storytreeGlobe.face({ kind: 'story', story: id }), story.id);
         await page.waitForFunction(() => window.storytreeGlobe.still(), undefined, { timeout: 60_000, polling: 200 });
         await closeUp(page, settle);
         await page.waitForFunction(() => window.storytreeGlobe.still(), undefined, { timeout: 60_000, polling: 200 });
-        // A settlement's symbol is laid where it stands in its own vertices, its group at its island's origin, so the middle of
-        // its casing's points is where it is drawn.
         const settlement = await page.evaluate(id => {
           const { scene, camera } = window.__globe, box = document.querySelector('canvas').getBoundingClientRect();
           scene.updateMatrixWorld(true);
@@ -85,7 +70,6 @@ try {
           `the settlement stands on the globe beside the panel: ${JSON.stringify(settlement)}`);
         await page.mouse.click(settlement.x, settlement.y);
         await page.locator(`.story-panel .panel-detail[data-capability-id="${capability.id}"]`).waitFor({ timeout: 60_000 });
-        // The open work is a fold of the capability's detail, closed until its handle opens it.
         await page.locator(`.story-panel .panel-detail[data-capability-id="${capability.id}"] [data-fold="open-work"] .panel-handle`).click();
         const list = page.locator('.story-panel .panel-open-work');
         await list.waitFor({ timeout: 30_000 });
@@ -98,8 +82,6 @@ try {
       },
       expect: found => assert.deepEqual(found, expected.map(({ increment, title, active }) => ({ increment, title, active: active === true }))),
     }, {
-      // 4.48, 2.57, 3.39: the first row's click puts the rail's Arcs tab on show with that increment's arc selected, its row open,
-      // naming its arc, and the arc's own row in view above it when both fit.
       name: 'open-work-row-opens',
       prepare: async ({ page, settle }) => {
         await page.locator('[data-rail-tab="sessions"]').click().catch(() => undefined);
@@ -111,13 +93,11 @@ try {
         tab: document.querySelector('[data-rail-tab][aria-selected="true"]')?.dataset.railTab,
         open: document.querySelector(`details[data-fold-key$=":increment:${id}"]`)?.open === true,
         selected: document.querySelector('.arc-lane[aria-pressed="true"], .arc-queue-chip[aria-pressed="true"]')?.dataset.arcSelect,
-        // 3.39: whether the selected arc's row, which holds its title, is in the lanes' view beside its opened increment,
         arcInView: (() => {
           const lanes = document.querySelector('.arc-lanes')?.getBoundingClientRect();
           const head = document.querySelector('.arc-lane[aria-pressed="true"], .arc-queue-chip[aria-pressed="true"]')?.getBoundingClientRect();
           return lanes !== undefined && head !== undefined && head.top >= lanes.top - 1 && head.bottom <= lanes.bottom + 1;
         })(),
-        // and the opened row names its arc, however far above it the arc's row sits.
         arcNamed: [...document.querySelectorAll(`details[data-fold-key$=":increment:${id}"] .arc-increment-detail dt`)].find(dt => dt.textContent === 'Arc')?.nextElementSibling?.textContent,
       }), expected[0].increment)),
       expect: opened => assert.deepEqual({ tab: opened.tab, open: opened.open, named: typeof opened.arcNamed === 'string' && opened.arcNamed.length > 0 }, { tab: 'arcs', open: true, named: true }),

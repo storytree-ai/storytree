@@ -1,5 +1,3 @@
-// The relief's height bound, which sizes the plates' clearance above the globe shell.
-
 import test from 'node:test';
 import assert from 'node:assert/strict';
 

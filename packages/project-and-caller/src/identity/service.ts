@@ -1,18 +1,14 @@
-/** Capability 5 · Portable user identity. */
+// Capability 5 · Portable user identity
 import { createRemoteJWKSet, customFetch, jwtVerify } from "jose";
 import type { Pool } from "pg";
 import { IdentityConflictError, initialize, remember, type ProviderIdentity, type StorytreeUser } from "./store.js";
 
 export interface IdentityConfiguration {
-  /** A server-owned pool in the identity database, never an end user's library connection. */
   readonly pool: Pool;
   readonly clientId: string;
-  /** Pin the issuer obtained from this environment's trusted discovery document. */
   readonly issuer: string;
-  /** The audience configured in WorkOS's JWT template for the Storytree identity API. */
   readonly audience: string;
   readonly apiKey: string;
-  /** Transport seam; production uses the platform fetch. */
   readonly fetch?: typeof fetch;
 }
 
@@ -20,7 +16,6 @@ export class IdentityVerificationError extends Error {
   constructor() { super("Your sign-in could not be verified. Sign in again or contact Storytree support."); }
 }
 
-/** WorkOS proves its user; only the authoritative provider subjects select a Storytree user. */
 export function createIdentityService(config: IdentityConfiguration): {
   initialize(): Promise<void>;
   resolve(accessToken: string): Promise<StorytreeUser>;
@@ -30,7 +25,6 @@ export function createIdentityService(config: IdentityConfiguration): {
     throw new Error("Identity needs a WorkOS client, server API key, trusted HTTPS issuer and API audience.");
   }
   const request = config.fetch ?? fetch;
-  // Neither the issuer nor the key URL comes from the incoming token.
   const keys = createRemoteJWKSet(new URL(`https://api.workos.com/sso/jwks/${config.clientId}`), {
     [customFetch]: request, timeoutDuration: 10_000,
   });
@@ -65,7 +59,6 @@ export function createIdentityService(config: IdentityConfiguration): {
         email = user.email;
         identities = socialIdentities(await get(`users/${encodeURIComponent(workosUserId)}/identities`));
       } catch {
-        // No upstream response, JWT, email or API key crosses the error boundary.
         throw new IdentityVerificationError();
       }
       try {

@@ -25,7 +25,6 @@ function windowsChild(t: TestContext) {
   let input = "";
   child.stdin.on("data", chunk => { input += chunk; });
   const spawn = (_command: string, _args: readonly string[], options: SpawnOptionsWithoutStdio) => {
-    // Reproduce the original spawn timeout as well as an explicit application timer.
     if (options?.timeout) {
       const timer = setTimeout(() => child.kill(), options.timeout);
       child.once("close", () => clearTimeout(timer));

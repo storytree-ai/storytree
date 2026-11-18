@@ -1,10 +1,3 @@
-// The map pointer's second step (3.89, 5.9; question_97c6d6036e47 answered E): storytree's own map (the code-rows snapshot
-// and its survey) with the open-work capture's arc in the stand-in bridge and two sessions in the agent log. A points at
-// Running sessions (on The forest), which the arc names; B points at the gate between two of The forest's capabilities, for a
-// question. Close up on The command line, The forest lies past the window's edge: an edge marker in each session's colour
-// says which way, and the camera stays where it was put. Close up on The forest: B's pulse at the gate's posts.
-// `node --import tsx capture.mjs` (append --retake to write into src/view/evidence/agent-pointer-edge). Counts, from the
-// page, every pointer edge marker and every pointer pulse shown, so "a marker only while out of view" is measured.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -23,7 +16,6 @@ const at = '2026-11-07T00:00:00.000Z';
 const record = (id, type, fields) => ({ id, type, fields, version: 1, createdAt: at, updatedAt: at });
 const work = (id, arc, title, status, capabilities) => record(id, 'increment', { arc, title, objective: title, status, parked: at, capabilities });
 const RUNNING_SESSIONS = 'capability_6133809a4139', STORY_NODE_RENDER = 'capability_8ffc78a4bad2';
-// The gate between Story node render and Agent capability claims, on The forest (its posts' `between`, as measured).
 const CLAIMS = 'capability_efa4328b624c', GATE = [STORY_NODE_RENDER, CLAIMS];
 const tree = record('arc_tree', 'arc', { title: 'Capability tree: a map of capabilities', intent: 'See where work lands', endState: 'The look landed' });
 const arcs = [{ arc: tree, state: 'active', questions: [], increments: [
@@ -41,7 +33,6 @@ seed.lines = { lines, cursor: lines.length };
 const started = performance.now();
 const phase = message => console.error(`[pointer edge +${Math.round(performance.now() - started)}ms] ${message}`);
 const until = async (page, what, predicate, arg, timeout = 180_000) => { phase(`wait for ${what}`); await page.waitForFunction(predicate, arg, { timeout, polling: 200 }); };
-/** The pointer pulses shown (every ancestor visible), the pointer edge markers on the page, the forest's gate pairs, and where the eye stands. */
 const measure = (page, forest) => page.evaluate(forest => {
   const pulses = [], gates = new Set();
   const shown = object => { for (let o = object; o; o = o.parent) if (!o.visible) return false; return true; };
@@ -91,7 +82,6 @@ await runCapture({
     prepare: async ({ page, settle }) => {
       await closeUp(page, settle, commandLine);
       results.cameraBefore = (await measure(page, forest)).camera;
-      // The pulses play on for three seconds past the window's edge: the eye stays where it was put.
       await page.waitForTimeout(3000);
       await settle(page, 4);
     },

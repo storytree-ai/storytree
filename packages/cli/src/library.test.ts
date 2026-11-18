@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Library: contract tests running the real, built `storytree` command against a
- * throwaway project, plus a focused check of how the command presents the library's ranked answer.
- */
+// Capability 3 · Library
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
@@ -292,7 +289,6 @@ test("3.19 `list` refuses a flag it does not read, naming --where <field>=<value
   });
 });
 
-// ADR-0650: a terminal cannot create a harness memory in the library.
 test("3.6 saving a memory is refused with its reason and writes nothing", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
@@ -391,7 +387,6 @@ test("3.9 `search` with no model gives at most --limit word matches and says why
 
     assert.equal(ran.code, 0, ran.stderr);
     assert.match(ran.stdout, /ranked by words: the embedding model is switched off/);
-    // Word matches have no scores; records created in one millisecond tie by random id.
     const hits = [...ran.stdout.matchAll(/^  (definition_\w+)  \[definition\]  (.+)$/gm)];
     assert.equal(hits.length, 2, ran.stdout);
     assert.equal(new Set(hits.map((hit) => hit[1])).size, 2, ran.stdout);
@@ -413,7 +408,6 @@ test("3.11 a list field given to `new` or `edit` as comma-separated ids is writt
     const decisions = await Promise.all(["Mailer", "Hosting"].map((title) => library.recordDecision({ title, text: "Use the service", status: "proposed" })));
     const ids = decisions.map(({ id }) => id);
 
-    // Windows PowerShell 5.1 strips a JSON list's inner quotes; the comma word reaches the command intact.
     const written = await world.run(["library", "new", "definition", "--term", "Stack", "--meaning", "What runs it", "--links", `${ids[0]}, ${ids[1]}`, "--project", world.project]);
     assert.equal(written.code, 0, written.stderr);
     const definition = (await library.list("definition")).find(({ id }) => written.stdout.includes(id));
@@ -423,14 +417,12 @@ test("3.11 a list field given to `new` or `edit` as comma-separated ids is writt
     assert.equal(edited.code, 0, edited.stderr);
     assert.deepEqual(((await library.get(definition!.id))?.fields as Record<string, unknown> | undefined)?.links, [ids[1]]);
 
-    // An unquoted comma list PowerShell joined with a space is refused before writing, with the quoted retry.
     const before = (await library.changesSince(0)).cursor;
     const joined = await world.run(["library", "new", "definition", "--term", "Joined", "--meaning", "Shell-joined", "--links", ids.join(" "), "--project", world.project]);
     assert.notEqual(joined.code, 0, joined.stdout);
     assert.ok(joined.stderr.includes(`--links "id1,id2"`), joined.stderr);
     assert.deepEqual((await library.changesSince(before)).changes, []);
 
-    // A text field keeps its commas.
     const prose = await world.run(["library", "new", "definition", "--term", "Prose", "--meaning", "First, second", "--project", world.project]);
     assert.equal(prose.code, 0, prose.stderr);
     assert.equal(((await library.list("definition")).find(({ id }) => prose.stdout.includes(id))?.fields as Record<string, unknown> | undefined)?.meaning, "First, second");

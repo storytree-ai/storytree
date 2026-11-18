@@ -1,7 +1,4 @@
-/**
- * Capability 3 · Story node render (the forest story): what an opened capability draws inside it, read from its code's own
- * nested parts (ADR-1339 D1).
- */
+// Capability 3 · Story node render
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -9,7 +6,6 @@ import type { StorySurvey } from "@storytree/library";
 import { sceneParts } from "./scene-parts.js";
 
 const S = "story_s", T = "story_t";
-// Capability a holds three parts, one with a deeper part inside it, and a file of its own in none; b holds one part only.
 const survey: StorySurvey = {
   files: [
     { path: "src/a.ts", lines: 20, capability: "a" },
@@ -43,7 +39,6 @@ const survey: StorySurvey = {
     clashes: [],
   },
 };
-// Another story's capability z imports a's ledger.
 const other: StorySurvey = { files: [{ path: "z.ts", lines: 9, capability: "z" }], imports: [], edges: [{ story: S, from: "z", to: "a", typeOnly: false, files: [{ from: "z.ts", to: "src/ledger/index.ts", typeOnly: false }] }] };
 
 test("3.112 · each capability with two or more parts to draw opens into its outermost parts and its own files, sized by every line inside, with a road between parts whose files import each other", () => {
@@ -67,13 +62,9 @@ test("3.112 · each link the code shows names the parts its files reach inside, 
 test("3.120 · each part road an import reaching round a part's front door rides on names the part it reaches, by the road's ends as the opened capability shows them", () => {
   const clash = (from: string, to: string, part: string, enters: string[]) => ({ from, to, part, enters, around: enters, suggestion: "" });
   const clashes = [
-    // ledger reaches round tax's entry into payments: at a's level the road ledger -> tax carries it.
     clash("src/ledger/index.ts", "src/tax/payments/card.ts", "src/tax/payments", ["src/tax", "src/tax/payments"]),
-    // c, another capability of the story, does too: its lane into tax carries it.
     clash("src/c.ts", "src/tax/payments/card.ts", "src/tax/payments", ["src/tax", "src/tax/payments"]),
-    // report reaches round ledger's own entry: the part it reaches is the one shown.
     clash("src/report/index.ts", "src/ledger/other.ts", "src/ledger", ["src/ledger"]),
-    // Inside tax, and between two other capabilities: no road of a's carries either.
     clash("src/tax/index.ts", "src/tax/payments/card.ts", "src/tax/payments", ["src/tax/payments"]),
     clash("src/c.ts", "src/b/deep.ts", "src/b", ["src/b"]),
   ];

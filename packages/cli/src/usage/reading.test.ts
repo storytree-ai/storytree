@@ -1,4 +1,3 @@
-/** The command line 14.1–14.5, 14.7 and 14.8: the counts one window of door-answered lines gives, against the doors' declared surfaces. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -11,7 +10,6 @@ const declared = {
 };
 const window = { since: "2026-10-01T00:00:00.000Z", until: "2026-10-08T00:00:00.000Z" };
 let at = 0;
-/** A door-answered line, answered unless told otherwise, each a second after the last. */
 function line(session: string, door: DoorLine["door"], verb: string, more: Partial<DoorLine> = {}): DoorLine {
   at += 1;
   return { session, at: new Date(Date.parse(window.since) + at * 1000).toISOString(), door, verb, outcome: "answered", next: [], ...more };
@@ -55,17 +53,14 @@ test("14.2 · each word refused as unknown is counted with where it was refused 
 
 test("14.3 · each offered step's follow is counted beside the like-for-like baseline: the same previous verb, the step not offered", () => {
   const reading = countDoors([
-    // Offered after arc show: taken once, not taken once.
     line("a", "command", "storytree arc show", { next: ["storytree arc list"] }),
     line("a", "command", "storytree arc list"),
     line("b", "command", "storytree arc show", { next: ["storytree arc list"] }),
     line("b", "tool", "show_plan"),
-    // Not offered after arc show: taken once in two.
     line("c", "command", "storytree arc show"),
     line("c", "command", "storytree arc list"),
     line("d", "command", "storytree arc show"),
     line("d", "command", "storytree library search"),
-    // Offered on a session's last call: counted as offered, with no next call to take it.
     line("e", "command", "storytree arc show", { next: ["storytree arc list"] }),
   ], declared, new Map(), window);
   assert.deepEqual(reading.follows, [
@@ -137,7 +132,6 @@ test("14.8 · each word refused with hints counts its offers, the offers followe
     refused("e"), line("e", "command", "storytree adr list", { outcome: "failed", class: "TypeError" }),
     refused("f"), line("f", "tool", "search_notes"),
     refused("g"),
-    // A refusal that offered no step is not counted.
     line("h", "command", "storytree", { outcome: "unknown", word: "nope" }),
   ], declared, new Map(), window);
   assert.deepEqual(reading.repoints, [{

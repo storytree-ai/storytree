@@ -1,4 +1,3 @@
-/** Property checks 1.1 and 1.2: a check runs only inside a numbered test, names why it exists, and names the seed that replays its failure. */
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -9,7 +8,6 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { DEFAULT_SEEDS, fc, propertyCheck } from "./index.js";
 
-/** A fresh package-budget tally per test, so no test's time counts against another's. */
 function tally(t: TestContext): string {
   const dir = mkdtempSync(path.join(tmpdir(), "property-checks-"));
   t.after(() => removeTemp(dir));

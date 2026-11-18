@@ -17,7 +17,6 @@ test('4.1 each island is a flat tangent plate at its spot, with its low ground a
     close(centre.clone().normalize(), spot);
     close(up.clone().applyQuaternion(quaternion), spot);
     assert.ok(centre.length() - Math.max(landHeightRange(), SHORE_DIP) > radius);
-    // Two points on the plate stay in its tangent plane; the engine's land is never bent.
     for (const point of [new Vector3(35, 0, 12), new Vector3(-18, 0, -40)]) {
       const world = point.clone().applyQuaternion(quaternion).add(centre);
       assert.ok(Math.abs(world.dot(spot) - centre.length()) < 1e-10);

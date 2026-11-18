@@ -1,4 +1,4 @@
-/** Capability 2 · Settings, contract 2.25: a service of a part turned on and off for this machine (ADR-1180 D2). */
+// Capability 2 · Settings
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";

@@ -1,5 +1,3 @@
-// Read an isolated seed through the same surface API used by Electron.
-// STORYTREE_HOME is mandatory: never open the owner's app library for this capture.
 import { writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -23,7 +21,6 @@ try {
   const projects = await reads.listProjects();
   const tree = await reads.projectTree('storytree');
   const history = await reads.changesSince('storytree', 0);
-  // Knowledge placement needs the full change history, as the real page reads it.
   const changes = history;
   const covers = {};
   for (const story of tree.stories) for (const node of [story, ...story.capabilities]) {

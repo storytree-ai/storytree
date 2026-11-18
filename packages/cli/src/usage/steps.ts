@@ -1,11 +1,5 @@
-/**
- * Capability 14 · Reading the doors' use. Which step of the work each surface serves (ADR-0983 D2's door share per step): orient, search,
- * claim, write, land or close, as the hand door reading (increment_474e084c620d) put them, so the two
- * readings compare like for like (ADR-0983 D6). A surface no rule names is on "other", and the table
- * lists it there, so a new command or tool shows up rather than vanishing.
- */
+// Capability 14 · Reading the doors' use
 
-/** The steps, in the order a reading lists them. */
 export const STEPS = ["orient", "search", "claim", "write", "land", "close", "other"] as const;
 export type Step = (typeof STEPS)[number];
 
@@ -22,7 +16,6 @@ const TOOLS: Readonly<Record<Exclude<Step, "other">, string>> = {
 };
 const TOOL_STEP = new Map(Object.entries(TOOLS).flatMap(([step, tools]) => tools.split(" ").map((tool) => [tool, step as Step] as const)));
 
-/** Command prefixes after `storytree `, the first that matches winning. */
 const COMMANDS: readonly (readonly [Step, string])[] = [
   ["search", "library search"], ["search", "library phrase"], ["search", "library exact"],
   ["claim", "workspace"], ["claim", "noticeboard claim"],
@@ -39,7 +32,6 @@ const COMMANDS: readonly (readonly [Step, string])[] = [
   ["orient", "settings"], ["orient", "context"], ["orient", "health"], ["orient", "friction"],
 ];
 
-/** The step a surface serves, by its door and the verb as that door names it. */
 export function stepOf(door: "command" | "tool", verb: string): Step {
   if (door === "tool") return TOOL_STEP.get(verb) ?? "other";
   const words = verb.replace(/^storytree\s*/, "");

@@ -1,9 +1,3 @@
-/**
- * A second process that holds a local Postgres, for local-postgres.test.ts. It starts the server on
- * the data directory given as its argument and prints `ready <url>`. A line `stop` on stdin (or
- * stdin closing) stops the server and exits 0. Killed instead, it leaves the server running with
- * no live owner: the stale case start() recovers from.
- */
 import { createInterface } from "node:readline";
 
 import { start } from "../index.js";

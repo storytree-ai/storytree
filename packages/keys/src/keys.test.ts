@@ -1,4 +1,3 @@
-/** Keys 1.1–1.4: the owner-only file, its lock, the resolution order and `!command` entries (ADR-0843). */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { closeSync, mkdtempSync, openSync, readFileSync, statSync } from "node:fs";

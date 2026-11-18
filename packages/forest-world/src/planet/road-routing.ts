@@ -1,26 +1,13 @@
-/** Capability 4 · The planet. Lanes routed off the page's main thread (The drawing engine 4.21, ADR-1001 D2).
- * Routing the lanes between islands takes seconds, and while the page routes it answers no hover, drag or click. So
- * a layout draws its islands at once and its lanes when they are routed: in a worker where the page offers one,
- * otherwise on the page once the islands are drawn. What is routed does not change, only when. The names keep "road"
- * (the road worker, its meta tag) because hosts bundle and name the worker by them. */
+// Capability 4 · The planet
 import type { ForestScene } from '../scene.js';
 import type { CoastPoint } from '../coast-clip.js';
 import { islandsOnly, keepRoutes, pathwayRouting, planetPathwayDrawing, routePlanet, routesKept, type CrossRouting, type PathwayDrawing, type PlanetNetworks, type PlanetPathways } from './pathways.js';
 import type { PlanetSpot } from './planet.js';
 
-/** Routes a drawing's lanes between islands somewhere, answering the networks `routePlanet` would. An aborted signal
- * means the layout was overtaken: the router may stop, and what it answers is never drawn. */
 export type RoadRouter = (routing: CrossRouting, signal: AbortSignal) => Promise<PlanetNetworks>;
 
-/** A page that offers a road worker names its script in this meta tag: `<meta name="storytree-road-worker" content="road-worker.js">`. */
 export const ROAD_WORKER_META = 'storytree-road-worker';
 
-/** What a layout draws at once, and the routing its lanes still wait on, if any. A layout whose routes are kept from
- * the last routing (an island's health changed, say, and nothing moved, or every island moved by one shift) draws its
- * lanes at once. Any other layout at `before`'s radius (a dependency was added, or an island grew and the rest moved)
- * keeps `before`'s lanes, and the docks they come ashore at, until its own are routed (the drawing engine 4.38), so an
- * island's ways inland are never taken away meanwhile. At another radius the old lanes would float or sink, so it shows
- * its islands only. */
 export function drawnAtOnce(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number,
   before?: { spots: ReadonlyMap<string, PlanetSpot>; radius: number; drawing: PathwayDrawing }): {
   drawing: PathwayDrawing; routing: { key: string; routing: CrossRouting } | undefined;
@@ -32,8 +19,6 @@ export function drawnAtOnce(scene: ForestScene, spots: ReadonlyMap<string, Plane
   return { drawing: { plan: { ...islands.plan, lanes: before.drawing.plan.lanes }, issue: before.drawing.issue }, routing };
 }
 
-/** The drawing with its lanes, once `router` has routed them; undefined when `signal` aborts first, so an overtaken
- * layout draws nothing. A router that fails leaves the islands with the drawing's notice, as a failed routing always has. */
 export async function routedDrawing(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number,
   pending: { key: string; routing: CrossRouting }, router: RoadRouter, signal: AbortSignal): Promise<PathwayDrawing | undefined> {
   let network: PlanetNetworks;
@@ -47,16 +32,11 @@ export async function routedDrawing(scene: ForestScene, spots: ReadonlyMap<strin
   return planetPathwayDrawing(scene, spots, radius);
 }
 
-/** A layout to draw, with the routing its lanes wait on (`drawnAtOnce`'s), if any. */
 export interface RoadLayout {
   scene: ForestScene; spots: ReadonlyMap<string, PlanetSpot>; radius: number;
   routing: { key: string; routing: CrossRouting } | undefined;
 }
 
-/** Routes each layout shown's lanes and hands `draw` the drawing with them (the drawing engine 4.39). A layout with the
- * same routing key as the one in flight (a new scene with nothing moved, say) leaves that routing running, and its
- * answer is drawn for the latest layout shown; a layout with another key overtakes it, and one waiting on nothing ends
- * it. A layout whose routing was answered since it was laid out is drawn at once. */
 export function roadsWhenRouted<L extends RoadLayout>(router: RoadRouter, draw: (layout: L, drawing: PathwayDrawing) => void): { show(layout: L): void; stop(): void } {
   let inFlight: { key: string; overtaken: AbortController } | undefined;
   let latest: L | undefined;
@@ -88,17 +68,14 @@ export function roadsWhenRouted<L extends RoadLayout>(router: RoadRouter, draw: 
   };
 }
 
-/** Routes on the page itself, once the islands have had a frame to be drawn: for a host that offers no worker. */
 export const routeOnThePage: RoadRouter = async (routing, signal) => {
   await new Promise<void>(resolve => (globalThis.requestAnimationFrame ?? setTimeout)(() => setTimeout(resolve, 0)));
   if (signal.aborted) throw signal.reason;
   return routePlanet(routing);
 };
 
-/** The answer a road worker posts back: the network, or why routing failed. */
 export type RoadWorkerAnswer = { network: PlanetNetworks } | { error: string };
 
-/** The part of a Worker the router uses. */
 export interface RoadWorker {
   postMessage(message: CrossRouting): void;
   terminate(): void;
@@ -106,8 +83,6 @@ export interface RoadWorker {
   onerror: ((event: unknown) => void) | null;
 }
 
-/** Routes in a fresh worker from `start`, ended when it answers or its layout is overtaken. A worker that cannot start
- * or fails to load (a host without the script) leaves the routing to `fallback`, and is logged; one that answers an error fails it. */
 export function routeInWorker(start: () => RoadWorker, fallback: RoadRouter = routeOnThePage): RoadRouter {
   return (routing, signal) => {
     let worker: RoadWorker;
@@ -136,18 +111,13 @@ export function routeInWorker(start: () => RoadWorker, fallback: RoadRouter = ro
   };
 }
 
-/** The router a page offers: its road worker when it names one (ROAD_WORKER_META), else routing on the page. */
 export function pageRoadRouter(page: Pick<Document, 'querySelector'> | undefined = globalThis.document): RoadRouter {
   const script = page?.querySelector(`meta[name="${ROAD_WORKER_META}"]`)?.getAttribute('content');
   return script ? routeInWorker(() => new Worker(script) as unknown as RoadWorker) : routeOnThePage;
 }
 
-/** A dock on an island, in the island's own ground coordinates, with the links (`from->to`) its lanes carry. */
 export interface IslandDock { local: CoastPoint; links: readonly string[] }
 
-/** Each island's docks, by story: where its lanes between islands come ashore, its ways inland ending there. Undefined
- * while the drawing still waits on its first routing, so a host can tell an island with no docks from one whose docks
- * are not yet known. */
 export function islandDocks(plan: PlanetPathways, routing: boolean): ReadonlyMap<string, readonly IslandDock[]> | undefined {
   if (routing && plan.lanes.docks.length === 0) return undefined;
   const out = new Map<string, IslandDock[]>();

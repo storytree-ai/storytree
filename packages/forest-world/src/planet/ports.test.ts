@@ -12,16 +12,12 @@ const R = 218;
 const spot = new Vector3(0, 0, R);
 type P = { x: number; z: number };
 
-/** Island `a`, a round island of The library's land (or `k` times its size across), with lanes routed out to sea from three
- * docks: two lanes and a third six units beside them on its east coast, one on its west. It has no roads: lanes and ports
- * read only the lane plan. */
 function plan(k = 1): PlanetPathways {
   const r = Math.sqrt(24105 / Math.PI) * k, transform = plateTransform(spot, R), at = new Vector3(...transform.position);
   const surface = onIslandSurface(R);
   const world = (p: P) => surface(p).applyQuaternion(transform.quaternion).add(at);
   const coast = Array.from({ length: 256 }, (_, i) => ({ x: r * Math.cos(i / 256 * 2 * Math.PI), z: r * Math.sin(i / 256 * 2 * Math.PI) }));
   const east = { x: r, z: 0 }, beside = { x: r * Math.cos(6 / r), z: r * Math.sin(6 / r) }, west = { x: -r, z: 0 };
-  // Each lane leaves its dock straight out to sea, then bends away.
   const route = (id: string, from: P, out: P, links: string[]) => {
     const pts: P[] = [];
     for (let t = 0; t <= 40; t++) pts.push({ x: from.x + out.x * t, z: from.z + out.z * t });

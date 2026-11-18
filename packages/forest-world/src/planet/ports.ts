@@ -1,14 +1,4 @@
-/**
- * Capability 4 · The planet. The selected island's ports, and its lit lanes ending just off them (ADR-1236 D1, rollout 2
- * step 5), ported from the capability tree mock's rules (docs/design/capability-tree-3d/q-all-islands/tools/sea.ts and
- * docks.ts):
- * - a port at each dock the selection's lanes come ashore at on the selected island, docks within a port's width of a
- *   busier one sharing its port, sized by the island's land against The library's (a port carrying one lane smaller);
- * - each lane, in or out, leaving its line where it first comes near the berth just off the port's coast and easing onto
- *   it straight in from the sea, so it never joins the road ashore;
- * - the port a low building where the road ends and two capped towers either side in the gate posts' slate and ink,
- *   twice as tall, each face shaded by one light; no jetty.
- */
+// Capability 4 · The planet
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, Vector3 } from 'three';
 import type { CoastPoint } from '../coast-clip.js';
 import type { ForestScene } from '../scene.js';
@@ -19,38 +9,25 @@ import { plateTransform, type PlanetSpot } from './planet.js';
 
 type P = { x: number; z: number };
 
-/** The port in ground units at The library's size (the mock's): the berth off the coast its lanes end on, the building,
- * the towers. A port carrying one lane is `small` of that. */
 export const PORT = {
   berth: 3,
   house: { along: 2.4, half: 2.0, height: 1.6 },
   tower: { side: 1.4, height: 3.3, cap: 1.75, capDepth: 0.35, apart: 0.6 },
   small: 0.8,
 } as const;
-/** The library's land, at which packages/forest lays every island out (link-layout's LIBRARY_LAND): a port's size goes
- * with its island's land against it, as the island's roads and gates do. */
 const LIBRARY_LAND = 24105;
-/** In ground units at The library's size: docks this near a busier one share its port; a lane leaves its line for the
- * berth where it first comes this near it; a port faces the way its lanes come in, read this far out along them. */
 const MERGE = 8, SNAP = 10, OUT = 10;
-/** The eased way onto the berth, in pieces. */
 const IN_STEPS = 10;
 
 export interface SeaPort {
-  /** Its dock on the coast, in the plate's frame, where its lanes' routes come ashore. */
   dock: CoastPoint;
-  /** Out to sea from the dock, and along the coast. */
   out: P; across: P;
-  /** Its size against a port of The library's. */
   size: number;
-  /** Just off the coast in front of it, where its lanes end. */
   berth: P;
-  /** The lit links whose lanes end on its berth. */
   links: string[];
 }
 export interface SelectedIsland { story: string; spot: PlanetSpot; radius: number }
 
-/** The island a selection's lanes are lit for: the one holding a lit link's own end (`from` going up, `to` going down). */
 export function litIsland(scene: ForestScene, lit: readonly LitLink[]): string | undefined {
   const lane = lit[0];
   if (lane === undefined) return undefined;
@@ -58,8 +35,6 @@ export function litIsland(scene: ForestScene, lit: readonly LitLink[]): string |
   return scene.islands.find(island => island.story === own || island.trees.some(tree => tree.capability === own))?.story;
 }
 
-/** The selection's lanes and the selected island's ports, from the lane plan and the islands alone (ADR-1261 D3): with no
- * island selected, every lane runs dock to dock. */
 export function seaLanes(plan: Pick<PlanetPathways, 'plates' | 'lanes'>, lit: readonly LitLink[], selected: SelectedIsland | undefined): { lanes: LaneRoute[]; ports: SeaPort[] } {
   const lanes = laneRoutes(plan.lanes, lit), plate = selected && plan.plates.get(selected.story);
   if (selected === undefined || plate === undefined) return { lanes, ports: [] };
@@ -68,7 +43,6 @@ export function seaLanes(plan: Pick<PlanetPathways, 'plates' | 'lanes'>, lit: re
   const toLocal = (w: Vector3) => w.clone().sub(at).applyQuaternion(back);
   const toWorld = (l: Vector3) => l.clone().applyQuaternion(transform.quaternion).add(at);
   const docks = plan.lanes.docks.filter(dock => dock.story === selected.story);
-  // Each lane coming ashore here, in the plate's frame, walked from its far end in to this island's dock.
   const ashore = lanes.flatMap((lane, i) => {
     const key = `${lane.from}->${lane.to}`, dock = docks.find(d => d.links.includes(key));
     if (dock === undefined) return [];
@@ -76,7 +50,6 @@ export function seaLanes(plan: Pick<PlanetPathways, 'plates' | 'lanes'>, lit: re
     const walk = lane.points.map((_, k) => inward ? k : lane.points.length - 1 - k);
     return [{ i, key, dock, walk, local: lane.points.map(toLocal) }];
   });
-  // The docks lanes land at, busiest first; one within a port's width of a busier one gives its lanes to that one's port.
   const landing = docks.map(dock => ({ dock, here: ashore.filter(a => a.dock === dock) })).filter(d => d.here.length > 0)
     .sort((a, b) => b.here.length - a.here.length);
   const kept: { dock: (typeof docks)[number]; here: typeof ashore; links: string[] }[] = [];
@@ -86,7 +59,6 @@ export function seaLanes(plan: Pick<PlanetPathways, 'plates' | 'lanes'>, lit: re
     else kept.push({ ...d, links: d.here.map(a => a.key) });
   }
   const ports = kept.map(({ dock, here, links }): SeaPort => {
-    // Out to sea: toward where its own lanes are OUT units back from it.
     let ox = 0, oz = 0;
     for (const a of here) {
       let walked = 0, k = a.walk.length - 1;
@@ -98,8 +70,6 @@ export function seaLanes(plan: Pick<PlanetPathways, 'plates' | 'lanes'>, lit: re
     return { dock: dock.local, out, across: { x: -out.z, z: out.x }, size: (links.length > 1 ? 1 : PORT.small) * scale,
       berth: { x: dock.local.x + out.x * PORT.berth * scale, z: dock.local.z + out.z * PORT.berth * scale }, links };
   });
-  // Each lane leaves its line where it first comes near its port's berth, easing off it (tangent where it leaves) and
-  // onto the berth straight in from the sea (polish round 3), as wide as the stretch it leaves.
   const ended = [...lanes];
   for (const a of ashore) {
     const port = ports.find(p => p.links.includes(a.key))!, lane = lanes[a.i]!;
@@ -117,7 +87,6 @@ export function seaLanes(plan: Pick<PlanetPathways, 'plates' | 'lanes'>, lit: re
       points.push(toWorld(new Vector3(w[0] * r0.x + w[1] * c1.x + w[2] * c2.x + w[3] * rb.x, r0.y, w[0] * r0.z + w[1] * c1.z + w[2] * c2.z + w[3] * rb.z)));
       widths.push(width);
     }
-    // Back in the lane's own order: from the dock of the island built on.
     if (a.walk[0] !== 0) { points.reverse(); widths.reverse(); }
     const length = points.slice(1).reduce((sum, p, k) => sum + p.distanceTo(points[k]!), 0);
     ended[a.i] = { ...lane, points, widths, length, width: Math.min(...widths) };
@@ -127,7 +96,6 @@ export function seaLanes(plan: Pick<PlanetPathways, 'plates' | 'lanes'>, lit: re
 
 const unit = (p: P): P => { const l = Math.hypot(p.x, p.z) || 1; return { x: p.x / l, z: p.z / l }; };
 
-/** The island's land: its outer rings less its lakes. */
 function landArea(coast: readonly (readonly CoastPoint[])[]): number {
   const area = (ring: readonly CoastPoint[]) => Math.abs(ring.reduce((sum, p, i) => { const q = ring[(i + 1) % ring.length]!; return sum + p.x * q.z - q.x * p.z; }, 0)) / 2;
   return coast.reduce((sum, ring) => sum + (coast.filter(other => other !== ring && inside(ring[0]!, other)).length % 2 === 0 ? area(ring) : -area(ring)), 0);
@@ -141,20 +109,15 @@ function inside(p: P, ring: readonly P[]): boolean {
   return into;
 }
 
-/** The port's look (the mock's): the gate posts' slate body, ink top and paper face, the building's roof, how lit a face
- * turned to the light is and one turned away, and a shadow's darkness and reach by height. */
 const LOOK = { body: '#9aa2a8', ink: '#1b2024', paper: '#f3efe4', roof: '#2a3036', face: 0.62, lit: 0.84, away: 0.56, shadow: 0.35, reach: 0.8 } as const;
-/** The light on the ground, from the upper left of the page at rest (the plate's -x and -z). */
 const LIGHT = unit({ x: -1, z: -1 });
 
-/** Every port of `ports` on its island, in the plate's frame, standing on the land of a globe of `radius`. */
 export function portMarks(ports: readonly SeaPort[], radius: number): Group {
   const group = new Group();
   group.name = 'sea-ports';
   const surface = onIslandSurface(radius), ground = (p: P) => surface(p).y;
   const black = new Color('#000'), body = new Color(LOOK.body), ink = new Color(LOOK.ink), paper = new Color(LOOK.paper), roof = new Color(LOOK.roof);
   const shade = (base: Color, facing: P) => { const f = unit(facing), k = (f.x * LIGHT.x + f.z * LIGHT.z + 1) / 2; return base.clone().multiplyScalar(LOOK.away + (LOOK.lit - LOOK.away) * k); };
-  /** A rectangle centred on c, `along` either way of u and `half` either way of n. */
   const rect = (c: P, u: P, n: P, along: number, half: number): P[] =>
     [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => ({ x: c.x + u.x * along * i! + n.x * half * j!, z: c.z + u.z * along * i! + n.z * half * j! }));
   ports.forEach((port, i) => {
@@ -163,9 +126,7 @@ export function portMarks(ports: readonly SeaPort[], radius: number): Group {
       const pos: number[] = [], col: number[] = [];
       const tri = (pts: [number, number, number][], c: Color) => { for (const p of pts) { pos.push(...p); col.push(c.r, c.g, c.b); } };
       return {
-        /** A flat face at height y. */
         flat(pts: P[], y: number, c: Color) { for (let j = 1; j + 1 < pts.length; j++) tri([pts[0]!, pts[j]!, pts[j + 1]!].map(p => [p.x, y, p.z]), c); },
-        /** Upright walls round a foot, from just under the ground at each corner to y1, each face shaded by the light. */
         walls(foot: P[], y0: number | undefined, y1: number, c: Color) {
           const cx = foot.reduce((s, p) => s + p.x, 0) / foot.length, cz = foot.reduce((s, p) => s + p.z, 0) / foot.length;
           const lo = (p: P) => y0 ?? ground(p) - 0.1;
@@ -186,7 +147,6 @@ export function portMarks(ports: readonly SeaPort[], radius: number): Group {
         },
       };
     };
-    /** Its shadow on the land, cast away from the light by its height. */
     const shadow = (name: string, foot: P[], tall: number) => {
       const away = { x: -LIGHT.x * tall * LOOK.reach, z: -LIGHT.z * tall * LOOK.reach };
       const pts = [...foot, ...foot.map(p => ({ x: p.x + away.x, z: p.z + away.z }))];
@@ -202,7 +162,6 @@ export function portMarks(ports: readonly SeaPort[], radius: number): Group {
       mesh.raycast = () => {};
       group.add(mesh);
     };
-    // The building: a low block where the road ends, its long side to the land, a door on the land side.
     const ha = PORT.house.along * k / 2, hh = PORT.house.half * k, tall = PORT.house.height * k;
     const hc = { x: port.dock.x - u.x * (ha + 0.15), z: port.dock.z - u.z * (ha + 0.15) }, foot = rect(hc, u, n, ha, hh);
     shadow(`port-shadow:${i}:house`, foot, tall);
@@ -212,7 +171,6 @@ export function portMarks(ports: readonly SeaPort[], radius: number): Group {
     house.flat(rect(hc, u, n, ha * LOOK.face, hh - ha * (1 - LOOK.face)), top + tall + 0.02, paper);
     house.walls(rect({ x: hc.x - u.x * (ha + 0.02), z: hc.z - u.z * (ha + 0.02) }, u, n, 0.02, 0.32 * k), undefined, top + tall * 0.55, ink.clone().lerp(black, 0.2));
     house.done();
-    // The towers: the gate posts' slate and ink top, twice as tall, with a wider cap.
     const ts = PORT.tower.side * k / 2, tt = PORT.tower.height * k, cap = PORT.tower.cap * k / 2, capFrom = top + tt - PORT.tower.capDepth * k;
     for (const side of [-1, 1]) {
       const reach = (hh + PORT.tower.apart * k + ts) * side, tc = { x: hc.x + n.x * reach, z: hc.z + n.z * reach };

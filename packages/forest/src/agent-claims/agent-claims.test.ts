@@ -1,9 +1,4 @@
-/**
- * Capability 5 · Agent capability claims (the forest story): each running session with a row in the
- * sessions list flags the territory of each capability it claims, in its colour (ADR-0968, ADR-0923). The
- * agent log's lines are written out here as the app hands them to the page, with a stand-in clock,
- * so no database is needed.
- */
+// Capability 5 · Agent capability claims
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -22,7 +17,6 @@ const tree: AnnotatedTree = { arcs: [], stories: [
   { id: "billing", title: "Billing", health, capabilities: [{ id: "invoice", title: "invoice", dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health }] },
 ] };
 
-/** A project's agent log, each line written `at` minutes after the start. */
 class Log {
   readonly lines: Line[] = [];
 
@@ -38,7 +32,6 @@ const at = (minutes: number) => new Date(START + minutes * MINUTE);
 const claim = (capability: string): NewLine => ({ kind: "claimed", ...a, source: "tool", capability, reason: "building sign-up" });
 const wisps = (log: Log, minutes: number) => sessionWisps(sessionRows(tree, log.lines, [], at(minutes)), log.lines, at(minutes));
 const brief = (log: Log, minutes: number) => wisps(log, minutes).map(({ session, story, faded }) => ({ session, story, faded }));
-/** What the world flags at `minutes`: each claimed capability, its colour and whether it is faded. */
 const flagged = (log: Log, minutes: number) => [...claimTints(wisps(log, minutes))].map(([capability, { colour, faded }]) => [capability, colour, faded]);
 
 test("5.1 a claim flags that capability's territory in its session's colour, on any island; an increment claim flags nothing (ADR-0968, ADR-0923)", () => {
@@ -99,7 +92,6 @@ test("5.5 a session keeps one colour, never green or the needs-you amber; a fold
 
 test("5.7 replaying a growth, the sessions recorded with the latest stage reached flag the territories they held, none before the first", () => {
   const wisp = (session: string, story: string): SessionWisp => ({ session, story, colour: sessionColour(session), faded: false, capabilities: [] });
-  // Recorded: nobody, then A on the shop, then A and B, then A landed and B still on the till, then nobody.
   const stages = [
     { at: 1, wisps: [] },
     { at: 2, wisps: [wisp("A", "shop")] },

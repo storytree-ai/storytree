@@ -1,4 +1,3 @@
-// Bundle the real desktop; the shared kit adds only its existing observation seams.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildCapture, buildFolder } from '../../../../../apps/desktop/src/capture/index.ts';

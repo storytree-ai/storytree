@@ -1,13 +1,9 @@
-/**
- * Capability 2 · Measures paired with their readers (contract 2.1, ADR-1354). A package declares its readers in its
- * package.json, under `storytree.measures`: each entry a module, by the package's export path (`from`), and the export
- * holding an array of readers, each naming the measure record's id and the version it reads. Pairing reads the live
- * measure records and every workspace package's readers and names, per story, each measure that does not pair, with why.
- * It reads no value: a reader's `read` is never called.
- */
+// Capability 2 · Measures paired with their readers
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+
+import type { StoryMeasures } from "./read.js";
 
 /** One reader as a package declares it, with the package's folder and that package's story. */
 export interface MeasureReader {
@@ -17,6 +13,7 @@ export interface MeasureReader {
   readonly story: string | undefined;
   readonly measure: string;
   readonly version: number;
+  readonly read?: (story: StoryMeasures) => unknown;
 }
 
 /**
@@ -76,8 +73,9 @@ export async function measureReadersOf(folder: string): Promise<MeasureReader[]>
       const module = (await import(pathToFileURL(path.join(home, target)).href)) as Record<string, unknown>;
       const listed = module[entry.export];
       if (!Array.isArray(listed)) throw new Error(`packages/${dir}'s ${target} exports no array of measure readers as ${entry.export}`);
-      for (const reader of listed as { measure?: unknown; version?: unknown }[]) {
-        readers.push({ package: `packages/${dir}`, story, measure: String(reader.measure), version: Number(reader.version) });
+      for (const reader of listed as { measure?: unknown; version?: unknown; read?: unknown }[]) {
+        const read = typeof reader.read === "function" ? { read: reader.read.bind(reader) as (story: StoryMeasures) => unknown } : {};
+        readers.push({ package: `packages/${dir}`, story, measure: String(reader.measure), version: Number(reader.version), ...read });
       }
     }
   }

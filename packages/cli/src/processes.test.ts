@@ -16,7 +16,6 @@ for (const installed of [false, true]) test(`session-management 14.4/14.6/15.1/1
   const command = new BuiltCommand();
   const children: RunRecord[] = [];
   t.after(async () => {
-    // A child that will not die must not also strand the folders: remove them either way.
     try { await Promise.all(children.map(stopTestChild)); } finally {
       command.remove();
       await removeTemp(home);
@@ -28,14 +27,11 @@ for (const installed of [false, true]) test(`session-management 14.4/14.6/15.1/1
     const payload = path.join(desktop, 'dist', 'agent-tools', 'x64');
     await buildBins(payload);
     await mkdir(install, { recursive: true });
-    // The installer supplies these assets; this pins verification of the real bin output.
     await writeFile(path.join(install, 'storytree-0.3.exe'), 'app fixture');
     await writeFile(path.join(payload, 'node.exe'), 'runtime fixture');
     await writeFile(path.join(payload, 'storytree-deliver.mjs'), '// delivery fixture');
-    // So is the command's launcher program (ADR-0854), which a build makes only on Windows.
     if (process.platform !== 'win32') await writeFile(path.join(payload, 'storytree-launcher.exe'), 'launcher fixture');
     writePayloadManifest(payload, 'x64', '24.21.0');
-    // Exercise the actual packager copy with the desktop's rules before verifying/running it.
     const config = JSON.parse(await readFile(new URL('../../../apps/desktop/package.json', import.meta.url), 'utf8'));
     const require = createRequire(import.meta.url);
     const { getFileMatchers, copyFiles } = createRequire(require.resolve('electron-builder'))('app-builder-lib/out/fileMatcher.js');
@@ -62,7 +58,6 @@ for (const installed of [false, true]) test(`session-management 14.4/14.6/15.1/1
   const all = await invoke(['--all'], false);
   assert.equal(all.code, 0, all.stderr);
   for (const run of runs) assert.ok(all.stdout.includes(run.id), all.stdout);
-  // The story's old name still answers, but the families list names only the new one.
   const alias = await storytree(command.script, ['own', '--all'], { cwd: home, home, env: { CODEX_THREAD_ID: '' } });
   assert.equal(alias.code, 0, alias.stderr);
   for (const run of runs) assert.ok(alias.stdout.includes(run.id), alias.stdout);
@@ -117,10 +112,10 @@ for (const installed of [false, true]) test(`session-management 14.4/14.6/15.1/1
   assert.deepEqual(after.clear.failed, []);
   assert.deepEqual(after.clear.gaps, []);
   assert.deepEqual(after.closing.inventory.rows.map((row: { run: { id: string } }) => row.run.id), [runs[1]!.id]);
-  assert.equal(after.closing.status, 'remaining'); // runs[1] is still live.
+  assert.equal(after.closing.status, 'remaining');
   const claude = await invoke([], false, { CLAUDE_CODE_SESSION_ID: 'caller' });
   assert.equal(claude.code, 0, claude.stderr);
-  assert.match(claude.stdout, /No recorded runs/); // Different harness is not Codex's owner.
+  assert.match(claude.stdout, /No recorded runs/);
   for (const args of [['clear', 'extra'], ['clear', '--all'], ['stop'], ['--bogus'], ['stop', '--all']]) {
     assert.equal((await invoke(args)).code, 2, `invalid arguments: ${args.join(' ')}`);
   }

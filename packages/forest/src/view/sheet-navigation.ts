@@ -1,14 +1,4 @@
-/**
- * Capability 3 · Story node render. The forest on the glass sheet (ADR-1043): where its islands lie, where it opens, and
- * what moves it. The sheet is the near pole of a very large sphere (The world's `sheetSpot`), so the globe's turn, its
- * guide and its Home all carry over: a turn of the big sphere by a hair slides the sheet under the eye, flat to within
- * a degree. The user tilts it like a table (ADR-1062 D2), from looking straight down on the islands, through edge-on, to
- * looking straight up at the knowledge graph beneath, so a sheet's north-south distances are drawn shortened by the tilt's
- * cosine; it opens looking straight down, and pressing Library from there brings in a tabletop tilt (ADR-1349). The user pans it (a drag, WASD or
- * the arrows), zooms it (the wheel or a pinch), spins it about its upright axis (Q and E, a right-drag's sideways part, a
- * Ctrl+drag or a twist) and tilts it (R and F, or that drag's up-and-down part), and a compass or Home faces it back
- * (ADR-1060); nothing switches what a drag does.
- */
+// Capability 3 · Story node render
 import { Euler, Plane, Quaternion, Raycaster, Vector2, Vector3, type Camera, type Object3D } from "three";
 import { NAMEPLATE_ROOM, SEA_GAP, sheetPlaces, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
 import { islandCoast, islandCoastReach } from "@storytree/forest-world/geometry";
@@ -18,40 +8,24 @@ import { isDrawn, type GlobePose } from "./globe-guide.js";
 import { STORY_PLATE_WIDTH } from "./nameplates.js";
 import type { ForestMode } from "./planet-navigation.js";
 
-/** Glass round the land on every side, in ground units. */
 const MARGIN = 24;
-/** CSS pixels kept clear above the sheet's north edge at the opening: the map's Stories / Library switch and its compass. */
 const CLEAR_TOP = 85;
-/** CSS pixels kept clear below its south edge, where nothing is docked over the map: room for the names hanging below the southmost islands. */
 const CLEAR_BOTTOM = 45;
 
-/** How wide and deep an island-less sheet's sea floor is, in ground units: with no land to set it, room for the user's factory's notes (3.63). */
 const BARE_FLOOR = 180;
 
-/** The tilt the sheet opens at, and Home and the compass bring it back to: straight down on its top face (ADR-1349 D1). */
 export const SHEET_OPENING_TILT = 0;
 
-/** An island-less sheet opens at once only on its Library face, where the user's factory's notes hang (3.63); on Stories it waits for its islands. */
 export function opensBare(mode: ForestMode): boolean {
   return mode === "library";
 }
 
-/**
- * The islands at their places on the sheet (`sheetPlaces`), centred on the pole, and the glass they stand on. `under` says
- * where the knowledge graph hangs: each story's shelf under its island's middle, each capability's under its territory's,
- * and the sea floor across the islands' footprint, where notes with no links lie (ADR-1063 D3). `laid` holds each island's
- * docks, once known: its territories are laid out by their links (3.76), so its shelves hang under them as drawn.
- * The project's shared stores stand in a column west of the land, past the sea and nameplate room an island keeps, north
- * to south about the land's middle, so none lies on an island's land (ADR-1332 D1, 3.109), and the glass grows to hold them.
- */
 export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, frame?: ForestScene, laid?: ReadonlyMap<string, readonly LinkDock[]>) {
-  // A plan still growing, framed by its full plan, keeps every island where the full plan puts it, on its glass (3.28).
   const placed = sheetPlaces((frame ?? scene).islands.map(island => {
     const place = places.get(island.story);
     if (place === undefined) throw new Error(`No permanent place for ${island.title}`);
     return { story: island.story, place, reach: islandCoastReach(island) };
   }));
-  // An island-less sheet (the user's factory, 3.63) has no land to set the floor, so its floor is a square round the pole.
   const land = (frame ?? scene).islands.length === 0 ? { west: -BARE_FLOOR / 2, east: BARE_FLOOR / 2, south: -BARE_FLOOR / 2, north: BARE_FLOOR / 2 } : placed.bounds;
   const stood = storeColumn((frame ?? scene).stores ?? [], land);
   const { west, east, south, north } = stood.bounds;
@@ -66,7 +40,6 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
     stories.set(island.story, island.story);
     for (const tree of island.trees) if (tree.capability !== undefined) { stories.set(tree.capability, island.story); shelves.set(tree.capability, middle); }
     if (island.land === undefined) continue;
-    // A capability's shelf hangs under its territory's middle: on the plate x runs east and z south.
     const map = islandLayout(island.story, island.land.territories, islandCoast(island), scene.links ?? [], laid?.get(island.story));
     map.territories.forEach((territory, index) => {
       if (territory.capability === undefined) return;
@@ -81,7 +54,6 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
     storyOf: (node: string) => stories.get(node),
     floor: { x: west - centre.x, y: south - centre.y, width: east - west, height: north - south },
     depthStep: DEPTH_STEP,
-    // A place in the sheet's own frame, drawn on the big sphere: z up from the glass.
     place: ({ x, y, z }: { x: number; y: number; z: number }) => {
       const spot = sheetSpot({ x, y }), out = SHEET_RADIUS + PLATE_CLEARANCE + z;
       return { x: spot.x * out, y: spot.y * out, z: spot.z * out };
@@ -94,13 +66,11 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
   return { scene, islands, spots: new Map(islands.map(island => [island.story, island.spot])), radius: SHEET_RADIUS, extent, under, stores };
 }
 
-/** The stores' column west of `land`, each slab's middle (x east, y north) with its layout, and the bounds holding both. */
 function storeColumn(stores: readonly { address: string; medium: string; tables: readonly string[] }[], land: { west: number; east: number; south: number; north: number }) {
   const laid = stores.map((store) => ({ address: store.address, medium: store.medium, ...storeLayout(store.tables) }));
   if (laid.length === 0) return { stores: [] as (StoreLayout & { address: string; medium: string; at: SheetPoint })[], bounds: land };
   const widest = Math.max(...laid.map(({ width }) => width));
   const x = land.west - SEA_GAP - NAMEPLATE_ROOM - widest / 2;
-  // The column stands level with the land's middle, so it is seen beside the islands rather than off in a corner.
   const tall = laid.reduce((sum, { depth }) => sum + depth, 0) + (laid.length - 1) * SEA_GAP;
   let top = Math.min(land.north, (land.north + land.south) / 2 + tall / 2);
   const placed = laid.map((store) => {
@@ -111,8 +81,6 @@ function storeColumn(stores: readonly { address: string; medium: string; tables:
   return { stores: placed, bounds: { west: x - widest / 2, east: land.east, south: Math.min(land.south, top + SEA_GAP), north: Math.max(land.north, placed[0]!.at.y + placed[0]!.depth / 2) } };
 }
 
-/** The docks seen on each island's plate (3.76), with `story`'s now `docks`, or without it while its docks are unknown:
- * `seen` itself when that changes nothing, so the knowledge under the sheet is not laid out again. */
 export function withDocks<Docks>(seen: ReadonlyMap<string, Docks>, story: string, docks: Docks | undefined): ReadonlyMap<string, Docks> {
   if (seen.get(story) === docks) return seen;
   const next = new Map(seen);
@@ -120,59 +88,33 @@ export function withDocks<Docks>(seen: ReadonlyMap<string, Docks>, story: string
   return next;
 }
 
-/** How much deeper under the glass each depth of the knowledge graph hangs than the one above it, in ground units: at the
- * tilt, far enough that each depth is seen hanging lower than the one above it (ADR-1059 D3). */
 const DEPTH_STEP = 20;
 
-/** Whether the eye at `tilt` looks at the sheet's underside: past level, toward straight up. */
 export function seesUnderside(tilt: number): boolean {
   return tilt > Math.PI / 2;
 }
 
-/** Radians a tilting drag tips the sheet for each CSS pixel up or down the window, and the step R and F tip it by. */
 export const TILT_PER_PIXEL = Math.PI / 600;
 export const TILT_STEP = 15 * Math.PI / 180;
 
-/**
- * The tilt after tipping it by `by` radians, toward the underside for a positive `by`: it stops at straight down on the top
- * face (0) and straight up at the underside (π), and never carries the sheet past either, so it cannot tumble (ADR-1062 D2).
- */
 export function sheetTiltBy(tilt: number, by: number): number {
   return Math.min(Math.PI, Math.max(0, tilt + by));
 }
 
-/** How much shorter a north-south distance on the sheet is drawn than an east-west one at `tilt`, signed: negative from
- * below, where north is drawn down the window. Edge-on it is kept off nought, so a drag still pans a little. */
 function foreshortened(tilt: number): number {
   const c = Math.cos(tilt);
   return Math.sign(c || 1) * Math.max(Math.abs(c), 0.25);
 }
 
-/** The eye's focal length on a canvas `size`, in CSS pixels: a unit at a unit's distance spans this many. */
 function focal(size: { height: number }): number {
   return Math.max(size.height, 1) / 2 / Math.tan(SHEET_FOV * Math.PI / 360);
 }
 
-/**
- * The view the sheet opens on, and Home returns to (D4), looking straight down (ADR-1349 D1): its whole height framed in perspective,
- * the north edge `CLEAR_TOP` below the window's top and the south edge `CLEAR_BOTTOM` above its bottom, from its west edge,
- * so the user scrolls east to follow the depth; a sheet narrower than the window sits in its middle. A sheet that would run
- * past the window's width but fits it whole at `OPENING_FLOOR` or nearer is drawn smaller instead, its edges brought in
- * alike, until its whole width fits, so a short chain opens with every island in view (1.10) and a deep library still
- * scrolls east.
- * At a `framing` asked for, the whole map is the same view zoomed: still from its west edge, or in the
- * middle once the sheet is narrower than the window (3.66).
- */
 export function sheetOpening(extent: SheetExtent, size: { width: number; height: number }, framing?: number): GlobePose {
   const f = focal(size), n = extent.height / 2;
   const sin = Math.sin(SHEET_OPENING_TILT), cos = Math.cos(SHEET_OPENING_TILT);
-  // The view with the north and south edges drawn `scale` of the way from the window's middle to where they are kept.
   const framed = (scale: number) => {
-    // How far above and below the window's middle the north and south edges are drawn.
     const above = scale * Math.max(size.height / 2 - CLEAR_TOP, 0.5), below = scale * Math.max(size.height / 2 - CLEAR_BOTTOM, 0.5);
-    // North of the middle of the view the sheet runs `far` units, south of it `near`, in the ratio that draws each edge where
-    // it is kept; the eye stands `distance` off, or as far as a `framing` asked for puts it, with the middle of the view where
-    // the opening has it (3.66).
     const ratio = above * (f * cos + below * sin) / (below * (f * cos - above * sin));
     const far = 2 * n * ratio / (1 + ratio), near = 2 * n / (1 + ratio);
     const zoom = framing === undefined ? f / (far * (f * cos - above * sin) / above) : Math.min(size.width, size.height) / (2 * framing * SHEET_RADIUS);
@@ -181,7 +123,6 @@ export function sheetOpening(extent: SheetExtent, size: { width: number; height:
   };
   let view = framed(1);
   if (framing === undefined && !view.fits) {
-    // The largest scale at which the whole width fits, taken only if names are still apart there.
     let low = 0, high = 1;
     for (let step = 0; step < 48; step++) {
       const mid = (low + high) / 2;
@@ -190,84 +131,54 @@ export function sheetOpening(extent: SheetExtent, size: { width: number; height:
     const whole = framed(low);
     if (whole.fits && whole.zoom >= OPENING_FLOOR) view = whole;
   }
-  // The south-west corner, nearest the eye, comes to the window's left edge.
   const { zoom, y, closest } = view, x = view.fits ? 0 : -extent.width / 2 + size.width * closest / (2 * f);
   return { turn: turnToIsland(sheetSpot({ x, y })), framing: framing ?? Math.min(size.width, size.height) / (2 * zoom * SHEET_RADIUS), sideOffset: 0 };
 }
 
-/** The farthest out a wide sheet opens whole, in CSS pixels per ground unit: neighbouring columns stand at least a sea gap and a
- * nameplate's room apart (`sheetPlaces`), so at this zoom no two neighbouring columns' story names overlap (ADR-0917). */
 const OPENING_FLOOR = STORY_PLATE_WIDTH / (SEA_GAP + NAMEPLATE_ROOM);
 
-/** The place on the sheet in the middle of the view at `turn`. */
 export function sheetCentre(turn: GlobeTurn): SheetPoint {
   const toSheet = new Quaternion().setFromEuler(new Euler(turn.pitch, turn.yaw, 0)).invert();
   const facing = new Vector3(0, 0, 1).applyQuaternion(toSheet);
   return sheetPoint(facing);
 }
 
-/**
- * The turn after a drag of `drag` CSS pixels at `zoom` (CSS pixels per ground unit at the middle of the view), where the
- * pointer's place on the glass cannot be found (`sheetUnder`): the sheet follows the pointer, at the tilt (a drag up or down the window crosses more of the sheet than one across it), and
- * stops with an edge of the glass in the middle of the view, so it is never dragged out of reach. A sideways scroll is a
- * drag the other way. `tilt` and `heading` are the sheet's (`sheetTilted`), so a drag follows the window, whichever way the
- * sheet faces and from either side of it.
- */
 export function sheetPan(turn: GlobeTurn, drag: { x: number; y: number }, zoom: number, extent: SheetExtent, tilt = SHEET_TILT, heading = 0): GlobeTurn {
   const centre = sheetCentre(turn);
-  // The drag laid flat on the glass, x right and y up the window; seen from below, the window's up is the sheet's south.
   const flat = { x: drag.x / zoom, y: -drag.y / (zoom * foreshortened(tilt)) };
-  // The sheet's east and north on the window, spun by the heading; the middle of the view moves against the drag.
   const cos = Math.cos(heading), sin = Math.sin(heading);
   const x = centre.x - (flat.x * cos + flat.y * sin), y = centre.y - (-flat.x * sin + flat.y * cos);
   const clamp = (value: number, half: number) => Math.max(-half, Math.min(half, value));
   return turnToIsland(sheetSpot({ x: clamp(x, extent.width / 2), y: clamp(y, extent.height / 2) }));
 }
 
-/**
- * The place on the sheet under a point `at` on the window (CSS pixels from the canvas's top left), where the eye's ray
- * through it meets the glass's plane at the middle of the view, or nothing when the ray runs off it (above the horizon, or
- * so near edge-on that the place would lie off the sheet). `globe` is the posed globe group the sheet is the near pole of.
- */
 export function sheetUnder(camera: Camera, globe: Object3D, turn: GlobeTurn, at: { x: number; y: number }, size: { width: number; height: number }, extent: SheetExtent): SheetPoint | undefined {
   camera.updateMatrixWorld();
   globe.updateMatrixWorld();
   const ray = new Raycaster();
   ray.setFromCamera(new Vector2(2 * at.x / Math.max(size.width, 1) - 1, 1 - 2 * at.y / Math.max(size.height, 1)), camera);
-  // The glass's plane, tangent to the big sphere where the middle of the view lies on it.
   const spot = sheetSpot(sheetCentre(turn)), local = new Vector3(spot.x, spot.y, spot.z).multiplyScalar(SHEET_RADIUS + PLATE_CLEARANCE);
   const point = local.clone().applyMatrix4(globe.matrixWorld), normal = local.clone().normalize().transformDirection(globe.matrixWorld);
-  // A ray skimming the glass, or one from an eye in its plane (edge-on), meets it nowhere a pointer could hold.
   const hit = Math.abs(normal.dot(ray.ray.direction)) < 1e-3 ? null : ray.ray.intersectPlane(new Plane().setFromNormalAndCoplanarPoint(normal, point), new Vector3());
   if (hit === null || hit.distanceTo(ray.ray.origin) < 1) return undefined;
   const found = sheetPoint(globe.worldToLocal(hit).normalize()), centre = sheetCentre(turn);
   return Math.hypot(found.x - centre.x, found.y - centre.y) > Math.hypot(extent.width, extent.height) ? undefined : found;
 }
 
-/** The turn after a drag that carried the place `grabbed` on the sheet to where `now` lay under the pointer: the sheet moves
- * so the grabbed place is under the pointer again, exactly, at any tilt, and stops with an edge in the middle of the view. */
 export function sheetPanUnder(turn: GlobeTurn, grabbed: SheetPoint, now: SheetPoint, extent: SheetExtent): GlobeTurn {
   const centre = sheetCentre(turn), clamp = (value: number, half: number) => Math.max(-half, Math.min(half, value));
   return turnToIsland(sheetSpot({ x: clamp(centre.x + grabbed.x - now.x, extent.width / 2), y: clamp(centre.y + grabbed.y - now.y, extent.height / 2) }));
 }
 
-/** The sheet's keys (ADR-1060, ADR-1062 D2): WASD and the arrows pan, Q and E spin a quarter turn, R and F tilt a step toward
- * looking down on the islands or up at the graph, and Home faces it back. No key moves the eye for Stories or Library (ADR-1062 D3). */
 export type SheetKey = { kind: "pan"; key: string } | { kind: "spin"; by: -1 | 1 } | { kind: "tilt"; by: -1 | 1 } | { kind: "home" };
 
 const PAN_KEYS = new Map<string, { x: number; y: number }>([
-  // The drag each key makes, per second: W goes away from you, so what is under the view slides down the window.
   ["w", { x: 0, y: 1 }], ["arrowup", { x: 0, y: 1 }], ["s", { x: 0, y: -1 }], ["arrowdown", { x: 0, y: -1 }],
   ["a", { x: 1, y: 0 }], ["arrowleft", { x: 1, y: 0 }], ["d", { x: -1, y: 0 }], ["arrowright", { x: -1, y: 0 }],
 ]);
 
-/** CSS pixels a held key pans the sheet across the window each second, the same at every zoom. */
 const KEY_PAN_SPEED = 600;
 
-/**
- * What a key press asks of the sheet, or nothing: never while focus is in a text field, and never with Ctrl, Alt or the
- * command key held, which belong to the page and the system.
- */
 export function sheetKey(event: { type: string; key?: string; target?: unknown; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }): SheetKey | undefined {
   if (event.type !== "keydown" || event.key === undefined || event.ctrlKey === true || event.metaKey === true || event.altKey === true) return undefined;
   const target = event.target as { tagName?: string; isContentEditable?: boolean } | null | undefined;
@@ -280,7 +191,6 @@ export function sheetKey(event: { type: string; key?: string; target?: unknown; 
   return undefined;
 }
 
-/** The drag, in CSS pixels, that the pan keys `held` make over `seconds`: opposite keys cancel. */
 export function sheetKeyPan(held: ReadonlySet<string>, seconds: number): { x: number; y: number } {
   let x = 0, y = 0;
   for (const key of held) { const way = PAN_KEYS.get(key); if (way !== undefined) { x += way.x; y += way.y; } }
@@ -289,63 +199,38 @@ export function sheetKeyPan(held: ReadonlySet<string>, seconds: number): { x: nu
 
 export { sheetDrag } from "./sheet-drag.js";
 
-/** Radians a spinning drag turns the sheet for each CSS pixel across the window. */
 export const SPIN_PER_PIXEL = Math.PI / 600;
 
-/**
- * The heading and tilt after a rotating drag of `drag` CSS pixels (a right-drag, a Ctrl+drag, or two fingers): across the
- * window it spins the sheet like a table, the edge nearest the eye following the hand, and up the window it tilts it toward
- * the underside, a drag down toward looking down on the islands, stopping at either end. Neither part moves the other.
- * The nearest edge is the sheet's south one at every tilt, so the spin keeps one way as the tilt passes level (3.65).
- */
 export function sheetSpinTilt(heading: number, tilt: number, drag: { x: number; y: number }): { heading: number; tilt: number } {
   return { heading: heading + drag.x * SPIN_PER_PIXEL, tilt: sheetTiltBy(tilt, -drag.y * TILT_PER_PIXEL) };
 }
 
-/**
- * The heading after a spin of `clockwise` radians, clockwise as seen on the window: a heading turns the sheet anticlockwise
- * on its top face, and its underside, seen from below, turns the other way.
- */
 export function sheetSpin(heading: number, clockwise: number, under = false): number {
   return under ? heading + clockwise : heading - clockwise;
 }
 
-/** Radians, clockwise on the window, that two fingers turned between `from` and `to`, the short way round. */
 export function sheetTwist(from: readonly [{ x: number; y: number }, { x: number; y: number }], to: readonly [{ x: number; y: number }, { x: number; y: number }]): number {
   const angle = (pair: typeof from) => Math.atan2(pair[1].y - pair[0].y, pair[1].x - pair[0].x);
   const turned = angle(to) - angle(from);
   return Math.atan2(Math.sin(turned), Math.cos(turned));
 }
 
-/** The starting heading nearest `heading`, which Home and the compass spin back to by the short way round. */
 export function headingHome(heading: number): number {
   return 2 * Math.PI * Math.round(heading / (2 * Math.PI));
 }
 
-/** Where Home and the compass bring the sheet's heading and tilt: its starting heading the short way round, and straight
- * down, the opening tilt (ADR-1060 D3, ADR-1062 D2 as narrowed by ADR-1349 D1). */
 export function sheetHome(heading: number): { heading: number; tilt: number } {
   return { heading: headingHome(heading), tilt: SHEET_OPENING_TILT };
 }
 
-/** The tilt pressing Library brings the sheet to from `tilt`: the tabletop tilt from straight down, so the notes beneath show
- * in depth, and otherwise the tilt the user left it at (ADR-1349 D2). */
 export function libraryTilt(tilt: number): number {
   return tilt === SHEET_OPENING_TILT ? SHEET_TILT : tilt;
 }
 
-/** Where the sheet's starting north lies on the window at `heading`, as an angle anticlockwise from the window's right. */
 export function compassNorth(heading: number, under = false): number {
   return under ? -Math.PI / 2 - heading : Math.PI / 2 + heading;
 }
 
-/**
- * 3.11 on the glass sheet (ADR-0660): nothing is round the back, but a failing island (storytree's verified word) can lie
- * past the window's edge. Each one whose middle is drawn (`drawn`, in CSS pixels from the canvas's top left) outside a canvas
- * `size` gets a marker there, for `markerSpot` to bring to the edge nearest it. Its turn pans the island to the middle of
- * the view. In Library, where the islands are only outlines over the knowledge, none is marked, from any angle; in Stories
- * one is, from above or below (ADR-0660 D4, ADR-1062 D3).
- */
 export function sheetMarkers(islands: readonly FacingIsland[], drawn: (island: FacingIsland) => { left: number; top: number }, size: { width: number; height: number },
   mode: ForestMode = "forest"): { story: string; left: number; top: number; turn: GlobeTurn }[] {
   if (mode === "library") return [];
@@ -356,12 +241,6 @@ export function sheetMarkers(islands: readonly FacingIsland[], drawn: (island: F
   });
 }
 
-/**
- * 3.89: a session's pointer (5.8, 5.9) whose mark in `world` is drawn (`drawn`, in CSS pixels from the canvas's top left)
- * outside a canvas `size` gets a marker there, in its session's colour, for `markerSpot` to bring to the edge nearest it; none
- * while it is in view, hidden or turned away, nor in Library. Its turn pans the pointer's island, one of `islands`, to the
- * middle of the view, on the user's click: nothing the agent does moves the camera (question_97c6d6036e47, answer E).
- */
 export function sheetPointerMarkers(world: Object3D, islands: readonly FacingIsland[], drawn: (at: Vector3) => { left: number; top: number },
   size: { width: number; height: number }, mode: ForestMode = "forest"): { pointer: string; story: string; colour: string; left: number; top: number; turn: GlobeTurn }[] {
   if (mode === "library") return [];
@@ -381,14 +260,6 @@ export function sheetPointerMarkers(world: Object3D, islands: readonly FacingIsl
   return found;
 }
 
-/**
- * The globe group's pose with the sheet tilted `tilt` radians (0 straight down on its top face, π straight up at its
- * underside) about the window's horizontal line through the middle of the view, its north edge tipping away from the eye
- * (ADR-1062 D2): `rotation` turned about that line, which crosses the sheet where the eye looks, so the place in the middle
- * stays there, depth still runs west to east, and the sheet's upright axis stays upright on the window, never rolling. First
- * the sheet is spun `heading` radians about its upright axis through that place, anticlockwise on its top face
- * (ADR-1060 D2), which moves neither the place nor the tilt.
- */
 export function sheetTilted(rotation: Quaternion, eye: Quaternion, tilt: number, heading = 0): { quaternion: Quaternion; position: Vector3 } {
   const upright = new Vector3(0, 0, 1).applyQuaternion(eye);
   const pivot = upright.clone().multiplyScalar(SHEET_RADIUS + PLATE_CLEARANCE);

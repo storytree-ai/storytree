@@ -1,10 +1,5 @@
-/**
- * Capability 3 · Story node render. The forest story's surfaces, as the app's Surfaces menu lists them (ADR-0750): each with its plain
- * name, one line on what it is, whether it can be switched off, and its own settings. Plain data, so
- * the app, the desktop frame and the command line can all read it without a browser.
- */
+// Capability 3 · Story node render
 
-/** The globe's opening views: how much of the window's short side the planet fills. */
 export const GLOBE_OPENINGS = [
   { id: "whole-planet", name: "Whole planet" },
   { id: "close", name: "Close up" },

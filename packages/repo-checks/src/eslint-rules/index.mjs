@@ -6,6 +6,7 @@ import noOneCharacterEscape from "./no-one-character-escape.mjs";
 import noPartialEscape from "./no-partial-escape.mjs";
 import noSwallowedAssert from "./no-swallowed-assert.mjs";
 import noTagStrip from "./no-tag-strip.mjs";
+import noUnguardedBatchFetch from "./no-unguarded-batch-fetch.mjs";
 import numberedTestAsserts from "./numbered-test-asserts.mjs";
 import posixCommands from "./posix-commands.mjs";
 import sketchBundleNames from "./sketch-bundle-names.mjs";
@@ -23,5 +24,6 @@ export default {
     "no-swallowed-assert": noSwallowedAssert,
     "posix-commands": posixCommands,
     "sketch-bundle-names": sketchBundleNames,
+    "no-unguarded-batch-fetch": noUnguardedBatchFetch,
   },
 };

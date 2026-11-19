@@ -276,6 +276,14 @@ interface ApiRun {
   created_at: string; pull_requests?: { number: number }[];
 }
 
+const GONE = /\bHTTP 4(?:04|10)\b/;
+
+function goneAsEmpty(error: unknown): string {
+  const { stderr, message } = (error ?? {}) as { stderr?: unknown; message?: unknown };
+  if (GONE.test(`${String(stderr ?? "")} ${String(message ?? error)}`)) return "";
+  throw error;
+}
+
 export function queuedPr(branch: string): number | undefined {
   const found = /^gh-readonly-queue\/[^/]+\/pr-(\d+)-/.exec(branch)?.[1];
   return found === undefined ? undefined : Number(found);
@@ -318,7 +326,7 @@ export function gitHubSource(github: GitHub, repository: string, watcher: Watche
       };
       const jobs = await Promise.all(listedJobs.map(async (job) => ({
         name: job.name, conclusion: job.conclusion, steps: job.steps?.length ?? 0,
-        log: job.conclusion === "failure" || job.conclusion === "timed_out" ? await github.text(`${api}/actions/jobs/${job.id}/logs`) : "",
+        log: job.conclusion === "failure" || job.conclusion === "timed_out" ? await github.text(`${api}/actions/jobs/${job.id}/logs`).catch(goneAsEmpty) : "",
       })));
       const passedSameHead = (await green(`head_sha=${run.head}`, run.workflow)).length > 0;
       const number = run.pr ?? (run.event === "pull_request" && run.branch !== ""

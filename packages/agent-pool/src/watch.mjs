@@ -156,41 +156,41 @@ export function onMain(status) {
   throw new Error(`GitHub's compare with main read ${status || "nothing"}`);
 }
 
-async function queueFailures(repo, commit, home = HOME) {
+async function queueFailures(repo, commit, home = HOME, gh = ghRun) {
   const api = `repos/${home}`;
-  const { checks, runs: ids } = failedOnQueue((await ghJson(repo, `${api}/commits/${commit}/check-runs?per_page=100`)).check_runs);
+  const { checks, runs: ids } = failedOnQueue((await ghJson(repo, `${api}/commits/${commit}/check-runs?per_page=100`, gh)).check_runs);
   const runs = [];
   for (const id of ids) {
-    const one = await ghJson(repo, `${api}/actions/runs/${id}`);
-    const jobs = await Promise.all((await jobsOf(repo, one, api)).map(async (job) => ({ ...job, log: redJob(job) ? await jobLog(repo, job.id, api) : "" })));
+    const one = await ghJson(repo, `${api}/actions/runs/${id}`, gh);
+    const jobs = await Promise.all((await jobsOf(repo, one, api, gh)).map(async (job) => ({ ...job, log: redJob(job) ? await jobLog(repo, job.id, api, gh) : "" })));
     runs.push({ id, attempt: one.run_attempt, repo: home, jobs });
   }
   return { checks, tests: readFailures(runs, new Set()).tests };
 }
 
-export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 10 * 60_000, home = HOME, seen = new Set() }) {
+export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 10 * 60_000, home = HOME, seen = new Set(), gh = ghRun }) {
   const [owner, name] = home.split("/"), api = `repos/${home}`;
-  const { stdout } = await run("gh", ["api", "graphql", "-f", `owner=${owner}`, "-f", `name=${name}`, "-F", `pr=${pr}`, "-f", `query=${QUERY}`],
+  const { stdout } = await gh(["api", "graphql", "-f", `owner=${owner}`, "-f", `name=${name}`, "-F", `pr=${pr}`, "-f", `query=${QUERY}`],
     { cwd: repo, maxBuffer: 16 * 1024 * 1024 });
   const found = JSON.parse(stdout).data.repository.pullRequest;
   const queueReds = [];
   for (const red of queueRemovals(found, seen)) {
-    queueReds.push({ ...red, ...await queueFailures(repo, red.commit, home).catch(() => ({ checks: [], tests: [] })) });
+    queueReds.push({ ...red, ...await queueFailures(repo, red.commit, home, gh).catch(() => ({ checks: [], tests: [] })) });
   }
   const pull = { ...readPull(found, { since, now: now(), graceMs, home }), ...(queueReds.length ? { queueReds } : {}) };
-  if (pull.security) return readScan(pull, pr, { json: (path) => ghJson(repo, path), jobs: (one) => jobsOf(repo, one, api), api, home });
+  if (pull.security) return readScan(pull, pr, { json: (path) => ghJson(repo, path, gh), jobs: (one) => jobsOf(repo, one, api, gh), api, home });
   if (pull.state !== "red" || pull.conflict || !pull.runs) return pull;
   const runs = [];
   for (const id of pull.runs) {
-    const one = await ghJson(repo, `${api}/actions/runs/${id}`);
-    const jobs = await jobsOf(repo, one, api);
+    const one = await ghJson(repo, `${api}/actions/runs/${id}`, gh);
+    const jobs = await jobsOf(repo, one, api, gh);
     runs.push({ id, attempt: one.run_attempt, status: one.status, repo: one.repository?.full_name ?? home, jobs,
-      log: one.run_attempt < RUNNER_ATTEMPTS ? await failedLog(repo, one, jobs, home) : "" });
+      log: one.run_attempt < RUNNER_ATTEMPTS ? await failedLog(repo, one, jobs, home, gh) : "" });
   }
   let failures;
   try {
-    const reach = reachOf(await filesOf(repo, pr, pull.head, api));
-    for (const one of runs) one.jobs = await Promise.all(one.jobs.map(async (job) => ({ ...job, log: redJob(job) ? await jobLog(repo, job.id, api) : "" })));
+    const reach = reachOf(await filesOf(repo, pr, pull.head, api, gh));
+    for (const one of runs) one.jobs = await Promise.all(one.jobs.map(async (job) => ({ ...job, log: redJob(job) ? await jobLog(repo, job.id, api, gh) : "" })));
     failures = readFailures(runs, reach);
   } catch {}
   return { ...pull, runner: runnerReruns(runs), ...(failures ? { failures } : {}) };
@@ -241,38 +241,44 @@ function failedTest(line) {
 }
 
 const filesSeen = new Map();
-async function filesOf(repo, pr, head, api = REPO) {
+async function filesOf(repo, pr, head, api = REPO, gh = ghRun) {
   const key = `${api}:${pr}:${head}`;
   if (!filesSeen.has(key)) {
-    const { stdout } = await run("gh", ["api", "--paginate", `${api}/pulls/${pr}/files?per_page=100`, "--jq", ".[].filename"], { cwd: repo, maxBuffer: 16 * 1024 * 1024 });
+    const { stdout } = await gh(["api", "--paginate", `${api}/pulls/${pr}/files?per_page=100`, "--jq", ".[].filename"], { cwd: repo, maxBuffer: 16 * 1024 * 1024 });
     filesSeen.set(key, stdout.split("\n").filter(Boolean));
   }
   return filesSeen.get(key);
 }
 const jobLogs = new Map();
-async function jobLog(repo, id, api = REPO) {
-  if (!jobLogs.has(id)) jobLogs.set(id, (await run("gh", ["api", `${api}/actions/jobs/${id}/logs`], { cwd: repo, maxBuffer: 64 * 1024 * 1024 })).stdout);
+const GONE = /\bHTTP 4(?:04|10)\b/;
+const goneAsEmpty = (error) => {
+  if (GONE.test(`${error?.stderr ?? ""} ${error?.message ?? error}`)) return { stdout: "" };
+  throw error;
+};
+async function jobLog(repo, id, api = REPO, gh = ghRun) {
+  if (!jobLogs.has(id)) jobLogs.set(id, (await gh(["api", `${api}/actions/jobs/${id}/logs`], { cwd: repo, maxBuffer: 64 * 1024 * 1024 }).catch(goneAsEmpty)).stdout);
   return jobLogs.get(id);
 }
 
 const REPO = "repos/storytree-ai/storytree";
-const ghJson = async (repo, path) => JSON.parse((await run("gh", ["api", path], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout);
+const ghRun = (args, options) => run("gh", args, options);
+const ghJson = async (repo, path, gh = ghRun) => JSON.parse((await gh(["api", path], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout);
 export const jobFields = (job) => ({ id: job.id, name: job.name, conclusion: job.conclusion, steps: job.steps?.length ?? 0, runner: job.runner_name ?? "",
   failed: job.steps?.find((step) => step.conclusion === "failure")?.name });
 const jobsSeen = new Map();
-async function jobsOf(repo, run, api = REPO) {
+async function jobsOf(repo, run, api = REPO, gh = ghRun) {
   const key = `${run.id}:${run.run_attempt}`;
   if (jobsSeen.has(key)) return jobsSeen.get(key);
-  const jobs = (await ghJson(repo, `${api}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`)).jobs.map(jobFields);
+  const jobs = (await ghJson(repo, `${api}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`, gh)).jobs.map(jobFields);
   if (run.status === "completed") jobsSeen.set(key, jobs);
   return jobs;
 }
 const logsSeen = new Map();
-async function failedLog(repo, one, jobs, home = HOME) {
+async function failedLog(repo, one, jobs, home = HOME, gh = ghRun) {
   const key = `${one.id}:${one.run_attempt}`;
   if (logsSeen.has(key)) return logsSeen.get(key);
   if (one.status !== "completed" || !jobs.some((job) => job.steps > 0 && job.conclusion === "failure")) return "";
-  const log = (await run("gh", ["run", "view", String(one.id), "--log-failed", "-R", home], { cwd: repo, maxBuffer: 64 * 1024 * 1024 }).catch(() => ({ stdout: "" }))).stdout;
+  const log = (await gh(["run", "view", String(one.id), "--log-failed", "-R", home], { cwd: repo, maxBuffer: 64 * 1024 * 1024 }).catch(() => ({ stdout: "" }))).stdout;
   logsSeen.set(key, log);
   return log;
 }

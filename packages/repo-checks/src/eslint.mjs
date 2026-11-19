@@ -13,8 +13,6 @@ const TYPESCRIPT = ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"];
 const NO_COMMENTS = "storytree/no-comments";
 const NEVER_SILENCED = new Set(["needsReason", "onlyNextLine"]);
 
-export const commentsOnAddedLinesOnly = true;
-
 const git = (root, args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
 
 function trackedSources(root) {
@@ -53,8 +51,8 @@ function mergeBase(root) {
   }
 }
 
-export function addedLines(root) {
-  const base = commentsOnAddedLinesOnly ? mergeBase(root) : null;
+function addedLines(root) {
+  const base = mergeBase(root);
   if (!base) return null;
   const added = new Map();
   let header = false;
@@ -95,10 +93,8 @@ async function lintResults(root, plugin, files) {
 }
 
 export async function eslintProblems(root, { plugin = storytreePlugin } = {}) {
-  const added = addedLines(root);
   return (await lintResults(root, plugin, trackedSources(root))).flatMap(({ file, result }) =>
     [...result.messages, ...result.suppressedMessages.filter((message) => message.ruleId === NO_COMMENTS && NEVER_SILENCED.has(message.messageId))]
-      .filter((message) => message.ruleId !== NO_COMMENTS || onAddedLine(added, file, message))
       .map((message) => `${file}:${message.line} ${message.ruleId ?? "parse"}: ${message.message}`),
   );
 }

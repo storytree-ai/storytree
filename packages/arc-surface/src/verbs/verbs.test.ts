@@ -5,6 +5,7 @@ import { test } from "node:test";
 
 import { connect } from "@storytree/library";
 import { openActivityLog } from "@storytree/session-management";
+import { recordFriction } from "@storytree/session-management/friction";
 import { VerbRefusal, type DoorWords, type Verb, type VerbFamilies, type VerbInputs } from "@storytree/library/verbs";
 
 import { ARC_FAMILIES, type ArcVerbContext } from "./index.js";
@@ -83,4 +84,40 @@ test("3.17 · `arc increment edit --escape-of <pr|increment> --escape-commit <sh
 
   await verbOf(increment, "edit").act({ increment: fix.id, "escape-of": "none" }, context, WORDS);
   assert.equal(await escapeOf(), undefined);
+});
+
+test("3.44 · `arc increment edit --remedies none`, or an empty --remedies, clears an increment's remedies, and `--remedies <friction>` adds to those it had", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const project = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(project);
+  const log = await openActivityLog(storytree);
+  t.after(async () => {
+    try {
+      await log.close();
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const increment = ARC_FAMILIES.find((family) => family.name === "arc")!.families!.find((family) => family.name === "increment")!;
+  const context: ArcVerbContext = { library, log, project, session: "person:test", folder: "/work", writer: { actor: "person:test" } };
+  const friction = (title: string) => recordFriction(library, { title, description: "Delay", statement: "Timeout", evidence: "src/mail.ts: TimeoutError", impact: "Readers wait" });
+  const first = await friction("Slow mail");
+  const later = await friction("Slow mail again");
+  const plan = await library.createArc({ title: "Launch", intent: "Ship it", endState: "It is live" });
+  const fix = await library.addIncrement({ arc: plan.id, title: "Retry mail", objective: "Retry", body: "…", remedies: [first.id] });
+  const remedies = async () => ((await library.get(fix.id))?.fields as { remedies?: string[] }).remedies ?? [];
+
+  await verbOf(increment, "edit").act({ increment: fix.id, remedies: later.id }, context, WORDS);
+  assert.deepEqual(await remedies(), [first.id, later.id], "--remedies adds, keeping the one it had");
+
+  await verbOf(increment, "edit").act({ increment: fix.id, remedies: "none" }, context, WORDS);
+  assert.deepEqual(await remedies(), [], "--remedies none clears them");
+
+  await verbOf(increment, "edit").act({ increment: fix.id, remedies: first.id }, context, WORDS);
+  assert.deepEqual(await remedies(), [first.id]);
+  await verbOf(increment, "edit").act({ increment: fix.id, remedies: "" }, context, WORDS);
+  assert.deepEqual(await remedies(), [], "an empty --remedies clears them");
 });

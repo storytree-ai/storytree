@@ -929,6 +929,27 @@ test("10.9 park_increment takes an increment's capabilities and links, and edit_
   });
 });
 
+test("9.44 edit_plan takes an increment's remedies, replacing those it had, and an empty list leaves it remedying nothing", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc } = await planned(agent);
+      const friction = (title: string) => recordFriction(library, { title, description: "Delay", statement: "Timeout", evidence: "src/mail.ts: TimeoutError", impact: "Readers wait" });
+      const first = await friction("Slow mail");
+      const later = await friction("Slow mail again");
+      const fix = (await library.addIncrement({ arc, title: "Retry mail", objective: "Retry", body: "Red then green", remedies: [first.id] })).id;
+      const remedies = async () => ((await library.get(fix))?.fields as { remedies?: string[] } | undefined)?.remedies ?? [];
+
+      const replaced = await agent.call("edit_plan", { id: fix, remedies: [later.id] });
+      assert.equal(replaced.isError, false, replaced.text);
+      assert.deepEqual(await remedies(), [later.id], "the list given replaces the one it had");
+
+      const emptied = await agent.call("edit_plan", { id: fix, remedies: [] });
+      assert.equal(emptied.isError, false, emptied.text);
+      assert.deepEqual(await remedies(), [], "an empty list removes the link");
+    });
+  });
+});
+
 test("9.8 edit_plan sets and clears an arc's priority, refusing anything but a whole number of 1 or more or \"none\" with nothing written, and show_plan lists arcs by it, 1 first (ADR-0963)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

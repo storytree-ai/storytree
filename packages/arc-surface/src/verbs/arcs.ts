@@ -299,7 +299,7 @@ const PLAN_INPUTS = {
   body: { kind: "text", optional: true, describe: "its breakdown" },
   capabilities: { kind: "text", optional: true, blank: true, describe: "the capabilities its contracts' paths cross, comma-separated, or none to empty the list" },
   links: { kind: "text", optional: true, describe: "what it cites, comma-separated" },
-  remedies: { kind: "text", optional: true, describe: "the friction it remedies, comma-separated" },
+  remedies: { kind: "text", optional: true, blank: true, describe: "the friction it remedies, comma-separated, or none to clear" },
   "held-on": { kind: "text", optional: true, blank: true, describe: "the owner's questions it is held on, comma-separated, or none to clear" },
   machine: { kind: "text", optional: true, describe: "the one machine that can take it, cloud for work only a cloud container can prove (no dispatcher takes it), or none to clear" },
   "escape-of": { kind: "text", optional: true, describe: "the pull request (#123) or increment that caused the escape it fixes, or none to clear" },
@@ -320,6 +320,7 @@ function incrementOf({ capabilities, links, remedies, "held-on": heldOn, machine
     if (list !== undefined) fields[field] = list;
   }
   if ((fields.capabilities as string[] | undefined)?.join() === "none") fields.capabilities = [];
+  if ((fields.remedies as string[] | undefined)?.join() === "none") fields.remedies = [];
   const held = fields.heldOn as string[] | undefined;
   if (held?.length === 0 || (held?.length === 1 && held[0] === "none")) fields.heldOn = undefined;
   if (escapeOf === "none" && escapeStory === undefined && escapeCommit === undefined) fields.escape = undefined;
@@ -450,8 +451,8 @@ const incrementEdit = verb({
   command: {
     family: "arc increment",
     name: "edit",
-    summary: "change only the named fields; --capabilities and --links replace the lists, --remedies adds friction to those it already remedies, --machine names the one machine that can take it, --escape-of, --escape-commit and --escape-story the escape it fixes",
-    usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b, or none to empty] [--links a,b] [--remedies f,g] [--held-on q, or none to clear] [--machine <name>, or none to clear] [--escape-of <pr|increment> [--escape-commit <sha>] --escape-story <story>, or --escape-of none to clear]",
+    summary: "change only the named fields; --capabilities and --links replace the lists, --remedies adds friction to those it already remedies, or none to clear, --machine names the one machine that can take it, --escape-of, --escape-commit and --escape-story the escape it fixes",
+    usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b, or none to empty] [--links a,b] [--remedies f,g, or none to clear] [--held-on q, or none to clear] [--machine <name>, or none to clear] [--escape-of <pr|increment> [--escape-commit <sha>] --escape-story <story>, or --escape-of none to clear]",
   },
   tool: { absent: "the MCP server's own edit_plan edits an increment" },
   inputs: { increment: { kind: "text", word: 0, describe: "the increment's id" }, ...PLAN_INPUTS },
@@ -459,7 +460,7 @@ const incrementEdit = verb({
   async act({ increment: id, ...given }, context: ArcVerbContext) {
     const { library } = context;
     const fields: Record<string, unknown> = { ...incrementOf(given), ...(await machineGiven(given.machine, context)) };
-    if (fields.remedies !== undefined) {
+    if (((fields.remedies as string[] | undefined) ?? []).length > 0) {
       const had = ((await library.get(id))?.fields as { remedies?: string[] } | undefined)?.remedies ?? [];
       fields.remedies = [...new Set([...had, ...(fields.remedies as string[])])];
     }

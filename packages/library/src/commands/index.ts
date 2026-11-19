@@ -129,7 +129,7 @@ const search = verb({
   command: {
     family: "library",
     name: "search",
-    summary: "the artifacts, stories, capabilities and contracts closest in meaning to the words, best first (10 unless --limit); current state only: resteers, friction and superseded decisions come back with --history, or a resteer or friction with --kind; --project searches its factory's library or a project it builds (all for every one), each under its project",
+    summary: "the artifacts, stories, capabilities, contracts, arcs and increments closest in meaning to the words, best first, closed arcs and increments after the open ones (10 unless --limit); current state only: resteers, friction and superseded decisions come back with --history, or a resteer or friction with --kind; --project searches its factory's library or a project it builds (all for every one), each under its project",
     usage: "library search <words…> [--limit <n>] [--history] [--kind <kind>] [--project <project|all>]",
   },
   tool: NOT_A_TOOL,

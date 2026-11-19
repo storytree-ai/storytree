@@ -101,7 +101,7 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
     let killing = false;
     const listEvery = Math.min(3_000, exitGraceMs / 4);
     const settle = (reading, at) => {
-      if (reading !== undefined && (cpu === undefined || cpuShare(cpu, { reading, at }) >= BUSY_SHARE)) quietSince = Date.now();
+      if (reading !== undefined && (cpu === undefined || cpuShare(cpu, { reading, at }, platform) >= BUSY_SHARE)) quietSince = Date.now();
       cpu = reading === undefined ? undefined : { reading, at };
     };
     const readWindows = (now) => {
@@ -320,9 +320,9 @@ async function captureExit({ child, root, runningFile, exitHung, listProcesses, 
   clearTimeout(timer);
 }
 
-function cpuShare(before, after) {
+function cpuShare(before, after, platform) {
   const values = [...after.reading.values()];
-  if (process.platform === "darwin") return values.reduce((sum, share) => sum + share, 0);
+  if (platform === "darwin") return values.reduce((sum, share) => sum + share, 0);
   const used = [...after.reading].reduce((sum, [pid, ms]) => sum + Math.max(0, ms - (before.reading.get(pid) ?? 0)), 0);
   return used / Math.max(1, after.at - before.at);
 }

@@ -21,7 +21,8 @@
     "typescript-eslint": "^8.72.2"
   },
   "devDependencies": {
-    "@storytree/test-waits": "workspace:*"
+    "@storytree/test-waits": "workspace:*",
+    "eslint-plugin-regexp": "^3.3.3"
   },
   "exports": {
     "./allocation-rule": "./src/rules/allocation-rule/allocation-rule.ts",

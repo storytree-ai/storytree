@@ -1,5 +1,5 @@
 // Capability 4 · Running the tests
-import { execFileSync, spawn } from "node:child_process";
+import { execFile, execFileSync, spawn } from "node:child_process";
 import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -17,6 +17,9 @@ const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness) => (harness.sh
 export const TEST_LIMIT_MS = 60_000;
 export const UNIT_LIMIT_MS = 180_000;
 export const EXIT_GRACE_MS = 20_000;
+export const CAPTURE_LIMIT_MS = 10_000;
+const LISTING_LIMIT_MS = 10_000;
+const THREAD_GAP_MS = 2_000;
 export const UNIT_LIMIT_FLOOR_MS = 60_000;
 export const UNIT_LIMIT_CEILING_MS = 900_000;
 const BUSY_SHARE = 0.25;
@@ -36,7 +39,7 @@ process.on("exit", () => {
   for (const temp of liveTemps) stopServersUnder(temp);
 });
 
-export function runUnit({ root, files, env, args = [], evidence, testLimitMs = TEST_LIMIT_MS, unitLimitMs = UNIT_LIMIT_MS, exitGraceMs = EXIT_GRACE_MS, hold = false, stdio = hold ? ["ignore", "pipe", "pipe"] : "inherit", onSpawn = () => {} }) {
+export function runUnit({ root, files, env, args = [], evidence, testLimitMs = TEST_LIMIT_MS, unitLimitMs = UNIT_LIMIT_MS, exitGraceMs = EXIT_GRACE_MS, platform = process.platform, windowsProcesses: listProcesses = windowsProcesses, windowsThreads: listThreads = windowsThreads, captureLimitMs = CAPTURE_LIMIT_MS, hold = false, stdio = hold ? ["ignore", "pipe", "pipe"] : "inherit", onSpawn = () => {} }) {
   const runningFile = path.join(tmpdir(), `storytree-running-${process.pid}-${++runs}.jsonl`);
   rmSync(runningFile, { force: true });
   const guard = ["--test-force-exit"];
@@ -93,19 +96,43 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
     }, unitLimitMs);
     let quietSince = started;
     let cpu;
+    let listing = false;
+    let listedAt = -Infinity;
+    let killing = false;
+    const settle = (reading, at) => {
+      if (reading !== undefined && (cpu === undefined || cpuShare(cpu, { reading, at }) >= BUSY_SHARE)) quietSince = Date.now();
+      cpu = reading === undefined ? undefined : { reading, at };
+    };
+    const readWindows = (now) => {
+      if (listing || now - listedAt < Math.min(3_000, exitGraceMs / 4)) return;
+      listing = true;
+      listedAt = now;
+      listProcesses().then((table) => {
+        listing = false;
+        if (child.exitCode !== null || child.signalCode !== null) return;
+        settle(new Map(treeRows(table, child.pid).map((row) => [row.pid, row.cpuMs])), now);
+      }, () => {
+        listing = false;
+      });
+    };
+    const kill = () => {
+      if (platform !== "win32" || report === undefined) return killTree(child);
+      killing = true;
+      captureExit({ child, root, runningFile, exitHung, listProcesses, listThreads, limitMs: captureLimitMs, to: path.join(path.dirname(report), "exit-capture.json") }).finally(() => killTree(child));
+    };
     const exitWatch = setInterval(() => {
+      if (killing) return;
       const now = Date.now();
       if (endedNotExited(runningFile, now).length === 0) {
         quietSince = now;
         cpu = undefined;
         return;
       }
-      const reading = treeCpu(child.pid);
-      if (reading !== undefined && (cpu === undefined || cpuShare(cpu, { reading, at: now }) >= BUSY_SHARE)) quietSince = now;
-      cpu = reading === undefined ? undefined : { reading, at: now };
+      if (platform === "win32") readWindows(now);
+      else settle(treeCpu(child.pid), now);
       if (now - quietSince < exitGraceMs) return;
       exitHung = endedNotExited(runningFile, now - exitGraceMs);
-      if (exitHung.length > 0) killTree(child);
+      if (exitHung.length > 0) kill();
     }, Math.min(1_000, exitGraceMs / 2));
     const stop = () => {
       clearTimeout(deadline);
@@ -122,9 +149,10 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
       const tests = endedTests(runningFile, root, testLimitMs);
       const skipped = readJsonLines(runningFile).filter((entry) => entry.event === "end" && entry.skipped === true).length;
       const unloaded = failedUnloaded(runningFile, root);
+      const spared = slowExits(runningFile, exitGraceMs).filter(({ file }) => !exitHung.includes(file));
       rmSync(runningFile, { force: true });
       removeTemp();
-      const result = { code: timedOut || exitHung.length > 0 ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, exitHung, unitLimitMs, tests, unloaded, skipped };
+      const result = { code: timedOut || exitHung.length > 0 ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, exitHung, spared, unitLimitMs, tests, unloaded, skipped };
       if (report !== undefined) {
         try {
           let xml = "";
@@ -132,7 +160,7 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
           const results = xml.trimEnd().endsWith("</testsuites>") ? parseJunit(xml).map((test) => ({
             ...test, file: path.relative(root, test.file).replaceAll("\\", "/"),
           })) : [];
-          writeFileSync(path.join(path.dirname(report), "result.json"), JSON.stringify({ ...provenance, code: result.code, results }), { flag: "wx" });
+          writeFileSync(path.join(path.dirname(report), "result.json"), JSON.stringify({ ...provenance, code: result.code, results, spared: spared.map(({ file, seconds }) => ({ file: path.relative(root, file).replaceAll("\\", "/"), seconds })) }), { flag: "wx" });
         } catch (error) {
           reject(error);
           return;
@@ -225,19 +253,70 @@ function treeCpu(pid) {
   } catch {
     return undefined;
   }
-  const children = new Map();
-  for (const row of table) children.set(row.ppid, [...(children.get(row.ppid) ?? []), row]);
-  const cpu = new Map();
+  return new Map(treeRows(table, pid).map((row) => [row.pid, row.used]));
+}
+
+function treeRows(table, pid) {
+  const children = Map.groupBy(table, (row) => row.ppid);
+  const found = table.filter((row) => row.pid === pid);
+  const seen = new Set([pid]);
   const walk = (parent) => {
     for (const row of children.get(parent) ?? []) {
-      cpu.set(row.pid, row.used);
+      if (seen.has(row.pid)) continue;
+      seen.add(row.pid);
+      found.push(row);
       walk(row.pid);
     }
   };
-  const own = table.find((row) => row.pid === pid);
-  if (own !== undefined) cpu.set(pid, own.used);
   walk(pid);
-  return cpu;
+  return found;
+}
+
+function powershellJson(script) {
+  return new Promise((resolve, reject) => {
+    execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", timeout: LISTING_LIMIT_MS, maxBuffer: 64 * 1024 * 1024, windowsHide: true }, (error, stdout) => {
+      if (error) return reject(error);
+      try {
+        resolve(JSON.parse(stdout.trim() || "[]"));
+      } catch (parseError) {
+        reject(parseError);
+      }
+    });
+  });
+}
+
+export function windowsProcesses() {
+  return powershellJson("ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process | ForEach-Object { [pscustomobject]@{ pid = [int]$_.ProcessId; ppid = [int]$_.ParentProcessId; cpuMs = [math]::Round(([double]$_.KernelModeTime + [double]$_.UserModeTime) / 10000); commandLine = $_.CommandLine } })");
+}
+
+export function windowsThreads(pids) {
+  const filter = pids.map((pid) => `ProcessHandle='${Number(pid)}'`).join(" OR ");
+  if (filter === "") return Promise.resolve([]);
+  return powershellJson(`ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Thread -Filter "${filter}" | ForEach-Object { [pscustomobject]@{ pid = [int]$_.ProcessHandle; tid = [int]$_.Handle; cpuMs = [double]$_.KernelModeTime + [double]$_.UserModeTime; waitReason = $_.ThreadWaitReason; state = $_.ThreadState } })`);
+}
+
+async function captureExit({ child, root, runningFile, exitHung, listProcesses, listThreads, limitMs, to }) {
+  let cut = false;
+  const capture = async () => {
+    const tree = treeRows(await listProcesses(), child.pid);
+    const pids = tree.map((row) => row.pid);
+    const threads = [];
+    for (const pause of [0, THREAD_GAP_MS]) {
+      await new Promise((done) => setTimeout(done, pause));
+      const at = new Date().toISOString();
+      threads.push({ at, rows: await listThreads(pids) });
+    }
+    const lastEnded = new Map();
+    for (const entry of readJsonLines(runningFile)) if (entry.event === "end" && entry.fullName !== undefined) lastEnded.set(entry.file, entry.fullName);
+    const files = exitHung.map((file) => ({ file: path.relative(root, file).replaceAll("\\", "/"), lastEnded: lastEnded.get(file), alive: tree.some((row) => row.commandLine?.includes(file) === true) }));
+    if (!cut) writeFileSync(to, JSON.stringify({ files, processes: tree, threads }));
+  };
+  let timer;
+  try {
+    await Promise.race([capture(), new Promise((done) => (timer = setTimeout(done, limitMs)))]);
+  } catch {}
+  cut = true;
+  clearTimeout(timer);
 }
 
 function cpuShare(before, after) {
@@ -245,6 +324,16 @@ function cpuShare(before, after) {
   if (process.platform === "darwin") return values.reduce((sum, share) => sum + share, 0);
   const used = [...after.reading].reduce((sum, [pid, ms]) => sum + Math.max(0, ms - (before.reading.get(pid) ?? 0)), 0);
   return used / Math.max(1, after.at - before.at);
+}
+
+function slowExits(runningFile, graceMs) {
+  const lastTest = new Map();
+  const slow = [];
+  for (const entry of readJsonLines(runningFile)) {
+    if (!isFileEntry(entry)) lastTest.set(entry.file, entry.at);
+    else if (entry.event === "end" && lastTest.has(entry.file) && entry.at - lastTest.get(entry.file) > graceMs) slow.push({ file: entry.file, seconds: Math.round((entry.at - lastTest.get(entry.file)) / 100) / 10 });
+  }
+  return slow;
 }
 
 function endedTests(runningFile, root, limitMs) {
@@ -408,7 +497,8 @@ export function unitReason(run, root) {
     return `first try ${unitReason(firstTry, root)}; second try: ${unitReason(second, root)}`;
   }
   const timeouts = (run.tests ?? []).filter((test) => test.timedOut);
-  const reason = `${unitRowReason(run, root)}${run.skipped > 0 ? `, ${run.skipped} skipped` : ""}`;
+  const spared = (run.spared ?? []).map(({ file, seconds }) => `; ${path.relative(root, file).replaceAll("\\", "/")}: its exit was waited on ${seconds.toFixed(1)} s past its last test, spared because its unit was busy`).join("");
+  const reason = `${unitRowReason(run, root)}${run.skipped > 0 ? `, ${run.skipped} skipped` : ""}${spared}`;
   if (timeouts.length === 0) return reason;
   return `${reason}; timed out at the per-test limit of ${run.testLimitMs / 1000} s (${run.testLimitSource}): ${timeouts.map(({ file, name }) => `${file} › ${name}`).join("; ")}`;
 }

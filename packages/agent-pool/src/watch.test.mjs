@@ -1852,3 +1852,25 @@ test("4.63 · a red job whose log GitHub does not have (HTTP 404 on the pull req
   assert.deepEqual(look.queueReds?.map(({ commit, tests }) => ({ commit, tests })), [{ commit: "q963", tests: ["4.1 · a queue test fails"] }],
     "the queue red's other red job's failing test is read past the job whose log is gone");
 });
+
+test("4.29 · the watcher reads a pull request's red below the rerun limit as the runner's when its failed log shows the browser crashing at launch, so its runner reading names that fault", async () => {
+  const api = `repos/${HOME}`;
+  const checks = [{ ...failed, name: "verify on macOS", detailsUrl: `https://github.com/${HOME}/actions/runs/96330/job/963301` }];
+  const routes = {
+    [`${api}/actions/runs/96330`]: { id: 96330, run_attempt: 1, status: "completed", repository: { full_name: HOME } },
+    [`${api}/actions/runs/96330/jobs?filter=latest&per_page=100`]: { jobs: [
+      { id: 963301, name: "verify on macOS", conclusion: "failure", steps: [{ name: "test", conclusion: "failure" }], runner_name: "macos-1" },
+    ] },
+  };
+  const gh = async (args) => {
+    if (args[1] === "graphql") return { stdout: JSON.stringify({ data: { repository: { pullRequest: pull({ checks }) } } }), stderr: "" };
+    if (args[0] === "run") return { stdout: "verify on macOS\ttest\tbrowserType.launch: Target page, context or browser has been closed\nverify on macOS\ttest\tsignal=SIGSEGV\n", stderr: "" };
+    if (args[1] === "--paginate") return { stdout: "packages/agent-pool/src/watch.mjs\n", stderr: "" };
+    if (!(args[1] in routes)) throw new Error(`no route ${args.join(" ")}`);
+    return { stdout: typeof routes[args[1]] === "string" ? routes[args[1]] : JSON.stringify(routes[args[1]]), stderr: "" };
+  };
+
+  const look = await lookOnGitHub(41, { repo: join(tmpdir(), "no-checkout-4-29"), since: minutes(-60), now: () => at, gh });
+
+  assert.equal(look.runner?.why, "verify on macOS: the browser crashed at launch", "a first attempt's failed log is read, and the crash it shows is the runner's");
+});

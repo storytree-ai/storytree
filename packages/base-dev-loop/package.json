@@ -17,11 +17,20 @@
   "exports": {
     ".": "./src/gate.mjs",
     "./junit": "./src/junit.mjs",
+    "./measures": "./src/whole-run-measures.mjs",
     "./provision-worktree": "./src/provision-worktree.mjs",
     "./red-run-reporter": "./src/red-run-reporter.mjs",
     "./red-runs": "./src/red-runs.mjs",
     "./test": "./src/test.mjs",
     "./test-scope": "./src/test-scope.mjs",
     "./unit-run": "./src/unit-run.mjs"
+  },
+  "storytree": {
+    "measures": [
+      {
+        "from": "./measures",
+        "export": "WHOLE_RUN_MEASURE_READERS"
+      }
+    ]
   }
 }

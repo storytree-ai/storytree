@@ -1,7 +1,10 @@
 // Capability 1 · The gate runner
 import { execFileSync, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { appendWholeRun, GATE_RUN_ENV, readWholeRuns, startClock, storytreeHome, wholeRunRow } from "./whole-runs.mjs";
 
 let loaded;
 function typescript() {
@@ -71,7 +74,9 @@ export function contributedHold({ root = process.cwd(), compose = (at) => contri
   };
 }
 
-export async function runGate({ root = process.cwd(), flags = {}, rerunHint = null, signal, forceSignal, log = console.log, run = runCheck, prepare = () => null, steps = contributedSteps, partsOff = readPartsOff, standIns = readStandIns } = {}) {
+export async function runGate({ root = process.cwd(), flags = {}, rerunHint = null, signal, forceSignal, log = console.log, run = runCheck, prepare = () => null, steps = contributedSteps, partsOff = readPartsOff, standIns = readStandIns, home = storytreeHome(), now = Date.now } = {}) {
+  const clock = startClock(now);
+  const id = randomUUID();
   const unready = prepare(log);
   const results = Object.fromEntries(BASE.map((step) => [step, "not run"]));
   const reasons = {};
@@ -106,7 +111,7 @@ export async function runGate({ root = process.cwd(), flags = {}, rerunHint = nu
     if (signal?.aborted) break;
     log(`\n=== ${step.name} ===`);
     try {
-      const code = await run(step.name, { root, signal, forceSignal, command: step.command({ root }) });
+      const code = await run(step.name, { root, signal, forceSignal, env: { [GATE_RUN_ENV]: id }, command: step.command({ root }) });
       if (!signal?.aborted) {
         results[step.name] = code === 0 ? "pass" : "fail";
         if (code !== 0) reasons[step.name] = `exit ${code ?? "without a code"}`;
@@ -125,6 +130,8 @@ export async function runGate({ root = process.cwd(), flags = {}, rerunHint = nu
   }
   const code = signal?.aborted ? 130 : unready || Object.values(results).includes("fail") ? 1 : 0;
   log(`\n${resultsTable(results, { reasons, rerunHint: code === 0 ? null : rerunHint })}`);
+  const tested = signal?.aborted ? undefined : readWholeRuns(home).findLast((row) => row.kind === "test" && row.gate === id);
+  if (tested !== undefined) appendWholeRun(wholeRunRow("gate", clock, { scope: tested.scope, units: tested.units, result: code === 0 ? "pass" : "fail" }), { home, log });
   return code;
 }
 
@@ -140,10 +147,10 @@ export function stepCommand(step) {
   return { command: "pnpm", args: ["run", step], shell: process.platform === "win32" };
 }
 
-function runCheck(step, { root, signal, forceSignal, command: { command, args, shell } }) {
+function runCheck(step, { root, signal, forceSignal, env, command: { command, args, shell } }) {
   return new Promise((resolve, reject) => {
     const windows = process.platform === "win32";
-    const child = spawn(command, args, { cwd: root, stdio: "inherit", shell, detached: !windows });
+    const child = spawn(command, args, { cwd: root, env: { ...process.env, ...env }, stdio: "inherit", shell, detached: !windows });
     const terminate = (signal) => {
       if (!child.pid) return;
       try {

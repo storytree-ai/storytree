@@ -192,9 +192,14 @@ function isFileResult(result) {
   return result.suites.length === 0 && /\.test\.[cm]?[jt]sx?$/.test(name) && file.endsWith(name);
 }
 
+function spacedRest(text) {
+  const rest = text.trimStart();
+  return rest.length < text.length ? rest : undefined;
+}
+
 function contractsOfResult(result, prefix, prefixedOnly) {
   for (const name of [...result.suites, result.name]) {
-    const after = prefix === undefined || !name.startsWith(prefix) ? undefined : /^\s+(.*)$/s.exec(name.slice(prefix.length))?.[1];
+    const after = prefix === undefined || !name.startsWith(prefix) ? undefined : spacedRest(name.slice(prefix.length));
     const numbers = leadingContracts(after ?? (prefixedOnly ? "" : name));
     if (numbers.length > 0) return numbers;
   }

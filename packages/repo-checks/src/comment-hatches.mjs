@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { commentHatches } from "./eslint.mjs";
 
 const STEP = "fyi:comment-hatches";
-const TOLD = /^\s+fyi_\w+/m;
+const TOLD = /^[ \t]+fyi_\w+/m;
 
 const what = ({ file, line, comment, reason }) => `${file}:${line} keeps the comment "${comment}", disabling storytree/no-comments because: ${reason}`;
 

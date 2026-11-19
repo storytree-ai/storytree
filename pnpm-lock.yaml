@@ -963,9 +963,6 @@ importers:
 
   packages/repo-checks:
     dependencies:
-      '@babel/parser':
-        specifier: ^7.29.9
-        version: 7.29.9
       '@storytree/base-dev-loop':
         specifier: workspace:*
         version: link:../base-dev-loop

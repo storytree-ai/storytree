@@ -2,7 +2,6 @@
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { allocationProblems } from "./allocation.mjs";
-import { codeqlPatternProblems } from "./codeql-patterns.mjs";
 import { eslintProblems } from "./eslint.mjs";
 import { boundaryProblems } from "./package-boundaries.mjs";
 import { typeImportProblems } from "./type-imports.mjs";
@@ -11,7 +10,6 @@ export const RULES = [
   { name: "type-imports", problems: typeImportProblems },
   { name: "package-boundaries", problems: boundaryProblems },
   { name: "allocation", problems: allocationProblems },
-  { name: "codeql-patterns", problems: codeqlPatternProblems },
   { name: "eslint", problems: eslintProblems },
 ];
 

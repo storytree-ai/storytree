@@ -28,6 +28,9 @@ importers:
       '@storytree/base-dev-loop':
         specifier: workspace:*
         version: link:packages/base-dev-loop
+      '@storytree/code-measures':
+        specifier: workspace:*
+        version: link:packages/code-measures
       '@storytree/library':
         specifier: workspace:*
         version: link:packages/library

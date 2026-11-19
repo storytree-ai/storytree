@@ -39,6 +39,7 @@
   },
   "devDependencies": {
     "@storytree/base-dev-loop": "workspace:*",
+    "@storytree/code-measures": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
     "@storytree/repo-checks": "workspace:*",

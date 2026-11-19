@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./view": "./src/view/index.ts"
+    "./view": "./src/view/index.ts",
+    "./lag-measures": "./src/lag-measures.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -25,5 +26,13 @@
     "typescript": "~7.0.2",
     "@types/react": "^19.1.8",
     "@types/three": "^0.185.0"
+  },
+  "storytree": {
+    "measures": [
+      {
+        "from": "./lag-measures",
+        "export": "LAG_MEASURE_READERS"
+      }
+    ]
   }
 }

@@ -523,3 +523,77 @@ test("3.5 · recordSampled records, through the readings writer, each story's va
   assert.match(again.text, /already/i, `the verb answers with recordSampled's text, here the head already read: ${again.text}`);
   assert.deepEqual(await all(), before, "the verb's refusals and its answer at a head already read record nothing");
 });
+
+test("3.6 · recordMeasures leaves a paired dedicated measure whose reader names recordedBy to that routine: never asks its sample, leaves it out of the no-sample list, names it as recorded by the routine its reader names, and its rows at the head or within the day never stop the machine's other dedicated measures being read; with only such measures it samples nothing and still names each", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library: Library = await storytree.openProject(name);
+  const alpha = await library.addStory({ title: "Alpha tools" });
+  const wall = await library.writeKnowledge("measure", { ...measure("Survey wall", alpha.id, "mint", false), unit: "ms" } as never);
+  const untimed = await library.writeKnowledge("measure", measure("Survey untimed", alpha.id, "mint", false) as never);
+  const lagA = await library.writeKnowledge("measure", { ...measure("Lag A", alpha.id, "mint", false), unit: "ms" } as never);
+  const lagB = await library.writeKnowledge("measure", { ...measure("Lag B", alpha.id, "mint", false), unit: "ms" } as never);
+
+  const repo = repository(t);
+  const asked = `__routineAsked_${randomBytes(4).toString("hex")}`;
+  declareSamplers(repo, alpha.id, `routine-${randomBytes(4).toString("hex")}.mjs`, asked, [
+    sampler(wall.id, { value: 1234.5, runs: 5, spread: 0.25 }),
+    { measure: untimed.id, member: "read(story) { return 1; }" },
+    { measure: lagA.id, member: `recordedBy: "lag box", action: "close-panel", quantity: "response-p50", async sample() { asked.push({ measure: ${JSON.stringify(lagA.id)} }); return { value: 9, runs: 1, spread: 0 }; }` },
+    { measure: lagB.id, member: `recordedBy: "frame lab", action: "idle", quantity: "longest-frame"` },
+  ]);
+  const first = repo.commitAsOrigin("2026-11-10T12:00:00Z");
+
+  const db = await codeMeasures.measureReadingsPool(storytree);
+  const records = (await library.measures()).map(({ id, fields }) => ({ id, fields }));
+  const readers = await codeMeasures.measureReadersOf(repo.folder);
+  const record = (only: readonly string[] = records.map(({ id }) => id)) => codeMeasures.recordMeasures({
+    folder: repo.folder, project: library.name, machine: "mint", stories: [{ id: alpha.id, title: "Alpha tools" }], records: records.filter(({ id }) => only.includes(id)), readers, db,
+    plan: async () => ({ arcs: [], stories: [] }),
+    load: () => ({ load: 0.5, cpus: 4 }),
+  });
+  const asks = () => (((globalThis as Record<string, unknown>)[asked] as { measure: string }[] | undefined) ?? []).map(({ measure: id }) => id);
+  const series = (id: string) => seam.measureSeries(db, { project: library.name, story: alpha.id, measure: id, version: 1 });
+  const commits = async (id: string) => (await series(id)).map(({ commit }) => commit);
+  const lagANamed = `recorded by lag box, so not read here, for Lag A (${lagA.id})`;
+  const lagBNamed = `recorded by frame lab, so not read here, for Lag B (${lagB.id})`;
+  const routineRow = (commit: string, committed: string) => ({
+    project: library.name, story: alpha.id, measure: lagA.id, version: 1, value: 42, unit: "ms", commit, committed, machine: "mint", runs: 1, spread: null, readAt: new Date().toISOString(),
+  });
+
+  const answer = await record();
+  assert.ok(answer.includes(lagANamed), `the routine's measure is named as recorded by it: ${answer}`);
+  assert.ok(answer.includes(lagBNamed), `each by the routine its own reader names: ${answer}`);
+  assert.equal(/no sample, so nothing recorded, for (.*?)(?:;|\.(?:\n|$))/.exec(answer)?.[1], `Survey untimed (${untimed.id})`, `only the measure with neither sample nor routine is listed as having no sample: ${answer}`);
+  assert.deepEqual(asks(), [wall.id], "the routine's measure's sample is never asked");
+  assert.deepEqual(await commits(wall.id), [first]);
+  assert.deepEqual([...(await series(lagA.id)), ...(await series(lagB.id))], [], "no row is recorded for a routine's measure");
+
+  repo.write("packages/alpha-tools/src/a.ts", "export const second = 2;\n");
+  const second = repo.commitAsOrigin("2026-11-12T12:00:00Z");
+  await db.query("UPDATE measure_readings SET read_at = read_at - interval '25 hours' WHERE project = $1 AND measure = $2", [library.name, wall.id]);
+  await codeMeasures.writeReadings(db, [routineRow(second, "2026-11-12T12:00:00.000Z")]);
+  const atHead = await record();
+  assert.deepEqual(await commits(wall.id), [first, second], `the routine's row at the head does not stop the other dedicated measure being read: ${atHead}`);
+
+  repo.write("packages/alpha-tools/src/a.ts", "export const third = 3;\n");
+  const third = repo.commitAsOrigin("2026-11-14T12:00:00Z");
+  await db.query("UPDATE measure_readings SET read_at = read_at - interval '25 hours' WHERE project = $1 AND measure = $2", [library.name, wall.id]);
+  const withinDay = await record();
+  assert.deepEqual(await commits(wall.id), [first, second, third], `the routine's row within the day does not stop the other dedicated measure being read: ${withinDay}`);
+
+  await codeMeasures.writeReadings(db, [routineRow(third, "2026-11-14T12:00:00.000Z")]);
+  const onlyRoutines = await record([lagA.id, lagB.id]);
+  assert.ok(onlyRoutines.includes(lagANamed) && onlyRoutines.includes(lagBNamed), `with every dedicated measure recorded by a routine, each is still named as recorded by it: ${onlyRoutines}`);
+  assert.deepEqual(asks(), [wall.id, wall.id, wall.id], "and no sample is asked");
+  assert.deepEqual(await commits(lagA.id), [second, third], "the routine's own rows are left as it wrote them");
+});

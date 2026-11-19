@@ -78,7 +78,7 @@ test("6.2 · each reader answers its quantity's median as value, with its spread
 
 test("6.2 · the drawing engine's manifest exports ./measures from the readers and names LAYOUT_MEASURE_READERS under storytree.measures, the same six measures at the same versions that layoutMeasureReaders makes", () => {
   const manifest = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { exports: Record<string, string>; storytree?: { measures?: { from: string; export: string }[] } };
-  assert.deepEqual(manifest.storytree?.measures, [{ from: "./measures", export: "LAYOUT_MEASURE_READERS" }]);
+  assert.deepEqual(manifest.storytree?.measures?.filter(({ from }) => from === "./measures"), [{ from: "./measures", export: "LAYOUT_MEASURE_READERS" }]);
   assert.equal(manifest.exports["./measures"], "./src/layout-measures/readers.ts");
   assert.deepEqual(named(LAYOUT_MEASURE_READERS), MEASURES);
   const versions = (list: readonly Reader[]) => list.map(({ measure, version }) => `${measure} ${version}`).sort();

@@ -201,3 +201,22 @@ test("2.2 · storytree code-measures pair prints each story's measures paired an
     assert.deepEqual(pairingOf(parsed, alpha.id), { paired: [coldStart.id, bundle.id].sort(), unpaired: [] }, "the same pairing as data: Alpha's two measures paired");
   });
 });
+
+test("2.5 · measureReadersOf carries a reader's recordedBy, action and quantity strings onto the reader it returns, and leaves all three off a reader that names none", async (t) => {
+  const folder = checkout(t, []);
+  const recorded = "measure_300000000001";
+  const plain = "measure_300000000002";
+  mkdirSync(path.join(folder, "packages/lag-kit/src"), { recursive: true });
+  writeFileSync(path.join(folder, "packages/lag-kit/package.json"), JSON.stringify({ name: "@ws/lag-kit", story: ALPHA, exports: { "./lag": "./src/lag.mjs" }, storytree: { measures: [{ from: "./lag", export: "LAG" }] } }));
+  writeFileSync(path.join(folder, "packages/lag-kit/src/lag.mjs"), [
+    "export const LAG = [",
+    `  { measure: ${JSON.stringify(recorded)}, version: 1, recordedBy: "lag box", action: "turn-forest", quantity: "longest-frame" },`,
+    `  { measure: ${JSON.stringify(plain)}, version: 1, read() { return 1; } },`,
+    "];",
+  ].join("\n"));
+
+  const readers = (await seam.measureReadersOf(folder)) as unknown as Record<string, unknown>[];
+  const carried = (reader: Record<string, unknown> | undefined) => reader === undefined ? undefined : Object.fromEntries(["recordedBy", "action", "quantity"].filter((key) => Object.hasOwn(reader, key)).map((key) => [key, reader[key]]));
+  assert.deepEqual(carried(readers.find(({ measure }) => measure === recorded)), { recordedBy: "lag box", action: "turn-forest", quantity: "longest-frame" });
+  assert.deepEqual(carried(readers.find(({ measure }) => measure === plain)), {}, "a reader naming none has none of the three keys");
+});

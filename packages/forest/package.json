@@ -14,7 +14,8 @@
     "./page": "./src/render/page.ts",
     "./snapshot": "./src/snapshot/forest-snapshot.ts",
     "./evidence-seed": "./src/snapshot/evidence-seed.ts",
-    "./territory-worker": "./src/territories/search-worker.ts"
+    "./territory-worker": "./src/territories/search-worker.ts",
+    "./lag-measures": "./src/lag-measures.ts"
   },
   "storytree": {
     "surfaces": [
@@ -34,6 +35,12 @@
       {
         "from": "./code-survey",
         "export": "forestPageAnswers"
+      }
+    ],
+    "measures": [
+      {
+        "from": "./lag-measures",
+        "export": "LAG_MEASURE_READERS"
       }
     ]
   },

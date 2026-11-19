@@ -14,6 +14,9 @@ export interface MeasureReader {
   readonly read?: (story: StoryMeasures) => unknown;
   readonly sample?: (at: SampleAt) => Promise<unknown>;
   readonly beside?: string;
+  readonly recordedBy?: string;
+  readonly action?: string;
+  readonly quantity?: string;
 }
 
 export type UnpairedWhy = "no-reader" | "no-record" | "version" | "wrong-story" | "two-readers";
@@ -61,11 +64,11 @@ export async function measureReadersOf(folder: string): Promise<MeasureReader[]>
       const module = (await import(pathToFileURL(path.join(home, target)).href)) as Record<string, unknown>;
       const listed = module[entry.export];
       if (!Array.isArray(listed)) throw new Error(`packages/${dir}'s ${target} exports no array of measure readers as ${entry.export}`);
-      for (const reader of listed as { measure?: unknown; version?: unknown; read?: unknown; sample?: unknown; beside?: unknown }[]) {
+      for (const reader of listed as ({ measure?: unknown; version?: unknown; read?: unknown; sample?: unknown } & Record<string, unknown>)[]) {
         const read = typeof reader.read === "function" ? { read: reader.read.bind(reader) as (story: StoryMeasures) => unknown } : {};
         const sample = typeof reader.sample === "function" ? { sample: reader.sample.bind(reader) as (at: SampleAt) => Promise<unknown> } : {};
-        const beside = typeof reader.beside === "string" ? { beside: reader.beside } : {};
-        readers.push({ package: `packages/${dir}`, story, measure: String(reader.measure), version: Number(reader.version), ...read, ...sample, ...beside });
+        const named = Object.fromEntries(["beside", "recordedBy", "action", "quantity"].filter((key) => typeof reader[key] === "string").map((key) => [key, reader[key] as string]));
+        readers.push({ package: `packages/${dir}`, story, measure: String(reader.measure), version: Number(reader.version), ...read, ...sample, ...named });
       }
     }
   }

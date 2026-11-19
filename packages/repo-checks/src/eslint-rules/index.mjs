@@ -9,6 +9,7 @@ import noTagStrip from "./no-tag-strip.mjs";
 import noUnguardedBatchFetch from "./no-unguarded-batch-fetch.mjs";
 import numberedTestAsserts from "./numbered-test-asserts.mjs";
 import posixCommands from "./posix-commands.mjs";
+import remoteCacheDomain from "./remote-cache-domain.mjs";
 import sketchBundleNames from "./sketch-bundle-names.mjs";
 import writeNamesPlace from "./write-names-place.mjs";
 
@@ -27,5 +28,6 @@ export default {
     "sketch-bundle-names": sketchBundleNames,
     "no-unguarded-batch-fetch": noUnguardedBatchFetch,
     "write-names-place": writeNamesPlace,
+    "remote-cache-domain": remoteCacheDomain,
   },
 };

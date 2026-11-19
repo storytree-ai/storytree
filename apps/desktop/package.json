@@ -21,6 +21,7 @@
     "dist": "node --import tsx build.mjs && node --import tsx dist.mjs"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.9",
     "@electron/asar": "3.4.1",
     "@electron/fuses": "1.8.0",
     "@storytree/local-postgres": "workspace:*",

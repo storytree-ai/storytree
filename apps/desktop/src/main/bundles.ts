@@ -1,5 +1,6 @@
 // Capability 4 · Updates
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 import path from "node:path";
 
 import { PATH_ONLY } from "@storytree/app-setup/bins";
@@ -50,5 +51,15 @@ export function preloadBuild(dist: string, desktop = path.resolve(import.meta.di
     absWorkingDir: desktop, bundle: true, platform: "node" as const, format: "cjs" as const, target: "node22",
     external: ["electron"],
     plugins: [partsFromList()],
+  };
+}
+
+export function surveyWorkerBuild(dist: string, desktop = path.resolve(import.meta.dirname, "../..")) {
+  const forestSurvey = createRequire(path.join(desktop, "package.json")).resolve("@storytree/forest/code-survey");
+  return {
+    entryPoints: [createRequire(forestSurvey).resolve("@storytree/map/code-survey/worker")],
+    outfile: path.join(dist, "survey-worker.cjs"),
+    absWorkingDir: desktop, bundle: true, platform: "node" as const, format: "cjs" as const, target: "node22",
+    plugins: [embedTreeSitterWasm()],
   };
 }

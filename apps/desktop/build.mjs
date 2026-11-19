@@ -1,11 +1,9 @@
 import { cpSync, mkdirSync, rmSync } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
-import { embedTreeSitterWasm } from "@storytree/map/tree-sitter-bundle";
-import { mainBuild, preloadBuild } from "./src/main/bundles.ts";
+import { mainBuild, preloadBuild, surveyWorkerBuild } from "./src/main/bundles.ts";
 import { pageBuild } from "./src/renderer/page-build.ts";
 import { roadWorkerBuild, territoryWorkerBuild } from "./src/renderer/road-worker.ts";
 
@@ -20,16 +18,7 @@ const common = { bundle: true, logLevel: "warning", sourcemap: "linked", absWork
 
 await build({ ...common, ...mainBuild(dist) });
 
-const surveyWorker = createRequire(fileURLToPath(import.meta.resolve("@storytree/forest/code-survey"))).resolve("@storytree/map/code-survey/worker");
-await build({
-  ...common,
-  entryPoints: [surveyWorker],
-  outfile: path.join(dist, "survey-worker.cjs"),
-  platform: "node",
-  format: "cjs",
-  target: "node22",
-  plugins: [embedTreeSitterWasm()],
-});
+await build({ ...common, ...surveyWorkerBuild(dist) });
 
 await build({ ...common, ...preloadBuild(dist) });
 

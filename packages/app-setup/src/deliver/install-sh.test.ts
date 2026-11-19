@@ -6,6 +6,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
+import { removeTemp } from "@storytree/test-waits";
+
 const script = fileURLToPath(new URL("./install.sh", import.meta.url));
 const steps = fileURLToPath(new URL("./install.test.sh", import.meta.url));
 const linuxSteps = fileURLToPath(new URL("./install-linux.test.sh", import.meta.url));
@@ -53,7 +55,7 @@ const QUIT = [
   'st_op_quit "$3"; echo "status $?"',
 ].join("\n");
 
-function quit(system: "linux" | "darwin", running: string[], after: string[]) {
+async function quit(system: "linux" | "darwin", running: string[], after: string[]) {
   const root = mkdtempSync(path.join(tmpdir(), "storytree-quit-"));
   try {
     const dir = path.join(root, "Applications", "storytree-0.3.app");
@@ -67,18 +69,18 @@ function quit(system: "linux" | "darwin", running: string[], after: string[]) {
     const result = spawnSync("sh", ["-c", QUIT, "sh", script, system, dir, ps, later, log], { encoding: "utf8" });
     const said = existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean) : [];
     return { status: result.stdout.trim() || result.stderr, said: said.length > 3 ? [...said.slice(0, 3), `... ${said.length} lines`] : said };
-  } finally { rmSync(root, { recursive: true, force: true }); }
+  } finally { await removeTemp(root); }
 }
 
 test("1.3 · repeating the command while the app is open asks only a process whose command line starts with the installed app's executable (alone or with arguments) to quit and waits until it is gone, on Linux and macOS; when the only processes whose command line holds that path are a shell, a pgrep, an editor or a sibling executable beside it, it returns at once, asking nothing", {
   skip: process.platform === "win32" && "platform:posix: the one-liner runs under a POSIX shell, which Windows CI does not provide",
-}, () => {
+}, async () => {
   const bystanders = ["bash -c pgrep -f <exe> >/dev/null; echo", "sh -c sleep 30; : <exe>", "/usr/bin/vim <exe>", "<exe>-old --type=gpu"];
   const quitAndWaited = { status: "status 0", said: ["asked --quit", "slept"] };
   const left = { status: "status 0", said: [] };
-  assert.deepEqual(quit("linux", ["<exe> --no-sandbox", ...bystanders], bystanders), quitAndWaited);
-  assert.deepEqual(quit("linux", ["<exe>"], []), quitAndWaited);
-  assert.deepEqual(quit("darwin", ["<exe>", ...bystanders], bystanders), quitAndWaited);
-  assert.deepEqual(quit("linux", bystanders, bystanders), left);
-  assert.deepEqual(quit("darwin", bystanders, bystanders), left);
+  assert.deepEqual(await quit("linux", ["<exe> --no-sandbox", ...bystanders], bystanders), quitAndWaited);
+  assert.deepEqual(await quit("linux", ["<exe>"], []), quitAndWaited);
+  assert.deepEqual(await quit("darwin", ["<exe>", ...bystanders], bystanders), quitAndWaited);
+  assert.deepEqual(await quit("linux", bystanders, bystanders), left);
+  assert.deepEqual(await quit("darwin", bystanders, bystanders), left);
 });

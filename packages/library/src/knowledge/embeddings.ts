@@ -96,23 +96,42 @@ export class PgVectors implements VectorStore {
 
   async #locally(use: (db: DatabaseSync) => void): Promise<void> {
     if (this.#cache === null || this.#domain === null) return;
+    const deadline = Date.now() + 60_000;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await this.#open(this.#cache, use);
+        return;
+      } catch (error) {
+        if (!busy(error)) return;
+        if (Date.now() >= deadline) throw error;
+        await new Promise((resolve) => setTimeout(resolve, Math.random() * Math.min(100, 5 * 2 ** attempt)));
+      }
+    }
+  }
+
+  async #open(cache: string, use: (db: DatabaseSync) => void): Promise<void> {
     let db: DatabaseSync | undefined;
     try {
       const { DatabaseSync } = await import("node:sqlite");
-      await mkdir(path.dirname(this.#cache), { recursive: true });
-      db = new DatabaseSync(this.#cache);
-      db.exec("PRAGMA busy_timeout = 20000");
+      await mkdir(path.dirname(cache), { recursive: true });
+      db = new DatabaseSync(cache);
+      db.exec("PRAGMA busy_timeout = 50");
       try {
         db.exec("PRAGMA journal_mode = WAL");
       } catch {
       }
+      db.exec("PRAGMA synchronous = NORMAL");
       db.exec("CREATE TABLE IF NOT EXISTS embedding_v2 (domain TEXT NOT NULL, model TEXT NOT NULL, key TEXT NOT NULL, vector BLOB NOT NULL, PRIMARY KEY (domain, model, key))");
       use(db);
-    } catch {
     } finally {
       db?.close();
     }
   }
+}
+
+function busy(error: unknown): boolean {
+  const code = (error as { errcode?: unknown } | null)?.errcode;
+  return typeof code === "number" && [5, 6].includes(code & 0xff);
 }
 
 function floats(bytes: Uint8Array): Float32Array {

@@ -1,7 +1,7 @@
 // Capability 4 · Running the tests
 import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -10,6 +10,7 @@ import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/ca
 import { parseJunit } from "./junit.mjs";
 
 import { removeWhenFree, stopServersUnder, unitTempPrefix } from "./test-leftovers.mjs";
+import { storytreeHome as defaultHome } from "./whole-runs.mjs";
 
 const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness) => (harness.shellSession === undefined ? [] : [harness.shellSession])), SESSION_ENV];
 
@@ -25,7 +26,6 @@ const RECENT_PASSES = 20;
 export const TIMING_ROWS_KEPT = 2 * RECENT_PASSES;
 const TEST_LIMIT_FACTOR = 3;
 const TRIM_TIMINGS_AT = 5_000;
-const defaultHome = () => process.env.STORYTREE_HOME || path.join(homedir(), ".storytree", "0.3");
 const limitsFile = (home) => path.join(home, "test-limits.json");
 
 const tsx = import.meta.resolve("tsx");

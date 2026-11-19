@@ -1,16 +1,6 @@
-/**
- * Capability 1 · Base structure measures. Coupling and public surface (contract 1.4, B5 and B6).
- *
- * - Coupling is read from the imports in the source itself, never from package.json: Ce is the other workspace packages a
- *   story's source files import (type-only imports, re-exports and literal dynamic imports included), Ca the other
- *   workspace packages whose source files import one of the story's. Imports among a story's own packages, and from test
- *   files, count in neither. Instability is Ce/(Ca+Ce), none when both are zero.
- * - Public surface is the distinct names exported from every entry of a package's exports map, following export * and
- *   export { } from to their sources within the package (export * passes no default on).
- */
+// Capability 1 · Base structure measures
 import { kindOf, parsed, walk, type Node, type SourceText } from "./source.js";
 
-/** A workspace package as the readings take it: its folder under packages/, its npm name, its manifest and its files. */
 export interface WorkspacePackage {
   readonly folder: string;
   readonly name: string;
@@ -18,14 +8,12 @@ export interface WorkspacePackage {
   readonly files: readonly SourceText[];
 }
 
-/** A story's coupling: the packages it uses and those using it, by folder, and its instability. */
 export interface CouplingReading {
   readonly dependencies: readonly string[];
   readonly dependents: readonly string[];
   readonly instability: number | null;
 }
 
-/** Every module specifier `file` names in an import, a re-export, a literal dynamic import or an import-equals require. */
 export function specifiersOf(file: SourceText): string[] {
   const { program } = parsed(file);
   if (program === undefined) return [];
@@ -42,12 +30,10 @@ export function specifiersOf(file: SourceText): string[] {
   return found;
 }
 
-/** The folder of the workspace package `specifier` names, if it names one. */
 function packageNamed(specifier: string, workspace: readonly WorkspacePackage[]): string | undefined {
   return workspace.find((pkg) => specifier === pkg.name || specifier.startsWith(`${pkg.name}/`))?.folder;
 }
 
-/** The workspace packages `files`' source imports, by folder. */
 function importedBy(files: readonly SourceText[], workspace: readonly WorkspacePackage[]): Set<string> {
   const used = new Set<string>();
   for (const file of files) {
@@ -60,7 +46,6 @@ function importedBy(files: readonly SourceText[], workspace: readonly WorkspaceP
   return used;
 }
 
-/** The coupling of the story whose packages are `folders`, within `workspace` (B5). */
 export function couplingOf(folders: readonly string[], workspace: readonly WorkspacePackage[]): CouplingReading {
   const own = new Set(folders);
   const ours = workspace.filter((pkg) => own.has(pkg.folder));
@@ -68,7 +53,6 @@ export function couplingOf(folders: readonly string[], workspace: readonly Works
   const names = ours.map((pkg) => pkg.name);
   const dependents = workspace
     .filter((pkg) => !own.has(pkg.folder))
-    // A file that never spells one of our names cannot import us: it is not parsed for it.
     .filter((pkg) => [...importedBy(pkg.files.filter((file) => names.some((name) => file.text.includes(name))), ours)].length > 0)
     .map((pkg) => pkg.folder)
     .sort();
@@ -76,7 +60,6 @@ export function couplingOf(folders: readonly string[], workspace: readonly Works
   return { dependencies, dependents, instability: total === 0 ? null : dependencies.length / total };
 }
 
-/** Every file path an exports map names, conditions and all. */
 function entriesOf(exports: unknown): string[] {
   if (typeof exports === "string") return [exports];
   if (Array.isArray(exports)) return exports.flatMap(entriesOf);
@@ -84,7 +67,6 @@ function entriesOf(exports: unknown): string[] {
   return [];
 }
 
-/** The file of `files` a relative specifier from `from` names, trying TypeScript's extensions for a .js one. */
 function resolve(from: string, specifier: string, byPath: ReadonlyMap<string, SourceText>): SourceText | undefined {
   const base = joinPath(from.slice(0, from.lastIndexOf("/") + 1), specifier);
   const stem = base.replace(/\.[cm]?jsx?$/, "");
@@ -96,7 +78,6 @@ function resolve(from: string, specifier: string, byPath: ReadonlyMap<string, So
   return undefined;
 }
 
-/** `relative` read from the folder `folder` (ending in /), its . and .. steps taken. */
 function joinPath(folder: string, relative: string): string {
   const parts: string[] = [];
   for (const part of `${folder}${relative}`.split("/")) {
@@ -109,7 +90,6 @@ function joinPath(folder: string, relative: string): string {
 
 const nameOf = (node: Node): string => (node.type === "StringLiteral" ? (node.value as string) : (node.name as string));
 
-/** The names `file` exports, following re-exports within the package; `seen` stops a cycle. */
 function exportedNames(file: SourceText, byPath: ReadonlyMap<string, SourceText>, seen: Set<string>, withDefault: boolean): Set<string> {
   const names = new Set<string>();
   if (seen.has(file.path)) return names;
@@ -137,14 +117,12 @@ function exportedNames(file: SourceText, byPath: ReadonlyMap<string, SourceText>
   return names;
 }
 
-/** The names a declaration after `export` binds. */
 function declaredNames(declaration: Node): string[] {
   if (declaration.type === "VariableDeclaration") return (declaration.declarations as Node[]).flatMap((one) => bound(one.id as Node));
   const id = declaration.id as Node | null | undefined;
   return id?.type === "Identifier" ? [id.name as string] : [];
 }
 
-/** The names a binding pattern binds. */
 function bound(pattern: Node | null | undefined): string[] {
   switch (pattern?.type) {
     case "Identifier":
@@ -162,7 +140,6 @@ function bound(pattern: Node | null | undefined): string[] {
   }
 }
 
-/** The distinct names exported from every entry of `pkg`'s exports map (B6). */
 export function publicSurfaceOf(pkg: WorkspacePackage): number {
   const byPath = new Map(pkg.files.map((file) => [file.path, file]));
   const names = new Set<string>();

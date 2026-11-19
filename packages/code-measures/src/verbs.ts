@@ -1,10 +1,4 @@
-/**
- * Capability 1 · Base structure measures, its verb: `storytree code-measures [<story>] [--commit <sha>] [--since <window>]
- * [--json]` (contract 1.7), declared once here (ADR-0969 D2) and named under `verbs` in the package's manifest (ADR-1033),
- * so the command line only mounts it (ADR-0649). It lists the project's stories, reads every one's base measures (or the
- * one named) at the commit without changing the checkout, and prints them, or the same readings as data with --json.
- * Report only (ADR-1354, ADR-1238): no threshold, no verdict, nothing stored, and it answers whatever the readings are.
- */
+// Capability 1 · Base structure measures
 import type { Library } from "@storytree/library";
 import { verb, VerbRefusal, type Verb, type VerbContext, type VerbFamily, type VerbInputs } from "@storytree/library/verbs";
 
@@ -43,11 +37,6 @@ const CODE_MEASURES = verb({
   },
 });
 
-/**
- * Capability 2 · Measures paired with their readers, its verb: `storytree code-measures pair [--json]` (contract 2.2). It
- * reads the project's live measure records and the checkout's workspace packages' readers, prints each story's measures
- * paired, or unpaired with why, and is refused naming the count when any does not pair; with nothing to pair it says so.
- */
 const PAIR = verb({
   command: {
     family: "code-measures",

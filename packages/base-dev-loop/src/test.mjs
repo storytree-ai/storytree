@@ -14,6 +14,7 @@ import { namedFolders, parseTestArgs, planRun, readWorkspace, RERUN_HINT, scopeF
 import { stopServersUnder, sweepLeftovers } from "./test-leftovers.mjs";
 import { runPool, shardPlan, shardUnits, slowestFirst, takeShard, testJobs } from "./unit-pool.mjs";
 import { runWhat, takeWorktreeRun } from "./worktree-run.mjs";
+import { appendWholeRun, GATE_RUN_ENV, startClock, wholeRunRow } from "./whole-runs.mjs";
 import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, TEST_LIMIT_MS, unitLimit, unitReason, unitTestLimit, withinDeadline, withMacRetry } from "./unit-run.mjs";
 
 let root;
@@ -26,6 +27,7 @@ let flags;
 let testArgs;
 let namedFiles;
 let hold;
+let now;
 let deadline;
 const children = new Set();
 let jobs = 1;
@@ -33,11 +35,14 @@ let interrupted = false;
 let server;
 let phase = "deciding the scope";
 let plannedShards;
+let decided;
+let clock;
 
 const holdNothing = async () => () => {};
 
-export function testCommand({ argv: given = process.argv.slice(2), hold: takeHold = holdNothing, root: tested = fileURLToPath(new URL("../../..", import.meta.url)), alone: runAlone = [], alwaysRun: carried = [] } = {}) {
+export function testCommand({ argv: given = process.argv.slice(2), hold: takeHold = holdNothing, root: tested = fileURLToPath(new URL("../../..", import.meta.url)), alone: runAlone = [], alwaysRun: carried = [], now: clockNow = Date.now } = {}) {
   hold = takeHold;
+  now = clockNow;
   root = tested;
   work = path.join(root, ".pgtest");
   dataDir = path.join(work, "data");
@@ -127,6 +132,7 @@ async function main() {
     console.log(scopeLine(plan.decision));
     console.log(`units: ${plan.units.join(", ") || "none"}`);
     units = plan.units;
+    decided = plan.decision.mode;
     if (shard !== undefined) {
       const passTimes = recentPassTimes();
       plannedShards = shardUnits(units, shard.count, { history: (unit) => passTimes.get(unit) });
@@ -146,6 +152,7 @@ async function main() {
   }
   phase = "waiting for the heavy-run lock";
   const release = await hold({ root, what: "pnpm test", stopped: () => interrupted, ...(namedFiles ? { scope: "files" } : {}) });
+  clock = startClock(now);
   try {
     let worktreeRun = { release: () => {} };
     if (!process.env.STORYTREE_TEST_PG_URL) {
@@ -256,7 +263,18 @@ async function runTests(env, units) {
   }
   console.log(`\n${resultsTable(results, { reasons, rerunHint: RERUN_HINT })}`);
   if (plannedShards !== undefined) process.stdout.write(`this was shard ${shard.index}/${shard.count}; every shard's units:\n${shardPlan(plannedShards)}`);
-  return Object.values(results).every((result) => result === "pass") ? 0 : 1;
+  const passed = Object.values(results).every((result) => result === "pass");
+  keepWholeRun(units.length, passed);
+  return passed ? 0 : 1;
+}
+
+const WHOLE_SCOPES = { full: "full", affected: "scoped" };
+
+function keepWholeRun(units, passed) {
+  const scope = WHOLE_SCOPES[decided];
+  if (scope === undefined || shard !== undefined || interrupted) return;
+  const gate = process.env[GATE_RUN_ENV];
+  appendWholeRun(wholeRunRow("test", clock, { scope, units, result: passed ? "pass" : "fail", jobs, ...(gate ? { gate } : {}) }), { log: (line) => console.log(`test harness: ${line}`) });
 }
 
 function keepReds(runs) {

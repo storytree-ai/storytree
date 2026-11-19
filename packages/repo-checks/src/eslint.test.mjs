@@ -306,6 +306,35 @@ test("8.21 · // eslint-disable-next-line storytree/no-comments -- <reason> keep
   ]);
 });
 
+test("8.21 · a branch that adds only the disable directive above a comment already on merge-base(origin/main, HEAD) has commentHatches list that hatch once as { file, line of the kept comment, the comment's text, the reason }; a hatch with directive and comment both on the merge-base is not listed though the branch adds the line after it", async (t) => {
+  const root = branch(t, {
+    base: {
+      "packages/a/src/swept.mjs": lines(
+        "export const a = 1;",
+        "// a comment main keeps",
+        "// eslint-disable-next-line storytree/no-comments -- on main already",
+        "// kept on main",
+        "export const b = 2;",
+      ),
+    },
+    head: {
+      "packages/a/src/swept.mjs": lines(
+        "export const a = 1;",
+        "// eslint-disable-next-line storytree/no-comments -- a tool reads this line",
+        "// a comment main keeps",
+        "// eslint-disable-next-line storytree/no-comments -- on main already",
+        "// kept on main",
+        "export const c = 3;",
+        "export const b = 2;",
+      ),
+    },
+  });
+
+  assert.deepEqual([...(await lintPackage.commentHatches(root))], [
+    { file: "packages/a/src/swept.mjs", line: 3, comment: "a comment main keeps", reason: "a tool reads this line" },
+  ]);
+});
+
 test("8.21 · a next-line disable of storytree/no-comments with no -- <reason> is one problem at its line saying it needs a reason; an eslint-disable-line, a block eslint-disable naming it and a disable naming no rule are each one problem at their line saying only a next-line disable with a reason keeps a comment; none is a hatch", async (t) => {
   const root = checkout(t, {
     "packages/a/src/bare.mjs": lines("export const a = 1;", "// eslint-disable-next-line storytree/no-comments", "// kept without a reason"),

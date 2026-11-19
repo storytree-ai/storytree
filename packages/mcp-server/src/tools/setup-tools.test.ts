@@ -129,12 +129,16 @@ test("app-setup 8.4 setup records the chosen project only after a successful yes
         assert.ok((await storytree.listProjects()).includes(name), "the project, once the user said yes");
         assert.equal(readJson(choice).current, name, "yes records the choice in the app's home");
         writeFileSync(choice, JSON.stringify({ current: "another-project" }));
-        assert.deepEqual((await agent.call("check_setup")).data.project, { status: "set up", name });
-        await agent.call("set_up_project", { name });
+        const rechecked = await agent.call("check_setup");
+        assert.equal(rechecked.isError, false, rechecked.text);
+        assert.deepEqual(rechecked.data.project, { status: "set up", name });
+        const repeated = await agent.call("set_up_project", { name });
+        assert.equal(repeated.isError, false, repeated.text);
         assert.equal(readJson(choice).current, "another-project", "neither an existing-project check nor a repeated tool call chooses it");
       });
       await withAgent(folder, claudeCode("claude-2", { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome } }), async (agent) => {
-        await agent.call("check_setup");
+        const second = await agent.call("check_setup");
+        assert.equal(second.isError, false, second.text);
         assert.equal(readJson(choice).current, "another-project", "an ordinary new agent session records no choice");
       });
     } finally {

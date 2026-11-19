@@ -183,3 +183,32 @@ test("14.20 · the drain's learner reads its 28 days as the log's door tally, ne
     assert.deepEqual((await library.questions(world.arcs.cuts)).map((question) => question.fields.title).sort(), CUT_TITLES, "the cut groups are judged from the tally's calls");
   });
 });
+
+test("14.21 · a want's friction quotes up to three distinct shell lines its refused word was run in, from the refusing sessions, beside its counts and hints followed", async () => {
+  await inProject(["plan"], async (world, library) => {
+    const quoted = [
+      "PGPASSWORD=$(pnpm -s storytree auth get postgres) psql -h 127.0.0.1 -c \"$(pnpm -s storytree plan)\"",
+      "pnpm storytree plan --arc arc_1 | head",
+      "cd ~/code/storytree03 && pnpm -s storytree plan show",
+      "pnpm exec storytree plan list --open",
+    ];
+    const runs: [string, string][] = [
+      ["s0", quoted[0]!], ["s1", quoted[0]!], ["s2", quoted[0]!], ["s3", quoted[1]!], ["s4", quoted[2]!], ["s5", quoted[3]!],
+      ["s6", "pnpm storytree arc list"],
+      ["s50", "pnpm storytree plan --from-a-session-that-never-refused"],
+    ];
+    for (const [index, [session, command]] of runs.entries()) {
+      const offset = 27.5 - Number(session.slice(1)) * 0.27 + 0.001;
+      await world.log.append(world.project, { session, harness: "claude-code", source: "hook", kind: "command-started", command, call: `call-${index}` }, { at: new Date(world.now.getTime() - offset * 24 * 60 * 60 * 1000).toISOString() });
+    }
+
+    const said = await learnInDrain(world);
+    const [want] = (await library.list("friction")).filter((friction) => friction.fields.title === 'Agents type "storytree plan", which no command answers');
+    const evidence = want?.fields.evidence ?? "";
+    assert.ok(evidence.includes('"storytree plan" refused as unknown 12 times in 12 sessions; no hint was followed.'), `${evidence}\n${said.join("\n")}`);
+    const occurrences = (line: string) => evidence.split(line).length - 1;
+    assert.deepEqual(quoted.map((line) => Math.min(occurrences(line), 2)).sort(), [0, 1, 1, 1], `exactly three of the four distinct lines, each once:\n${evidence}`);
+    assert.equal(occurrences("pnpm storytree arc list"), 0, "a refusing session's line without the refused words is not quoted");
+    assert.equal(occurrences("--from-a-session-that-never-refused"), 0, "a line from a session that never refused is not quoted");
+  });
+});

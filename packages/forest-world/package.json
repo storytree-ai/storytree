@@ -10,7 +10,8 @@
     "./scene": "./src/scene.ts",
     "./planet": "./src/planet/PlanetWorldCanvas.tsx",
     "./road-worker": "./src/planet/road-worker.ts",
-    "./measures": "./src/layout-measures/readers.ts"
+    "./measures": "./src/layout-measures/readers.ts",
+    "./lag-measures": "./src/lag-measures.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -37,6 +38,10 @@
       {
         "from": "./measures",
         "export": "LAYOUT_MEASURE_READERS"
+      },
+      {
+        "from": "./lag-measures",
+        "export": "LAG_MEASURE_READERS"
       }
     ]
   }

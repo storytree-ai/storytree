@@ -164,18 +164,43 @@ async function recordDedicated({ folder, project, machine, records, readers, db,
   readonly server: unknown;
   readonly load: () => MachineLoad;
 }): Promise<string | undefined> {
-  const dedicated = records.filter(({ fields }) => fields["base"] !== true && fields["machine"] === machine);
-  if (dedicated.length === 0) return undefined;
+  const routines = new Map<string, string[]>();
+  const dedicated = records.filter(({ id, fields }) => {
+    if (fields["base"] === true || fields["machine"] !== machine) return false;
+    const by = readers.find(({ measure }) => measure === id)?.recordedBy;
+    if (by === undefined) return true;
+    routines.set(by, [...(routines.get(by) ?? []), `${String(fields["title"] ?? id)} (${id})`]);
+    return false;
+  });
+  const left = [...routines].map(([by, named]) => `; recorded by ${by}, so not read here, for ${named.join(", ")}`).join("");
+  if (dedicated.length === 0) return routines.size === 0 ? undefined : `Recorded nothing dedicated on ${machine}${left}.`;
+  const answer = await readDedicated({ folder, project, machine, dedicated, readers, db, commit, short, plan, server, load });
+  return `${answer}${left}.`;
+}
+
+async function readDedicated({ folder, project, machine, dedicated, readers, db, commit, short, plan, server, load }: {
+  readonly folder: string;
+  readonly project: string;
+  readonly machine: string;
+  readonly dedicated: readonly MeasureRecord[];
+  readonly readers: readonly MeasureReader[];
+  readonly db: MeasureReadingsDb;
+  readonly commit: string;
+  readonly short: string;
+  readonly plan: () => Promise<unknown>;
+  readonly server: unknown;
+  readonly load: () => MachineLoad;
+}): Promise<string> {
   const { rows: [last] } = await db.query<{ recorded: boolean | null; at: Date | null; recent: boolean | null }>(
     `SELECT bool_or(commit = $4) AS recorded, max(read_at) AS at, max(read_at) > now() - interval '1 day' AS recent
       FROM measure_readings WHERE project = $1 AND machine = $2 AND measure = ANY($3)`,
     [project, machine, dedicated.map(({ id }) => id), commit],
   );
-  if (last?.recorded === true) return `Recorded nothing dedicated: ${machine} already read them at origin/main ${short}.`;
-  if (last?.recent === true) return `Recorded nothing dedicated: ${machine} last read them at ${last.at?.toISOString()}, less than a day ago, and reads them at most once a day.`;
+  if (last?.recorded === true) return `Recorded nothing dedicated: ${machine} already read them at origin/main ${short}`;
+  if (last?.recent === true) return `Recorded nothing dedicated: ${machine} last read them at ${last.at?.toISOString()}, less than a day ago, and reads them at most once a day`;
   const machineLoad = load();
   if (machineLoad.load >= machineLoad.cpus) {
-    return `Recorded nothing dedicated: ${machine} is busy, its load ${Number(machineLoad.load.toFixed(2))} on ${machineLoad.cpus} CPUs at or over its CPU count; the next run tries again.`;
+    return `Recorded nothing dedicated: ${machine} is busy, its load ${Number(machineLoad.load.toFixed(2))} on ${machineLoad.cpus} CPUs at or over its CPU count; the next run tries again`;
   }
 
   const sampled = dedicated.map((record) => ({ record, sample: readers.find(({ measure }) => measure === record.id)?.sample }));
@@ -203,5 +228,5 @@ async function recordDedicated({ folder, project, machine, records, readers, db,
   }
   const named = unsampled.length === 0 ? "" : `; no sample, so nothing recorded, for ${unsampled.join(", ")}`;
   const none = unread.length === 0 ? "" : `; no reading at this head, so nothing recorded, for ${unread.join(", ")}`;
-  return `Recorded ${rows.length} reading${s(rows.length)} of ${dedicated.length} dedicated measure${s(dedicated.length)} read on ${machine} at origin/main ${short}${named}${none}.`;
+  return `Recorded ${rows.length} reading${s(rows.length)} of ${dedicated.length} dedicated measure${s(dedicated.length)} read on ${machine} at origin/main ${short}${named}${none}`;
 }

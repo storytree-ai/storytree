@@ -372,3 +372,37 @@ test("1.5 · The harvest adds a run's flaky test to an earlier increment, open o
   assert.equal(counts.flakes, 4, "every flake is still counted");
   assert.deepEqual(written, [], "nothing is written");
 });
+
+test("1.6 · The harvest reads a failed run's facts when one failed job's log GitHub no longer has (HTTP 404 in its stderr, HTTP 410 in its message): that job's log reads empty and the other failed job's log is still read; a log read failing with a rate limit or a reset still rejects facts with that error", async () => {
+  const run = failed(51, { event: "push", branch: "main" });
+  const windowsLog = logOf("packages/shop", ["2.1 · totals add up"]);
+  const reading = (gone: number, failure: Error) => {
+    const base = gitHub({
+      [`${API}/actions/runs/51/attempts/1/jobs?per_page=100`]: { jobs: [
+        { id: gone, name: "verify on Linux", conclusion: "failure", steps: [{}] },
+        { id: 511, name: "verify on Windows", conclusion: "timed_out", steps: [{}, {}] },
+        { id: 512, name: "verify", conclusion: "success", steps: [{}] },
+      ] },
+      [`${API}/actions/jobs/511/logs`]: windowsLog,
+      [`${API}/actions/runs?head_sha=${run.head}&status=success&per_page=100&page=1`]: { workflow_runs: [] },
+    });
+    const github: GitHub = { json: base.json, text: async (route) => { if (route === `${API}/actions/jobs/${gone}/logs`) throw failure; return base.text(route); } };
+    return gitHubSource(github, REPO, watcher, scope).facts(run);
+  };
+  const watcher = await watcherReading();
+  const expected = [
+    { name: "verify on Linux", conclusion: "failure", steps: 1, log: "" },
+    { name: "verify on Windows", conclusion: "timed_out", steps: 2, log: windowsLog },
+    { name: "verify", conclusion: "success", steps: 1, log: "" },
+  ];
+
+  const missing = await reading(510, Object.assign(new Error("Command failed: gh api"), { stderr: `gh: Not Found (HTTP 404)` }));
+  assert.deepEqual(missing.jobs, expected, "a log GitHub says is not found reads empty, and the other failed job's log is still read");
+  const expired = await reading(510, new Error(`gh api ${API}/actions/jobs/510/logs: HTTP 410: Gone`));
+  assert.deepEqual(expired.jobs, expected, "a log GitHub says is gone reads empty too");
+
+  const limited = Object.assign(new Error("Command failed: gh api"), { stderr: "gh: API rate limit exceeded (HTTP 403)" });
+  await assert.rejects(reading(510, limited), (error) => error === limited, "a rate-limited log read is no missing log");
+  const reset = new Error(`gh api ${API}/actions/jobs/4104/logs: connection reset`);
+  await assert.rejects(reading(4104, reset), (error) => error === reset, "a job id holding 410 or 404 is no HTTP status");
+});

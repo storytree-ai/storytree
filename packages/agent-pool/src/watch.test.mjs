@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { countEngines } from "./queue.mjs";
-import { adoptRequests, asRun, boxDefaults, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, onMain, failedOnQueue, projectOf, queueOutcome, queueRemovals, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, jobFields, readScan, scanSetup, watchOnce } from "./watch.mjs";
+import { adoptRequests, asRun, boxDefaults, ensureWatcher, forget, hand, handedOff, handOver, handThroughLibrary, HOME, homeOf, isFixSession, main, ownerOf, onMain, failedOnQueue, projectOf, queueOutcome, queueRemovals, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, jobFields, lookOnGitHub, readScan, scanSetup, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -1812,4 +1812,65 @@ test("4.61 · the watcher reads a red pull request's state just before it starts
   state = "OPEN";
   await watchOnce(b.options);
   assert.equal(b.reviews.length, 1);
+});
+
+test("4.63 · a red job whose log GitHub does not have (HTTP 404 on the pull request's run, HTTP 410 on the merge queue's) reads as an empty log, so the watcher still reads the other red job's failing tests for the pull request's red and for its queue red", async () => {
+  const api = `repos/${HOME}`;
+  const removal = { createdAt: minutes(-30), reason: "FAILED_CHECKS", beforeCommit: { oid: "q963", parents: { nodes: [{ oid: "main963" }, { oid: "h1" }] } } };
+  const checks = [{ ...failed, name: "verify on Linux", detailsUrl: `https://github.com/${HOME}/actions/runs/96310/job/963101` }];
+  const redJobs = (linux, windows) => ({ jobs: [
+    { id: linux, name: "verify on Linux", conclusion: "failure", steps: [{ name: "test", conclusion: "failure" }], runner_name: "linux-1" },
+    { id: windows, name: "verify on Windows", conclusion: "failure", steps: [{ name: "test", conclusion: "failure" }], runner_name: "windows-1" },
+  ] });
+  const routes = {
+    [`${api}/actions/runs/96310`]: { id: 96310, run_attempt: 1, status: "completed", repository: { full_name: HOME } },
+    [`${api}/actions/runs/96310/jobs?filter=latest&per_page=100`]: redJobs(963101, 963102),
+    [`${api}/actions/jobs/963102/logs`]: logged("=== packages/agent-pool ===", "✖ 4.2 · a watcher test fails (9ms)", "  FAIL    packages/agent-pool — 3 s"),
+    [`${api}/commits/q963/check-runs?per_page=100`]: { check_runs: [
+      { name: "verify on Linux", conclusion: "failure", details_url: `https://github.com/${HOME}/actions/runs/96320/job/963201` },
+      { name: "verify on Windows", conclusion: "failure", details_url: `https://github.com/${HOME}/actions/runs/96320/job/963202` },
+    ] },
+    [`${api}/actions/runs/96320`]: { id: 96320, run_attempt: 1, status: "completed", repository: { full_name: HOME } },
+    [`${api}/actions/runs/96320/jobs?filter=latest&per_page=100`]: redJobs(963201, 963202),
+    [`${api}/actions/jobs/963202/logs`]: logged("=== packages/library ===", "✖ 4.1 · a queue test fails (7ms)", "  FAIL    packages/library — 2 s"),
+  };
+  const missing = { [`${api}/actions/jobs/963101/logs`]: "HTTP 404: Not Found", [`${api}/actions/jobs/963201/logs`]: "HTTP 410: Gone" };
+  const gh = async (args) => {
+    if (args[1] === "graphql") return { stdout: JSON.stringify({ data: { repository: { pullRequest: pull({ checks, removed: [removal] }) } } }), stderr: "" };
+    if (args[0] === "run") return { stdout: "", stderr: "" };
+    if (args[1] === "--paginate") return { stdout: "packages/agent-pool/src/watch.mjs\n", stderr: "" };
+    const path = args[1];
+    if (path in missing) throw Object.assign(new Error(`Command failed: gh api ${path}`), { code: 1, stderr: `gh: ${missing[path]} (${path})` });
+    if (!(path in routes)) throw new Error(`no route ${args.join(" ")}`);
+    return { stdout: typeof routes[path] === "string" ? routes[path] : JSON.stringify(routes[path]), stderr: "" };
+  };
+
+  const look = await lookOnGitHub(41, { repo: join(tmpdir(), "no-checkout-4-63"), since: minutes(-60), now: () => at, gh });
+
+  assert.equal(look.state, "red");
+  assert.deepEqual(look.failures?.tests, ["4.2 · a watcher test fails"], "the pull request's other red job's failing test is read past the job whose log is not found");
+  assert.deepEqual(look.queueReds?.map(({ commit, tests }) => ({ commit, tests })), [{ commit: "q963", tests: ["4.1 · a queue test fails"] }],
+    "the queue red's other red job's failing test is read past the job whose log is gone");
+});
+
+test("4.29 · the watcher reads a pull request's red below the rerun limit as the runner's when its failed log shows the browser crashing at launch, so its runner reading names that fault", async () => {
+  const api = `repos/${HOME}`;
+  const checks = [{ ...failed, name: "verify on macOS", detailsUrl: `https://github.com/${HOME}/actions/runs/96330/job/963301` }];
+  const routes = {
+    [`${api}/actions/runs/96330`]: { id: 96330, run_attempt: 1, status: "completed", repository: { full_name: HOME } },
+    [`${api}/actions/runs/96330/jobs?filter=latest&per_page=100`]: { jobs: [
+      { id: 963301, name: "verify on macOS", conclusion: "failure", steps: [{ name: "test", conclusion: "failure" }], runner_name: "macos-1" },
+    ] },
+  };
+  const gh = async (args) => {
+    if (args[1] === "graphql") return { stdout: JSON.stringify({ data: { repository: { pullRequest: pull({ checks }) } } }), stderr: "" };
+    if (args[0] === "run") return { stdout: "verify on macOS\ttest\tbrowserType.launch: Target page, context or browser has been closed\nverify on macOS\ttest\tsignal=SIGSEGV\n", stderr: "" };
+    if (args[1] === "--paginate") return { stdout: "packages/agent-pool/src/watch.mjs\n", stderr: "" };
+    if (!(args[1] in routes)) throw new Error(`no route ${args.join(" ")}`);
+    return { stdout: typeof routes[args[1]] === "string" ? routes[args[1]] : JSON.stringify(routes[args[1]]), stderr: "" };
+  };
+
+  const look = await lookOnGitHub(41, { repo: join(tmpdir(), "no-checkout-4-29"), since: minutes(-60), now: () => at, gh });
+
+  assert.equal(look.runner?.why, "verify on macOS: the browser crashed at launch", "a first attempt's failed log is read, and the crash it shows is the runner's");
 });

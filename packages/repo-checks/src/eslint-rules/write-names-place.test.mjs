@@ -11,7 +11,7 @@ const rule = plugin.rules["write-names-place"];
 const code = (line) => line.replaceAll("#", "$").replaceAll("'", "`");
 const refused = (line, count = 1) => ({ code: code(line), errors: Array.from({ length: count }, () => ({ messageId: "unplaced" })) });
 
-test("8.25 · storytree/write-names-place refuses an argv array literal spelling a composed base write (fyi new through a storytree(...) wrapper with a spread of fields, -s storytree fyi new through run(\"pnpm\", ...), bare arc new, question new whose arc input is optional, fyi heard whose required input is no place, a template-built flag, two in one file each) holding no \"--project\", \"--arc\" or \"--increment\" literal, its message naming the command, escape_d6cd4011df60 and ADR-1348 D3; the same with any of the three flags, a read (library read, arc waits), a write whose required arc input is the place (arc edit, arc wait), an array not starting with a command and a string holding the words pass", () => {
+test("8.25 · storytree/write-names-place refuses an argv array literal spelling a composed base write (fyi new through a storytree(...) wrapper with a spread of fields, -s storytree fyi new through run(\"pnpm\", ...), bare arc new, question new whose arc input is optional, fyi heard whose required input is no place, a template-built flag, two in one file each) holding no \"--project\", \"--arc\" or \"--increment\" literal, its message naming the command, escape_d6cd4011df60 and ADR-1348 D3; the same with any of the three flags, a read (library read, arc waits), a write whose required arc input is the place (arc edit, arc wait), a write asking only for its usage (\"--help\"), an array not starting with a command and a string holding the words pass", () => {
   assert.match(rule?.meta?.messages?.unplaced ?? "", /escape_d6cd4011df60/);
   assert.match(rule.meta.messages.unplaced, /ADR-1348 D3/);
 
@@ -27,6 +27,8 @@ test("8.25 · storytree/write-names-place refuses an argv array literal spelling
       String.raw`export const waits = () => ["-s", "storytree", "arc", "waits"];`,
       String.raw`export const edited = (arc: string, t: string) => ["arc", "edit", arc, "--title", t];`,
       String.raw`export const waited = (arc: string, on: string) => ["storytree", "arc", "wait", arc, "--on", on];`,
+      String.raw`export const usage = () => ["question", "new", "--help"];`,
+      String.raw`export const usage = (t: string) => ["-s", "storytree", "arc", "new", "--title", t, "--help"];`,
       String.raw`export const family = () => ["fyi"];`,
       String.raw`export const reversed = () => ["new", "fyi"];`,
       String.raw`export const words = () => "storytree fyi new --title t";`,

@@ -52,6 +52,9 @@ importers:
 
   apps/desktop:
     devDependencies:
+      '@babel/parser':
+        specifier: ^7.29.9
+        version: 7.29.9
       '@electron/asar':
         specifier: 3.4.1
         version: 3.4.1

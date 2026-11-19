@@ -127,6 +127,7 @@ const LIBRARY_API = [
   "relatedNotes",
   "related",
   "relatedEach",
+  "naming",
   "frontCovers",
   "decision",
   "decisions",
@@ -649,6 +650,29 @@ test("7.28 recordPin keeps an agent's pin as a pin record, its anchor on a capab
       { anchor: { capability: "capability_000000000001" }, icon: "cache", label: "x", evidence: "", commit: "0123abc" },
     ]) await assert.rejects(lib.recordPin(untyped(misfit)), (error: Error) => error.name === "SchemaError", JSON.stringify(misfit));
     assert.equal((await lib.list("pin")).length, before, "a refused pin writes nothing");
+  });
+});
+
+test("7.29 · naming(id) returns every live record but health that names the id in a field or among a list field's members, whole and in id order, leaving out prose mentions, and none for an id nothing names", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const story = await lib.addStory({ title: "Visitor can sign up" });
+    const form = await lib.addCapability({ title: "Email form", story: story.id });
+    const link = await lib.addCapability({ title: "Confirmation link", story: story.id, dependsOn: [form.id] });
+    const contract = await lib.addContract({ title: "Rejects a bad email", capability: form.id });
+    const cover = await lib.recordDecision({ status: "accepted", title: "Ask for the address once", text: "One field.", frontCoverOf: form.id });
+    await lib.recordDecision({ status: "accepted", title: "Mentions the form", text: `The form ${form.id} is mentioned here, in prose.` });
+    const gone = await lib.recordDecision({ status: "accepted", title: "Once on the shelf", text: "Overtaken.", frontCoverOf: form.id });
+    await lib.retire(gone.id, "overtaken");
+    const arc = await lib.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+    const increment = await lib.addIncrement({ arc: arc.id, title: "Address form", objective: "Build it", body: "Red then green", capabilities: [form.id], links: [contract.id] });
+    await lib.reportHealth(contract.id, "passing");
+
+    const expected = await Promise.all([contract.id, cover.id, increment.id, link.id].sort().map((id) => lib.get(id)));
+    assert.deepEqual(await lib.naming(form.id), expected, "its contract, its cover, the increment listing it and the capability depending on it, whole, in id order");
+    assert.deepEqual(await lib.naming(contract.id), [await lib.get(increment.id)], "the health record naming the contract is left out");
+    assert.deepEqual(await lib.naming("capability_000000000000"), []);
   });
 });
 

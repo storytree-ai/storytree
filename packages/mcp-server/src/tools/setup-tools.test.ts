@@ -100,6 +100,7 @@ test("app-setup 8.4 setup records the chosen project only after a successful yes
     mkdirSync(folder);
     const storytree = await connect({ url: testServerUrl() });
     try {
+      await ownFactory(factory);
       const choice = path.join(home.storytreeHome, "project-choice.json");
       await withAgent(folder, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome, factory } }), async (agent) => {
         const checked = await agent.call("check_setup");

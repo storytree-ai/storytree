@@ -344,7 +344,7 @@ function nameFor(id: string): string {
 }
 
 function stemFor(id: string): string {
-  return id.toLowerCase().replace(/[^a-z0-9-]+/g, "-").slice(0, NAME_PART_MAX).replace(/^-+|-+$/g, "") || "work";
+  return id.toLowerCase().replace(/[^a-z0-9-]+/g, "-").slice(0, NAME_PART_MAX).replace(/^-+|(?<!-)-+$/g, "") || "work";
 }
 
 function placeFor(repository: string, id: string): { folder: string; branch: string } {

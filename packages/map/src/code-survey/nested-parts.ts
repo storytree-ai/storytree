@@ -10,7 +10,7 @@ const inside = (path: string, folder: string): boolean => folder === "" || path.
 const byText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 export function nestedParts(survey: Pick<StorySurvey, "files" | "imports">, roots: readonly string[]): SurveyedParts | undefined {
-  const folders = [...new Set(roots.map((root) => root.replace(/\/+$/, "")))];
+  const folders = [...new Set(roots.map((root) => root.replace(/(?<!\/)\/+$/, "")))];
   const nested = folders.filter((root) => folders.some((other) => other !== root && inside(root, other)));
   const tops = folders.filter((root) => !nested.includes(root));
   const paths = survey.files.map((file) => file.path);

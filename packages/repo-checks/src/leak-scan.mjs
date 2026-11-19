@@ -98,7 +98,8 @@ function zipEntries(bytes) {
 function tarEntries(bytes) {
   const entries = [];
   for (let at = 0; at + 512 <= bytes.length && bytes[at] !== 0; ) {
-    const size = parseInt(Buffer.from(bytes.subarray(at + 124, at + 136)).toString("latin1").replace(/\0.*$/s, "").trim() || "0", 8);
+    const field = Buffer.from(bytes.subarray(at + 124, at + 136)).toString("latin1");
+    const size = parseInt(field.slice(0, field.includes("\0") ? field.indexOf("\0") : field.length).trim() || "0", 8);
     entries.push(bytes.subarray(at + 512, at + 512 + size));
     at += 512 + Math.ceil(size / 512) * 512;
   }

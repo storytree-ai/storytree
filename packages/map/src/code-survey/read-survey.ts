@@ -73,7 +73,7 @@ const RE_EXPORT = /^\s*export\s+(?:type\s+)?(?:\*(?:\s+as\s+[\w$]+)?|\{[^}]*\})\
 
 function onlyReExports(file: string, text: string): boolean {
   if (!/\.[cm]?[jt]sx?$/.test(file) || isTestFile(file)) return false;
-  let rest = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  let rest = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(?<!\/)\/\/.*$/gm, "");
   let found = false;
   for (let match = RE_EXPORT.exec(rest); match !== null; match = RE_EXPORT.exec(rest)) {
     rest = rest.slice(match[0].length);

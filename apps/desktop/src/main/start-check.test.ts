@@ -47,7 +47,7 @@ test("4.17 a startup timeout names the running child and keeps bounded output fr
   const file = path.join(dir, "stalled.cjs");
   writeFileSync(file, `console.log("startup entered"); console.log("x".repeat(5000)); console.error("waiting for handlers"); setInterval(() => {}, 1000);`);
   const problem = await startsCleanly({ execPath: process.execPath, args: [file] }, 1000);
-  assert.match(problem ?? "", /did not finish starting within 1 s.*process \d+.*still running/s);
+  assert.match(problem ?? "", /did not finish starting within 1 s.*process \d+\b.*still running/s);
   assert.match(problem ?? "", /stdout open.*stderr open/);
   assert.match(problem ?? "", /startup entered/);
   assert.match(problem ?? "", /waiting for handlers/);

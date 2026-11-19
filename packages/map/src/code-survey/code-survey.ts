@@ -100,7 +100,7 @@ function proofTitles(titles: readonly string[]): SurveyedTest["titles"] {
     if (!lead) return [];
     const ranges: { first: string; capability: string; start: number; width: number }[] = [];
     let count = 0;
-    for (const [, first, last] of lead[2]!.matchAll(/(\d+\.\d+)(?:–(\d+\.\d+))?/g)) {
+    for (const [, first, last] of lead[2]!.matchAll(/(?<!\d)(\d+\.\d+)(?:–(\d+\.\d+))?/g)) {
       const [capability, start] = first!.split(".");
       const [endCapability, end] = (last ?? first!).split(".");
       if (capability !== endCapability || !Number.isSafeInteger(Number(capability)) || !Number.isSafeInteger(Number(start)) || !Number.isSafeInteger(Number(end)) || Number(end) < Number(start)) return [];
@@ -185,10 +185,10 @@ function fileAt(target: string, paths: ReadonlySet<string>): string | undefined 
 
 function namesOf(clause: string): Edge["names"] {
   if (clause.includes("*") || clause.trim() === "") return "all";
-  const braces = /\{([^}]*)\}/.exec(clause);
+  const braces = /^[^{]*\{([^}]*)\}/.exec(clause);
   if (braces === null) return [["default", "default"]];
   return braces[1]!.split(",").map((part) => part.trim().replace(/^type\s+/, "")).filter((part) => part !== "").map((part) => {
-    const [name, as] = part.split(/\s+as\s+/);
+    const [name, as] = part.split(/(?<!\s)\s+as\s+/);
     return [name!.trim(), (as ?? name!).trim()] as const;
   });
 }

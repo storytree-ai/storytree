@@ -170,7 +170,7 @@ function linkedWorktree(start: string): { root: string; main: string } | undefin
     const dotGit = path.join(dir, ".git");
     if (existsSync(dotGit)) {
       if (!isFile(dotGit)) return undefined;
-      const gitDir = /^gitdir:\s*(.+?)\s*$/m.exec(readText(dotGit))?.[1];
+      const gitDir = /^gitdir:\s*(\S.*)$/m.exec(readText(dotGit))?.[1]?.trimEnd();
       if (gitDir === undefined) return undefined;
       const ownGitDir = path.resolve(dir, gitDir);
       const common = readText(path.join(ownGitDir, "commondir")).trim();

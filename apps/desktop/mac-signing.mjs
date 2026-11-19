@@ -67,7 +67,7 @@ export function pendingLine(id, status) {
 }
 
 export function identityFrom(listing) {
-  const match = /^\s*\d+\)\s+([0-9A-F]{40})\s+"Developer ID Application: [^"]+"/m.exec(listing);
+  const match = /^[^\S\n\r\u2028\u2029]*\d+\)\s+([0-9A-F]{40})\s+"Developer ID Application: [^"]+"/m.exec(listing);
   if (!match) throw new Error("No Developer ID Application identity in the signing keychain");
   return match[1];
 }
@@ -129,8 +129,8 @@ export function signApp(app, identity, entitlements, codesign = (args) => execFi
 }
 
 export function withZipDigest(feed, sha512, size) {
-  if (!/^\s*sha512: /m.test(feed) || !/^\s*size: /m.test(feed)) throw new Error("latest-mac.yml names no zip digest and size");
-  return feed.replace(/^(\s*sha512: ).*$/gm, `$1${sha512}`).replace(/^(\s*size: ).*$/gm, `$1${size}`);
+  if (!/^[^\S\n\r\u2028\u2029]*sha512: /m.test(feed) || !/^[^\S\n\r\u2028\u2029]*size: /m.test(feed)) throw new Error("latest-mac.yml names no zip digest and size");
+  return feed.replace(/^([^\S\n\r\u2028\u2029]*sha512: ).*$/gm, `$1${sha512}`).replace(/^([^\S\n\r\u2028\u2029]*size: ).*$/gm, `$1${size}`);
 }
 
 function notarytool(env, ...args) {

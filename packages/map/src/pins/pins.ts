@@ -35,7 +35,7 @@ export function parseAnchor(words: string): PinAnchor | undefined {
   }
   const slash = head.indexOf("/");
   const capability = (slash < 0 ? head : head.slice(0, slash)).trim();
-  const part = slash < 0 ? undefined : head.slice(slash + 1).replace(/^\/+|\/+$/g, "").trim();
+  const part = slash < 0 ? undefined : head.slice(slash + 1).replace(/^\/+|(?<!\/)\/+$/g, "").trim();
   if (!/^capability_[0-9a-f]+$/.test(capability) || part === "") return undefined;
   return { capability, ...(part === undefined ? {} : { part }), ...(tail === undefined ? {} : { name: tail.trim() }) };
 }

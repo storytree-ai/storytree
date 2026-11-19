@@ -419,7 +419,7 @@ async function drawnBy({ library, folder, storytree, project }: Call, id: string
 }
 
 function holdingSaid(drawn: DrawnStory, paths: readonly string[]): string {
-  const plain = (one: string) => one.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "");
+  const plain = (one: string) => one.replace(/\\/g, "/").replace(/^\.\//, "").replace(/(?<!\/)\/+$/, "");
   const within = (inner: string, outer: string) => inner === outer || inner.startsWith(`${outer}/`);
   const holding = drawn.capabilities.filter((capability) => paths.some((given) => capability.covers.some((cover) => within(plain(given), plain(cover)) || within(plain(cover), plain(given)))));
   if (holding.length === 0) return "Name and describe its capabilities with edit_plan (title, description): show_plan lists them, each titled by its path until named; a file no capability holds yet is drawn when you import the folder again.";

@@ -120,7 +120,7 @@ export function localBrief(text, { checkout, lanes, pool } = {}) {
 }
 
 export function composeBrief({ title, intro, notes = "", common }) {
-  return [`# ${title}`, "", intro, "", ...(notes ? [notes.replace(/\n*$/, ""), ""] : []), common].join("\n");
+  return [`# ${title}`, "", intro, "", ...(notes ? [notes.replace(/(?<!\n)\n*$/, ""), ""] : []), common].join("\n");
 }
 
 export async function holdRunner({ pidFile, pid = process.pid, marks, argsOf }) {

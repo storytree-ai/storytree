@@ -22,9 +22,9 @@ export const SHELL_GUARD_STEP: Step = { name: "shell-guard", floorMs: 3_000, cei
 const NAMED = 20;
 
 const KILL_FROM_SEARCH = [
-  /(?:^|[|;&(\n]|\$\()\s*(?:sudo\s+)?(?:ps|pgrep)\b(?:(?!&&)[^;\n])*\|\s*(?:sudo\s+)?(?:xargs\b[^|;&\n]*?\s)?kill\b/,
+  /(?:(?:^|[|;&(]|\$\()\s*|\n[^\S\n]*)(?:sudo\s+)?(?:ps|pgrep)\b(?:(?!&&)[^;\n])*\|\s*(?:sudo\s+)?(?:xargs\b[^|;&\n]*?\s)?kill\b/,
   /(?:^|[|;&(\s])kill\b[^|;&\n]*(?:\$\(|`)\s*(?:sudo\s+)?(?:ps|pgrep)\b/,
-  /(?:^|[|;&(\n])\s*(?:sudo\s+)?pkill\b[^|;&\n]*\s-[a-zA-Z]*f/,
+  /(?:(?:^|[|;&(])\s*|\n[^\S\n]*)(?:sudo\s+)?pkill\b[^|;&\n]*\s-[a-zA-Z]*f/,
 ];
 
 export function killsFromSearch(command: string): boolean {

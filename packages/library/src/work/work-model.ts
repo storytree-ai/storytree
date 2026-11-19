@@ -647,7 +647,7 @@ export class WorkModel {
     if (covers === undefined || covers.length === 0) refuse(`a capability of the imported story ${story} names the folders and files of its import it covers`);
     if (!covers!.every((cover) => typeof cover === "string" && cover !== "")) return given;
     const paths = given!.map((cover) => {
-      const plain = path.posix.normalize(cover.replaceAll("\\", "/")).replace(/\/+$/, "") || ".";
+      const plain = path.posix.normalize(cover.replaceAll("\\", "/")).replace(/(?<!\/)\/+$/, "") || ".";
       if (plain === ".." || plain.startsWith("../") || path.posix.isAbsolute(plain) || /^[A-Za-z]:/.test(plain)) refuse(`${cover} is outside the imported folder: give it from there`);
       if (!mapped.folders.some((folder) => within(plain, path.posix.normalize(folder)))) refuse(`${cover} is outside the story's folders (${mapped.folders.join(", ")})`);
       return plain;

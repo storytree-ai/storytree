@@ -263,7 +263,7 @@ function toggle(set: ReadonlySet<string>, id: string): ReadonlySet<string> {
   return next;
 }
 
-const folderName = (path: string): string => path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || path;
+const folderName = (path: string): string => path.replace(/(?<![\\/])[\\/]+$/, "").split(/[\\/]/).pop() || path;
 
 function SessionDetail({ row }: { row: SessionRow }) {
   return <div className="session-detail">

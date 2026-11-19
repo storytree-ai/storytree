@@ -25,7 +25,7 @@ export function feedVersion(text: string): string {
 
 export function carriedFeed(text: string): string {
   const version = feedVersion(text);
-  return text.replace(/^(\s*(?:- )?(?:url|path): )'?([^'\s/]+)'?(\r?)$/gm, `$1../v${version}/$2$3`);
+  return text.replace(/^([^\S\n\r\u2028\u2029]*(?:- )?(?:url|path): )'?([^'\s/]+)'?(\r?)$/gm, `$1../v${version}/$2$3`);
 }
 
 interface ListedRelease { tag_name: string; draft: boolean; prerelease: boolean }

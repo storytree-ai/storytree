@@ -5,12 +5,12 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { CODE_FILE, describe, sanitizationHits } from "./codeql-patterns.mjs";
+import { CODE_FILE } from "./coverage-map.mjs";
 import { ruleHits } from "./eslint.mjs";
 import { textsOf } from "./leak-scan.mjs";
 
 const SECRET_KEY = /token|secret|passw|key|credential|auth/i;
-const LINK_PASSWORD = /[a-z][a-z0-9+.-]*:\/\/[^\s:/@"'\\]+:([^\s@"'\\/]+)@/gi;
+const LINK_PASSWORD = /(?<![a-z0-9+.-])[0-9+.-]*[a-z][a-z0-9+.-]*:\/\/[^\s:/@"'\\]+:([^\s@"'\\/]+)@/gi;
 const MIN_LENGTH = 12;
 
 const linkPasswords = (text) => [...text.matchAll(LINK_PASSWORD)].map((match) => decodeURIComponent(match[1]));
@@ -67,10 +67,7 @@ export function machineSecrets({ home = homedir(), sources = MACHINE_CREDENTIALS
   return [...secrets].map(([value, what]) => ({ value, what }));
 }
 
-const patternHits = (file, text) => [
-  ...sanitizationHits(file, text).map((hit) => ({ line: hit.line, said: describe(hit) })),
-  ...ruleHits(file, text).map(({ line, rule, message }) => ({ line, said: `${rule}: ${message}` })),
-];
+const patternHits = (file, text) => ruleHits(file, text).map(({ line, rule, message }) => ({ line, said: `${rule}: ${message}` }));
 
 const occurrences = (texts, value) => texts.reduce((n, text) => n + text.split(value).length - 1, 0);
 

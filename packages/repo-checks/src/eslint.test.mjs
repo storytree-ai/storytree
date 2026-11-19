@@ -339,3 +339,43 @@ test("8.21 · a next-line disable of storytree/no-comments with no -- <reason> i
   assert.doesNotMatch(at("packages/a/src/bare.mjs:2")[0], ONLY_NEXT_LINE);
   assert.deepEqual([...(await lintPackage.commentHatches(root))], []);
 });
+
+const BACKTRACKING = "regexp/no-super-linear-backtracking";
+const MOVE = "regexp/no-super-linear-move";
+const SAYS = { [BACKTRACKING]: /can exchange characters with/, [MOVE]: /quadratic runtime/ };
+
+test("8.18 · pnpm lint's ESLint step refuses PR #989's regexes /^(.*)\\{(.*) => (.*)\\}(.*)$/ and /^\\s*(\\d+)\\s*([dw]?)\\s*$/i by regexp/no-super-linear-backtracking and a trailing trim /\\s+$/ by regexp/no-super-linear-move, in a source or a test file, each one line naming file, line, the rule and its message; /^([^{]*)\\{([^}]*)\\}$/, .trimEnd(), a tracked *.min.js and a next-line disable naming the rule with a reason give no problem", async (t) => {
+  const root = checkout(t, {
+    "packages/a/src/churn.ts": lines(
+      String.raw`export const renamed = (path: string) => /^(.*)\{(.*) => (.*)\}(.*)$/.exec(path);`,
+      String.raw`export const window = (text: string) => /^\s*(\d+)\s*([dw]?)\s*$/i.exec(text);`,
+      String.raw`export const trimmed = (text: string) => text.replace(/\s+$/, "");`,
+    ),
+    "packages/a/src/churn.test.mjs": lines("export const kept = 1;", String.raw`export const trimmed = (text) => text.replace(/\s+$/, "");`),
+    "packages/a/src/fixed.ts": lines(
+      String.raw`export const renamed = (path: string) => /^([^{]*)\{([^}]*)\}$/.exec(path);`,
+      "export const trimmed = (text: string) => text.trimEnd();",
+    ),
+    "packages/a/src/hatched.mjs": lines(
+      "export const kept = 1;",
+      "// eslint-disable-next-line regexp/no-super-linear-move -- the text is one short line the program wrote",
+      String.raw`export const trimmed = (text) => text.replace(/\s+$/, "");`,
+    ),
+    "docs/design/sketch/page.min.js": String.raw`var t=function(s){return/^(.*)\{(.*)\}(.*)$/.exec(s)||s.replace(/\s+$/,"")};export{t};` + "\n",
+  });
+
+  const problems = [...(await eslintProblems(root))].sort();
+  const refused = problems.map((problem) => {
+    const match = /^(\S+) (regexp\/[a-z-]+): (.+)$/.exec(problem);
+    assert.ok(match, `not a regexp problem: ${problem}`);
+    assert.match(match[3], SAYS[match[2]], problem);
+    return `${match[1]} ${match[2]}`;
+  });
+  assert.deepEqual(refused, [
+    `packages/a/src/churn.test.mjs:2 ${MOVE}`,
+    `packages/a/src/churn.ts:1 ${BACKTRACKING}`,
+    `packages/a/src/churn.ts:1 ${BACKTRACKING}`,
+    `packages/a/src/churn.ts:2 ${BACKTRACKING}`,
+    `packages/a/src/churn.ts:3 ${MOVE}`,
+  ], problems.join("\n"));
+});

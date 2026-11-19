@@ -168,7 +168,7 @@ function refusedAt(problems) {
     .sort();
 }
 
-test("8.20 · storytree/no-comments refuses each line, block, JSDoc and trailing comment on a line the branch adds, committed or not, in a source or test file, as <file>:<line> storytree/no-comments: saying its content goes to a decision or the library; a comment on a line of merge-base(origin/main, HEAD) is not refused, even one origin/main has since removed", async (t) => {
+test("8.20 · storytree/no-comments refuses each line, block, JSDoc and trailing comment outside the kept set on every line of a tracked source or test file, whether on merge-base(origin/main, HEAD), even one origin/main has since removed, or added by the branch, committed or not, as <file>:<line> storytree/no-comments: saying its content goes to a decision or the library", async (t) => {
   const oldBase = lines(
     "// Capability 1 · Old things.",
     "// narration already on main",
@@ -198,6 +198,10 @@ test("8.20 · storytree/no-comments refuses each line, block, JSDoc and trailing
 
   const problems = await eslintProblems(root);
   assert.deepEqual(refusedAt(problems), [
+    "packages/a/src/gone.mjs:2",
+    "packages/a/src/old.mjs:2",
+    "packages/a/src/old.mjs:3",
+    "packages/a/src/old.mjs:4",
     "packages/a/src/old.mjs:6",
     "packages/a/src/old.mjs:7",
     "packages/a/src/old.mjs:8",
@@ -208,7 +212,7 @@ test("8.20 · storytree/no-comments refuses each line, block, JSDoc and trailing
   for (const problem of problems) assert.match(problem, /goes to a decision or the library/);
 });
 
-test("8.20 · where merge-base(origin/main, HEAD) cannot be read, with no origin/main or with no commit at all, every line counts as added and its comment outside the kept set is refused", async (t) => {
+test("8.20 · where merge-base(origin/main, HEAD) cannot be read, with no origin/main or with no commit at all, a comment outside the kept set is still refused", async (t) => {
   const committed = branch(t, {
     origin: false,
     base: { "packages/a/src/a.mjs": lines("// Capability 1 · A.", "// narration in the first commit", "export const a = 1;") },
@@ -219,7 +223,7 @@ test("8.20 · where merge-base(origin/main, HEAD) cannot be read, with no origin
   assert.deepEqual(refusedAt(await eslintProblems(uncommitted)), ["packages/a/src/a.mjs:2"]);
 });
 
-test("8.20 · on added lines the kept set passes: a file's opening Capability N · declaration (after a #! line), a pause marker beginning by naming the wait and saying it is the behaviour under test, ESLint directives, @ts-expect-error, @ts-ignore and /// <reference/>; a Capability comment after code, or after the file's first comment, a posix-only: <reason> marker and a comment merely mentioning under test are refused", async (t) => {
+test("8.20 · the kept set passes: a file's opening Capability N · declaration (after a #! line), a pause marker beginning by naming the wait and saying it is the behaviour under test, ESLint directives, @ts-expect-error, @ts-ignore and /// <reference/>; a Capability comment after code, or after the file's first comment, a posix-only: <reason> marker and a comment merely mentioning under test are refused", async (t) => {
   const root = checkout(t, {
     "packages/a/src/script.mjs": lines(
       "#!/usr/bin/env node",

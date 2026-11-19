@@ -370,7 +370,7 @@ test("1.50 `storytree arc close` is refused with exit code 2, saying an arc has 
   });
 });
 
-test("1.51 `storytree auth get <name>` is refused with exit code 2, saying storytree never prints a key's value and naming `storytree auth list` as its next step, holds no saved key's value in either stream, and is recorded as a refused line", async () => {
+test("1.51 `storytree auth get <name>` is refused with exit code 2, saying storytree never prints a key's value and naming `storytree auth connection` as its one next step, holds no saved key's value in either stream, and is recorded as a refused line", async () => {
   await inWorld(command, async (world) => {
     const value = "never-shown-7f3e9a";
     const saved = await storytree(command.script, ["auth", "set", "anthropic"], { cwd: world.folder, home: world.home, input: `${value}\n` });
@@ -381,7 +381,7 @@ test("1.51 `storytree auth get <name>` is refused with exit code 2, saying story
 
     assert.equal(got.code, 2, got.stderr);
     assert.match(got.stderr, /never prints a key's value/);
-    assert.match(got.stderr, /storytree auth list/);
+    assert.match(got.stderr, /storytree auth connection/);
     assert.ok(!got.stdout.includes(value) && !got.stderr.includes(value), `the key's value was printed:\nstdout:\n${got.stdout}\nstderr:\n${got.stderr}`);
     const log = await openActivityLog(testServerUrl());
     try {
@@ -389,7 +389,7 @@ test("1.51 `storytree auth get <name>` is refused with exit code 2, saying story
       assert.deepEqual(lines.map((line) => {
         const { outcome, next } = line as Extract<typeof line, { kind: "door-answered" }>;
         return { outcome, next };
-      }), [{ outcome: "refused", next: ["storytree auth list"] }]);
+      }), [{ outcome: "refused", next: ["storytree auth connection"] }]);
     } finally {
       await log.close();
     }

@@ -44,8 +44,8 @@ export const NO_SUCH_JOB: Readonly<Record<string, { why: string; instead: string
     instead: "arc increment close",
   },
   "auth get": {
-    why: "storytree never prints a key's value: a key is a person's own, given at a terminal, and `storytree auth list` names each key and where it resolves from",
-    instead: "auth list",
+    why: "storytree never prints a key's value: `storytree auth connection --database <name>` prints the signed-in connection for psql, as in psql \"$(storytree auth connection --database <name>)\"",
+    instead: "auth connection",
   },
 };
 

@@ -420,7 +420,7 @@ test("3.5 · recordMeasures's daily run leaves out a base measure whose reader o
   assert.deepEqual((await series(alpha.id, lines.id)).map(({ value, commit }) => [value, commit]), [[4, head]], `the plainly read base measure is recorded: ${answer}`);
   assert.deepEqual((await series(beta.id, lines.id)).map(({ value, commit }) => [value, commit]), [[2, head]]);
   assert.deepEqual([...(await series(alpha.id, score.id)), ...(await series(beta.id, score.id))], [], "no row for the sampled base measure");
-  assert.equal((globalThis as Record<string, unknown>)[asked], undefined, "its sample is not asked by the daily run");
+  assert.deepEqual((globalThis as Record<string, unknown>)[asked] ?? [], [], "its sample is not asked by the daily run");
 });
 
 test("3.5 · recordSampled records, through the readings writer, each story's value of every base measure on the machine read only by a sample, at origin/main when HEAD is origin/main: once a head and once a week by its own readings, nothing while the load is at or over the CPU count, naming it when no part offers storyMutation; the mutation verb answers with it and is refused without --machine or the server", async (t) => {

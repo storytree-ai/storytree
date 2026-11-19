@@ -12,15 +12,48 @@ const TEST_FILE = /\.test\.[^/]+$/;
 
 const head = (node) => literal(node) ?? (node?.type === "TemplateLiteral" ? node.quasis[0].value.cooked : undefined);
 
+const SHELLS = new Set(["sh", "bash", "/bin/sh", "/bin/bash"]);
+const SEGMENT = /\|\||&&|[|;]/;
+
+const firstOfSegments = (text) => text.split(SEGMENT).map((segment) => segment.trim().split(/\s/)[0]).find((word) => COMMANDS.has(word));
+
+function scriptOf(call) {
+  const args = call.arguments[1];
+  if (args?.type !== "ArrayExpression") return undefined;
+  const at = args.elements.findIndex((element) => literal(element) === "-c");
+  return at < 0 ? undefined : head(args.elements[at + 1]);
+}
+
 function commandOf(call) {
   const text = head(call.arguments[0]);
   if (text === undefined) return undefined;
   if (COMMANDS.has(text)) return text;
+  if (SHELLS.has(text)) {
+    const script = scriptOf(call);
+    return script === undefined ? undefined : firstOfSegments(script);
+  }
   const callee = unchained(call.callee);
   const name = callee.type === "Identifier" ? callee.name : callee.type === "MemberExpression" && !callee.computed ? callee.property.name : undefined;
-  if (!SHELL_CALLS.has(name)) return undefined;
-  const first = text.trimStart().split(/\s/)[0];
-  return COMMANDS.has(first) ? first : undefined;
+  return SHELL_CALLS.has(name) ? firstOfSegments(text) : undefined;
+}
+
+const not = (value) => value === undefined ? undefined : !value;
+
+function onWindows(test) {
+  if (test.type === "Identifier") return /win32|windows/i.test(test.name) ? true : undefined;
+  if (test.type === "UnaryExpression" && test.operator === "!") return not(onWindows(test.argument));
+  if (test.type === "LogicalExpression") {
+    const [left, right] = [onWindows(test.left), onWindows(test.right)];
+    if (test.operator === "&&") return left === false || right === false ? false : left && right ? true : undefined;
+    if (test.operator === "||") return left === true || right === true ? true : left === false && right === false ? false : undefined;
+    return undefined;
+  }
+  if (test.type === "BinaryExpression" && (test.operator === "===" || test.operator === "!==")) {
+    const [side, value] = literal(test.right) !== undefined ? [test.left, literal(test.right)] : [test.right, literal(test.left)];
+    if (value === undefined || !readsPlatform(side)) return undefined;
+    return test.operator === "!==" ? value !== "win32" : value === "win32";
+  }
+  return undefined;
 }
 
 function readsPlatform(test) {
@@ -40,7 +73,7 @@ function branched(node, ancestors) {
     if (body !== undefined) {
       for (const statement of body) {
         if (statement === inner) break;
-        if (statement.type === "IfStatement" && readsPlatform(statement.test)) return true;
+        if (statement.type === "IfStatement" && readsPlatform(statement.test) && onWindows(statement.test) !== false) return true;
       }
     }
     inner = outer;

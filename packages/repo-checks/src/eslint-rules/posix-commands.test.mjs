@@ -21,7 +21,7 @@ const source = (...lines) => [HEADER, ...lines].join("\n");
 const refused = (command, line, code, filename = SOURCE) => ({ code, filename, errors: [{ messageId: "unbranched", data: { command }, line }] });
 const passes = (code, filename = SOURCE) => ({ code, filename });
 
-test("8.16 · storytree/posix-commands refuses ps, lsof, pgrep or pkill as a call's first string argument or the first word of an exec or execSync command string, optional calls and TypeScript included, with no platform branch around it (a non-platform ternary or earlier if, or an old // posix-only: line, is none), its message naming the command, escape_3d876fe9f3df, a process.platform branch and // eslint-disable-next-line storytree/posix-commands -- <why>", () => {
+test("8.16 · storytree/posix-commands refuses ps, lsof, pgrep or pkill as a call's first string argument, the first word of any segment (after |, &&, || or ;) of an exec or execSync command string, or the first word of any segment of the script sh, bash, /bin/sh or /bin/bash runs with -c, optional calls and TypeScript included, with no platform branch around it (a non-platform ternary or earlier if, an earlier if false on Windows such as process.platform === \"linux\", !== \"win32\", !(=== \"win32\"), \"linux\" || \"darwin\" or !(\"win32\" || any), or an old // posix-only: line, is none), its message naming the command, escape_3d876fe9f3df, a process.platform branch and // eslint-disable-next-line storytree/posix-commands -- <why>", () => {
   const message = rule?.meta?.messages?.unbranched ?? "";
   assert.match(message, /\{\{\s*command\s*\}\}/, "names the command");
   assert.match(message, /escape_3d876fe9f3df/);
@@ -41,6 +41,17 @@ test("8.16 · storytree/posix-commands refuses ps, lsof, pgrep or pkill as a cal
       refused("pgrep", 6, source(`export async function look(name) {`, `  if (name === "") return [];`, `  return run("pgrep", [name]);`, `}`)),
       refused("ps", 4, source(`export const ready = (on) => (on ? run("ps", ["-A"]) : null);`)),
       refused("ps", 4, source(`export const both = (on) => on && spawnSync("ps", ["-A"]);`)),
+      refused("pgrep", 4, source(`export const stop = () => execFileSync("sh", ["-c", "pgrep -f -- \\"[p]ostgres.*-D /data\\" | xargs -r kill -TERM"]);`)),
+      refused("pkill", 4, source(`export const stop = () => spawnSync("bash", ["-c", "pkill -f watch.mjs"]);`)),
+      refused("lsof", 4, source(`export const held = () => run("/bin/sh", ["-c", "echo hi && lsof -i :5432"]);`)),
+      refused("ps", 4, source(`export const all = () => execFileSync("/bin/bash", ["-c", "true || ps -A"]);`)),
+      refused("ps", 4, source(`export const find = () => execSync("git status; ps -A");`)),
+      refused("pgrep", 4, source(`export const look = () => exec("cat names | pgrep -f node");`)),
+      refused("ps", 6, source(`export function alive() {`, `  if (process.platform === "linux") return false;`, `  return execFileSync("ps", ["-A"]);`, `}`)),
+      refused("ps", 6, source(`export function scan() {`, `  if (process.platform !== "win32") return;`, `  return execFileSync("ps", ["-A"]);`, `}`)),
+      refused("ps", 6, source(`export function scan() {`, `  if (!(process.platform === "win32")) return;`, `  return execFileSync("ps", ["-A"]);`, `}`)),
+      refused("ps", 6, source(`export function scan() {`, `  if (process.platform === "linux" || process.platform === "darwin") return;`, `  return execFileSync("ps", ["-A"]);`, `}`)),
+      refused("ps", 6, source(`export function scan(force) {`, `  if (!(process.platform === "win32" || force)) return;`, `  return execFileSync("ps", ["-A"]);`, `}`)),
     ],
   });
 
@@ -52,7 +63,7 @@ test("8.16 · storytree/posix-commands refuses ps, lsof, pgrep or pkill as a cal
   });
 });
 
-test("8.16 · storytree/posix-commands passes a command under a platform test (ternary, if, else if, logical, or an earlier if in its block reading platform, win32 or windows), git and psql, a command named only in a comment, a longer string or a later word of a shell string, and any call in a test file or outside packages/ and apps/", () => {
+test("8.16 · storytree/posix-commands passes a command under a platform test (ternary, if, else if, logical, or an earlier if in its block whose test reads platform, win32 or windows and can be true on Windows, such as === \"win32\", !== \"linux\", \"win32\" || any, \"linux\" || an unknown test or its negation, or !! of an unknown test), git and psql, a command named only in a comment, a longer string or a later word of a shell string or segment, a sh -c script with none first in a segment, another program's -c, and any call in a test file or outside packages/ and apps/", () => {
   const unbranched = source(`export const scan = () => run("ps", ["-A"]);`);
   const hitsAt = (file) => ruleHits(file, unbranched).map(({ line, rule: id }) => `${line} ${id}`);
   assert.deepEqual(hitsAt("packages/procs/src/scan.mjs"), ["4 storytree/posix-commands"]);
@@ -85,6 +96,16 @@ test("8.16 · storytree/posix-commands passes a command under a platform test (t
       passes(source(`export const query = () => run("psql", ["-c", "select 1"]);`)),
       passes(source(`export const shell = () => execSync("psql -c 1");`)),
       passes(source(`export const said = () => execSync("echo ps");`)),
+      passes(source(`export function scan() {`, `  if (process.platform !== "linux") return;`, `  return execFileSync("ps", ["-A"]);`, `}`)),
+      passes(source(`export function scan(force) {`, `  if (process.platform === "win32" || force) return;`, `  return execFileSync("ps", ["-A"]);`, `}`)),
+      passes(source(`export function scan(force) {`, `  if (process.platform === "linux" || force) return;`, `  return execFileSync("ps", ["-A"]);`, `}`)),
+      passes(source(`export function scan(force) {`, `  if (!(process.platform === "linux" || force)) return;`, `  return execFileSync("ps", ["-A"]);`, `}`)),
+      passes(source(`export function scan() {`, `  if (!!process.platform.match(/^win/)) return [];`, `  return execFileSync("ps", ["-A"]);`, `}`)),
+      passes(source(`export const sh = () => execFileSync("sh", ["-c", "git status"]);`)),
+      passes(source(`export const later = () => execFileSync("sh", ["-c", "echo ps && git log"]);`)),
+      passes(source(`export const segments = () => execSync("git status; psql -c 1");`)),
+      passes(source(`export const other = () => execFileSync("node", ["-c", "ps -A"]);`)),
+      passes(source(`export function kill() {`, `  if (process.platform !== "win32") execFileSync("sh", ["-c", "pgrep node | xargs kill"]);`, `}`)),
       passes(source(`export const whole = () => execFileSync("ps -A");`)),
       passes(source(`export const note = "ps -A lists every process";`, `// run("ps", ["-A"]) on the box`)),
       passes(unbranched, at("packages/procs/src/scan.test.mjs")),

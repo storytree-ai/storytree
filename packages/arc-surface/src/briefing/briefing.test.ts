@@ -67,7 +67,7 @@ test("5.3 a settled question published with only its title and answer opens on t
   const under = renderBoard(boardView({ arcs: [arc], waits: {}, heldOn: {} }, [], new Date()), undefined, new Set(["a"]));
   const reading = under.match(/<details class="arc-question-row" data-rail-question="kept"[^]*?<\/article><\/details>/)![0];
   assert.match(reading, /<summary>.*?Which way\?.*?settled.*?<\/summary><article[^>]*><div class="arc-answer">.*?The short way/s);
-  assert.doesNotMatch(reading, /<h4>|diagram stored|arc-fold|\d+ words|undefined/i);
+  assert.doesNotMatch(reading, /<h4>|diagram stored|arc-fold|(?<!\d)\d+ words|undefined/i);
 });
 
 const work = (id: string, extra: Partial<FieldsOf<"increment">> = {}) => record(id, "increment", { arc: "a", title: `Build ${id}`, objective: `Objective of ${id}`, body: "planning body", status: "proposal", parked: "2026-09-27T00:00:00Z", ...extra });

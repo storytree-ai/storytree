@@ -6,7 +6,7 @@ import { DataQuestions } from "../data/data-questions.js";
 import { couldBeId } from "../references.js";
 import { createHash, randomUUID } from "node:crypto";
 
-import { isPluginKind, UnknownTypeError, type FieldEdit, type FieldsOf, type RecordType, type SchemaRecord, type WriteOptions } from "../schema/index.js";
+import { isPluginKind, SCHEMA_VERSIONS, UnknownTypeError, type FieldEdit, type FieldsOf, type RecordType, type SchemaRecord, type WriteOptions } from "../schema/index.js";
 import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
 import type { SurveyOptions, WorkSurvey } from "../work/index.js";
 
@@ -53,6 +53,7 @@ export interface Library
   readonly identity: string;
   list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]>;
   inherited(): Promise<SchemaRecord[]>;
+  naming(id: string): Promise<SchemaRecord[]>;
   factoryLibrary(): Library | undefined;
   reach(name: string): Promise<Library>;
   reachAll(): Promise<Reached<Library>[]>;
@@ -238,6 +239,7 @@ function libraryOf(project: Project): Library {
     list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]> {
       return project.records.list(kind);
     },
+    naming: (id) => project.records.list((Object.keys(SCHEMA_VERSIONS) as RecordType[]).filter((kind) => kind !== "health"), { names: id }),
     inherited: async () => (project.records instanceof InheritedRecords ? project.records.inherited() : []),
     factoryLibrary: () => (project.factory === undefined ? undefined : (factory ??= { ...libraryOf(project.factory), close: async () => undefined })),
     reach: async (name) => other(await project.reach(name)),

@@ -49,7 +49,7 @@ export function selectLines(project: string, filter: LineFilter): { text: string
   }
   for (const name of filter.has ?? []) where.push(`${field(name)} IS NOT NULL`);
   if (filter.within !== undefined) {
-    const folders = param(filter.within.map((folder) => folder.replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()));
+    const folders = param(filter.within.map((folder) => folder.replaceAll("\\", "/").replace(/(?<!\/)\/+$/, "").toLowerCase()));
     where.push(`seq IN (SELECT a.seq FROM unnest(${folders}::text[]) AS w(folder) JOIN activity a
       ON a.project = $1 AND ${FOLDER_KEY} ~>=~ w.folder AND ${FOLDER_KEY} ~<~ (w.folder || '0')
       WHERE ${FOLDER_KEY} = w.folder OR left(${FOLDER_KEY}, length(w.folder) + 1) = w.folder || '/')`);

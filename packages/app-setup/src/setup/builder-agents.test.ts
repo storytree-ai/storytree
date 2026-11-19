@@ -11,7 +11,7 @@ import { registerHooks, removeHooks, type HookCommand } from "./index.js";
 const HOOK: HookCommand = { node: path.resolve("/opt/storytree/node"), script: path.resolve("/opt/storytree/build-1/storytree-hook.mjs") };
 
 function guardCommand(file: string): string {
-  const match = /^\s+command: '((?:[^']|'')*)'$/m.exec(readFileSync(file, "utf8"));
+  const match = /^[ \t]+command: '((?:[^']|'')*)'$/m.exec(readFileSync(file, "utf8"));
   assert.ok(match, `no hook command in ${file}`);
   return match[1]!.replaceAll("''", "'");
 }

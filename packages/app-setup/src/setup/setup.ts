@@ -176,7 +176,7 @@ export function codexHooksState(options: Pick<SetupOptions, "homes" | "storytree
   return trust === "not registered" ? undefined : trust;
 }
 
-const SERVER_TABLE = /^\s*\[\s*mcp_servers\s*\.\s*(?:storytree|"storytree")\s*\]/m;
+const SERVER_TABLE = /^[^\S\n\r\u2028\u2029]*\[\s*mcp_servers\s*\.\s*(?:storytree|"storytree")\s*\]/m;
 
 function codexServerState(home: string | undefined, folder: string): SetupReport["codexServer"] {
   if (home === undefined) return undefined;
@@ -210,9 +210,9 @@ function serverFiles(config: string): string[] {
   const start = SERVER_TABLE.exec(config);
   if (start === null) return [];
   const rest = config.slice(start.index + start[0].length);
-  const next = rest.search(/^\s*\[/m);
+  const next = rest.search(/^[^\S\n\r\u2028\u2029]*\[/m);
   const table = next === -1 ? rest : rest.slice(0, next);
-  const named = [/^\s*command\s*=\s*("(?:[^"\\]|\\.)*"|'[^']*')/m.exec(table)?.[1], /^\s*args\s*=\s*\[\s*("(?:[^"\\]|\\.)*"|'[^']*')/m.exec(table)?.[1]];
+  const named = [/^[^\S\n\r\u2028\u2029]*command\s*=\s*("(?:[^"\\]|\\.)*"|'[^']*')/m.exec(table)?.[1], /^[^\S\n\r\u2028\u2029]*args\s*=\s*\[\s*("(?:[^"\\]|\\.)*"|'[^']*')/m.exec(table)?.[1]];
   return named.flatMap((literal) => {
     if (literal === undefined) return [];
     if (literal.startsWith("'")) return [literal.slice(1, -1)];

@@ -232,19 +232,22 @@ test("1.11 · the push check refuses a push whose commits add a git call passing
   assert.ok(!refusal.includes("ended.ts"), refusal);
 });
 
-test("1.12 · the push check refuses a push whose commits add a regex whose repeated parts overlap so it can backtrack super-linearly (PR #989's churn.ts regex), CodeQL's polynomial ReDoS, naming file, commit and line; the same regex with its parts made disjoint passes", (t) => {
+test("1.12 · the push check refuses a push whose commits add PR #989's churn.ts regex /^(.*)\\{(.*) => (.*)\\}(.*)$/ to a code file, by regexp/no-super-linear-backtracking (CodeQL's polynomial ReDoS), naming file, line, commit and rule; the regex rewritten as /^([^{]*)\\{([^}]*)\\}$/ passes, and the same slow regex in a minified bundle (*.min.js, *-min.js) is not read for it", (t) => {
   const { home, root, git } = machine(t);
   git("checkout", "-q", "-b", "renames");
   mkdirSync(path.join(root, "src"));
+  mkdirSync(path.join(root, "vendor"));
   writeFileSync(path.join(root, "src", "churn.ts"), 'export const arrow = " => ";\n' + String.raw`export const renamed = (path: string) => /^(.*)\{(.*) => (.*)\}(.*)$/.exec(path);` + "\n");
   writeFileSync(path.join(root, "src", "disjoint.ts"), 'export const arrow = " => ";\n' + String.raw`export const renamed = (path: string) => /^([^{]*)\{([^}]*)\}$/.exec(path);` + "\n");
+  writeFileSync(path.join(root, "vendor", "page.min.js"), String.raw`var r=function(p){return/^(.*)\{(.*) => (.*)\}(.*)$/.exec(p)};export{r};` + "\n");
+  writeFileSync(path.join(root, "vendor", "worker-min.js"), String.raw`var r=function(p){return/^(.*)\{(.*) => (.*)\}(.*)$/.exec(p)};export{r};` + "\n");
   git("add", ".");
   git("commit", "-q", "-m", "renames");
   const head = git("rev-parse", "HEAD").trim();
   const said = [];
   assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/renames ${head} refs/heads/renames ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1, said.join("\n"));
   const refusal = said.join("\n");
-  assert.match(refusal, new RegExp(`src/churn\\.ts:2 \\(commit ${head.slice(0, 10)}\\) `));
-  assert.match(refusal, /js\/polynomial-redos/);
+  assert.match(refusal, new RegExp(`src/churn\\.ts:2 \\(commit ${head.slice(0, 10)}\\) regexp/no-super-linear-backtracking: `));
   assert.ok(!refusal.includes("disjoint.ts"), refusal);
+  assert.ok(!refusal.includes("vendor/"), refusal);
 });

@@ -1191,6 +1191,50 @@ for (const backend of [memory, postgres]) {
     assert.ok(parked.fields.body.includes("the watcher") && parked.fields.links?.includes(contract.id), "a test first found elsewhere parks its investigation, saying who parked it");
     assert.notEqual(parked.fields.arc, fields.arc, "on that test's own arc");
   });
+
+  contract("5.34", "a flake whose verdict predates the landed close of its test's investigation parks nothing and adds no evidence when told again; a flake verdict after that close parks a new investigation on the same arc", async ({ work, flight, records }) => {
+    const health = new HealthRecord(records, work, flight);
+    const ci = new HealthRecord(onlyHealth(records), work);
+    const onCi = (id: string, state: "passing" | "failing", note: string, flaky?: string[]) =>
+      ci.recordVerified(id, state, { by: "storytree test run on CI", source: "ci", note, ...(flaky === undefined ? {} : { flaky }) }).catch((error: { code?: string }) => {
+        if (error.code !== "42501") throw error;
+      });
+    const { contract } = await smallPlan(work);
+    const flaky = "email form › 1.1 rejects a bad email";
+    const first = "a".repeat(40);
+    const second = "b".repeat(40);
+    const third = "c".repeat(40);
+    const from = new Date().toISOString();
+    const open = async () => (await records.list("increment")).filter(({ fields }) => fields.status !== "closed");
+    const increments = async () => (await records.list("increment")).map(({ id, updatedAt, fields }) => ({ id, updatedAt, fields })).sort((a, b) => a.id.localeCompare(b.id));
+
+    await onCi(contract.id, "failing", `0/1 tests passed; first failure: timed out, at commit ${first}`, [flaky]);
+    await health.tellUntold(from);
+    const [investigation] = await open();
+    await onCi(contract.id, "passing", `1/1 tests passed, at commit ${first}`);
+    await later();
+    await onCi(contract.id, "failing", `0/1 tests passed; first failure: timed out, at commit ${second}`, [flaky]);
+    await later();
+    await flight.closeIncrement(investigation!.id, { disposition: "landed", pr: "1055" });
+    const closed = await increments();
+
+    await health.tellUntold(from);
+    assert.deepEqual(await open(), [], "a flake whose verdict predates the landed close parks no investigation, told again or told late");
+    assert.deepEqual(await increments(), closed, "and adds its evidence to no increment");
+
+    await later();
+    await onCi(contract.id, "passing", `1/1 tests passed, at commit ${second}`);
+    await later();
+    await onCi(contract.id, "failing", `0/1 tests passed; first failure: timed out, at commit ${third}`, [flaky]);
+    await health.tellUntold(from);
+    const [next, ...others] = await open();
+    assert.deepEqual(others, [], "one investigation for the flake after the close");
+    assert.notEqual(next!.id, investigation!.id);
+    assert.equal(next!.fields.arc, investigation!.fields.arc, "a flake verdict after the landed close parks a new investigation on the same test's arc");
+    const body = next!.fields.body;
+    assert.ok(body.includes(third), "its evidence is the flake after the close");
+    assert.ok(!body.includes(first) && !body.includes(second), "and no flake that predates the close");
+  });
 }
 
 function onlyHealth(records: SchemaRecords): SchemaRecords {

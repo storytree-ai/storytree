@@ -64,6 +64,7 @@ function withoutTrailingSlashes(folder: string): string {
 
 function updaterCache(installDir: string, localAppData: string | undefined): string | undefined {
   try {
+    // eslint-disable-next-line regexp/no-super-linear-backtracking -- the name keeps trailing blanks and, on a dangling quote or a blank value, falls back through backtracking into the leading blanks; no unambiguous pattern reproduces that, and the file is the few-line app-update.yml the installer wrote
     const name = /^updaterCacheDirName:\s*['"]?([^'"\r\n]+)['"]?\s*$/m.exec(readFileSync(path.join(installDir, "resources", "app-update.yml"), "utf8"))?.[1];
     if (name === undefined || localAppData === undefined || name.includes("..") || /[\\/]/.test(name)) return undefined;
     return path.join(localAppData, name);

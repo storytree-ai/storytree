@@ -74,7 +74,7 @@ test("8.10 · through pnpm lint's config, a long page.js under docs/design is on
   assert.deepEqual(ruleHits(`${SKETCH}/data.js`, DATA), []);
 });
 
-test("8.10 · the rule module exports MINIFIED_NAME, the name test codeql-patterns.mjs reads: it matches page.min.js and worker-min.js, and neither page.js nor admin.js", async () => {
+test("8.10 · the rule module exports MINIFIED_NAME, the minified-bundle name test the push check also reads: it matches page.min.js and worker-min.js, and neither page.js nor admin.js", async () => {
   const { MINIFIED_NAME } = await import("./sketch-bundle-names.mjs");
   assert.ok(MINIFIED_NAME instanceof RegExp);
   assert.deepEqual(["page.min.js", "worker-min.js", "page.js", "admin.js", "docs/design/a/three.min.js"].map((name) => MINIFIED_NAME.test(name)), [true, true, false, false, true]);

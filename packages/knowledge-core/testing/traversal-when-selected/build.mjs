@@ -7,4 +7,4 @@ const root = path.resolve(process.argv[2] ?? path.resolve(here, '../../../..'));
 const dist = buildFolder(here, process.argv[3] ?? 'after');
 await buildCapture({ root, dist });
 const page = path.join(dist, 'index.html');
-writeFileSync(page, readFileSync(page, 'utf8').replace(/\s*<meta name="storytree-territory-worker"[^>]*>/, ''));
+writeFileSync(page, readFileSync(page, 'utf8').replace(/(?<!\s)\s*<meta name="storytree-territory-worker"[^>]*>/, ''));

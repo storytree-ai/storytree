@@ -12,7 +12,7 @@ import { MEDIA_FAMILY } from "./media.js";
 export { mediaGuidance } from "./media.js";
 import { ADR_FAMILY, editDecision, recordDecision } from "../decisions/index.js";
 import { ARTIFACT_KINDS, WRITTEN_KINDS } from "../knowledge/index.js";
-import { partsBeside } from "./notes.js";
+import { attachedTo, partsBeside } from "./notes.js";
 import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
@@ -373,6 +373,7 @@ const read = verb({
     const missing = ids.filter((_, index) => records[index] === null);
     if (missing.length > 0) throw new VerbRefusal(missing.map((id) => `no record "${id}" in ${where}`).join("\n"));
     const named = await Promise.all((records as Stored[]).map((record) => withDependsOn(library, record)));
+    const parts = await Promise.all(named.map(async (record) => (record.type === "story" || record.type === "capability" ? (await attachedTo(library, record.id, record.type === "story")).lines : [])));
     if (field !== undefined) {
       if (named.length > 1 || withLinked) throw new VerbRefusal("--field reads one record's field; give one id", { misuse: true });
       const record = named[0]!;
@@ -387,9 +388,9 @@ const read = verb({
     const linkedIds = withLinked ? [...new Set(named.flatMap(idsNamedBy))].filter((id) => !ids.includes(id)) : [];
     const linked = await Promise.all(linkedIds.map((id) => library.get(id)));
     const gone = linkedIds.filter((_, index) => linked[index] === null);
-    const shown = [...named, ...linked.filter((record): record is Stored => record !== null)];
+    const shown = [...named.map((record, index) => [wholeRecord(record), ...parts[index]!].join("\n")), ...linked.filter((record): record is Stored => record !== null).map(wholeRecord)];
     const note = gone.length > 0 ? [`Linked but not in ${where}: ${gone.join(", ")}`] : [];
-    return { text: [...(library === context.library ? [] : [`project ${library.name}:`]), ...shown.map(wholeRecord), ...note].join("\n\n") };
+    return { text: [...(library === context.library ? [] : [`project ${library.name}:`]), ...shown, ...note].join("\n\n") };
   },
 });
 

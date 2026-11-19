@@ -1247,3 +1247,81 @@ test("17.31 · Every kind ARTIFACT_KINDS registers is ranked by library search -
   }
   assert.deepEqual(await library.list("principle"), [], "nothing was written");
 });
+
+test("17.32 · The open tool and library read, on a story or a capability, list everything attached to it: its covers, a story's capabilities with theirs, the open increments naming it or a capability of the story with the questions holding them, and every other record naming it in a field; a closed increment and a prose mention are not listed", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const open = NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "open")! as Verb<VerbInputs, NoteToolContext>;
+  const read = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "read")! as Verb<VerbInputs, LibraryVerbContext>;
+  const toolContext: NoteToolContext = {
+    library, project, session: "lane", folder: process.cwd(), writer: { actor: "session:lane" },
+    claims: async () => [],
+    notesRead: async () => [],
+    recordReads: async () => undefined,
+    presenterOf: async () => undefined,
+  };
+  const readContext: LibraryVerbContext = {
+    library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }),
+  };
+
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const link = await library.addCapability({ story: story.id, title: "Confirmation link", dependsOn: [form.id] });
+  const storyCover = await library.recordDecision({ status: "accepted", title: "Sign up by email", text: "No passwords.", frontCoverOf: story.id });
+  const formCover = await library.recordDecision({ status: "accepted", title: "Ask for the address once", text: "One field.", frontCoverOf: form.id });
+  const linkCover = await library.recordDecision({ status: "accepted", title: "The link lasts a day", text: "Then it expires.", frontCoverOf: link.id });
+  const contract = await library.addContract({ title: "Rejects a bad email", capability: form.id });
+  const prose = await library.recordDecision({ status: "accepted", title: "Mentions both", text: `The story ${story.id} and its form ${form.id}, in prose only.` });
+  const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] });
+  const question = await library.raiseQuestion({ arc: arc.id, title: "Which mailer?", stakes: "s", statement: "q", context: "c", options: "o" });
+  const closed = await library.addIncrement({ arc: arc.id, title: "First form", objective: "Done before", body: "Red then green", capabilities: [form.id] });
+  await library.advanceIncrement(closed.id, "active");
+  await library.closeIncrement(closed.id, { pr: "#1", disposition: "landed" });
+  const held = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Build it", body: "Red then green", capabilities: [form.id], heldOn: [question.id] });
+  const active = await library.addIncrement({ arc: arc.id, title: "Confirmation mail", objective: "Send it", body: "Red then green", capabilities: [link.id] });
+  await library.advanceIncrement(active.id, "active");
+
+  const byId = <T extends { id: string }>(list: readonly T[]): T[] => [...list].sort((one, other) => one.id.localeCompare(other.id));
+  type Attached = { shelf: unknown[]; capabilities: { id: string; title: string; shelf: unknown[] }[]; increments: { id: string; title: string; heldOn: string[] }[]; namedBy: { id: string; kind: string; label: string }[] };
+  const opened = async (id: string) => {
+    const answer = await open.act({ id }, toolContext, WORDS);
+    return { text: answer.text, data: answer.data as { shelf: unknown[]; attached: Attached } };
+  };
+
+  const edge = (await library.list("edge")).find(({ fields }) => fields.from === link.id && fields.to === form.id)!;
+  const ofForm = await opened(form.id);
+  const ofLink = await opened(link.id);
+  assert.deepEqual(ofForm.data.attached?.shelf, ofForm.data.shelf, "a capability's own covers");
+  assert.deepEqual((ofForm.data.attached.shelf as { id: string }[]).map(({ id }) => id), [formCover.id]);
+  assert.deepEqual(ofForm.data.attached.capabilities, [], "a capability lists no capabilities");
+  assert.deepEqual(ofForm.data.attached.increments, [{ id: held.id, title: "Address form", heldOn: [question.id] }], "the open increment naming it, with the question holding it, and not the closed one");
+  assert.deepEqual(byId(ofForm.data.attached.namedBy).map(({ id, kind }) => ({ id, kind })), byId([{ id: contract.id, kind: "contract" }, { id: edge.id, kind: "edge" }]), "the other records naming it in a field, and not the prose mention, its cover or an increment");
+
+  const ofStory = await opened(story.id);
+  assert.deepEqual((ofStory.data.attached.shelf as { id: string }[]).map(({ id }) => id), [storyCover.id], "a story's own covers");
+  assert.deepEqual(byId(ofStory.data.attached.capabilities), byId([{ id: form.id, title: "1 · Form", shelf: ofForm.data.shelf }, { id: link.id, title: "2 · Confirmation link", shelf: ofLink.data.shelf }]), "each of its capabilities with its covers");
+  assert.deepEqual(byId(ofStory.data.attached.increments), byId([{ id: held.id, title: "Address form", heldOn: [question.id] }, { id: active.id, title: "Confirmation mail", heldOn: [] }]), "the open increments naming any of its capabilities");
+  const storyNamedBy = ofStory.data.attached.namedBy.map(({ id }) => id);
+  assert.ok(storyNamedBy.includes(arc.id), "the arc naming the story in its stories list");
+  for (const listedElsewhere of [storyCover.id, held.id, active.id, closed.id, prose.id]) assert.ok(!storyNamedBy.includes(listedElsewhere), listedElsewhere);
+
+  const readText = async (id: string) => (await read.act({ ids: [id], linked: false, field: undefined } as never, readContext, WORDS)).text;
+  const shown = [
+    { door: "open", part: form.id, text: ofForm.text, attached: [formCover.id, held.id, question.id, contract.id, edge.id] },
+    { door: "library read", part: form.id, text: await readText(form.id), attached: [formCover.id, held.id, question.id, contract.id, edge.id] },
+    { door: "open", part: story.id, text: ofStory.text, attached: [storyCover.id, form.id, formCover.id, link.id, linkCover.id, held.id, question.id, active.id, arc.id] },
+    { door: "library read", part: story.id, text: await readText(story.id), attached: [storyCover.id, form.id, formCover.id, link.id, linkCover.id, held.id, question.id, active.id, arc.id] },
+  ];
+  for (const { door, part, text, attached } of shown) {
+    for (const id of attached) assert.ok(text.includes(id), `${door} ${part} lists ${id}`);
+    for (const id of [closed.id, prose.id]) assert.ok(!text.includes(id), `${door} ${part} leaves out ${id}`);
+  }
+});

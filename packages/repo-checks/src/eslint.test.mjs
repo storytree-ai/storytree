@@ -306,6 +306,35 @@ test("8.21 · // eslint-disable-next-line storytree/no-comments -- <reason> keep
   ]);
 });
 
+test("8.21 · a branch that adds only the disable directive above a comment already on merge-base(origin/main, HEAD) has commentHatches list that hatch once as { file, line of the kept comment, the comment's text, the reason }; a hatch with directive and comment both on the merge-base is not listed though the branch adds the line after it", async (t) => {
+  const root = branch(t, {
+    base: {
+      "packages/a/src/swept.mjs": lines(
+        "export const a = 1;",
+        "// a comment main keeps",
+        "// eslint-disable-next-line storytree/no-comments -- on main already",
+        "// kept on main",
+        "export const b = 2;",
+      ),
+    },
+    head: {
+      "packages/a/src/swept.mjs": lines(
+        "export const a = 1;",
+        "// eslint-disable-next-line storytree/no-comments -- a tool reads this line",
+        "// a comment main keeps",
+        "// eslint-disable-next-line storytree/no-comments -- on main already",
+        "// kept on main",
+        "export const c = 3;",
+        "export const b = 2;",
+      ),
+    },
+  });
+
+  assert.deepEqual([...(await lintPackage.commentHatches(root))], [
+    { file: "packages/a/src/swept.mjs", line: 3, comment: "a comment main keeps", reason: "a tool reads this line" },
+  ]);
+});
+
 test("8.21 · a next-line disable of storytree/no-comments with no -- <reason> is one problem at its line saying it needs a reason; an eslint-disable-line, a block eslint-disable naming it and a disable naming no rule are each one problem at their line saying only a next-line disable with a reason keeps a comment; none is a hatch", async (t) => {
   const root = checkout(t, {
     "packages/a/src/bare.mjs": lines("export const a = 1;", "// eslint-disable-next-line storytree/no-comments", "// kept without a reason"),
@@ -338,4 +367,44 @@ test("8.21 · a next-line disable of storytree/no-comments with no -- <reason> i
   }
   assert.doesNotMatch(at("packages/a/src/bare.mjs:2")[0], ONLY_NEXT_LINE);
   assert.deepEqual([...(await lintPackage.commentHatches(root))], []);
+});
+
+const BACKTRACKING = "regexp/no-super-linear-backtracking";
+const MOVE = "regexp/no-super-linear-move";
+const SAYS = { [BACKTRACKING]: /can exchange characters with/, [MOVE]: /quadratic runtime/ };
+
+test("8.18 · pnpm lint's ESLint step refuses PR #989's regexes /^(.*)\\{(.*) => (.*)\\}(.*)$/ and /^\\s*(\\d+)\\s*([dw]?)\\s*$/i by regexp/no-super-linear-backtracking and a trailing trim /\\s+$/ by regexp/no-super-linear-move, in a source or a test file, each one line naming file, line, the rule and its message; /^([^{]*)\\{([^}]*)\\}$/, .trimEnd(), a tracked *.min.js and a next-line disable naming the rule with a reason give no problem", async (t) => {
+  const root = checkout(t, {
+    "packages/a/src/churn.ts": lines(
+      String.raw`export const renamed = (path: string) => /^(.*)\{(.*) => (.*)\}(.*)$/.exec(path);`,
+      String.raw`export const window = (text: string) => /^\s*(\d+)\s*([dw]?)\s*$/i.exec(text);`,
+      String.raw`export const trimmed = (text: string) => text.replace(/\s+$/, "");`,
+    ),
+    "packages/a/src/churn.test.mjs": lines("export const kept = 1;", String.raw`export const trimmed = (text) => text.replace(/\s+$/, "");`),
+    "packages/a/src/fixed.ts": lines(
+      String.raw`export const renamed = (path: string) => /^([^{]*)\{([^}]*)\}$/.exec(path);`,
+      "export const trimmed = (text: string) => text.trimEnd();",
+    ),
+    "packages/a/src/hatched.mjs": lines(
+      "export const kept = 1;",
+      "// eslint-disable-next-line regexp/no-super-linear-move -- the text is one short line the program wrote",
+      String.raw`export const trimmed = (text) => text.replace(/\s+$/, "");`,
+    ),
+    "docs/design/sketch/page.min.js": String.raw`var t=function(s){return/^(.*)\{(.*)\}(.*)$/.exec(s)||s.replace(/\s+$/,"")};export{t};` + "\n",
+  });
+
+  const problems = [...(await eslintProblems(root))].sort();
+  const refused = problems.map((problem) => {
+    const match = /^(\S+) (regexp\/[a-z-]+): (.+)$/.exec(problem);
+    assert.ok(match, `not a regexp problem: ${problem}`);
+    assert.match(match[3], SAYS[match[2]], problem);
+    return `${match[1]} ${match[2]}`;
+  });
+  assert.deepEqual(refused, [
+    `packages/a/src/churn.test.mjs:2 ${MOVE}`,
+    `packages/a/src/churn.ts:1 ${BACKTRACKING}`,
+    `packages/a/src/churn.ts:1 ${BACKTRACKING}`,
+    `packages/a/src/churn.ts:2 ${BACKTRACKING}`,
+    `packages/a/src/churn.ts:3 ${MOVE}`,
+  ], problems.join("\n"));
 });

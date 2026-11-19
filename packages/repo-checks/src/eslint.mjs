@@ -4,14 +4,18 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { ESLint, Linter } from "eslint";
+import regexpPlugin from "eslint-plugin-regexp";
 import tseslint from "typescript-eslint";
 
 import storytreePlugin from "./eslint-rules/index.mjs";
+import { MINIFIED_NAME } from "./eslint-rules/sketch-bundle-names.mjs";
 
 const SOURCE = /\.(?:js|mjs|cjs|ts|tsx|mts|cts)$/;
 const TYPESCRIPT = ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"];
 const NO_COMMENTS = "storytree/no-comments";
 const NEVER_SILENCED = new Set(["needsReason", "onlyNextLine"]);
+const REGEXP_RULES = { "regexp/no-super-linear-backtracking": "error", "regexp/no-super-linear-move": "error" };
+const RULE_PREFIXES = ["storytree/", "regexp/"];
 
 const git = (root, args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
 
@@ -26,7 +30,7 @@ function config(plugin) {
   return [
     { linterOptions: { reportUnusedDisableDirectives: "off" } },
     { files: TYPESCRIPT, languageOptions: { parser: tseslint.parser } },
-    { files: ["**/*.js", "**/*.mjs", "**/*.cjs", ...TYPESCRIPT], plugins: { storytree: plugin }, rules },
+    { files: ["**/*.js", "**/*.mjs", "**/*.cjs", ...TYPESCRIPT], plugins: { storytree: plugin, regexp: regexpPlugin }, rules: { ...rules, ...REGEXP_RULES } },
   ];
 }
 
@@ -38,8 +42,9 @@ const PATTERN_CONFIG = [
 ];
 
 export function ruleHits(file, text) {
-  return new Linter().verify(text, PATTERN_CONFIG, { filename: file })
-    .filter(({ ruleId }) => ruleId?.startsWith("storytree/"))
+  const config = MINIFIED_NAME.test(file) ? PATTERN_CONFIG : [...PATTERN_CONFIG, { files: ["**/*"], plugins: { regexp: regexpPlugin }, rules: REGEXP_RULES }];
+  return new Linter().verify(text, config, { filename: file })
+    .filter(({ ruleId }) => RULE_PREFIXES.some((prefix) => ruleId?.startsWith(prefix)))
     .map(({ line, ruleId, message }) => ({ line, rule: ruleId, message }));
 }
 
@@ -110,7 +115,7 @@ export async function commentHatches(root) {
   const added = addedLines(root);
   const files = trackedSources(root).filter((file) => added === null || added.has(file));
   return (await lintResults(root, storytreePlugin, files)).flatMap(({ file, result }) => {
-    const hatched = result.suppressedMessages.filter((message) => message.ruleId === NO_COMMENTS && message.messageId === "hatched" && onAddedLine(added, file, message));
+    const hatched = result.suppressedMessages.filter((message) => message.ruleId === NO_COMMENTS && message.messageId === "hatched" && (onAddedLine(added, file, message) || onAddedLine(added, file, { line: message.line - 1 })));
     if (hatched.length === 0) return [];
     const lines = readFileSync(path.join(root, file), "utf8").split(/\r?\n/);
     return hatched.map((message) => ({

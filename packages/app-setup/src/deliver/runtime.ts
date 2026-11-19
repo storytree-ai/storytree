@@ -65,7 +65,7 @@ export async function stageRuntime(file: string, runtime: Runtime, download: typ
 }
 
 function tarEntry(tar: Buffer, wanted: string): Buffer {
-  const text = (start: number, length: number) => tar.toString("utf8", start, start + length).replace(/\0.*$/s, "");
+  const text = (start: number, length: number) => tar.toString("utf8", start, start + length).split("\0", 1)[0]!;
   let longName: string | undefined;
   for (let offset = 0; offset + 512 <= tar.length;) {
     if (tar.subarray(offset, offset + 512).every((byte) => byte === 0)) break;
@@ -76,7 +76,7 @@ function tarEntry(tar: Buffer, wanted: string): Buffer {
     const body = tar.subarray(offset + 512, offset + 512 + size);
     longName = undefined;
     if (type === "x") longName = /(?:^|\n)\d+ path=([^\n]*)\n/.exec(body.toString("utf8"))?.[1];
-    else if (type === "L") longName = body.toString("utf8").replace(/\0.*$/s, "");
+    else if (type === "L") longName = body.toString("utf8").split("\0", 1)[0]!;
     else if ((type === "0" || type === "\0") && name.replace(/^\.\//, "") === wanted) return Buffer.from(body);
     offset += 512 + Math.ceil(size / 512) * 512;
   }

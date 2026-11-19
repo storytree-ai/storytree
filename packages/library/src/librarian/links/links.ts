@@ -48,5 +48,15 @@ export type BrokenEdge = Reference;
 export async function brokenEdges(library: Library, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<BrokenEdge[]> {
   const notes = await read;
   const live = new Set(notes.map((note) => note.id));
-  return notes.flatMap(referencesOf).filter((reference) => !live.has(reference.to));
+  const covers = notes.flatMap(frontCoverOf);
+  const shelves = covers.length === 0 ? [] : [...(await library.list("story")), ...(await library.list("capability"))];
+  const plan = new Set(shelves.map((node) => node.id));
+  return [
+    ...notes.flatMap(referencesOf).filter((reference) => !live.has(reference.to)),
+    ...covers.filter((cover) => !plan.has(cover.to)),
+  ];
+}
+
+function frontCoverOf(note: Note): BrokenEdge[] {
+  return note.type === "decision" && note.fields.frontCoverOf !== undefined ? [{ from: note.id, field: "frontCoverOf", to: note.fields.frontCoverOf }] : [];
 }

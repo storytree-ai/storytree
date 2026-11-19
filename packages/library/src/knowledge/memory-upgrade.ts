@@ -55,7 +55,7 @@ function classify(record: RecordEnvelope): Pick<RecordEnvelope, "type" | "versio
   const text = record.fields.text.trim();
   let kind: string;
   let fields: Record<string, unknown>;
-  const definition = /^(?:#{1,6}\s+)?Definition:\s*(\S[^\r\n]*)\r?\n+([\s\S]+)$/i.exec(text);
+  const definition = /^(?:#{1,6}\s+)?Definition:\s*(\S[^\r\n]*)\r?\n+([^\n][\s\S]*)$/i.exec(text);
   if (definition) {
     kind = "definition";
     fields = { term: definition[1]!.trim(), meaning: definition[2]!.trim() };

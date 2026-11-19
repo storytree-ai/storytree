@@ -35,7 +35,7 @@ test("5.1 · an arc's expansion opens on its intent folded behind one line with 
   assert.match(under, /<details class="arc-fold arc-intent-fold" data-fold-key="rail:build:intent"><summary>Intent<\/summary><p[^>]*>Intent of build<\/p><\/details><button[^>]*data-copy-arc-title="build"/);
   assert.match(under, /<details class="arc-question-row" data-rail-question="q"[^>]*><summary>.*?Which release\?.*?arc-status-open[^>]*>open<\/span><\/summary>/s);
   assert.ok(under.indexOf("rail:build:intent") < under.indexOf('data-rail-question="q"'), "the intent comes first");
-  assert.doesNotMatch(under.match(/data-rail-question="q"[^>]*><summary>[^]*?<\/summary>/)![0], /The full question statement|\d+ words|diagram stored/, "the question's row shows none of its prose");
+  assert.doesNotMatch(under.match(/data-rail-question="q"[^>]*><summary>[^]*?<\/summary>/)![0], /The full question statement|(?<!\d)\d+ words|diagram stored/, "the question's row shows none of its prose");
   assert.doesNotMatch(renderBoard(board), /Intent of build|data-rail-question|data-copy-arc-title/, "a closed row shows nothing under it");
   assert.doesNotMatch(under, /arc-card|data-surface-layer="overlay"/, "nothing is drawn over the map");
 });
@@ -101,7 +101,7 @@ test("3.2 a claimed increment's oval carries its holder's flag in the session's 
   const html = lanes([claim("idle-one", "i1", "2026-09-27T00:00:00Z"), claim("live-one", "i2", "2026-09-27T00:41:00Z")]);
   const bar = (id: string) => html.match(new RegExp(`<span class="arc-bar[^"]*"[^>]*data-increment-id="${id}".*?</span>`, "s"))![0];
   const fill = (id: string) => bar(id).match(/<path class="arc-flag-pennant" d="M[^"]+Z" fill="([^"]+)"/)?.[1];
-  const tipOut = (id: string) => Math.max(...[...bar(id).match(/d="M([^"]+)Z"/)![1]!.matchAll(/(-?[\d.]+),/g)].map(([, x]) => Number(x)));
+  const tipOut = (id: string) => Math.max(...[...bar(id).match(/d="M([^"]+)Z"/)![1]!.matchAll(/(?<![\d.])(-?[\d.]+),/g)].map(([, x]) => Number(x)));
   assert.match(bar("i1"), /<svg class="arc-agent-mark"[^>]*data-agent-session="idle-one"[^>]*data-work-id="i1"[^>]*data-agent-label="[^"]+"/, "mount reads the holder from its flag");
   assert.equal(fill("i2"), "hsl(244, 80%, 68%)", "the live holder's own session colour, as the globe wears it");
   assert.equal(fill("i1"), "hsl(261, 53.33%, 64%)", "the idle holder's, greyed: from hsl(261, 80%, 68%)");

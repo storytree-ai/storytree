@@ -66,9 +66,9 @@ test("27.1 · library count tallies live records by kind and status, and open in
   await library.retire(gone.id, "wrong");
 
   const counted = await run("count", {});
-  assert.match(counted, /^\s+increment\s+3: proposal 2, closed 1$/m);
-  assert.match(counted, /^\s+question\s+1: open 1$/m);
-  assert.match(counted, /^\s+story\s+1$/m);
+  assert.match(counted, /^[ \t]+increment\s+3: proposal 2, closed 1$/m);
+  assert.match(counted, /^[ \t]+question\s+1: open 1$/m);
+  assert.match(counted, /^[ \t]+story\s+1$/m);
   assert.match(counted, new RegExp(`2 open\\s+${arc.id}\\s+Launch`), "open increments by arc, with its title");
   assert.doesNotMatch(counted, /health/, "health readings are not counted");
   assert.doesNotMatch(counted, /definition/, "a retired record is not counted");

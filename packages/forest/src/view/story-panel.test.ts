@@ -144,7 +144,7 @@ function notGreen(why: CapabilityLine["why"], lastSeen?: { state: "passing" | "f
 }
 
 function plainText(fragment: string): string {
-  return fragment.split(/<[^>]*>/).join("").replace(/\s+/g, " ").trim();
+  return fragment.split(/<[^<>]*>/).join("").replace(/\s+/g, " ").trim();
 }
 
 function whyLine(html: string): string {

@@ -27,7 +27,7 @@ const READING: CiTimesReading = {
   now: { inCi: 2, inQueue: 1 },
 };
 
-const lines = (html: string) => html.split("</span><span class=\"ci-times-item\"").map((line) => line.split(/<[^>]*>/).join("").replace(/^[^>]*>/, ""));
+const lines = (html: string) => html.split("</span><span class=\"ci-times-item\"").map((line) => line.split(/<[^<>]*>/).join("").replace(/^[^>]*>/, ""));
 
 function host(): CiTimesHost {
   class Sheet { text = ""; replaceSync(text: string) { this.text = text; } }

@@ -69,6 +69,8 @@ export function listed(records: Iterable<RecordEnvelope>, type: string | readonl
         (filter.phrase!.fields === undefined || filter.phrase!.fields.includes(key))
         && typeof value === "string" && value.includes(filter.phrase!.text)))
       && (filter.ids === undefined || filter.ids.includes(record.id))
+      && (filter.names === undefined || Object.values(record.fields).some((value) =>
+        value === filter.names || (Array.isArray(value) && value.includes(filter.names))))
       && Object.entries(filter.where ?? {}).every(([path, value]) => fieldAt(record.fields, path) === value)
       && Object.entries(filter.not ?? {}).every(([path, value]) => fieldAt(record.fields, path) !== value))
     .sort((a, b) => compareIds(a.id, b.id))

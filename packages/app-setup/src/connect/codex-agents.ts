@@ -20,7 +20,7 @@ export function writeCodexInstructions(codexHome: string): CodexInstructionsWrit
   const { before, section, after } = split(current);
   if (section === SECTION) return "already written";
   const own = `${before}${after}`;
-  writeFileSync(file, own.trim() === "" ? SECTION : `${own.replace(/\n*$/, "\n\n")}${SECTION}`);
+  writeFileSync(file, own.trim() === "" ? SECTION : `${own.replace(/(?<!\n)\n*$/, "\n\n")}${SECTION}`);
   return "written";
 }
 

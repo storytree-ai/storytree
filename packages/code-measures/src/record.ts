@@ -3,8 +3,6 @@ import { execFile } from "node:child_process";
 import { availableParallelism, loadavg } from "node:os";
 import { promisify } from "node:util";
 
-import { VerbRefusal } from "@storytree/library/verbs";
-
 import { pairMeasures, pairingText, type MeasureReader, type MeasureRecord } from "./pair.js";
 import { commitOf, readStoryMeasures } from "./read.js";
 import { writeReadings, type MeasureReadingRow, type MeasureReadingsDb } from "./readings.js";
@@ -30,19 +28,18 @@ export async function recordMeasures({ folder, project, machine, stories, record
   readonly server?: unknown;
   readonly load?: () => MachineLoad;
 }): Promise<string> {
-  const unpaired = pairMeasures(records, readers).filter(({ unpaired: none }) => none.length > 0);
-  if (unpaired.length > 0) {
-    const titles = new Map<string, string>([...stories, ...records.map(({ id, fields }) => ({ id, title: String(fields["title"] ?? id) }))].map(({ id, title }) => [id, title]));
-    const count = unpaired.reduce((sum, { unpaired: none }) => sum + none.length, 0);
-    const text = pairingText(unpaired.map((pairing) => ({ ...pairing, paired: [] })), titles);
-    throw new VerbRefusal(`${text}\n\nNothing recorded: ${count} measure${count === 1 ? " does" : "s do"} not pair with one reader at its version in its story's package.`);
-  }
+  const pairings = pairMeasures(records, readers);
+  const pairedIds = new Set(pairings.flatMap(({ paired }) => paired));
+  const pairedRecords = records.filter(({ id }) => pairedIds.has(id));
+  const unpaired = pairings.filter(({ unpaired: none }) => none.length > 0).map((pairing) => ({ ...pairing, paired: [] }));
+  const titles = new Map<string, string>([...stories, ...records.map(({ id, fields }) => ({ id, title: String(fields["title"] ?? id) }))].map(({ id, title }) => [id, title]));
 
   const commit = await commitOf(folder, undefined);
   const short = commit.slice(0, 12);
   const lines = [
-    await recordBase({ folder, project, machine, stories, records, readers, db, commit, short }),
-    await recordDedicated({ folder, project, machine, records, readers, db, commit, short, plan, server, load }),
+    await recordBase({ folder, project, machine, stories, records: pairedRecords, readers, db, commit, short }),
+    await recordDedicated({ folder, project, machine, records: pairedRecords, readers, db, commit, short, plan, server, load }),
+    unpaired.length === 0 ? undefined : pairingText(unpaired, titles),
   ];
   return lines.filter((line) => line !== undefined).join("\n");
 }

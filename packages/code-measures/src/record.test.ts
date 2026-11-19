@@ -77,7 +77,7 @@ async function refusal(promise: Promise<unknown>): Promise<VerbRefusal> {
   return error;
 }
 
-test("3.2 · storytree code-measures record --machine mint records each story's value of every live base measure read on mint at origin/main, none where its reader gives none; is refused, recording nothing, without --machine, without the server or when a measure does not pair; and records nothing at a head already recorded or within a day of its last recording", async (t) => {
+test("3.2 · storytree code-measures record --machine mint records each story's value of every live base measure read on mint at origin/main, none where its reader gives none, and names with why a measure that does not pair while still recording every one that does; is refused, recording nothing, without --machine or without the server; and records nothing at a head already recorded or within a day of its last recording", async (t) => {
   const family = CODE_MEASURES_FAMILIES.find((one) => one.name === "code-measures");
   const record = family?.verbs.find((one) => mounted(one.command) && one.command.name === "record") as Verb<VerbInputs, VerbContext> | undefined;
   assert.ok(record !== undefined, "the code-measures family has a record verb");
@@ -121,12 +121,11 @@ test("3.2 · storytree code-measures record --machine mint records each story's 
   const misuse = await refusal(record.act({ machine: undefined }, context, WORDS));
   assert.equal(misuse.misuse, true, "without --machine it is misuse");
   await refusal(record.act({ machine: "mint" }, unserved, WORDS));
-  const unpaired = await refusal(record.act({ machine: "mint" }, context, WORDS));
-  assert.match(unpaired.message, /Laptop lines/, "the refusal names the measure that does not pair, whichever machine reads it");
   assert.deepEqual(await recorded(), [], "a refusal records nothing");
-
-  declareReaders(repo, alpha.id, "paired.mjs", pairedReaders);
   const answer = await record.act({ machine: "mint" }, context, WORDS);
+  const named = answer.text.split("\n").find((line) => line.includes("Laptop lines"));
+  assert.ok(named !== undefined, `the answer names the measure that does not pair, whichever machine reads it: ${answer.text}`);
+  assert.match(named, /no reader/, `with why it does not pair: ${answer.text}`);
   assert.match(answer.text, /\b2\b/, "two readings: Source lines for each story");
   assert.ok(answer.text.includes(first.slice(0, 7)), `it names the commit recorded: ${answer.text}`);
   const at = (value: number, story: string, commit: string, committed: string) => ({ story, measure: lines.id, version: 1, value, unit: "lines", commit, committed, machine: "mint", runs: 1 });
@@ -135,8 +134,10 @@ test("3.2 · storytree code-measures record --machine mint records each story's 
   assert.deepEqual(kept(await series(beta.id, lines.id)), [at(2, beta.id, first, "2026-11-10T12:00:00.000Z")], "a base measure is read for every story");
   assert.equal((await recorded()).length, 2, "no row for a reader giving none, a measure read on another machine or one that is not base");
 
+  declareReaders(repo, alpha.id, "paired.mjs", pairedReaders);
   const same = await record.act({ machine: "mint" }, context, WORDS);
   assert.match(same.text, /already recorded/i);
+  assert.doesNotMatch(same.text, /Laptop lines/, `a measure that pairs is not named: ${same.text}`);
   assert.equal((await recorded()).length, 2, "nothing recorded again at the same head");
 
   repo.write("packages/alpha-tools/src/a.ts", "export function a(x: number): number {\n  if (x > 0) return x;\n  if (x < -9) return 9;\n  return -x;\n}\n");
@@ -161,7 +162,7 @@ function sampler(id: string, answer: { value: number; runs: number; spread: numb
   return { measure: id, member: `async sample({ folder, commit, tree }) { asked.push({ measure: ${JSON.stringify(id)}, folder, commit, tree }); return ${JSON.stringify(answer)}; }` };
 }
 
-test("3.3 · recordMeasures reads each paired non-base measure of the given machine through its reader's sample at origin/main with the project's plan, one row on the record's story with the sample's value, runs and spread; gated once a head and once a day by its own readings apart from the base set's recording; reads none and names the load while the load is at or over the CPU count; names a dedicated measure whose reader has no sample and records it no row", async (t) => {
+test("3.3 · recordMeasures reads each paired non-base measure of the given machine through its reader's sample at origin/main with the project's plan, one row on the record's story with the sample's value, runs and spread; gated once a head and once a day by its own readings apart from the base set's recording; reads none and names the load while the load is at or over the CPU count; names a dedicated measure whose reader has no sample and records it no row; names a dedicated measure whose reader is at another version and neither samples nor records it", async (t) => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
   const storytree = await connect({ url });
@@ -181,6 +182,7 @@ test("3.3 · recordMeasures reads each paired non-base measure of the given mach
   const peak = await library.writeKnowledge("measure", { ...measure("Survey peak", alpha.id, "mint", false), unit: "MB" } as never);
   const laptop = await library.writeKnowledge("measure", { ...measure("Laptop wall", alpha.id, "laptop", false), unit: "ms" } as never);
   const untimed = await library.writeKnowledge("measure", measure("Survey untimed", alpha.id, "mint", false) as never);
+  const stale = await library.writeKnowledge("measure", { ...measure("Survey stale", alpha.id, "mint", false), unit: "ms", version: 2 } as never);
 
   const repo = repository(t);
   const asked = `__dedicatedAsked_${randomBytes(4).toString("hex")}`;
@@ -191,6 +193,7 @@ test("3.3 · recordMeasures reads each paired non-base measure of the given mach
     sampler(peak.id, { value: 88.5, runs: 3, spread: 2 }),
     sampler(laptop.id, { value: 7, runs: 1, spread: 0 }),
     { measure: untimed.id, member: "read(story) { return 1; }" },
+    sampler(stale.id, { value: 9, runs: 1, spread: 0 }),
   ]);
   const first = repo.commitAsOrigin("2026-11-10T12:00:00Z");
 
@@ -213,6 +216,7 @@ test("3.3 · recordMeasures reads each paired non-base measure of the given mach
   const peakAt = (commit: string) => ({ story: alpha.id, measure: peak.id, version: 1, value: 88.5, unit: "MB", commit, machine: "mint", runs: 3, spread: 2 });
   const others = async () => (await Promise.all([
     series(beta.id, wall.id), series(beta.id, peak.id), series(alpha.id, laptop.id), series(beta.id, laptop.id), series(alpha.id, untimed.id), series(beta.id, untimed.id),
+    ...[1, 2].map((version) => seam.measureSeries(db, { project: library.name, story: alpha.id, measure: stale.id, version })),
   ])).flat();
 
   const busy = await record();
@@ -231,9 +235,12 @@ test("3.3 · recordMeasures reads each paired non-base measure of the given mach
   const calm = await record();
   assert.match(calm, /already recorded/i, `the base line still says the head is recorded: ${calm}`);
   assert.ok(calm.includes("Survey untimed"), `a dedicated measure whose reader has no sample is named: ${calm}`);
+  const staleLine = calm.split("\n").find((line) => line.includes("Survey stale"));
+  assert.ok(staleLine !== undefined, `a dedicated measure whose reader is at another version is named: ${calm}`);
+  assert.match(staleLine, /another version/, `with why it does not pair: ${calm}`);
   assert.deepEqual(kept(await series(alpha.id, wall.id)), [wallAt(first)]);
   assert.deepEqual(kept(await series(alpha.id, peak.id)), [peakAt(first)]);
-  assert.deepEqual(await others(), [], "no row on another story, for another machine's measure, or for a reader with no sample");
+  assert.deepEqual(await others(), [], "no row on another story, for another machine's measure, for a reader with no sample, or for a reader at another version");
   assert.deepEqual(sampled().map(({ measure: id, folder, commit, tree }) => ({ id, folder, commit, tree })).sort((a, b) => a.id.localeCompare(b.id)),
     dedicated.map((id) => ({ id, folder: repo.folder, commit: first, tree: plan })).sort((a, b) => a.id.localeCompare(b.id)),
     "each sample is asked once, at origin/main, with the project's plan");

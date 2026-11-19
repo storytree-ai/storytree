@@ -18,8 +18,7 @@ function headOf(dotGit: string): string | undefined {
   try {
     let gitDir = dotGit;
     if (statSync(dotGit).isFile()) {
-      const found = /^gitdir:(\s*)(\S.*)?$/m.exec(readFileSync(dotGit, "utf8"));
-      const pointer = found === null ? undefined : found[2]?.trim() ?? (/[^\S\n\r\u2028\u2029]/.test(found[1]!) ? "" : undefined);
+      const pointer = /^gitdir:\s*(\S.*)$/m.exec(readFileSync(dotGit, "utf8"))?.[1]?.trim();
       if (pointer === undefined) return undefined;
       gitDir = path.resolve(path.dirname(dotGit), pointer);
     }

@@ -133,6 +133,8 @@ const LIBRARY_API = [
   "decisions",
   "measures",
   "composeStatement",
+  "moveNarrowsToClauses",
+  "supersessionPairs",
   "refile",
   "retire",
   "inOneWrite",

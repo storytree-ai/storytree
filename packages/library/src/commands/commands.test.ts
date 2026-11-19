@@ -12,6 +12,7 @@ import { ARTIFACT_KINDS } from "../knowledge/index.js";
 import { connect as connectProject } from "../project/index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
+import { narrowedSaid } from "./ranked.js";
 import { RECENT_MS, refuseStaleEdit } from "./stale-edit.js";
 import { LIBRARY_FAMILIES, NOTE_TOOLS, type HeldClaim, type LibraryVerbContext, type NoteRead, type NoteToolContext } from "./index.js";
 
@@ -863,7 +864,7 @@ test("17.24 · library search and search_notes give current state unless told: -
   const old = await library.recordDecision({ status: "accepted", title: "Mapped is grey", text: "Mapped islands are grey." });
   await library.recordDecision({ status: "accepted", title: "Grey for parked", text: "Parked islands are grey, and mapped ones are not.", supersedes: [old.id] });
   const narrowed = await library.recordDecision({ status: "accepted", title: "Mapped is brown", text: "Mapped islands are brown." });
-  const narrowing = await library.recordDecision({ status: "accepted", title: "Explored islands take their health", text: "Only unexplored mapped islands stay brown.", narrows: [narrowed.id] });
+  const narrowing = await library.recordDecision({ status: "accepted", title: "Explored islands take their health", text: "Only unexplored mapped islands stay brown.", supersedesClauses: [{ decision: narrowed.id }] });
   const resteer = await library.writeKnowledge("resteer", {
     title: "Mapped islands are not grey", description: "Redirected.", doing: "Painting mapped islands", redirect: "Not grey", evidence: "He said so.", disposition: "taste", dispositionBy: "owner",
   });
@@ -883,7 +884,7 @@ test("17.24 · library search and search_notes give current state unless told: -
   const current = await command({});
   assert.ok(current.includes(narrowed.id) && current.includes(narrowing.id), current);
   assert.ok(!current.includes(old.id) && !current.includes(resteer.id), "a superseded decision and a resteer are history");
-  assert.match(current, new RegExp(`${narrowed.id}  \\[decision\\]  Mapped is brown.*\\(narrowed by ADR-${String(narrowing.fields.number).padStart(4, "0")}\\)`));
+  assert.match(current, new RegExp(`${narrowed.id}  \\[decision\\]  Mapped is brown.*\\(partly superseded by ADR-${String(narrowing.fields.number).padStart(4, "0")}\\)`));
   const all = await command({ history: true });
   assert.ok(all.includes(old.id) && all.includes(resteer.id), all);
   const resteers = await command({ kind: ["resteer"] });
@@ -894,6 +895,18 @@ test("17.24 · library search and search_notes give current state unless told: -
   assert.deepEqual((await tool({})).find(({ id }) => id === narrowed.id)?.narrowedBy, [{ id: narrowing.id, number: narrowing.fields.number }]);
   assert.ok((await tool({ history: true })).some(({ id }) => id === resteer.id));
   assert.deepEqual((await tool({ kinds: ["resteer"] })).map(({ id }) => id), [resteer.id]);
+});
+
+test("17.33 · A search hit on a decision superseded in part says so after its title: \"(D2, D3 superseded by ADR-1379)\" with the clauses named, \"(partly superseded by ADR-1379)\" with none", () => {
+  assert.equal(narrowedSaid([{ id: "decision_0123456789ab", number: 1379, clauses: ["D2", "D3"] }]), "  (D2, D3 superseded by ADR-1379)");
+  assert.equal(narrowedSaid([{ id: "decision_0123456789ab", number: 1379 }]), "  (partly superseded by ADR-1379)");
+  assert.equal(narrowedSaid([{ id: "decision_0123456789ab", clauses: ["D4"] }]), "  (D4 superseded by decision_0123456789ab)", "the id stands in for a missing number");
+  assert.equal(
+    narrowedSaid([{ id: "decision_0123456789ab", number: 7, clauses: ["D1"] }, { id: "decision_ba9876543210" }]),
+    "  (D1 superseded by ADR-0007; partly superseded by decision_ba9876543210)",
+    "several superseding decisions are joined with a semicolon",
+  );
+  assert.equal(narrowedSaid([]), "");
 });
 
 test("14.19 · library search --kind arc|increment and search_notes kinds arc|increment rank only that kind, never refusing it", async (t) => {

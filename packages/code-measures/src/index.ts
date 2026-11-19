@@ -6,9 +6,10 @@ export { CLONE_TOKENS, duplicationOf, type DuplicationReading } from "./duplicat
 export { loosenessOf, type LoosenessCounts, type LoosenessReading } from "./looseness.js";
 export { DEFAULT_DAYS, readStoryMeasures, type MeasuresReading, type StoryMeasures } from "./read.js";
 export { measuresText } from "./report.js";
+export { testsOf, type TestsReading } from "./tests.js";
 export { kindOf, sizeOf, type FileKind, type Size, type SourceText } from "./source.js";
 export { measureReadersOf, pairMeasures, pairingText, type MeasureReader, type MeasureRecord, type StoryPairing, type Unpaired, type UnpairedWhy } from "./pair.js";
-export { BASE_MEASURE_READERS, type BaseMeasureReader } from "./measures.js";
+export { BASE_MEASURE_READERS, MUTATION_CAP, MUTATION_SCORE, TEST_COUNT, type BaseMeasureReader, type MutationPart, type StoryMutation } from "./measures.js";
 export { MEASURE_READINGS_DATABASE, MEASURE_READINGS_SCHEMA, measureReadingsPool, measureSeries, writeReadings, type MeasureReadingRow, type MeasureReadingsDb } from "./readings.js";
-export { recordMeasures } from "./record.js";
+export { recordMeasures, recordSampled } from "./record.js";
 export { overTimeText, seriesIn, storiesOverTime, xmr, type Limits, type MeasureSeries, type Reads, type SeriesReading, type StoryMeasure, type StoryOverTime, type Xmr } from "./over-time.js";

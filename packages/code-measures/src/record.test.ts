@@ -329,3 +329,197 @@ test("3.4 · recordMeasures hands each dedicated measure's sample the folder, or
   assert.ok(unread !== undefined, `the measure with no reading is named: ${answer}`);
   assert.match(unread, /no reading/i, `it is named as having no reading: ${answer}`);
 });
+
+interface StoryMutation {
+  readonly planted: number;
+  readonly caught: number;
+  readonly judged: number;
+  readonly ms: number;
+}
+
+interface MutationPart {
+  readonly name: string;
+  storyMutation?(root: string, packages: readonly string[], options: { cap: number; budgetMs: number }): Promise<StoryMutation>;
+}
+
+interface SampledSeam {
+  recordSampled?(input: {
+    folder: string;
+    project: string;
+    machine: string;
+    stories: readonly { id: string; title: string }[];
+    records: readonly { id: string; fields: Readonly<Record<string, unknown>> }[];
+    readers: Awaited<ReturnType<typeof codeMeasures.measureReadersOf>>;
+    db: ReadingsDb;
+    parts: readonly MutationPart[];
+    load?: () => { load: number; cpus: number };
+  }): Promise<string>;
+}
+
+function mutationSampler(id: string): { measure: string; member: string } {
+  return {
+    measure: id,
+    member: [
+      "async sample({ folder, commit, story, parts }) {",
+      `    asked.push({ measure: ${JSON.stringify(id)}, folder, commit, story, parts: parts.map((part) => part.name) });`,
+      '    const part = parts.find((one) => typeof one.storyMutation === "function");',
+      '    const found = await part.storyMutation(folder, story.packages.map((dir) => "packages/" + dir), { cap: 100, budgetMs: 60000 });',
+      "    return found.judged === 0 ? undefined : { value: found.caught / found.judged, runs: found.judged, spread: null };",
+      "  }",
+    ].join("\n"),
+  };
+}
+
+const STAND_IN: MutationPart = {
+  name: "stand-in",
+  async storyMutation(_root, packages) {
+    return packages.includes("packages/alpha-tools") ? { planted: 100, caught: 30, judged: 40, ms: 61_000 } : { planted: 3, caught: 0, judged: 0, ms: 900_000 };
+  },
+};
+
+async function project(t: TestContext): Promise<{ storytree: Storytree; library: Library }> {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+    }
+  });
+  return { storytree, library: await storytree.openProject(name) };
+}
+
+test("3.5 · recordMeasures's daily run leaves out a base measure whose reader only samples, asking it nothing, and still records every base measure read plainly", async (t) => {
+  const { storytree, library } = await project(t);
+  const alpha = await library.addStory({ title: "Alpha tools" });
+  const beta = await library.addStory({ title: "Beta kit" });
+  const lines = await library.writeKnowledge("measure", measure("Source lines", alpha.id, "mint", true) as never);
+  const score = await library.writeKnowledge("measure", { ...measure("Mutation score", alpha.id, "mint", true), unit: "share", better: "higher" } as never);
+
+  const repo = repository(t);
+  const asked = `__dailyAsked_${randomBytes(4).toString("hex")}`;
+  declareSamplers(repo, alpha.id, `daily-${randomBytes(4).toString("hex")}.mjs`, asked, [
+    { measure: lines.id, member: "read(story) { return story.size?.sourceLines ?? null; }" },
+    mutationSampler(score.id),
+  ]);
+  const head = repo.commitAsOrigin("2026-11-10T12:00:00Z");
+
+  const db = await codeMeasures.measureReadingsPool(storytree);
+  const records = (await library.measures()).map(({ id, fields }) => ({ id, fields }));
+  const readers = await codeMeasures.measureReadersOf(repo.folder);
+  const answer = await codeMeasures.recordMeasures({
+    folder: repo.folder, project: library.name, machine: "mint", stories: [{ id: alpha.id, title: "Alpha tools" }, { id: beta.id, title: "Beta kit" }], records, readers, db,
+    plan: async () => ({ arcs: [], stories: [] }),
+    load: () => ({ load: 0.5, cpus: 4 }),
+  });
+
+  const series = (story: string, id: string) => seam.measureSeries(db, { project: library.name, story, measure: id, version: 1 });
+  assert.deepEqual((await series(alpha.id, lines.id)).map(({ value, commit }) => [value, commit]), [[4, head]], `the plainly read base measure is recorded: ${answer}`);
+  assert.deepEqual((await series(beta.id, lines.id)).map(({ value, commit }) => [value, commit]), [[2, head]]);
+  assert.deepEqual([...(await series(alpha.id, score.id)), ...(await series(beta.id, score.id))], [], "no row for the sampled base measure");
+  assert.deepEqual((globalThis as Record<string, unknown>)[asked] ?? [], [], "its sample is not asked by the daily run");
+});
+
+test("3.5 · recordSampled records, through the readings writer, each story's value of every base measure on the machine read only by a sample, at origin/main when HEAD is origin/main: once a head and once a week by its own readings, nothing while the load is at or over the CPU count, naming it when no part offers storyMutation; the mutation verb answers with it and is refused without --machine or the server", async (t) => {
+  const { storytree, library } = await project(t);
+  const alpha = await library.addStory({ title: "Alpha tools" });
+  const beta = await library.addStory({ title: "Beta kit" });
+  const lines = await library.writeKnowledge("measure", measure("Source lines", alpha.id, "mint", true) as never);
+  const score = await library.writeKnowledge("measure", { ...measure("Mutation score", alpha.id, "mint", true), unit: "share", better: "higher" } as never);
+  const laptop = await library.writeKnowledge("measure", { ...measure("Laptop score", alpha.id, "laptop", true), unit: "share", better: "higher" } as never);
+  const dedicated = await library.writeKnowledge("measure", { ...measure("Own score", alpha.id, "mint", false), unit: "share", better: "higher" } as never);
+
+  const repo = repository(t);
+  const asked = `__sampledAsked_${randomBytes(4).toString("hex")}`;
+  declareSamplers(repo, alpha.id, `sampled-${randomBytes(4).toString("hex")}.mjs`, asked, [
+    { measure: lines.id, member: "read(story) { return story.size?.sourceLines ?? null; }" },
+    mutationSampler(score.id),
+    mutationSampler(laptop.id),
+    mutationSampler(dedicated.id),
+  ]);
+  const first = repo.commitAsOrigin("2026-11-10T12:00:00Z");
+
+  const recordSampled = (codeMeasures as unknown as SampledSeam).recordSampled;
+  assert.equal(typeof recordSampled, "function", "code measures exports recordSampled");
+  const db = await codeMeasures.measureReadingsPool(storytree);
+  const records = (await library.measures()).map(({ id, fields }) => ({ id, fields }));
+  const readers = await codeMeasures.measureReadersOf(repo.folder);
+  const stories = [{ id: alpha.id, title: "Alpha tools" }, { id: beta.id, title: "Beta kit" }, { id: "story_c3c3c3c3c3c3", title: "Gamma bare" }];
+  let load = { load: 0.5, cpus: 4 };
+  const sample = (parts: readonly MutationPart[]) => recordSampled!({ folder: repo.folder, project: library.name, machine: "mint", stories, records, readers, db, parts, load: () => load });
+  const sampled = () => ((globalThis as Record<string, unknown>)[asked] as { measure: string; folder: string; commit: string; story: { id: string; title: string; packages: readonly string[] }; parts: string[] }[] | undefined) ?? [];
+  const series = (story: string, id: string) => seam.measureSeries(db, { project: library.name, story, measure: id, version: 1 });
+  const kept = (rows: readonly Record<string, unknown>[]) => rows.map(({ story, measure: id, version, value, unit, commit, committed, machine, runs, spread }) => ({ story, measure: id, version, value, unit, commit, committed, machine, runs, spread }));
+  const scoreAt = (commit: string, committed: string) => ({ story: alpha.id, measure: score.id, version: 1, value: 0.75, unit: "share", commit, committed, machine: "mint", runs: 40, spread: null });
+  const all = async () => (await Promise.all([alpha.id, beta.id].flatMap((story) => [lines.id, score.id, laptop.id, dedicated.id].map((id) => series(story, id))))).flat();
+
+  const partless = await sample([{ name: "plain" }]);
+  assert.match(partless, /storyMutation/, `no part offering storyMutation is named: ${partless}`);
+  assert.deepEqual(await all(), [], "nothing recorded without a part");
+  assert.deepEqual(sampled(), [], "no sample asked without a part");
+
+  load = { load: 6.5, cpus: 4 };
+  const busy = await sample([STAND_IN]);
+  assert.match(busy, /busy/i, `a busy machine says so: ${busy}`);
+  assert.ok(busy.includes("6.5"), `it names the load: ${busy}`);
+  load = { load: 4, cpus: 4 };
+  assert.match(await sample([STAND_IN]), /busy/i, "a load equal to the CPU count is busy");
+  assert.deepEqual(await all(), [], "nothing recorded while busy");
+  assert.deepEqual(sampled(), []);
+  load = { load: 0.5, cpus: 4 };
+
+  repo.write("packages/alpha-tools/src/a.ts", "export const ahead = 1;\n");
+  repo.git("add", "-A");
+  repo.git("-c", "user.name=Measures test", "-c", "user.email=measures@example.test", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "ahead of origin/main");
+  const ahead = await sample([STAND_IN]);
+  assert.match(ahead, /origin\/main/, `a HEAD that is not origin/main records nothing, saying so: ${ahead}`);
+  assert.deepEqual(await all(), []);
+  assert.deepEqual(sampled(), []);
+  repo.git("reset", "-q", "--hard", first);
+
+  const recorded = await sample([STAND_IN]);
+  assert.match(recorded, /\b1 reading\b/, `it says how many readings it recorded: ${recorded}`);
+  assert.deepEqual(kept(await series(alpha.id, score.id)), [scoreAt(first, "2026-11-10T12:00:00.000Z")], "Alpha's score: caught over judged, the breaks judged as runs, no spread, at origin/main");
+  assert.equal((await all()).length, 1, "no row for Beta, whose sample answered none, for another machine's measure, for a dedicated measure, or for a base measure read plainly");
+  assert.deepEqual(
+    sampled().map(({ measure: id, folder, commit, story, parts }) => ({ id, folder, commit, story, parts })),
+    [
+      { id: score.id, folder: repo.folder, commit: first, story: { id: alpha.id, title: "Alpha tools", packages: ["alpha-tools"] }, parts: ["stand-in"] },
+      { id: score.id, folder: repo.folder, commit: first, story: { id: beta.id, title: "Beta kit", packages: ["beta-kit"] }, parts: ["stand-in"] },
+    ],
+    "the sample is asked once for each story whose packages are in the checkout, with the parts given, in the stories' order",
+  );
+
+  await db.query("UPDATE measure_readings SET read_at = read_at - interval '8 days' WHERE project = $1", [library.name]);
+  const same = await sample([STAND_IN]);
+  assert.match(same, /already/i, `a head already read records nothing, however long ago: ${same}`);
+  assert.equal(sampled().length, 2, "no sample asked again at the same head");
+  await db.query("UPDATE measure_readings SET read_at = read_at + interval '8 days' WHERE project = $1", [library.name]);
+
+  repo.write("packages/alpha-tools/src/a.ts", "export const second = 2;\n");
+  const second = repo.commitAsOrigin("2026-11-12T12:00:00Z");
+  const soon = await sample([STAND_IN]);
+  assert.match(soon, /\bweek\b|\b7 days\b/i, `a new head within a week of the last reading says why it records nothing: ${soon}`);
+  await db.query("UPDATE measure_readings SET read_at = read_at - interval '6 days' WHERE project = $1", [library.name]);
+  assert.match(await sample([STAND_IN]), /\bweek\b|\b7 days\b/i, "six days later is still within the week");
+  assert.equal(sampled().length, 2, "nothing sampled within the week");
+  await db.query("UPDATE measure_readings SET read_at = read_at - interval '25 hours' WHERE project = $1", [library.name]);
+  await sample([STAND_IN]);
+  assert.deepEqual(kept(await series(alpha.id, score.id)), [scoreAt(first, "2026-11-10T12:00:00.000Z"), scoreAt(second, "2026-11-12T12:00:00.000Z")], "a week after its last reading, the new head is recorded beside the first");
+
+  const family = CODE_MEASURES_FAMILIES.find((one) => one.name === "code-measures");
+  const mutation = family?.verbs.find((one) => mounted(one.command) && one.command.name === "mutation") as Verb<VerbInputs, VerbContext> | undefined;
+  assert.ok(mutation !== undefined, "the code-measures family has a mutation verb");
+  const unserved = { folder: repo.folder, project: library.name, session: "s", library, projectRecords: async () => [STAND_IN] } as VerbContext;
+  const context = { ...unserved, server: storytree } as VerbContext;
+  const before = await all();
+  const misuse = await refusal(mutation.act({ machine: undefined }, context, WORDS));
+  assert.equal(misuse.misuse, true, "without --machine it is misuse");
+  await refusal(mutation.act({ machine: "mint" }, unserved, WORDS));
+  const again = await mutation.act({ machine: "mint" }, context, WORDS);
+  assert.match(again.text, /already/i, `the verb answers with recordSampled's text, here the head already read: ${again.text}`);
+  assert.deepEqual(await all(), before, "the verb's refusals and its answer at a head already read record nothing");
+});

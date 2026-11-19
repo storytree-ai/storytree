@@ -78,6 +78,14 @@ export interface StoryMeasure {
   readonly latest?: number;
   readonly limits?: Limits;
   readonly reads?: Reads;
+  readonly beside?: Beside;
+}
+
+export interface Beside {
+  readonly measure: string;
+  readonly title: string;
+  readonly latest?: number;
+  readonly unit?: string;
 }
 
 export interface LaneCost {
@@ -100,16 +108,25 @@ export interface MeasureDefinition {
   readonly fields: Readonly<Record<string, unknown>>;
 }
 
-export function storiesOverTime({ stories, records, series, lanes }: {
+export function storiesOverTime({ stories, records, series, lanes, besides = {} }: {
   readonly stories: readonly { readonly id: string; readonly title: string }[];
   readonly records: readonly MeasureDefinition[];
   readonly series: readonly MeasureSeries[];
   readonly lanes: readonly LaneCost[];
+  readonly besides?: Readonly<Record<string, string>>;
 }): StoryOverTime[] {
   const base = records.filter(({ fields }) => fields["base"] === true);
+  const besideOf = (story: string, one: StoryMeasure): StoryMeasure => {
+    const measure = besides[one.measure];
+    if (measure === undefined) return one;
+    const title = String(records.find(({ id }) => id === measure)?.fields["title"] ?? measure);
+    const found = series.find((other) => other.story === story && other.measure === measure && other.machine === one.machine);
+    const latest = found?.readings[found.readings.length - 1]?.value;
+    return { ...one, beside: { measure, title, ...(latest === undefined ? {} : { latest, unit: found!.unit }) } };
+  };
   return stories.map(({ id, title }) => {
     const own = records.filter(({ fields }) => fields["base"] !== true && fields["story"] === id);
-    const measures = [...base, ...own].flatMap((record) => measureOf(record, series.filter((one) => one.story === id && one.measure === record.id)));
+    const measures = [...base, ...own].flatMap((record) => measureOf(record, series.filter((one) => one.story === id && one.measure === record.id))).map((one) => besideOf(id, one));
     const lane = lanes.find((one) => one.id === id);
     return { id, title, measures, ...(lane === undefined ? {} : { lane }) };
   });
@@ -127,12 +144,18 @@ function measureOf({ id, fields }: MeasureDefinition, series: readonly MeasureSe
 const number = (value: number): string => value.toLocaleString("en-GB", { maximumFractionDigits: 2 });
 const plural = (count: number, word: string): string => `${number(count)} ${word}${count === 1 ? "" : "s"}`;
 
+function besideText(beside: Beside | undefined): string {
+  if (beside === undefined) return "";
+  return beside.latest === undefined ? `, beside ${beside.title}: no readings` : `, beside ${beside.title} ${number(beside.latest)} ${beside.unit}`;
+}
+
 function measureLines(one: StoryMeasure): string[] {
   const head = `  ${one.title}${one.base === true ? " (base)" : ""}, version ${one.version} on ${one.machine}`;
-  if (one.latest === undefined) return [`${head}: no readings`];
+  const beside = besideText(one.beside);
+  if (one.latest === undefined) return [`${head}: no readings${beside}`];
   const limits = one.limits === undefined ? "" : `; limits ${number(one.limits.lower)} to ${number(one.limits.upper)} around ${number(one.limits.centre)}`;
   const series = one.readings.map(({ committed, value, runs, spread }) => `${committed.slice(0, 10)} ${number(value)}${runs > 1 ? ` (${plural(runs, "run")}, spread ${spread === null ? "none" : number(spread)})` : ""}`);
-  return [`${head}: latest ${number(one.latest)} ${one.unit} of ${plural(one.readings.length, "reading")}${limits}; ${one.reads}`, `    ${series.join(", ")}`];
+  return [`${head}: latest ${number(one.latest)} ${one.unit} of ${plural(one.readings.length, "reading")}${limits}; ${one.reads}${beside}`, `    ${series.join(", ")}`];
 }
 
 function laneLine(lane: LaneCost | undefined): string {

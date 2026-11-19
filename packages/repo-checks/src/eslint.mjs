@@ -19,8 +19,8 @@ const RULE_PREFIXES = ["storytree/", "regexp/"];
 
 const git = (root, args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
 
-function trackedSources(root) {
-  return git(root, ["ls-files", "-z"])
+function unignoredSources(root) {
+  return git(root, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"])
     .split("\0")
     .filter((file) => SOURCE.test(file) && !file.endsWith(".min.js"));
 }
@@ -98,7 +98,7 @@ async function lintResults(root, plugin, files) {
 }
 
 export async function eslintProblems(root, { plugin = storytreePlugin } = {}) {
-  return (await lintResults(root, plugin, trackedSources(root))).flatMap(({ file, result }) =>
+  return (await lintResults(root, plugin, unignoredSources(root))).flatMap(({ file, result }) =>
     [...result.messages, ...result.suppressedMessages.filter((message) => message.ruleId === NO_COMMENTS && NEVER_SILENCED.has(message.messageId))]
       .map((message) => `${file}:${message.line} ${message.ruleId ?? "parse"}: ${message.message}`),
   );
@@ -113,7 +113,7 @@ function commentText(lines, { line, column, endLine, endColumn }) {
 
 export async function commentHatches(root) {
   const added = addedLines(root);
-  const files = trackedSources(root).filter((file) => added === null || added.has(file));
+  const files = unignoredSources(root).filter((file) => added === null || added.has(file));
   return (await lintResults(root, storytreePlugin, files)).flatMap(({ file, result }) => {
     const hatched = result.suppressedMessages.filter((message) => message.ruleId === NO_COMMENTS && message.messageId === "hatched" && (onAddedLine(added, file, message) || onAddedLine(added, file, { line: message.line - 1 })));
     if (hatched.length === 0) return [];

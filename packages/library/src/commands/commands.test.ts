@@ -767,7 +767,7 @@ test("17.16 · library edit --live, run by a session holding an increment, edits
   assert.equal((await pendingOf()).length, 1, "without --live the edit still waits on the increment");
 });
 
-test("17.20 · library edit's answer for an edit held on the caller's increment names the way out when that increment will have no branch: arc increment drop-pending of that increment and record, then the edit again with --live, also given as its next steps (friction_f02365572601)", async (t) => {
+test("17.20 · library edit's answer for an edit held on the caller's increment says the way out when that increment will have no branch (arc increment drop-pending of that increment and record, then the edit again with --live) in its text, and offers neither as a next step (friction_2c24f3dcea45)", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {
@@ -794,8 +794,8 @@ test("17.20 · library edit's answer for an edit held on the caller's increment 
   const dropPending = `arc increment drop-pending ${increment.id} ${form.id}`;
   assert.ok(held.text.includes(dropPending) && held.text.includes("--live"), held.text);
   const next = (held.next ?? []).map((step) => step.command ?? "");
-  assert.ok(next.some((command) => command.startsWith(dropPending)), JSON.stringify(next));
-  assert.ok(next.some((command) => command.startsWith(`library edit ${form.id}`) && command.includes("--live")), JSON.stringify(next));
+  assert.ok(!next.some((command) => command.startsWith("arc increment drop-pending")), JSON.stringify(next));
+  assert.ok(!next.some((command) => command.startsWith("library edit") && command.includes("--live")), JSON.stringify(next));
 });
 
 test("17.17 · library exact and the find_text tool list every live record holding a phrase exactly, each with its id, kind, title and the fields that hold it, following the cursor to the end", async (t) => {

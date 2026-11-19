@@ -46,7 +46,7 @@ test("settings 10.1–10.6: the offline CLI shows, persists and refuses invalid 
 
   const help = await invoke([]);
   assert.equal(help.code, 0, help.stderr);
-  assert.match(help.stdout, /^\s+settings\b/m);
+  assert.match(help.stdout, /^[ \t]+settings\b/m);
   const family = await invoke(["settings"]);
   assert.match(family.stdout, /storytree settings show/);
   assert.match(family.stdout, /storytree settings set <name> <value>/);

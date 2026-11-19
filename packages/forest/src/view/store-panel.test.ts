@@ -27,7 +27,7 @@ test("3.110 a click on a store's slab picks the store, and its panel names its m
   assert.deepEqual(heard, [{ kind: "store", id: shop.address }]);
 
   const html = renderStorePanel({ ...shop, tables: [...shop.tables, { name: "a<b>" }] });
-  const panel = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  const panel = html.replace(/<[^<>]+>/g, " ").replace(/\s+/g, " ");
   assert.match(panel, /Shared store · postgres postgres:\/\/db\/shop/);
   assert.match(panel, /Tables · 3 people orders a&lt;b&gt;/);
   assert.match(html, /a&lt;b&gt;/, "every word from the plan is written as text, never as HTML");
@@ -44,7 +44,7 @@ test("3.111 a store's panel lists who touches it: each capability the mapping ag
       ],
     }],
   };
-  const panel = renderStorePanel(shop, plan).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  const panel = renderStorePanel(shop, plan).replace(/<[^<>]+>/g, " ").replace(/\s+/g, " ");
   assert.match(panel, /Who touches it · judged by the mapping agent/);
   assert.match(panel, /3 · Retrieval reads orders src\/retrieve\.py:16 ?, src\/auth\.py:8/);
   assert.match(panel, /5 · HTTP API reads and writes people src\/main\.py:79/);

@@ -8,7 +8,7 @@ const roles = { edge: "var(--o)", sheet: "var(--l)", tree: "var(--t)", leaf: "va
 
 function painted(svg: string): { tag: string; colour: string; slant: string | undefined }[] {
   const out: { tag: string; colour: string; slant: string | undefined }[] = [];
-  for (const [, tag, attrs] of svg.matchAll(/<(\w+)([^>]*?)\/?>/g)) {
+  for (const [, tag, attrs] of svg.matchAll(/<(\w+)\b([^>]*?)\/?>/g)) {
     const colour = /(?:fill|stroke)="([^"]+)"/.exec(attrs ?? "")?.[1];
     if (tag !== "svg" && colour !== undefined) out.push({ tag: tag!, colour, slant: /transform="([^"]+)"/.exec(attrs ?? "")?.[1] });
   }

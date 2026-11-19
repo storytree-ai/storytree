@@ -137,6 +137,11 @@ export class PgTransactions implements Transactions {
         AND strpos(value #>> '{}', ${text}) > 0${fields})`);
     }
     if (filter.ids !== undefined) clauses.push(`id = ANY(${bind(filter.ids)}::text[])`);
+    if (filter.names !== undefined) {
+      const named = bind(filter.names);
+      clauses.push(`EXISTS (SELECT 1 FROM jsonb_each(fields) WHERE value = to_jsonb(${named}::text)
+        OR (jsonb_typeof(value) = 'array' AND value @> jsonb_build_array(${named}::text)))`);
+    }
     for (const [matches, operator] of [[filter.where, "="], [filter.not, "IS DISTINCT FROM"]] as const) {
       for (const [path, value] of Object.entries(matches ?? {})) {
         clauses.push(`(fields #> ${bind(path.split("."))}::text[]) ${operator} ${bind(JSON.stringify(value))}::jsonb`);

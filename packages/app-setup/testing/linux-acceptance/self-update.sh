@@ -34,7 +34,7 @@ step() {
 shot() { import -window root "$OUT/$1.png" && echo "screenshot $1.png" || echo "screenshot failed for $1"; }
 # The version the installed AppImage's own desktop entry says it is, read without mounting it, as install.sh does.
 appversion() { (cd "$(mktemp -d)" && "$APP/storytree-0.3" --appimage-extract storytree-0.3.desktop >/dev/null 2>&1 && sed -n 's/^X-AppImage-Version=//p' squashfs-root/storytree-0.3.desktop | grep .); }
-running() { pgrep -f '\.local/share/storytree-0\.3/storytree-0\.3' > /dev/null; }
+running() { pgrep -f "^$APP/storytree-0\.3( |\$)" > /dev/null; }
 
 step machine sh -c 'cat /etc/os-release; uname -srm; id -un; echo "HOME=$HOME"; echo "apparmor_restrict_unprivileged_userns=$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>&1)"'
 # The release the app should update itself to: the newest published one, whose Linux feed the alpha channel reads.
@@ -92,7 +92,7 @@ step tree-before st tree
 # alpha, whose feed is the newest release, and restart it so it reads the channel from its launch. Setup for
 # this run only; no user does this.
 step channel sh -c "cat '$HOMEDIR/release-channel.json'; echo; printf '{\"schema\":1,\"channel\":\"alpha\"}' > '$HOMEDIR/release-channel.json' && cat '$HOMEDIR/release-channel.json'"
-step quit sh -c "pkill -TERM -f '\.local/share/storytree-0\.3/storytree-0\.3'; for _ in \$(seq 1 30); do pgrep -f '\.local/share/storytree-0\.3/storytree-0\.3' > /dev/null || exit 0; sleep 2; done; exit 1"
+step quit sh -c "pkill -TERM -f '^$APP/storytree-0\.3( |\$)'; for _ in \$(seq 1 30); do pgrep -f '^$APP/storytree-0\.3( |\$)' > /dev/null || exit 0; sleep 2; done; exit 1"
 # Reopened by its menu entry's command, as a desktop would, so the sandbox flag the installer chose is kept.
 REOPEN=$(sed -n 's/^Exec=//p' "$HOME/.local/share/applications/storytree-0.3.desktop" | sed 's/ %U$//')
 echo "$REOPEN" > "$OUT/reopen.txt"

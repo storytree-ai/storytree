@@ -99,7 +99,7 @@ export function runningInside(folder, proc = "/proc") {
 
 export function loopsInside(folder, proc = "/proc") {
   return runningInside(folder, proc).filter((pid) => {
-    try { return /launch-pool\.sh run\b/.test(readFileSync(join(proc, pid, "cmdline"), "utf8").split("\0").join(" ")); } catch { return false; }
+    try { return /^(?:\S*\/)?(?:ba)?sh\s+(?:\S*\/)?launch-pool\.sh\s+run\b/.test(readFileSync(join(proc, pid, "cmdline"), "utf8").split("\0").join(" ")); } catch { return false; }
   });
 }
 

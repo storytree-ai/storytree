@@ -10,6 +10,7 @@ import noUnguardedBatchFetch from "./no-unguarded-batch-fetch.mjs";
 import numberedTestAsserts from "./numbered-test-asserts.mjs";
 import posixCommands from "./posix-commands.mjs";
 import sketchBundleNames from "./sketch-bundle-names.mjs";
+import writeNamesPlace from "./write-names-place.mjs";
 
 export default {
   meta: { name: "storytree" },
@@ -25,5 +26,6 @@ export default {
     "posix-commands": posixCommands,
     "sketch-bundle-names": sketchBundleNames,
     "no-unguarded-batch-fetch": noUnguardedBatchFetch,
+    "write-names-place": writeNamesPlace,
   },
 };

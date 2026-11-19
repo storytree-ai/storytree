@@ -940,7 +940,7 @@ export function boxDefaults({ home = homedir(), env = process.env, platform = pr
     readExemptions: onBox ? () => exemptionChanges({ repo,
       openerOf: async (pr) => (await run("gh", ["pr", "view", pr, "--json", "author", "--jq", ".author.login"], { cwd: repo })).stdout.trim() }) : undefined,
     exemptionRecorded: async (about) => !/^No fyi records match/.test(await storytree(["library", "list", "fyi", "--where", `about=${about}`])),
-    recordExemption: (fyi) => storytree(["fyi", "new", "--by", "watcher", ...Object.entries(fyi).flatMap(([field, text]) => [`--${field}`, text])]),
+    recordExemption: (fyi) => storytree(["fyi", "new", "--by", "watcher", "--project", "storytree", ...Object.entries(fyi).flatMap(([field, text]) => [`--${field}`, text])]),
     enqueue: (id, head) => run("gh", ["api", "graphql", "-f", `id=${id}`, "-f", `sha=${head}`, "-f",
       "query=mutation($id: ID!, $sha: GitObjectID!) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $sha}) { mergeQueueEntry { position } } }"], { cwd: repo }),
     refresh: async (pr, head, on = HOME) => {

@@ -270,12 +270,90 @@ for (const backend of [memory, postgres]) {
     const hits = (await knowledge.rankAll("email", { limit: 20 })).hits;
     assert.deepEqual(hits.find(({ note }) => note.id === narrowed.id)?.narrowedBy, [{ id: narrowing.id, number: narrowing.fields.number }]);
     assert.ok(hits.filter(({ note }) => note.id !== narrowed.id).every(({ narrowedBy }) => narrowedBy === undefined), "only the narrowed decision is marked");
-    await assert.rejects(knowledge.rankAll("email", { kinds: ["arc" as "story"] }), /unknown kind to search: arc/);
+    await assert.rejects(knowledge.rankAll("email", { kinds: ["question" as "story"] }), /unknown kind to search: question/);
 
     const term = await knowledge.defineTerm({ term: "Email", meaning: "Mail." });
     await assert.rejects(knowledge.recordDecision({ status: "accepted", title: "Narrows a term", text: "No.", narrows: [term.id] }), /narrows/, "a decision narrows only a decision");
     await assert.rejects(knowledge.editNote(narrowing.id, { narrows: ["decision_000000000000"] }), /narrows/, "a narrowing names a live decision");
     assert.deepEqual((await knowledge.decision(narrowing.id))?.record.fields.narrows, [narrowed.id], "a refused edit writes nothing");
+  });
+
+  contract("14.19", "rankAll finds an arc by its title, intent or end state and an increment by its title, objective or body, each ranked under its own type with the rest", async (_, { knowledge, records }) => {
+    const story = await records.create("story", { title: "Library", description: "The library keeps the plan." });
+    const deploys = await knowledge.defineTerm({ term: "Deploys", meaning: "Deploys go out on Tuesdays." });
+    const arc = await records.create("arc", { title: "Outbox", intent: "Visitors pay by invoice.", endState: "Every receipt is archived." });
+    const increment = await records.create("increment", { arc: arc.id, title: "Ledger", objective: "Refunds reach the customer.", body: "Chargebacks are disputed.", status: "active" });
+
+    for (const [query, id] of [
+      ["outbox", arc.id], ["invoice", arc.id], ["receipt archived", arc.id],
+      ["ledger", increment.id], ["refunds customer", increment.id], ["chargebacks disputed", increment.id],
+    ] as const) {
+      const ranked = await knowledge.rankAll(query);
+      assert.equal(ranked.by, "meaning");
+      assert.equal(ranked.hits[0]?.note.id, id, `"${query}" finds ${id} first`);
+    }
+    assert.deepEqual(new Map((await knowledge.rankAll("invoice", { limit: 20 })).hits.map(({ note }) => [note.id, note.type])), new Map<string, string>([
+      [story.id, "story"], [deploys.id, "definition"], [arc.id, "arc"], [increment.id, "increment"],
+    ]), "arcs and increments are ranked alongside the rest, with their own type");
+  });
+
+  contract("14.19", "a kind naming arc or increment narrows rankAll to that kind, closed ones included, and naming both gives both", async (_, { knowledge, records }) => {
+    const story = await records.create("story", { title: "Invoices", description: "Invoice refunds." });
+    const term = await knowledge.defineTerm({ term: "Refunds", meaning: "Invoice refunds go out monthly." });
+    const open = await records.create("arc", { title: "Invoice refunds", intent: "Invoice refunds are issued.", endState: "Invoice refunds are settled." });
+    const done = await records.create("arc", { title: "Refund paperwork", intent: "Invoice refunds are filed.", endState: "Invoice refunds are stamped." });
+    const active = await records.create("increment", { arc: open.id, title: "Invoice refunds", objective: "Invoice refunds are issued.", body: "Invoice refunds.", status: "active" });
+    const closed = await records.create("increment", {
+      arc: done.id, title: "Refund filing", objective: "Invoice refunds are filed.", body: "Invoice refunds.", status: "closed", outcome: { date: "2026-11-19", pr: "#1", disposition: "landed" },
+    });
+    const ids = async (kinds: NonNullable<NonNullable<Parameters<Knowledge["rankAll"]>[1]>["kinds"]>): Promise<Set<string>> =>
+      new Set((await knowledge.rankAll("invoice refunds", { limit: 20, kinds })).hits.map(({ note }) => note.id));
+
+    assert.deepEqual(await ids(["arc"]), new Set([open.id, done.id]));
+    assert.deepEqual(await ids(["increment"]), new Set([active.id, closed.id]));
+    assert.deepEqual(await ids(["arc", "increment"]), new Set([open.id, done.id, active.id, closed.id]));
+    assert.deepEqual(await ids(["story", "definition"]), new Set([story.id, term.id]), "naming other kinds leaves arcs and increments out");
+  });
+
+  contract("14.19", "a closed increment, and an arc whose increments are all closed with no open question, rank after every open record, however well they match; within each group the meaning order holds", async (_, { knowledge, records }) => {
+    const wording = { title: "Invoice refunds", intent: "Invoice refunds are issued.", endState: "Invoice refunds are settled." };
+    const landed = { status: "closed", outcome: { date: "2026-11-19", pr: "#1", disposition: "landed" } } as const;
+    const paperwork = (arc: string, status: "closed" | "active") =>
+      records.create("increment", { arc, title: "Paperwork", objective: "Paperwork is filed.", body: "Paperwork is stamped.", ...(status === "closed" ? landed : { status }) });
+    const question = (arc: string, settled: boolean) =>
+      records.create("question", {
+        arc, title: "Which paper", stakes: "Paperwork.", statement: "Which paper?", context: "Paperwork.", options: "Blue or green.",
+        ...(settled ? { lifecycle: "settled", answer: "Blue.", settledAt: "2026-11-19T00:00:00.000Z" } : { lifecycle: "open" }),
+      });
+
+    const note = await knowledge.defineTerm({ term: "Billing", meaning: "Refunds go out monthly." });
+    const arcDone = await records.create("arc", wording);
+    const incrementDone = await records.create("increment", { arc: arcDone.id, title: "Invoice refunds", objective: "Invoice refunds are issued.", body: "Invoice refunds are settled.", ...landed });
+    const arcSettled = await records.create("arc", wording);
+    const settledPaper = await paperwork(arcSettled.id, "closed");
+    await question(arcSettled.id, true);
+    const arcAsking = await records.create("arc", wording);
+    const askingPaper = await paperwork(arcAsking.id, "closed");
+    await question(arcAsking.id, false);
+    const arcEmpty = await records.create("arc", wording);
+    const arcBusy = await records.create("arc", wording);
+    const busyPaper = await paperwork(arcBusy.id, "closed");
+    const busyActive = await paperwork(arcBusy.id, "active");
+
+    const hits = (await knowledge.rankAll("invoice refunds", { limit: 50 })).hits.map(({ note: found }) => found.id);
+    const groups = [
+      [arcAsking.id, arcEmpty.id, arcBusy.id],
+      [note.id],
+      [busyActive.id],
+      [arcDone.id, incrementDone.id, arcSettled.id],
+      [settledPaper.id, askingPaper.id, busyPaper.id],
+    ];
+    assert.equal(hits.length, groups.flat().length, "every record is ranked");
+    let start = 0;
+    for (const group of groups) {
+      assert.deepEqual(new Set(hits.slice(start, start + group.length)), new Set(group), `positions ${start} to ${start + group.length - 1} of ${JSON.stringify(hits)}`);
+      start += group.length;
+    }
   });
 
   contract("14.12", "a long note's late paragraph is embedded, so a search finds the note by what that paragraph says", async (embedder, { reopen }) => {
@@ -340,6 +418,31 @@ for (const backend of [memory, postgres]) {
       assert.match(ranked.why ?? "", /switched off/);
       assert.deepEqual(ranked.hits.map(({ note }) => note.id), [mailer.id]);
       assert.deepEqual(await opened.knowledge.rankAll(capability.id).then(({ hits }) => hits.map(({ note }) => note.id)), [], "a contract's capability is an id, not its words");
+    } finally {
+      await opened.cleanup();
+    }
+  });
+
+  test(`14.19 [${backend.label}] with no embedding model, rankAll's word matches include an arc by its intent or end state and an increment by its objective and body, a closed increment after an open one`, async () => {
+    const opened = await backend.open(async () => {
+      throw new Error("the embedding model is switched off");
+    });
+    try {
+      await opened.records.create("story", { title: "Library", description: "Invoices and refunds." });
+      const arc = await opened.records.create("arc", { title: "Outbox", intent: "Visitors pay by invoice.", endState: "Every receipt is archived." });
+      const done = await opened.records.create("increment", {
+        arc: arc.id, title: "Ledger", objective: "Refunds reach the customer.", body: "Chargebacks are disputed.", status: "closed", outcome: { date: "2026-11-19", pr: "#1", disposition: "landed" },
+      });
+      const open = await opened.records.create("increment", { arc: arc.id, title: "Ledger again", objective: "Refunds reach the bank.", body: "Chargebacks are disputed twice.", status: "active" });
+      const ids = async (query: string): Promise<string[]> => {
+        const ranked = await opened.knowledge.rankAll(query);
+        assert.equal(ranked.by, "words");
+        return ranked.hits.map(({ note }) => note.id);
+      };
+
+      assert.deepEqual(await ids("pay invoice"), [arc.id]);
+      assert.deepEqual(await ids("receipt archived"), [arc.id]);
+      assert.deepEqual(await ids("refunds chargebacks"), [open.id, done.id], "the closed increment was made first, and still comes after");
     } finally {
       await opened.cleanup();
     }

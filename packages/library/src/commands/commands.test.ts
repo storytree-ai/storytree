@@ -888,12 +888,46 @@ test("17.24 · library search and search_notes give current state unless told: -
   assert.ok(all.includes(old.id) && all.includes(resteer.id), all);
   const resteers = await command({ kind: ["resteer"] });
   assert.ok(resteers.includes(resteer.id) && !resteers.includes(narrowed.id), resteers);
-  await assert.rejects(command({ kind: ["arc"] }), (error: unknown) => error instanceof VerbRefusal && /arc is not a kind a search ranks/.test(error.message));
+  await assert.rejects(command({ kind: ["question"] }), (error: unknown) => error instanceof VerbRefusal && /question is not a kind a search ranks/.test(error.message));
 
   assert.deepEqual(new Set((await tool({})).map(({ id }) => id)), new Set([narrowed.id, narrowing.id, (await library.decision(old.id))!.supersededBy[0]]));
   assert.deepEqual((await tool({})).find(({ id }) => id === narrowed.id)?.narrowedBy, [{ id: narrowing.id, number: narrowing.fields.number }]);
   assert.ok((await tool({ history: true })).some(({ id }) => id === resteer.id));
   assert.deepEqual((await tool({ kinds: ["resteer"] })).map(({ id }) => id), [resteer.id]);
+});
+
+test("14.19 · library search --kind arc|increment and search_notes kinds arc|increment rank only that kind, never refusing it", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const term = await library.defineTerm({ term: "Invoice refunds", meaning: "Invoice refunds go out monthly." });
+  const arc = await library.createArc({ title: "Invoice refunds", intent: "Invoice refunds are issued.", endState: "Invoice refunds are settled." });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Invoice refunds", objective: "Invoice refunds are issued.", body: "Invoice refunds." });
+  const context = {
+    library, project, session: "lane", folder: process.cwd(), writer: { actor: "session:lane" },
+    claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }),
+    notesRead: async () => [], recordReads: async () => {}, presenterOf: async () => undefined,
+  } satisfies LibraryVerbContext & NoteToolContext;
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const search = family.verbs.find((one) => mounted(one.command) && one.command.name === "search") as Verb<VerbInputs, LibraryVerbContext>;
+  const searchNotes = NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "search_notes") as Verb<VerbInputs, NoteToolContext>;
+  const command = async (kind: string[]): Promise<string> => (await search.act({ words: ["invoice", "refunds"], limit: "20", history: false, kind } as never, context, WORDS)).text;
+  const tool = async (kinds: string[]): Promise<string[]> =>
+    ((await searchNotes.act({ query: "invoice refunds", limit: 20, history: false, kinds } as never, context, WORDS)).data as { notes: { id: string }[] }).notes.map(({ id }) => id);
+
+  const arcs = await command(["arc"]);
+  assert.ok(arcs.includes(arc.id) && !arcs.includes(increment.id) && !arcs.includes(term.id), arcs);
+  const increments = await command(["increment"]);
+  assert.ok(increments.includes(increment.id) && !increments.includes(arc.id) && !increments.includes(term.id), increments);
+  assert.deepEqual(await tool(["arc"]), [arc.id]);
+  assert.deepEqual(await tool(["increment"]), [increment.id]);
 });
 
 test("17.19 · library new decision refuses an accepted decision with no authority, with nothing written, naming adr new; with an authority it writes it (friction_b2b343a7a75e)", async (t) => {

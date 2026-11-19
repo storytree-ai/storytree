@@ -243,6 +243,7 @@ export function registerPlanTools(define: Define): void {
       body: z.string().min(1).optional().describe("An increment's body, replacing it: how the work breaks down"),
       capabilities: z.array(z.string().min(1)).optional().describe("An increment's capabilities, replacing them: the ones it changes, and nothing else"),
       links: z.array(z.string().min(1)).optional().describe("An increment's links, replacing them: its stories, notes or decisions, and the contracts it makes true"),
+      remedies: z.array(z.string().min(1)).optional().describe("The friction an increment remedies, replacing those it had; an empty list leaves it remedying nothing"),
       machine: z.string().min(1).optional().describe("The one machine that can take an increment, by the short name Machines knows it by, \"cloud\" for work only a cloud container can prove (no dispatcher takes it), or \"none\" to clear it, so any machine can"),
       escape: z
         .union([z.object({ caused_by: z.string().min(1).describe("The pull request (#123) or increment that caused it"), commit: z.string().min(1).optional().describe("A pull request's merge commit, required with one, since pull-request numbers restarted at #2 on 2026-10-26"), story: z.string().min(1).describe("The story it hit") }), z.literal("none")])
@@ -329,6 +330,7 @@ interface Changes {
   body?: string | undefined;
   capabilities?: string[] | undefined;
   links?: string[] | undefined;
+  remedies?: string[] | undefined;
   machine?: string | undefined;
   escape?: { caused_by: string; commit?: string | undefined; story: string } | "none" | undefined;
   what?: string | undefined;
@@ -341,7 +343,7 @@ const EDITABLE = {
   contract: ["title", "description", "capability", "edge", "proved_by", "proof"],
   edge: ["description"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
-  increment: ["title", "objective", "body", "capabilities", "links", "machine", "escape"],
+  increment: ["title", "objective", "body", "capabilities", "links", "remedies", "machine", "escape"],
   anchor: ["what", "audience"],
 } as const;
 

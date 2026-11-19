@@ -1,17 +1,6 @@
-/**
- * Capability 1 · Base structure measures. Each function's cognitive complexity by SonarSource's rules (G. Ann Campbell,
- * 2017, as eslint-plugin-sonarjs implements them) and its length, and a story's tails over them (contract 1.2, B2 and B3).
- *
- * - +1 for each if, else if, else, conditional, switch, loop (for, for-in, for-of, while, do), catch, labelled break or
- *   continue, each sequence of like logical operators, and each direct recursive call.
- * - If, conditional, switch, loops and catch add one more per level of nesting; else, else if and logical sequences
- *   take none. Nesting rises inside those structures' bodies.
- * - Every function is listed and scored on its own from nesting 0, a nested one (a callback, an inner arrow) included,
- *   as eslint-plugin-sonarjs scores them: the function enclosing it counts none of its structures.
- */
+// Capability 1 · Base structure measures
 import { childrenOf, linesOf, parsed, sourcesOf, type Node, type SourceText } from "./source.js";
 
-/** One listed function: its name, its first line, its score, and its length in non-blank, non-comment lines. */
 export interface FunctionReading {
   readonly name: string;
   readonly line: number;
@@ -19,17 +8,13 @@ export interface FunctionReading {
   readonly length: number;
 }
 
-/** A story's complexity and length tails (B2, B3). */
 export interface ComplexityReading {
   readonly functions: number;
-  /** The functions' scores at the 90th percentile by nearest rank, and their max; none with no functions. */
   readonly p90: number | null;
   readonly max: number | null;
-  /** The scores' sum per 1,000 source lines. */
   readonly per1000: number;
   readonly lengthP90: number | null;
   readonly lengthMax: number | null;
-  /** The longest source file by non-blank, non-comment lines. */
   readonly longestFile: { readonly path: string; readonly lines: number } | null;
 }
 
@@ -39,7 +24,6 @@ const LOGICAL = new Set(["&&", "||", "??"]);
 
 const isFunction = (node: Node): boolean => FUNCTIONS.has(node.type) && node.body !== undefined && node.body !== null;
 
-/** A property key's name: an identifier, a private name, or a literal. */
 function keyName(key: unknown): string | undefined {
   const node = key as Node | undefined;
   if (node?.type === "Identifier") return node.name as string;
@@ -48,7 +32,6 @@ function keyName(key: unknown): string | undefined {
   return undefined;
 }
 
-/** What a listed function is called: its own name, the name it is assigned to, or its class and key. */
 function nameOf(fn: Node, parent: Node | undefined, className: string | undefined): string {
   if (fn.type === "ClassMethod" || fn.type === "ClassPrivateMethod" || fn.type === "ObjectMethod") {
     const key = keyName(fn.key) ?? "<computed>";
@@ -70,7 +53,6 @@ function nameOf(fn: Node, parent: Node | undefined, className: string | undefine
   return "<anonymous>";
 }
 
-/** The scorer of one listed function: its own name, for recursion, and its running total. */
 class Scorer {
   total = 0;
   constructor(private readonly name: string) {}
@@ -110,11 +92,10 @@ class Scorer {
       for (const child of childrenOf(node)) this.node(child, child === node.body ? nesting + 1 : nesting);
       return;
     }
-    if (isFunction(node)) return; // scored on its own
+    if (isFunction(node)) return;
     for (const child of childrenOf(node)) this.node(child, nesting);
   }
 
-  /** An if, or an else if (no nesting increment), with its else. */
   private if(node: Node, nesting: number, elseIf: boolean): void {
     this.total += elseIf ? 1 : 1 + nesting;
     this.node(node.test as Node, nesting);
@@ -126,7 +107,6 @@ class Scorer {
     this.node(alternate, nesting + 1);
   }
 
-  /** A run of logical operators read left to right: +1 for its first operator and for each change of operator. */
   private logical(node: Node, nesting: number): void {
     if (!LOGICAL.has(node.operator as string)) {
       for (const child of childrenOf(node)) this.node(child, nesting);
@@ -147,7 +127,6 @@ class Scorer {
   }
 }
 
-/** Every function in `file`, nested ones included, with its line, its cognitive complexity and its length. */
 export function functionsOf(file: SourceText): FunctionReading[] {
   const { program, codeLines } = parsed(file);
   const found: FunctionReading[] = [];
@@ -171,7 +150,6 @@ export function functionsOf(file: SourceText): FunctionReading[] {
   return found;
 }
 
-/** The value at the 90th percentile of `values` by nearest rank, or none. */
 export function p90(values: readonly number[]): number | null {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -180,7 +158,6 @@ export function p90(values: readonly number[]): number | null {
 
 const maxOf = (values: readonly number[]): number | null => (values.length === 0 ? null : Math.max(...values));
 
-/** The complexity and length tails of `files`' source functions, and their longest source file (B2, B3); tests are not read. */
 export function complexityOf(files: readonly SourceText[]): ComplexityReading {
   const sources = sourcesOf(files);
   const functions = sources.flatMap(functionsOf);

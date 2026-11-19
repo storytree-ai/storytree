@@ -1,17 +1,8 @@
-/**
- * Capability 1 · Base structure measures. Duplication (contract 1.3, B4): the share of a story's source tokens lying in
- * an identical run of 50 tokens or more found at two places or more, within one file or across files, whitespace and
- * comments ignored and test files not read. A token counts once however many clones cover it.
- *
- * Every window of 50 tokens is hashed; windows that hash alike are compared token by token, and each window met at two
- * places or more marks its tokens cloned. A run of 50 or more at two places is exactly the union of such windows.
- */
+// Capability 1 · Base structure measures
 import { labelOf, parsed, sourcesOf, type SourceText } from "./source.js";
 
-/** The smallest run of tokens that is a clone. */
 export const CLONE_TOKENS = 50;
 
-/** A story's duplication: its source tokens, those in clones, and their share. */
 export interface DuplicationReading {
   readonly tokens: number;
   readonly cloned: number;
@@ -21,7 +12,6 @@ export interface DuplicationReading {
 const MODULUS = 1_000_000_007;
 const BASE = 1_000_003;
 
-/** `files`' duplication (B4). */
 export function duplicationOf(files: readonly SourceText[]): DuplicationReading {
   const ids = new Map<string, number>();
   const streams = sourcesOf(files).map((file) =>
@@ -36,7 +26,6 @@ export function duplicationOf(files: readonly SourceText[]): DuplicationReading 
     }));
   const tokens = streams.reduce((total, stream) => total + stream.length, 0);
 
-  // Each window's hash, grouped: [stream, start] pairs.
   let shift = 1;
   for (let step = 1; step < CLONE_TOKENS; step++) shift = (shift * BASE) % MODULUS;
   const windows = new Map<number, [number, number][]>();
@@ -61,7 +50,6 @@ export function duplicationOf(files: readonly SourceText[]): DuplicationReading 
   };
   for (const group of windows.values()) {
     if (group.length < 2) continue;
-    // Windows that merely share a hash are told apart by their tokens.
     const classes: [number, number][][] = [];
     for (const window of group) {
       const into = classes.find((one) => same(one[0]!, window));

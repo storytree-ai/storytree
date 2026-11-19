@@ -1,12 +1,6 @@
-/**
- * Capability 1 · Base structure measures. Type looseness (contract 1.5, B7), read from the syntax, not the words: any
- * types (an annotation or a type argument), as and angle-bracket type assertions other than a const assertion,
- * comments holding @ts-ignore or @ts-expect-error, and comments holding eslint-disable (its -line and -next-line forms
- * included), each counted and per 1,000 source lines. A string or a name holding those words counts nothing.
- */
+// Capability 1 · Base structure measures
 import { linesOf, parsed, sourcesOf, walk, type Node, type SourceText } from "./source.js";
 
-/** The four counts, by what they count. */
 export interface LoosenessCounts {
   readonly any: number;
   readonly asCasts: number;
@@ -14,7 +8,6 @@ export interface LoosenessCounts {
   readonly eslintDisables: number;
 }
 
-/** A story's type looseness: each count, and each per 1,000 source lines. */
 export interface LoosenessReading extends LoosenessCounts {
   readonly per1000: LoosenessCounts;
 }
@@ -22,13 +15,11 @@ export interface LoosenessReading extends LoosenessCounts {
 const SUPPRESSION = /@ts-(?:ignore|expect-error)\b/;
 const ESLINT_DISABLE = /\beslint-disable\b/;
 
-/** Whether a type assertion asserts const. */
 function assertsConst(node: Node): boolean {
   const type = node.typeAnnotation as Node;
   return type.type === "TSTypeReference" && (type.typeName as Node).type === "Identifier" && (type.typeName as Node).name === "const";
 }
 
-/** `files`' type looseness over their source (B7). */
 export function loosenessOf(files: readonly SourceText[]): LoosenessReading {
   let any = 0;
   let asCasts = 0;

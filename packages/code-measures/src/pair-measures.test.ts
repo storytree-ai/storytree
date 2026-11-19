@@ -1,12 +1,4 @@
-/**
- * Code measures, capability 2 · Measure records paired with their readers: contracts 2.1 (each live measure record pairs
- * with one reader of its id and version in its story's package, and every one that does not is named, per story, with
- * why) and 2.2 (`storytree code-measures pair` prints that pairing and is refused when any measure does not pair).
- *
- * Each test writes a small checkout in a temp folder: a pnpm workspace whose packages name their story in package.json
- * and declare their readers under `storytree.measures` (a module, by the package's export path, and the export holding
- * an array of readers). Every fixture reader throws if it is read, since pairing reads no value.
- */
+// Capability 2 · Measures paired with their readers
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,34 +11,29 @@ import { removeTemp } from "@storytree/test-waits";
 import * as codeMeasures from "./index.js";
 import { CODE_MEASURES_FAMILIES } from "./verbs.js";
 
-/** One reader as a package declares it: the measure record's id and the version it reads. */
 interface FixtureReader {
   readonly measure: string;
   readonly version: number;
 }
 
-/** A workspace package of the fixture: its folder under packages/, its story, and the readers it declares, if any. */
 interface FixturePackage {
   readonly folder: string;
   readonly story?: string;
   readonly readers?: readonly FixtureReader[];
 }
 
-/** One measure the pairing names: the measure's id, why it does not pair, and the packages whose readers it names. */
 interface Named {
   readonly measure: string;
   readonly why: string;
   readonly packages: readonly string[];
 }
 
-/** One story's pairing as pairMeasures returns it. */
 interface StoryPairing {
   readonly story: string;
   readonly paired: readonly string[];
   readonly unpaired: readonly Named[];
 }
 
-/** The seam the builder provides from the package's index (contract 2.1). */
 interface PairingSeam {
   measureReadersOf(folder: string): Promise<{ package: string; story: string | undefined; measure: string; version: number }[]>;
   pairMeasures(records: readonly { id: string; fields: Record<string, unknown> }[], readers: readonly { package: string; story: string | undefined; measure: string; version: number }[]): StoryPairing[];
@@ -54,10 +41,6 @@ interface PairingSeam {
 
 const seam = codeMeasures as unknown as PairingSeam;
 
-/**
- * A pnpm workspace in a temp folder: each package's package.json naming its story and, when it declares readers, an
- * export `./measures` of `src/measures.mjs` holding them as READERS, each with a read that throws.
- */
 function checkout(t: TestContext, packages: readonly FixturePackage[]): string {
   const folder = mkdtempSync(path.join(tmpdir(), "code-measures-pair-"));
   t.after(() => removeTemp(folder));
@@ -82,7 +65,6 @@ function checkout(t: TestContext, packages: readonly FixturePackage[]): string {
   return folder;
 }
 
-/** A measure record's fields, as the library holds them (6.24). */
 function measureFields(title: string, story: string, version: number): Record<string, unknown> {
   return { title, description: `${title}, read on the box`, story, reads: `the ${title.toLowerCase()}`, unit: "ms", better: "lower", howRead: "the median of five runs", machine: "the Mint box", runs: 5, version };
 }
@@ -90,7 +72,6 @@ function measureFields(title: string, story: string, version: number): Record<st
 const ALPHA = "story_a1a1a1a1a1a1";
 const BETA = "story_b2b2b2b2b2b2";
 
-/** One story's pairing, its measures each in id order, so the comparison is of what is named, not of the order named. */
 function pairingOf(pairings: readonly StoryPairing[], story: string): { paired: string[]; unpaired: Named[] } | undefined {
   const found = pairings.find((one) => one.story === story);
   if (found === undefined) return undefined;
@@ -101,13 +82,13 @@ function pairingOf(pairings: readonly StoryPairing[], story: string): { paired: 
 }
 
 test("2.1 · each measure record pairs with a reader of its id and version in its story's package; a record with no reader, a reader of no live record, a reader of another version, a reader in another story's package and two readers of one measure are each named per story, reading no value", async (t) => {
-  const paired = "measure_100000000001"; // Alpha's, version 2, read at version 2 in alpha-tools
-  const otherVersion = "measure_100000000002"; // Alpha's, version 3, read at version 1
-  const twice = "measure_100000000003"; // Alpha's, read in alpha-tools and in alpha-extra
-  const elsewhere = "measure_100000000004"; // Alpha's, read only in beta-kit, a package of Beta
-  const betaPaired = "measure_200000000001"; // Beta's, read in beta-kit
-  const unread = "measure_200000000002"; // Beta's, read nowhere
-  const recordless = "measure_dead00000001"; // read in beta-kit, no live record
+  const paired = "measure_100000000001";
+  const otherVersion = "measure_100000000002";
+  const twice = "measure_100000000003";
+  const elsewhere = "measure_100000000004";
+  const betaPaired = "measure_200000000001";
+  const unread = "measure_200000000002";
+  const recordless = "measure_dead00000001";
 
   const folder = checkout(t, [
     { folder: "alpha-tools", story: ALPHA, readers: [{ measure: paired, version: 2 }, { measure: otherVersion, version: 1 }, { measure: twice, version: 1 }] },

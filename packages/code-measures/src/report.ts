@@ -1,8 +1,4 @@
-/**
- * Capability 1 · Base structure measures, as text (contract 1.7): per story, size first, then complexity, length,
- * duplication, coupling, public surface, type looseness and churn, with comment share as context. Report only: it
- * prints readings, never a bar to meet or a judgement of them.
- */
+// Capability 1 · Base structure measures
 import type { MeasuresReading, StoryMeasures } from "./read.js";
 
 const whole = (value: number): string => value.toLocaleString("en-GB");
@@ -12,7 +8,6 @@ const percent = (share: number): string => `${one(share * 100)}%`;
 const orNone = (value: number | null | undefined): string => (value === null || value === undefined ? "none" : whole(value));
 const plural = (count: number, word: string): string => `${whole(count)} ${word}${count === 1 ? "" : "s"}`;
 
-/** One story's lines. */
 function storyLines(story: StoryMeasures): string[] {
   const head = `${story.title} (${story.id}) · ${story.packages.map((own) => `packages/${own}`).join(", ")}`;
   if (story.missing !== undefined) return [head, `  not measured: ${story.missing}`];
@@ -35,7 +30,6 @@ function storyLines(story: StoryMeasures): string[] {
   ];
 }
 
-/** The reading as text: the commit and window, then each story. */
 export function measuresText(reading: MeasuresReading): string {
   const head = `Code measures at ${reading.commit.slice(0, 12)} (${reading.committed.slice(0, 10)}); churn over ${reading.window.days} days, ${reading.window.from} to ${reading.window.to}. Report only.`;
   return [head, ...reading.stories.flatMap((story) => ["", ...storyLines(story)])].join("\n");

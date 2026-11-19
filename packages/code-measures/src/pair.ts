@@ -5,11 +5,8 @@ import { pathToFileURL } from "node:url";
 
 import type { StoryMeasures } from "./read.js";
 
-/** One reader as a package declares it, with the package's folder and that package's story. */
 export interface MeasureReader {
-  /** The package's folder, `packages/<dir>`. */
   readonly package: string;
-  /** The story its package.json names, if it names one. */
   readonly story: string | undefined;
   readonly measure: string;
   readonly version: number;
@@ -17,43 +14,31 @@ export interface MeasureReader {
   readonly sample?: (at: { folder: string; commit: string; tree: unknown; project: string; server: unknown }) => Promise<unknown>;
 }
 
-/**
- * Why a measure does not pair: no package of its story reads it, a reader names no live record, its one reader reads
- * another version, its one reader is in another story's package, or two readers read it.
- */
 export type UnpairedWhy = "no-reader" | "no-record" | "version" | "wrong-story" | "two-readers";
 
-/** A measure that does not pair, with why and the packages whose readers name it. */
 export interface Unpaired {
   readonly measure: string;
   readonly why: UnpairedWhy;
   readonly packages: readonly string[];
 }
 
-/** One story's pairing: the measures paired, and each one that does not pair. */
 export interface StoryPairing {
   readonly story: string;
   readonly paired: string[];
   readonly unpaired: Unpaired[];
 }
 
-/** A live measure record as pairing reads it: its id, and its fields' story and version. */
 export interface MeasureRecord {
   readonly id: string;
   readonly fields: Readonly<Record<string, unknown>>;
 }
 
-/** The file an export path of a package's exports map names, when it names one as a plain path. */
 function exportTarget(exports: unknown, from: string): string | undefined {
   if (typeof exports !== "object" || exports === null) return undefined;
   const target = (exports as Record<string, unknown>)[from];
   return typeof target === "string" ? target : undefined;
 }
 
-/**
- * Every reader the workspace packages under `folder`/packages declare, each with its package folder and that package's
- * story. A package declaring none adds none. Each module is imported and its export's array read; no reader is read.
- */
 export async function measureReadersOf(folder: string): Promise<MeasureReader[]> {
   const root = path.join(folder, "packages");
   const dirs = (await readdir(root, { withFileTypes: true }).catch(() => [])).filter((entry) => entry.isDirectory()).map(({ name }) => name).sort();
@@ -84,11 +69,6 @@ export async function measureReadersOf(folder: string): Promise<MeasureReader[]>
   return readers;
 }
 
-/**
- * Pair each live measure record with the readers of its id (contract 2.1), per story: a record read once, at its version,
- * in a package of its story is paired; any other is named with why. A reader of no live record is named under its
- * package's story. One entry for each story with a record or a reader of no live record, in story id order.
- */
 export function pairMeasures(records: readonly MeasureRecord[], readers: readonly MeasureReader[]): StoryPairing[] {
   const stories = new Map<string, StoryPairing>();
   const of = (story: string): StoryPairing => {
@@ -132,7 +112,6 @@ const WHY: Readonly<Record<UnpairedWhy, (packages: readonly string[]) => string>
   "two-readers": (packages) => `read twice, in ${packages.join(" and ")}: one reader each`,
 };
 
-/** The pairing as text (contract 2.2): per story by title, each measure by title, paired or with why it does not pair. */
 export function pairingText(pairings: readonly StoryPairing[], titles: ReadonlyMap<string, string>): string {
   if (pairings.length === 0) return "Nothing to pair: no measure record and no measure reader.";
   const lines: string[] = [];

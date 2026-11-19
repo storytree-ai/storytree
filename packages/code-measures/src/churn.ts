@@ -1,17 +1,9 @@
-/**
- * Capability 1 · Base structure measures. Relative churn (contract 1.6, B8), from `git log --numstat -M --format=` over a
- * window, newest commit first: the lines added and deleted to a story's source files over its source lines at the commit
- * measured. A rename is followed back, so an older commit's lines under a file's old name count to its name now; a rename
- * changing no lines adds nothing, and one with edits adds only those. Binary files, other folders and tests count nothing.
- * The top files, ten unless fewer, are ranked by their churn times their summed cognitive complexity.
- */
+// Capability 1 · Base structure measures
 import { functionsOf } from "./complexity.js";
 import { linesOf, sourcesOf, type SourceText } from "./source.js";
 
-/** The most top files a reading lists. */
 export const TOP_FILES = 10;
 
-/** One top file: its churn in the window, its summed complexity at the commit, and their product. */
 export interface ChurnFile {
   readonly path: string;
   readonly churn: number;
@@ -19,7 +11,6 @@ export interface ChurnFile {
   readonly score: number;
 }
 
-/** A story's churn: lines added and deleted in the window, their sum over its source lines, and its top files. */
 export interface ChurnReading {
   readonly added: number;
   readonly deleted: number;
@@ -27,7 +18,6 @@ export interface ChurnReading {
   readonly top: readonly ChurnFile[];
 }
 
-/** The path before and after a numstat line's rename (the same path when it is none): `a => b`, or `pre/{old => new}/post`. */
 function renamed(path: string): [string, string] {
   const tidy = (one: string) => one.replace(/\/{2,}/g, "/");
   const open = path.lastIndexOf("{");
@@ -41,11 +31,10 @@ function renamed(path: string): [string, string] {
   return arrow < 0 ? [path, path] : [path.slice(0, arrow), path.slice(arrow + 4)];
 }
 
-/** `files`' churn over the `numstat` of a window, newest commit first. */
 export function churnOf(numstat: string, files: readonly SourceText[]): ChurnReading {
   const sources = sourcesOf(files);
   const measured = new Set(sources.map((file) => file.path));
-  const now = new Map<string, string>(); // an older name, to the file's name at the commit measured
+  const now = new Map<string, string>();
   const churned = new Map<string, number>();
   let added = 0;
   let deleted = 0;

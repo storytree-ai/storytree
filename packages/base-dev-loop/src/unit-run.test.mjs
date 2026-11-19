@@ -242,9 +242,12 @@ test("passes too", () => {});`,
 test("4.1 a file still computing synchronously after its last reported test ended runs to its end, not killed as a hung exit", { skip: process.platform === "win32" && "platform:posix: on Windows the exit watch reads CPU through a PowerShell process listing, started only after min(3 s, grace/4) without an exit and taken at most once per that interval, and this test's 1 s grace is too short for that listing to land twice in time" }, async (t) => {
   const root = fixture(t, {
     "computes.test.mjs": `import { after, test } from "node:test";
+import { availableParallelism } from "node:os";
+import { Worker } from "node:worker_threads";
 after(async () => {
   await new Promise((resolve) => setTimeout(resolve, 100)); // the ended test reaches the reporter
   const end = Date.now() + 4_000;
+  for (let i = 0; i < availableParallelism(); i++) new Worker('const { workerData: end } = require("node:worker_threads"); while (Date.now() < end) {}', { eval: true, workerData: end });
   while (Date.now() < end) {}
 });
 test("reported", () => {});`,

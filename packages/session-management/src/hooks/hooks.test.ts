@@ -1386,13 +1386,14 @@ test("3.26 the hook before a file-edit tool, run as setup registers it, refuses 
         assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
         return ran.stdout === "" ? undefined : (JSON.parse(ran.stdout) as { hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string }; decision?: string });
       };
+      const guarded = { STORYTREE_TEST_GUARD_MS: "60000" };
 
-      const edited = refusalIn(await runHook("claude-code", before("Edit", { file_path: path.join(src, "form.ts"), old_string: "1", new_string: "2" }), home, [EDIT_GATE]));
+      const edited = refusalIn(await runHook("claude-code", before("Edit", { file_path: path.join(src, "form.ts"), old_string: "1", new_string: "2" }), home, [EDIT_GATE], guarded));
       assert.equal(edited?.hookSpecificOutput?.permissionDecision, "deny");
       assert.match(edited?.hookSpecificOutput?.permissionDecisionReason ?? "", /refused before it happened.*"1 · Email form".*Codex session holder holds it/);
       const patch = "*** Begin Patch\n*** Add File: packages/visitor-can-sign-up/src/more.ts\n+/**\n+ * Capability 1 · Email form\n+ */\n*** End Patch\n";
-      assert.equal(refusalIn(await runHook("codex", before("apply_patch", { command: patch }), home, [EDIT_GATE]))?.decision, "block", "an added file is read from the patch");
-      assert.equal(refusalIn(await runHook("claude-code", before("Write", { file_path: path.join(src, "notes.ts"), content: "export const notes = 2;\n" }), home, [EDIT_GATE])), undefined);
+      assert.equal(refusalIn(await runHook("codex", before("apply_patch", { command: patch }), home, [EDIT_GATE], guarded))?.decision, "block", "an added file is read from the patch");
+      assert.equal(refusalIn(await runHook("claude-code", before("Write", { file_path: path.join(src, "notes.ts"), content: "export const notes = 2;\n" }), home, [EDIT_GATE], guarded)), undefined);
     } finally {
       await log.close();
       await storytree.close();

@@ -587,8 +587,10 @@ test("1.49 a command that writes a library takes --project, --arc or --increment
       await product.recordFactory(world.project);
       await server.openProject(outsideName);
       const theirArc = (await product.createArc({ title: "Ricky's site goes live", intent: "Ship it", endState: "It is live" })).id;
+      // eslint-disable-next-line storytree/write-names-place -- deliberately placeless: the test sees the write refused
       const arc = ["arc", "new", "--title", "Launch", "--intent", "Ship the site", "--end-state", "It is live"];
 
+      // eslint-disable-next-line storytree/write-names-place -- deliberately placeless: the test sees the write refused
       for (const unnamed of [arc, ["library", "new", "definition", "--term", "Stack", "--meaning", "What runs it"], ["capability", "built", "capability_000000000000"]]) {
         const refused = await world.run(unnamed);
         assert.equal(refused.code, 2, `${unnamed.join(" ")}: ${refused.stderr}`);

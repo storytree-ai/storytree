@@ -1,0 +1,62 @@
+// Capability 8 · Storytree's own test and gate entries.
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { Linter, RuleTester } from "eslint";
+import tseslint from "typescript-eslint";
+
+import plugin from "./index.mjs";
+
+const rule = plugin.rules["write-names-place"];
+const code = (line) => line.replaceAll("#", "$").replaceAll("'", "`");
+const refused = (line, count = 1) => ({ code: code(line), errors: Array.from({ length: count }, () => ({ messageId: "unplaced" })) });
+
+test("8.25 · storytree/write-names-place refuses an argv array literal spelling a composed base write (fyi new through a storytree(...) wrapper with a spread of fields, -s storytree fyi new through run(\"pnpm\", ...), bare arc new, question new whose arc input is optional, fyi heard whose required input is no place, a template-built flag, two in one file each) holding no \"--project\", \"--arc\" or \"--increment\" literal, its message naming the command, escape_d6cd4011df60 and ADR-1348 D3; the same with any of the three flags, a read (library read, arc waits), a write whose required arc input is the place (arc edit, arc wait), a write asking only for its usage (\"--help\"), an array not starting with a command and a string holding the words pass", () => {
+  assert.match(rule?.meta?.messages?.unplaced ?? "", /escape_d6cd4011df60/);
+  assert.match(rule.meta.messages.unplaced, /ADR-1348 D3/);
+
+  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("write-names-place", rule, {
+    valid: [
+      String.raw`export const told = (storytree: (args: string[]) => string, fyi: Record<string, string>, x: string) => storytree(["fyi", "new", "--by", "watcher", "--project", x, ...Object.entries(fyi).flatMap(([f, t]) => ['--#{f}', t])]);`,
+      String.raw`export const told = (run: (cmd: string, args: string[]) => string, t: string, a: string) => run("pnpm", ["-s", "storytree", "fyi", "new", "--title", t, "--arc", a]);`,
+      String.raw`export const told = (t: string, i: string) => ["storytree", "fyi", "new", "--title", t, "--increment", i];`,
+      String.raw`export const parked = (t: string, x: string) => ["arc", "new", "--title", t, "--project", x];`,
+      String.raw`export const asked = (t: string, a: string) => ["question", "new", "--title", t, "--arc", a];`,
+      String.raw`export const heard = (id: string, x: string) => ["fyi", "heard", id, "--project", x];`,
+      String.raw`export const read = (id: string) => ["library", "read", id];`,
+      String.raw`export const waits = () => ["-s", "storytree", "arc", "waits"];`,
+      String.raw`export const edited = (arc: string, t: string) => ["arc", "edit", arc, "--title", t];`,
+      String.raw`export const waited = (arc: string, on: string) => ["storytree", "arc", "wait", arc, "--on", on];`,
+      String.raw`export const usage = () => ["question", "new", "--help"];`,
+      String.raw`export const usage = (t: string) => ["-s", "storytree", "arc", "new", "--title", t, "--help"];`,
+      String.raw`export const family = () => ["fyi"];`,
+      String.raw`export const reversed = () => ["new", "fyi"];`,
+      String.raw`export const words = () => "storytree fyi new --title t";`,
+      String.raw`export const said = () => ["the", "storytree", "fyi", "new"];`,
+    ].map(code),
+    invalid: [
+      refused(String.raw`export const told = (storytree: (args: string[]) => string, fyi: Record<string, string>) => storytree(["fyi", "new", "--by", "watcher", ...Object.entries(fyi).flatMap(([f, t]) => ['--#{f}', t])]);`),
+      refused(String.raw`export const told = (run: (cmd: string, args: string[]) => string, t: string) => run("pnpm", ["-s", "storytree", "fyi", "new", "--title", t]);`),
+      refused(String.raw`export const parked = (t: string) => ["arc", "new", "--title", t];`),
+      refused(String.raw`export const asked = (t: string) => ["question", "new", "--title", t];`),
+      refused(String.raw`export const heard = (id: string) => ["storytree", "fyi", "heard", id];`),
+      refused(String.raw`export const built = (place: string, x: string) => ["fyi", "new", '--#{place}', x];`),
+      refused(String.raw`export const both = (t: string) => [["arc", "new", "--title", t], ["question", "new", "--title", t]];`, 2),
+    ],
+  });
+
+  new RuleTester().run("write-names-place", rule, {
+    valid: [`export const parked = (t, x) => ["arc", "new", "--title", t, "--project", x];`],
+    invalid: [refused(`export const parked = (t) => ["arc", "new", "--title", t];`)],
+  });
+
+  const lint = (source) => new Linter().verify(source, [{ plugins: { storytree: plugin }, rules: { "storytree/write-names-place": "error" } }], { filename: "packages/b/src/b.mjs" });
+  const told = lint(code(String.raw`export const told = (t) => ["-s", "storytree", "fyi", "new", "--title", t];`));
+  assert.deepEqual(told.map(({ line, ruleId }) => [line, ruleId]), [[1, "storytree/write-names-place"]]);
+  assert.match(told[0].message, /fyi new/);
+  assert.match(told[0].message, /escape_d6cd4011df60/);
+  assert.match(told[0].message, /ADR-1348 D3/);
+  const parked = lint(`export const parked = (t) => ["arc", "new", "--title", t];`);
+  assert.match(parked[0]?.message ?? "", /arc new/);
+  assert.doesNotMatch(parked[0].message, /fyi new/);
+});

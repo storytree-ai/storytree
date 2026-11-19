@@ -91,7 +91,7 @@ test("8.22 · the step's storytree runner, cliRunner({ root, command }), runs co
   writeFileSync(path.join(root, "fails.mjs"), "process.stderr.write(\"library unreached\");\nprocess.exit(3);\n");
 
   const what = "packages/a/src/old.mjs:5 keeps the comment \"matches the tail first\", disabling storytree/no-comments because: $HOME & `id`; it's 'quoted' | *";
-  const args = ["fyi", "new", "--title", "A comment kept by the escape hatch: packages/a/src/old.mjs:5", "--what", what, "--about", "packages/a/src/old.mjs", ""];
+  const args = ["fyi", "new", "--title", "A comment kept by the escape hatch: packages/a/src/old.mjs:5", "--what", what, "--about", "packages/a/src/old.mjs", "--project", "p", ""];
   const run = hatchesScript.cliRunner({ root, command: [process.execPath, path.join(root, "argv.mjs")] });
   assert.deepEqual(JSON.parse(await run(args)), { cwd: realpathSync(root), args });
 

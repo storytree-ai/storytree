@@ -105,9 +105,8 @@ test("5.8 `question list` across arcs reads every arc in one ask to find the par
   });
 });
 
-function questionFlags(arc: string, leaving: readonly string[] = []): string[] {
+function questionFlags(leaving: readonly string[] = []): string[] {
   const flags: Record<string, string> = {
-    arc,
     title: "Which mailer?",
     stakes: "Sign-up cannot send its email until this is chosen",
     statement: "Mailgun or SES?",
@@ -130,7 +129,7 @@ test("5.1 a question with no stakes is refused", async () => {
     const library = await world.library();
     const before = (await library.changesSince(0)).cursor;
 
-    const ran = await world.run(["question", "new", ...questionFlags(arc, ["stakes"])]);
+    const ran = await world.run(["question", "new", "--arc", arc, ...questionFlags(["stakes"])]);
 
     assert.equal(ran.code, 1);
     assert.match(ran.stderr, /\bstakes\b/);
@@ -159,7 +158,7 @@ test("5.3 a held increment reads as waiting on you until its question is settled
   await inWorld(command, async (world) => {
     const { arc, increment } = await arcWithWork(world);
 
-    const raised = await world.run(["question", "new", ...questionFlags(arc), "--hold", increment]);
+    const raised = await world.run(["question", "new", "--arc", arc, ...questionFlags(), "--hold", increment]);
     assert.equal(raised.code, 0, raised.stderr);
     const question = /\bquestion_[0-9a-f]+\b/.exec(raised.stdout)?.[0];
     assert.ok(question !== undefined, raised.stdout);
@@ -189,7 +188,7 @@ test("5.12 `question new --hold` releases the asking session's claims on the hel
       const asker = { log, library, project: world.project, session: "claude-ask", harness: "claude-code" } as const;
       for (const id of [other.id, increment, capability.id]) assert.equal((await claim(asker, id, "building")).ok, true, id);
 
-      const raised = await world.run(["question", "new", ...questionFlags(arc), "--hold", increment], { CLAUDE_CODE_SESSION_ID: "claude-ask" });
+      const raised = await world.run(["question", "new", "--arc", arc, ...questionFlags(), "--hold", increment], { CLAUDE_CODE_SESSION_ID: "claude-ask" });
       assert.equal(raised.code, 0, raised.stderr);
       assert.match(raised.stdout, new RegExp(`Released your claims on ${increment}, ${capability.id}`));
       assert.deepEqual((await readClaims(log, world.project)).map((held) => held.increment ?? held.capability), [other.id]);
@@ -237,7 +236,7 @@ test("5.10 unsupported question new flags are refused before any write, naming -
     const before = (await library.changesSince(0)).cursor;
 
     for (const extra of [["--holds", increment], ["--hold", increment, "--unknown", "value"]]) {
-      const ran = await world.run(["question", "new", ...questionFlags(arc), ...extra]);
+      const ran = await world.run(["question", "new", "--arc", arc, ...questionFlags(), ...extra]);
 
       assert.equal(ran.code, 2, ran.stdout);
       assert.match(ran.stderr, /--(?:holds|unknown) is not a flag this takes/);

@@ -780,7 +780,7 @@ test("1.25 · a lane of a project other than storytree reaches the library throu
   Object.assign(options, { increment: "increment_site", project: "storytree-website" });
   assert.equal(await main(["run", options.brief, options.log, options.err], options), 75);
   const calls = (await readFile(record, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
-  assert.deepEqual(calls.map((call) => call.args.slice(0, 2)), [["library", "read"], ["question", "new"]]);
+  assert.deepEqual(calls.map(({ args: [family, verb] }) => ({ family, verb })), [{ family: "library", verb: "read" }, { family: "question", verb: "new" }]);
   assert.equal(calls[1].args[calls[1].args.indexOf("--arc") + 1], "arc_site", "asked on its increment's arc, read from its own project");
   for (const call of calls) assert.equal(await realpath(call.cwd), await realpath(options.cwd));
 });
@@ -798,7 +798,7 @@ test("1.26 · a lane started from the command line in another project's checkout
   await mkdir(options.cwd);
   assert.equal(await main(["run", options.brief, options.log, options.err], options), 75);
   const calls = (await readFile(record, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
-  assert.deepEqual(calls.map((call) => call.args.slice(0, 2)), [["library", "read"], ["question", "new"]], "the lane-token question, asked in the checkout's own library");
+  assert.deepEqual(calls.map(({ args: [family, verb] }) => ({ family, verb })), [{ family: "library", verb: "read" }, { family: "question", verb: "new" }], "the lane-token question, asked in the checkout's own library");
 });
 
 test("1.27 · under systemd on Linux a lane's engine runs in a memory-limited scope of its own; elsewhere, or with no limit, as it is; the limit is the configured one, else the box's memory less every other lane's peak", async () => {

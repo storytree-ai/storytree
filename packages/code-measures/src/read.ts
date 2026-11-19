@@ -10,6 +10,7 @@ import { couplingOf, publicSurfaceOf, type CouplingReading, type WorkspacePackag
 import { duplicationOf, type DuplicationReading } from "./duplication.js";
 import { loosenessOf, type LoosenessReading } from "./looseness.js";
 import { sizeOf, type Size, type SourceText } from "./source.js";
+import { testsOf, type TestsReading } from "./tests.js";
 
 export const DEFAULT_DAYS = 90;
 
@@ -25,6 +26,7 @@ export interface StoryMeasures {
   readonly surface?: number;
   readonly looseness?: LoosenessReading;
   readonly churn?: ChurnReading;
+  readonly tests?: TestsReading;
 }
 
 export interface MeasuresReading {
@@ -147,6 +149,7 @@ export async function readStoryMeasures({ folder, commit, since, stories, story 
       surface: present.reduce((total, pkg) => total + publicSurfaceOf(pkg), 0),
       looseness: loosenessOf(files),
       churn: churnOf(numstat, files),
+      tests: testsOf(files),
     };
   });
   return { commit: sha, committed: to.toISOString(), window: { days, from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }, stories: measured };

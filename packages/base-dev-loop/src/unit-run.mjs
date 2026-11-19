@@ -99,12 +99,13 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
     let listing = false;
     let listedAt = -Infinity;
     let killing = false;
+    const listEvery = Math.min(3_000, exitGraceMs / 4);
     const settle = (reading, at) => {
       if (reading !== undefined && (cpu === undefined || cpuShare(cpu, { reading, at }) >= BUSY_SHARE)) quietSince = Date.now();
       cpu = reading === undefined ? undefined : { reading, at };
     };
     const readWindows = (now) => {
-      if (listing || now - listedAt < Math.min(3_000, exitGraceMs / 4)) return;
+      if (listing || now - listedAt < listEvery) return;
       listing = true;
       listedAt = now;
       listProcesses().then((table) => {
@@ -128,8 +129,8 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
         cpu = undefined;
         return;
       }
-      if (platform === "win32") readWindows(now);
-      else settle(treeCpu(child.pid), now);
+      if (platform !== "win32") settle(treeCpu(child.pid), now);
+      else if (endedNotExited(runningFile, now - listEvery).length > 0) readWindows(now);
       if (now - quietSince < exitGraceMs) return;
       exitHung = endedNotExited(runningFile, now - exitGraceMs);
       if (exitHung.length > 0) kill();

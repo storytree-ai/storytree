@@ -239,7 +239,7 @@ test("passes too", () => {});`,
   assert.match(unitReason({ ...result, unitLimitMs: 60_000 }, root), /killed; nested\/exit-hang\.test\.mjs: its last reported test ended, and its process sat idle without exiting/);
 });
 
-test("4.1 a file still computing synchronously after its last reported test ended runs to its end, not killed as a hung exit", { skip: process.platform === "win32" && "platform:posix: the exit watch reads no CPU on Windows" }, async (t) => {
+test("4.1 a file still computing synchronously after its last reported test ended runs to its end, not killed as a hung exit", { skip: process.platform === "win32" && "platform:posix: on Windows the exit watch reads CPU through a PowerShell process listing, started only after min(3 s, grace/4) without an exit and taken at most once per that interval, and this test's 1 s grace is too short for that listing to land twice in time" }, async (t) => {
   const root = fixture(t, {
     "computes.test.mjs": `import { after, test } from "node:test";
 after(async () => {

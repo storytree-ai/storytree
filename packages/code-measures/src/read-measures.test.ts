@@ -116,6 +116,58 @@ test("1.7 · an unknown story or an unreadable commit is refused, naming it", as
   await assert.rejects(readStoryMeasures({ folder: repo.folder, commit: "f00dfeedf00dfeed", stories: STORIES }), /f00dfeedf00dfeed/);
 });
 
+const testsOf = (story: object): unknown => (story as { tests?: unknown }).tests;
+
+test("1.8 · a story's test count is the calls of test or it, their only, skip and todo forms included, whose first argument is a string or template title, across its packages' test files at the commit measured: a call with no title, a mention in a string, a source file's calls and a test file that does not parse count none", async (t) => {
+  const repo = await repository(t);
+  const [, , c3] = repo.commits;
+  const beforeTests = await readStoryMeasures({ folder: repo.folder, commit: c3, stories: STORIES });
+  assert.deepEqual(beforeTests.stories.map(testsOf), [{ count: 0 }, { count: 0 }], "a measured story with no test file counts 0, never none");
+
+  const files: Record<string, string> = {
+    "packages/alpha-tools/src/a.test.ts": [
+      'import { describe, it, test } from "node:test";',
+      'import { a } from "./a.js";',
+      "const name = \"named elsewhere\";",
+      'const mention = \'test("only a mention in a string")\';',
+      'test("1.1 · a reads its value", () => { a(1); });',
+      'test.only("only this one", () => {});',
+      'it("it counts too", () => {});',
+      "it.skip(`a template title ${mention}`, () => {});",
+      'test.todo("still to write");',
+      'describe("a group is no test", () => {',
+      '  it("inside a group", () => {});',
+      '  test.skip("skipped inside a group");',
+      "});",
+      "test(name, () => {});",
+      "test(() => {});",
+      'tests("no such call");',
+      "",
+    ].join("\n"),
+    "packages/alpha-tools/src/c.spec.ts": ['import { it, test } from "node:test";', 'it("a spec counts");', "test.only(`a spec template`, () => {});", ""].join("\n"),
+    "packages/alpha-tools/src/broken.test.ts": ['import { test } from "node:test";', 'test("one", () => {});', 'test("two", () => {', ""].join("\n"),
+    "packages/alpha-tools/src/selfcheck.ts": ['export function test(title: string): string { return title; }', 'test("a source file counts none");', ""].join("\n"),
+    "packages/beta-kit/src/b.test.ts": ['import { test } from "node:test";', 'test("b is one", () => {});', 'test("b is still one", () => {});', ""].join("\n"),
+  };
+  for (const [file, text] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(repo.folder, file)), { recursive: true });
+    writeFileSync(path.join(repo.folder, file), text);
+  }
+  repo.git("add", ...Object.keys(files));
+  repo.git("-c", "user.name=Measures test", "-c", "user.email=measures@example.test", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "tests added");
+  const c4 = repo.git("rev-parse", "HEAD");
+  writeFileSync(path.join(repo.folder, "packages/beta-kit/src/b.test.ts"), `${files["packages/beta-kit/src/b.test.ts"]}test("uncommitted", () => {});\n`);
+
+  const read = await readStoryMeasures({ folder: repo.folder, commit: c4, stories: STORIES });
+  assert.deepEqual(read.stories.map((story) => ({ id: story.id, tests: testsOf(story) })), [
+    { id: ALPHA.id, tests: { count: 9 } },
+    { id: BETA.id, tests: { count: 2 } },
+  ], "Alpha: seven in a.test.ts and two in c.spec.ts; Beta: its two committed tests, not the working tree's third");
+
+  const missing = await readStoryMeasures({ folder: repo.folder, commit: repo.commits[1], stories: [BETA] });
+  assert.equal(testsOf(missing.stories[0]!), undefined, "a story not in the checkout carries no test count");
+});
+
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
 test("1.4 · coupling is read across the workspace at the commit measured, each package known by its manifest's name: Beta kit imports Alpha tools as @ws/alpha-tools", async (t) => {

@@ -50,6 +50,7 @@ interface StoryMeasure {
   readonly latest?: number;
   readonly limits?: { centre: number; lower: number; upper: number };
   readonly reads?: string;
+  readonly beside?: { readonly measure: string; readonly title: string; readonly latest?: number; readonly unit?: string };
 }
 
 interface StoryReport {
@@ -230,4 +231,58 @@ test("4.4 · storytree code-measures story prints each story's lane cost as the 
   assert.equal(report.stories.find((one) => one.id === gamma)!.lane, undefined, "a story no lane touched has no lane cost");
   assert.match(section((await story.act({ json: false, ...WINDOW }, context, WORDS)).text, "Alpha tools", ["Alpha tools", "Beta kit", "Gamma bare"]), /\b2 lanes\b/);
   assert.deepEqual(await stored(), [], "the lane cost is read, never stored");
+});
+
+const TEST_COUNT = "measure_1081d3e0c297";
+const MUTATION_SCORE = "measure_7ceaf1a4061a";
+
+function withMeasures(library: Library, records: readonly { id: string; fields: Record<string, unknown> }[]): Library {
+  return new Proxy(library, {
+    get(target, key) {
+      if (key === "measures") return async () => records;
+      const value = Reflect.get(target, key) as unknown;
+      return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+    },
+  });
+}
+
+test("4.5 · storytree code-measures story prints Mutation score, read beside Test count, with the story's latest Test count reading on that machine in the window on its line, or says there is none, on both the readings and the no-readings forms; Test count itself is printed alone", async (t) => {
+  const story = storyVerb();
+  const { library, db, context, alpha, beta, gamma } = await world(t);
+  await library.addStory({ title: "Delta none" });
+  const base = (title: string, unit: string) => ({ ...measure(title, "story_ed509b2d94fc", true, unit, 1) });
+  const records = [
+    { id: TEST_COUNT, fields: base("Test count", "tests") },
+    { id: MUTATION_SCORE, fields: { ...base("Mutation score", "share"), better: "higher" } },
+  ];
+  const row = (story: string, id: string, unit: string, n: number, value: number, more: Partial<ReadingRow> = {}): ReadingRow => ({
+    project: context.project, story, measure: id, version: 1, value, unit, commit: `c${n}`.padEnd(40, "0"), committed: day(n), machine: "mint", runs: 1, spread: null, readAt: "2026-11-18T06:00:00.000Z", ...more,
+  });
+  await seam.writeReadings(db, [
+    row(alpha, TEST_COUNT, "tests", 2, 100),
+    row(alpha, TEST_COUNT, "tests", 9, 112),
+    row(alpha, TEST_COUNT, "tests", 20, 999, { committed: "2026-11-20T12:00:00.000Z" }),
+    row(alpha, MUTATION_SCORE, "share", 2, 0.5, { runs: 80 }),
+    row(alpha, MUTATION_SCORE, "share", 9, 0.625, { runs: 96 }),
+    row(beta, MUTATION_SCORE, "share", 9, 0.4, { runs: 50 }),
+    row(beta, TEST_COUNT, "tests", 9, 50, { machine: "laptop" }),
+    row(gamma, TEST_COUNT, "tests", 9, 7),
+  ]);
+  const served = { ...context, library: withMeasures(library, records) } as VerbContext;
+
+  const report = JSON.parse((await story.act({ json: true, ...WINDOW }, served, WORDS)).text) as StoryReport;
+  const of = (id: string, measure: string) => report.stories.find((one) => one.id === id)?.measures.find((one) => one.measure === measure);
+  assert.deepEqual(of(alpha, MUTATION_SCORE)?.beside, { measure: TEST_COUNT, title: "Test count", latest: 112, unit: "tests" }, "Alpha's latest Test count in the window, not the later one outside it");
+  assert.deepEqual([of(beta, MUTATION_SCORE)?.beside?.measure, of(beta, MUTATION_SCORE)?.beside?.title, of(beta, MUTATION_SCORE)?.beside?.latest], [TEST_COUNT, "Test count", undefined], "Beta's only Test count was read on another machine: none beside it");
+  assert.deepEqual([of(gamma, MUTATION_SCORE)?.latest, of(gamma, MUTATION_SCORE)?.beside?.latest], [undefined, 7], "Gamma has no Mutation score reading, and its Test count is still beside the line");
+  assert.equal(of(alpha, TEST_COUNT)?.beside, undefined, "Test count is read beside nothing");
+
+  const text = (await story.act({ json: false, ...WINDOW }, served, WORDS)).text;
+  const titles = ["Alpha tools", "Beta kit", "Gamma bare", "Delta none"];
+  const line = (title: string, measure: string) => section(text, title, titles).split("\n").find((one) => one.trimStart().startsWith(measure)) ?? "";
+  assert.match(line("Alpha tools", "Mutation score"), /: latest 0\.63 share of 2 readings; too few readings, beside Test count 112 tests$/, "the readings form, with the latest Test count appended");
+  assert.match(line("Beta kit", "Mutation score"), /: latest 0\.4 share of 1 reading; too few readings, beside Test count: no readings$/);
+  assert.match(line("Gamma bare", "Mutation score"), /: no readings, beside Test count 7 tests$/, "the no-readings form, with the latest Test count appended");
+  assert.match(line("Delta none", "Mutation score"), /: no readings, beside Test count: no readings$/);
+  assert.doesNotMatch(line("Alpha tools", "Test count"), /beside/, "Test count's own line is printed alone");
 });

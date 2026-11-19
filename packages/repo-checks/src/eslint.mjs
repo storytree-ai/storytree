@@ -115,7 +115,7 @@ export async function commentHatches(root) {
   const added = addedLines(root);
   const files = trackedSources(root).filter((file) => added === null || added.has(file));
   return (await lintResults(root, storytreePlugin, files)).flatMap(({ file, result }) => {
-    const hatched = result.suppressedMessages.filter((message) => message.ruleId === NO_COMMENTS && message.messageId === "hatched" && onAddedLine(added, file, message));
+    const hatched = result.suppressedMessages.filter((message) => message.ruleId === NO_COMMENTS && message.messageId === "hatched" && (onAddedLine(added, file, message) || onAddedLine(added, file, { line: message.line - 1 })));
     if (hatched.length === 0) return [];
     const lines = readFileSync(path.join(root, file), "utf8").split(/\r?\n/);
     return hatched.map((message) => ({

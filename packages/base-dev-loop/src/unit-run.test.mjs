@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { removeTemp, waitUntil } from "@storytree/test-waits";
 import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
 
-import { clearUnitLimit, DEADLINE_GRACE_MS, recentPassTimes, recordTimings, runUnit, setUnitLimit, TEST_LIMIT_MS, testLimit, TIMING_ROWS_KEPT, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason, unitTestLimit, withMacRetry } from "./unit-run.mjs";
+import { CAPTURE_LIMIT_MS, clearUnitLimit, DEADLINE_GRACE_MS, recentPassTimes, recordTimings, runUnit, setUnitLimit, TEST_LIMIT_MS, testLimit, TIMING_ROWS_KEPT, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason, unitTestLimit, withMacRetry } from "./unit-run.mjs";
 
 function fixture(t, files) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "unit-run-")));
@@ -239,7 +239,7 @@ test("passes too", () => {});`,
   assert.match(unitReason({ ...result, unitLimitMs: 60_000 }, root), /killed; nested\/exit-hang\.test\.mjs: its last reported test ended, and its process sat idle without exiting/);
 });
 
-test("4.1 a file still computing synchronously after its last reported test ended runs to its end, not killed as a hung exit", { skip: process.platform === "win32" && "platform:posix: the exit watch reads no CPU on Windows" }, async (t) => {
+test("4.1 a file still computing synchronously after its last reported test ended runs to its end, not killed as a hung exit", { skip: process.platform === "win32" && "platform:posix: on Windows the exit watch reads CPU through a PowerShell process listing, started only after min(3 s, grace/4) without an exit and taken at most once per that interval, and this test's 1 s grace is too short for that listing to land twice in time" }, async (t) => {
   const root = fixture(t, {
     "computes.test.mjs": `import { after, test } from "node:test";
 after(async () => {
@@ -252,6 +252,165 @@ test("reported", () => {});`,
   const result = await runUnit({ root, files: ["computes.test.mjs"], env: process.env, unitLimitMs: 60_000, exitGraceMs: 1_000, ...captured().options });
   assert.deepEqual(result.exitHung, []);
   assert.equal(result.code, 0);
+});
+
+const exitHang = (...names) => `import { writeFileSync } from "node:fs"; import { test } from "node:test";
+process.on("exit", () => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0));
+${names.map((name) => `test(${JSON.stringify(name)}, () => writeFileSync("LAST", ${JSON.stringify(name)}));`).join("\n")}`;
+
+const relative = (root, files) => files.map((file) => path.relative(root, file).replaceAll("\\", "/")).sort();
+
+function evidenceFixture(t, files) {
+  const root = fixture(t, files);
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  git("init");
+  git("-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "--allow-empty", "-m", "fixture");
+  const directory = path.join(root, "evidence");
+  const env = { ...process.env, GITHUB_SERVER_URL: "https://github.com", GITHUB_REPOSITORY: "storytree-ai/storytree", GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1" };
+  const folder = () => {
+    const units = readdirSync(directory);
+    assert.equal(units.length, 1, "one unit, one evidence folder");
+    return path.join(directory, units[0]);
+  };
+  return { root, env, evidence: { directory, unit: "base-dev-loop" }, folder };
+}
+
+test("4.34 · on Windows a busy unit holds off the exit kill: the stuck file is killed only after its runner's process tree, read from the listing, has sat quiet for the grace, and a busy process outside the tree holds nothing off", async (t) => {
+  const root = fixture(t, { "nested/exit-hang.test.mjs": exitHang("passes", "passes too") });
+  let runner;
+  const busyListings = 6;
+  const calls = [];
+  const windowsProcesses = async () => {
+    calls.push({ at: Date.now(), ended: existsSync(path.join(root, "LAST")) });
+    return [
+      { pid: runner.pid, ppid: process.pid, cpuMs: 300, commandLine: "node --test" },
+      { pid: runner.pid + 1, ppid: runner.pid, cpuMs: 80, commandLine: `node ${path.join(root, "nested", "exit-hang.test.mjs")}` },
+      { pid: runner.pid + 2, ppid: runner.pid + 1, cpuMs: 1_000 + 10_000 * Math.min(calls.length, busyListings), commandLine: "node worker.mjs" },
+      { pid: runner.pid + 3, ppid: 4, cpuMs: 10_000 * calls.length, commandLine: "MsMpEng.exe" },
+    ];
+  };
+  const result = await runUnit({ root, files: ["nested/exit-hang.test.mjs"], env: process.env, unitLimitMs: 60_000, exitGraceMs: 2_000, platform: "win32", windowsProcesses, stdio: "ignore", onSpawn: (child) => (runner = child) });
+  assert.equal(calls[0]?.ended, true, "the listing is read only once a file has ended but not exited");
+  const quiet = calls.length - busyListings;
+  assert.ok(quiet >= 1, `killed after listing ${calls.length}, while a grandchild of the runner was still busy through listing ${busyListings}`);
+  assert.ok(quiet <= 4, `killed ${quiet} listings after the tree went quiet, at most one a second for a 2 s grace`);
+  assert.notEqual(result.code, 0);
+  assert.equal(result.timedOut, false, "a process outside the runner's tree, busy throughout, held the kill off to the unit's deadline");
+  assert.deepEqual(relative(root, result.exitHung), ["nested/exit-hang.test.mjs"]);
+  const gaps = calls.slice(1).map(({ at }, i) => at - calls[i].at);
+  assert.ok(Math.min(...gaps) >= 400, `listings ${gaps.join(", ")} ms apart, more often than once every 500 ms for a 2 s grace`);
+});
+
+test("4.34 · on Windows a file whose exit was waited on past the grace because its unit was busy is reported spared with its seconds, in the result, the unit's row and the CI evidence", async (t) => {
+  const { root, env, evidence, folder } = evidenceFixture(t, {
+    "nested/exit-slow.test.mjs": `import { test } from "node:test";
+process.on("exit", () => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 4_000));
+test("passes", () => {});`,
+    "quick.test.mjs": `import { test } from "node:test";\ntest("quick", () => {});`,
+  });
+  let runner;
+  let readings = 0;
+  const windowsProcesses = async () => [{ pid: runner.pid, ppid: process.pid, cpuMs: 10_000 * ++readings, commandLine: "node --test" }];
+  const result = await runUnit({ root, files: ["nested/exit-slow.test.mjs", "quick.test.mjs"], env, evidence, unitLimitMs: 60_000, exitGraceMs: 1_000, platform: "win32", windowsProcesses, stdio: "ignore", onSpawn: (child) => (runner = child) });
+  assert.equal(result.code, 0);
+  assert.deepEqual(result.exitHung, []);
+  assert.deepEqual(result.spared?.map(({ file }) => file), [path.join(root, "nested", "exit-slow.test.mjs")]);
+  const { seconds } = result.spared[0];
+  assert.ok(seconds >= 3.5 && seconds * 1_000 <= result.ms, `${seconds} s from its last test's end to its exit, which blocked 4 s, within the unit's ${result.ms} ms`);
+  assert.equal(seconds, Number(seconds.toFixed(1)), "seconds to one decimal");
+  const reason = unitReason(result, root);
+  const clause = reason.split(";").find((part) => part.includes("nested/exit-slow.test.mjs"));
+  assert.equal(clause?.includes(`${seconds.toFixed(1)} s`), true, `the row names the spared file with its seconds: ${reason}`);
+  assert.doesNotMatch(reason, /quick\.test\.mjs/);
+  assert.equal(reason.includes(root), false, "the file is named from the root");
+  const report = JSON.parse(readFileSync(path.join(folder(), "result.json"), "utf8"));
+  assert.deepEqual(report.spared, [{ file: "nested/exit-slow.test.mjs", seconds }]);
+});
+
+test("4.34 · on Windows a process listing that fails or never settles restarts nothing, so the stuck file is killed at the grace, with one listing in flight at a time", async (t) => {
+  const listings = {
+    fails: { calls: 0, read() { this.calls++; return Promise.reject(new Error("Get-CimInstance: access denied")); } },
+    "never settles": { calls: 0, read() { this.calls++; return new Promise(() => {}); } },
+  };
+  for (const [kind, listing] of Object.entries(listings)) {
+    const root = fixture(t, { "nested/exit-hang.test.mjs": exitHang("passes") });
+    const result = await runUnit({ root, files: ["nested/exit-hang.test.mjs"], env: process.env, unitLimitMs: 15_000, exitGraceMs: 2_000, platform: "win32", windowsProcesses: () => listing.read(), stdio: "ignore" });
+    assert.notEqual(result.code, 0, kind);
+    assert.equal(result.timedOut, false, `${kind}: killed by the exit watch at the 2 s grace, before the unit's 15 s deadline`);
+    assert.deepEqual(relative(root, result.exitHung), ["nested/exit-hang.test.mjs"], kind);
+  }
+  assert.ok(listings.fails.calls >= 1, "the failing listing was read");
+  assert.equal(listings["never settles"].calls, 1, "a listing still in flight is never read again");
+});
+
+test("4.34 · on Windows the default process listing reads this process with its parent, its command line and its CPU time in milliseconds", { skip: process.platform !== "win32" && "platform:win32: needs Windows" }, async () => {
+  const { windowsProcesses } = await import("./unit-run.mjs");
+  const own = async () => (await windowsProcesses()).find((row) => row.pid === process.pid);
+  const used = () => {
+    const { user, system } = process.cpuUsage();
+    return (user + system) / 1_000;
+  };
+  const outer = used();
+  const before = await own();
+  const spinFrom = used();
+  while (used() - spinFrom < 500) {}
+  const spun = used() - spinFrom;
+  const after = await own();
+  const between = used() - outer;
+  assert.equal(before.ppid, process.ppid);
+  assert.match(after.commandLine, /unit-run\.test\.mjs/);
+  const grew = after.cpuMs - before.cpuMs;
+  assert.ok(grew >= spun - 50 && grew <= between + 50, `${grew} ms of CPU in the listing, against ${spun.toFixed(0)} ms spun and ${between.toFixed(0)} ms used between the listings' calls by node's own reading`);
+});
+
+test("4.35 · on Windows, before the exit watch kills, it saves a capture beside the unit's result: each stuck file's last ended test and whether its process is alive, the runner's process tree, and two thread listings about 2 s apart", async (t) => {
+  const { root, env, evidence, folder } = evidenceFixture(t, {
+    "nested/exit-hang.test.mjs": exitHang("passes", "passes too"),
+    "other-hang.test.mjs": exitHang("only"),
+  });
+  let runner;
+  const rows = () => [
+    { pid: runner.pid, ppid: process.pid, cpuMs: 300, commandLine: "node --test" },
+    { pid: runner.pid + 1, ppid: runner.pid, cpuMs: 80, commandLine: `node --import tsx ${path.join(root, "nested", "exit-hang.test.mjs")}` },
+    { pid: runner.pid + 2, ppid: 4, cpuMs: 9_000, commandLine: "explorer.exe" },
+  ];
+  const listings = [];
+  const windowsThreads = async (pids) => {
+    listings.push({ pids, at: Date.now(), runnerUp: runner.exitCode === null && runner.signalCode === null });
+    return [{ pid: runner.pid + 1, tid: listings.length, cpuMs: 5, waitReason: "UserRequest", state: 5 }];
+  };
+  const result = await runUnit({ root, files: ["nested/exit-hang.test.mjs", "other-hang.test.mjs"], env, evidence, unitLimitMs: 60_000, exitGraceMs: 2_000, platform: "win32", windowsProcesses: async () => rows(), windowsThreads, stdio: "ignore", onSpawn: (child) => (runner = child) });
+  assert.notEqual(result.code, 0);
+  assert.equal(result.timedOut, false);
+  assert.deepEqual(relative(root, result.exitHung), ["nested/exit-hang.test.mjs", "other-hang.test.mjs"]);
+  assert.equal(existsSync(path.join(folder(), "result.json")), true);
+  const capture = JSON.parse(readFileSync(path.join(folder(), "exit-capture.json"), "utf8"));
+  assert.deepEqual(capture.files.toSorted((a, b) => a.file.localeCompare(b.file)), [
+    { file: "nested/exit-hang.test.mjs", lastEnded: "passes too", alive: true },
+    { file: "other-hang.test.mjs", lastEnded: "only", alive: false },
+  ]);
+  assert.deepEqual(capture.processes.toSorted((a, b) => a.pid - b.pid), rows().slice(0, 2));
+  assert.equal(listings.length, 2, "two thread listings");
+  assert.ok(listings.every(({ runnerUp }) => runnerUp), "both taken before the kill");
+  assert.ok(listings[0].pids.includes(runner.pid + 1), "the stuck file's process is among the threads' processes");
+  assert.deepEqual(capture.threads.map(({ rows: listed }) => listed.map(({ tid }) => tid)), [[1], [2]]);
+  const at = capture.threads.map(({ at: when }) => new Date(when).getTime());
+  assert.ok(at[1] - at[0] >= 1_500, `thread listings ${at[1] - at[0]} ms apart`);
+});
+
+test("4.35 · on Windows a capture that overruns its bound is cut off: the stuck file is killed by the grace plus the bound, failing as it would without one", async (t) => {
+  const { root, env, evidence } = evidenceFixture(t, { "nested/exit-hang.test.mjs": exitHang("passes") });
+  let runner;
+  let threadCalls = 0;
+  const windowsThreads = () => {
+    threadCalls++;
+    return new Promise(() => {});
+  };
+  const result = await runUnit({ root, files: ["nested/exit-hang.test.mjs"], env, evidence, unitLimitMs: 12_000, exitGraceMs: 2_000, captureLimitMs: 1_000, platform: "win32", windowsProcesses: async () => [{ pid: runner.pid, ppid: process.pid, cpuMs: 300, commandLine: "node --test" }], windowsThreads, stdio: "ignore", onSpawn: (child) => (runner = child) });
+  assert.ok(threadCalls >= 1, "the capture was attempted");
+  assert.notEqual(result.code, 0);
+  assert.equal(result.timedOut, false, `killed at the 2 s grace and the 1 s bound, before the unit's 12 s deadline, which the default ${CAPTURE_LIMIT_MS / 1000} s bound would pass`);
+  assert.deepEqual(relative(root, result.exitHung), ["nested/exit-hang.test.mjs"]);
 });
 
 test("each unit's time is added to the machine's timing history, outside the checkout", async (t) => {

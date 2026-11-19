@@ -223,7 +223,7 @@ async function runTests(env, units) {
   if (units === undefined) {
     const run = await runNodeTest(env, []);
     keepReds([run]);
-    if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: the named files ${unitReason(run, root)}`);
+    if (run.timedOut || run.exitHung.length > 0 || run.spared.length > 0) console.log(`\ntest harness: the named files ${unitReason(run, root)}`);
     return run.code;
   }
   const results = Object.fromEntries(units.map((unit) => [unit, "not run"]));
@@ -252,7 +252,7 @@ async function runTests(env, units) {
     timings[unit] = { result: results[unit], ms: run.ms, timedOut: run.timedOut && !run.cut };
     tests.push(...run.tests);
     unitRuns.push(run);
-    if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
+    if (run.timedOut || run.exitHung.length > 0 || run.spared.length > 0) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
   }, { stopped: () => interrupted, alone: (unit) => alone.includes(unit) });
   writeRecord(results);
   keepReds(unitRuns);

@@ -70,6 +70,7 @@ export interface FlakeSeen {
   readonly evidence: string;
   readonly found: string;
   readonly by: string;
+  readonly at?: string;
 }
 
 export interface HealthEntry {
@@ -292,6 +293,7 @@ export class HealthRecord {
         evidence: `${seen} (verdict ${entry.at}${entry.by === undefined ? "" : `, by ${entry.by}`}): ${contract.fields.title} failed${entry.note === undefined ? "" : `: ${entry.note}`}`,
         found: `Own health's run on main failed it where a passing CI run of the same commit passed it`,
         by: "storytree's telling of verified health",
+        at: entry.at,
       }, write);
       if (id !== undefined) investigated.push(id);
     }
@@ -320,6 +322,7 @@ export class HealthRecord {
         throw error;
       }
     }
+    if (flake.at !== undefined && (await this.#landedAfter(arcId, flake.at))) return undefined;
     const open = (await this.#records.select("increment", ["arc"], { not: { status: "closed" } })).filter(({ fields }) => fields.arc === arcId).sort(byCreation);
     const [current] = open.length === 0 ? [] : await this.#records.list("increment", { ids: [open[0]!.id] });
     if (current !== undefined) {
@@ -344,6 +347,21 @@ export class HealthRecord {
       ...(contract === null ? {} : { links: [contract.id] }),
     }, write);
     return parked.id;
+  }
+
+  async #landedAfter(arcId: string, at: string): Promise<boolean> {
+    const landed = (await this.#records.select("increment", ["arc"], { where: { status: "closed", "outcome.disposition": "landed" } })).filter(({ fields }) => fields.arc === arcId);
+    for (const { id } of landed) {
+      let closedAt: string | undefined;
+      let wasClosed = false;
+      for (const change of await this.#records.history({ id })) {
+        const isClosed = (this.#records.current(change.record).fields as FieldsOf<"increment">).status === "closed";
+        if (isClosed && !wasClosed) closedAt = change.at;
+        wasClosed = isClosed;
+      }
+      if (closedAt !== undefined && Date.parse(closedAt) > Date.parse(at)) return true;
+    }
+    return false;
   }
 
   async #lastVerdict(contractId: string): Promise<"passing" | "failing" | undefined> {

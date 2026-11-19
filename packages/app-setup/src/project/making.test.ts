@@ -9,7 +9,7 @@ import { git, withTempDir, writeMarker } from "@storytree/project-and-caller/tes
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect, ProjectNameError, type Storytree } from "@storytree/library";
 
-import { firstCommit, makeRepository, setUpProject, suggestProjectName, userFactory } from "./making.js";
+import { firstCommit, makeRepository, setUpProject, suggestProjectName, unusedName, userFactory } from "./making.js";
 import { takeStarterPack } from "./starter-pack.js";
 import { PRINCIPLES, PROCESSES } from "./starter-notes.js";
 import { ROLES } from "./starter-roles.js";
@@ -150,6 +150,13 @@ test("6.4 a new folder named like an existing project is refused unless it joins
       assert.deepEqual(named(findProject(other)), { project: `${project}-2`, folder: other });
     });
   });
+});
+
+test("6.4 · the free name suggested for a taken 40-character name stays within 40 characters: its stem is cut to make room for -2, and a hyphen the cut leaves at the stem's end is dropped", () => {
+  const full = "a".repeat(40);
+  assert.equal(unusedName(full, [full]), `${"a".repeat(38)}-2`);
+  const hyphenAtCut = `${"b".repeat(37)}-cd`;
+  assert.equal(unusedName(hyphenAtCut, [hyphenAtCut]), `${"b".repeat(37)}-2`);
 });
 
 test("6.5 another machine adds its checkout to an existing project only on purpose, and a git worktree of it then routes there; joining a missing project is refused", async () => {

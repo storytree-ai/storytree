@@ -102,8 +102,7 @@ export class PgVectors implements VectorStore {
         await this.#open(this.#cache, use);
         return;
       } catch (error) {
-        if (!busy(error)) return;
-        if (Date.now() >= deadline) throw error;
+        if (!busy(error) || Date.now() >= deadline) return;
         await new Promise((resolve) => setTimeout(resolve, Math.random() * Math.min(100, 5 * 2 ** attempt)));
       }
     }
@@ -118,7 +117,8 @@ export class PgVectors implements VectorStore {
       db.exec("PRAGMA busy_timeout = 50");
       try {
         db.exec("PRAGMA journal_mode = WAL");
-      } catch {
+      } catch (error) {
+        if (busy(error)) throw error;
       }
       db.exec("PRAGMA synchronous = NORMAL");
       db.exec("CREATE TABLE IF NOT EXISTS embedding_v2 (domain TEXT NOT NULL, model TEXT NOT NULL, key TEXT NOT NULL, vector BLOB NOT NULL, PRIMARY KEY (domain, model, key))");

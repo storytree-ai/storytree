@@ -1262,17 +1262,18 @@ test("17.32 · The open tool and library read, on a story or a capability, list 
     return { text: answer.text, data: answer.data as { shelf: unknown[]; attached: Attached } };
   };
 
+  const edge = (await library.list("edge")).find(({ fields }) => fields.from === link.id && fields.to === form.id)!;
   const ofForm = await opened(form.id);
   const ofLink = await opened(link.id);
   assert.deepEqual(ofForm.data.attached?.shelf, ofForm.data.shelf, "a capability's own covers");
   assert.deepEqual((ofForm.data.attached.shelf as { id: string }[]).map(({ id }) => id), [formCover.id]);
   assert.deepEqual(ofForm.data.attached.capabilities, [], "a capability lists no capabilities");
   assert.deepEqual(ofForm.data.attached.increments, [{ id: held.id, title: "Address form", heldOn: [question.id] }], "the open increment naming it, with the question holding it, and not the closed one");
-  assert.deepEqual(byId(ofForm.data.attached.namedBy).map(({ id, kind }) => ({ id, kind })), byId([{ id: contract.id, kind: "contract" }, { id: link.id, kind: "capability" }]), "the other records naming it in a field, and not the prose mention, its cover or an increment");
+  assert.deepEqual(byId(ofForm.data.attached.namedBy).map(({ id, kind }) => ({ id, kind })), byId([{ id: contract.id, kind: "contract" }, { id: edge.id, kind: "edge" }]), "the other records naming it in a field, and not the prose mention, its cover or an increment");
 
   const ofStory = await opened(story.id);
   assert.deepEqual((ofStory.data.attached.shelf as { id: string }[]).map(({ id }) => id), [storyCover.id], "a story's own covers");
-  assert.deepEqual(byId(ofStory.data.attached.capabilities), byId([{ id: form.id, title: "Form", shelf: ofForm.data.shelf }, { id: link.id, title: "Confirmation link", shelf: ofLink.data.shelf }]), "each of its capabilities with its covers");
+  assert.deepEqual(byId(ofStory.data.attached.capabilities), byId([{ id: form.id, title: "1 · Form", shelf: ofForm.data.shelf }, { id: link.id, title: "2 · Confirmation link", shelf: ofLink.data.shelf }]), "each of its capabilities with its covers");
   assert.deepEqual(byId(ofStory.data.attached.increments), byId([{ id: held.id, title: "Address form", heldOn: [question.id] }, { id: active.id, title: "Confirmation mail", heldOn: [] }]), "the open increments naming any of its capabilities");
   const storyNamedBy = ofStory.data.attached.namedBy.map(({ id }) => id);
   assert.ok(storyNamedBy.includes(arc.id), "the arc naming the story in its stories list");
@@ -1280,8 +1281,8 @@ test("17.32 · The open tool and library read, on a story or a capability, list 
 
   const readText = async (id: string) => (await read.act({ ids: [id], linked: false, field: undefined } as never, readContext, WORDS)).text;
   const shown = [
-    { door: "open", part: form.id, text: ofForm.text, attached: [formCover.id, held.id, question.id, contract.id, link.id] },
-    { door: "library read", part: form.id, text: await readText(form.id), attached: [formCover.id, held.id, question.id, contract.id, link.id] },
+    { door: "open", part: form.id, text: ofForm.text, attached: [formCover.id, held.id, question.id, contract.id, edge.id] },
+    { door: "library read", part: form.id, text: await readText(form.id), attached: [formCover.id, held.id, question.id, contract.id, edge.id] },
     { door: "open", part: story.id, text: ofStory.text, attached: [storyCover.id, form.id, formCover.id, link.id, linkCover.id, held.id, question.id, active.id, arc.id] },
     { door: "library read", part: story.id, text: await readText(story.id), attached: [storyCover.id, form.id, formCover.id, link.id, linkCover.id, held.id, question.id, active.id, arc.id] },
   ];

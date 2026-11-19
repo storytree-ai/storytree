@@ -669,8 +669,9 @@ test("7.29 · naming(id) returns every live record but health that names the id 
     const increment = await lib.addIncrement({ arc: arc.id, title: "Address form", objective: "Build it", body: "Red then green", capabilities: [form.id], links: [contract.id] });
     await lib.reportHealth(contract.id, "passing");
 
-    const expected = await Promise.all([contract.id, cover.id, increment.id, link.id].sort().map((id) => lib.get(id)));
-    assert.deepEqual(await lib.naming(form.id), expected, "its contract, its cover, the increment listing it and the capability depending on it, whole, in id order");
+    const edge = (await lib.list("edge")).find(({ fields }) => fields.from === link.id && fields.to === form.id)!;
+    const expected = await Promise.all([contract.id, cover.id, increment.id, edge.id].sort().map((id) => lib.get(id)));
+    assert.deepEqual(await lib.naming(form.id), expected, "its contract, its cover, the increment listing it and the edge on which another capability depends on it, whole, in id order");
     assert.deepEqual(await lib.naming(contract.id), [await lib.get(increment.id)], "the health record naming the contract is left out");
     assert.deepEqual(await lib.naming("capability_000000000000"), []);
   });

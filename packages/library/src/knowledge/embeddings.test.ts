@@ -235,3 +235,41 @@ test("14.10 · independent processes write one cache concurrently and a fresh pr
     phase("cleanup complete");
   }
 });
+
+test("14.10 · a vector put while another connection holds the cache's write lock waits without blocking the event loop and is kept locally", { timeout: 60_000 }, async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "storytree-vectors-"));
+  try {
+    await withCountedProject(async ({ pool }) => {
+      const file = path.join(folder, "vectors.sqlite");
+      const vectors = new PgVectors(pool, file, domain);
+      await vectors.put("contended", new Map([["before-lock", Float32Array.of(1, 2)]]));
+      const { DatabaseSync } = await import("node:sqlite");
+      const holder = new DatabaseSync(file);
+      let released: number | undefined;
+      const release = setTimeout(() => {
+        holder.exec("ROLLBACK");
+        holder.close();
+        released = performance.now();
+      }, 300);
+      try {
+        holder.exec("BEGIN IMMEDIATE");
+        const value = Float32Array.of(5, 6);
+        const started = performance.now();
+        await vectors.put("contended", new Map([["under-lock", value]]));
+        const took = performance.now() - started;
+        assert.notEqual(released, undefined, `the lock holder's 300 ms release timer must run while put waits; put took ${Math.round(took)} ms`);
+        assert.ok(took < 5_000, `put must finish soon after the lock is released at 300 ms, not after the 20 s busy wait; took ${Math.round(took)} ms`);
+        const remote = { query() { throw new Error("the put vector must be in the local cache: this reader never queries Postgres"); } };
+        const kept = await new PgVectors(remote as never, file, domain).get("contended", ["under-lock", "before-lock"]);
+        assert.deepEqual(kept, new Map([["under-lock", value], ["before-lock", Float32Array.of(1, 2)]]));
+      } finally {
+        clearTimeout(release);
+        if (released === undefined && holder.isOpen) {
+          holder.close();
+        }
+      }
+    });
+  } finally {
+    await removeTemp(folder);
+  }
+});

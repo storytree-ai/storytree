@@ -75,20 +75,24 @@ test("8.19 · each problem in a tracked .js, .mjs, .cjs, .ts, .tsx, .mts or .cts
   ]);
 });
 
-test("8.19 · an untracked file, a git-ignored file and a tracked *.min.js are not read; only the tracked file's problem is reported", async (t) => {
+test("8.19 · an untracked, not ignored file is read alongside the tracked one; a git-ignored file and a tracked or untracked *.min.js are not read", async (t) => {
   const root = checkout(
     t,
     {
       ".gitignore": "dist/\n",
       "packages/a/src/bad.mjs": "debugger;\n",
-      "packages/a/src/loose.mjs": "debugger;\n",
+      "packages/a/src/loose.mjs": "export const loose = 1;\nconst forbidden = 2;\n",
       "dist/out.js": "debugger;\n",
       "docs/design/sketch/page.min.js": "debugger;const forbidden=1;\n",
+      "packages/a/src/vendor.min.js": "debugger;const forbidden=1;\n",
     },
     [".gitignore", "packages/a/src/bad.mjs", "docs/design/sketch/page.min.js"],
   );
 
-  assert.deepEqual(await eslintProblems(root, { plugin }), [`packages/a/src/bad.mjs:1 storytree/no-debugger-here: ${DEBUGGER_MESSAGE}`]);
+  assert.deepEqual([...(await eslintProblems(root, { plugin }))].sort(), [
+    `packages/a/src/bad.mjs:1 storytree/no-debugger-here: ${DEBUGGER_MESSAGE}`,
+    `packages/a/src/loose.mjs:2 storytree/no-forbidden-name: ${FORBIDDEN_MESSAGE}`,
+  ]);
 });
 
 test("8.19 · TypeScript syntax in .ts, .tsx, .mts and .cts parses with no problem, and a .mjs or .ts file that cannot parse is one problem naming its file, line and rule parse", async (t) => {

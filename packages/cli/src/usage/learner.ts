@@ -39,7 +39,7 @@ export async function learnInDrain(world: LearnerWorld): Promise<string[]> {
   const lesson = learnDoors({ sessions: tally.sessions, ...(tally.first === undefined ? {} : { first: tally.first }), calls: tally.calls, lines }, world.surfaces, since, pointers, mounted);
   const said = [`The doors learner read ${[...tally.calls.values()].reduce((sum, count) => sum + count, 0)} door-answered lines from ${lesson.sessions} sessions over ${BARS.days} days (ADR-1045 D4 to D6).`];
   said.push(...await writePointers(world, lesson.pointers, lesson.fallbacks));
-  said.push(...await fileWants(world, lesson.wants, lines));
+  said.push(...await fileWants(world, lesson.wants, lines, since));
   said.push(...lesson.cuts === undefined
     ? [`  No cut candidates judged: disuse needs ${BARS.days} days of lines and ${BARS.cutSessions} sessions.`]
     : await raiseCuts(world, lesson.cuts, lesson.sessions));
@@ -69,13 +69,25 @@ function wantTitle(want: Pick<Want, "where" | "word">): string {
   return `Agents type "${want.where} ${want.word}", which no command answers`;
 }
 
-async function fileWants(world: LearnerWorld, wants: readonly Want[], lines: readonly DoorLine[]): Promise<string[]> {
+const SHELL_LINES_QUOTED = 3;
+
+async function shellLinesOf(world: LearnerWorld, want: Want, lines: readonly DoorLine[], since: string): Promise<string[]> {
+  const sessions = [...new Set(lines.filter((line) => line.door === "command" && line.outcome === "unknown" && line.verb === want.where && line.word === want.word).map((line) => line.session))];
+  if (sessions.length === 0) return [];
+  const typed = `${want.where} ${want.word}`;
+  const commands = (await world.log.lines(world.project, { kinds: ["command-started"], sessions, since })).flatMap((line) =>
+    line.kind === "command-started" && line.command.includes(typed) ? [line.command] : []);
+  return [...new Set(commands)].slice(0, SHELL_LINES_QUOTED);
+}
+
+async function fileWants(world: LearnerWorld, wants: readonly Want[], lines: readonly DoorLine[], windowStart: string): Promise<string[]> {
   if (wants.length === 0) return [];
   const filed = new Map((await world.library.list("friction")).map((friction) => [friction.fields.title, friction] as const));
   const said: string[] = [];
   for (const want of wants) {
     const title = wantTitle(want);
-    const evidence = `${readingTo(world.now)}: ${evidenceOf(want)}`;
+    const shell = await shellLinesOf(world, want, lines, windowStart);
+    const evidence = `${readingTo(world.now)}: ${evidenceOf(want)}${shell.length === 0 ? "" : ` Run in: ${shell.map((command) => `\`${command}\``).join("; ")}.`}`;
     const earlier = filed.get(title);
     if (earlier === undefined) {
       const friction = await recordFriction(world.library, {

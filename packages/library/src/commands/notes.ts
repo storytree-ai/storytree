@@ -273,15 +273,39 @@ function openEdgeContract(contract: EdgeContractNode, edge: EdgeNode, capabiliti
 }
 
 async function openShelf(kind: "Story" | "Capability", title: string, id: string, context: NoteToolContext): Promise<VerbAnswer> {
-  const shelf = await context.library.frontCovers(id);
-  await context.recordReads(shelf.map((cover) => ({ note: cover.id, found: "shelf", read: "peek" })));
-  if (shelf.length === 0) {
-    return { text: `${kind} ${quoted(title)} (${id}) has no front covers yet. Record its founding decision with write_note.`, data: { shelf: [] } };
-  }
-  return {
-    text: [`${kind} ${quoted(title)} (${id}). Its shelf, founding book first:`, ...shelf.map(spineLine)].join("\n"),
-    data: { shelf: shelf.map(spineData) },
-  };
+  const { covers, attached, lines } = await attachedTo(context.library, id, kind === "Story");
+  await context.recordReads(covers.map((cover) => ({ note: cover.id, found: "shelf", read: "peek" })));
+  const head = covers.length === 0
+    ? `${kind} ${quoted(title)} (${id}) has no front covers yet. Record its founding decision with write_note.`
+    : `${kind} ${quoted(title)} (${id}). Its shelf, founding book first:`;
+  return { text: [head, ...lines].join("\n"), data: { shelf: attached.shelf, attached } };
+}
+
+export async function attachedTo(library: Library, id: string, story: boolean) {
+  const covers = await library.frontCovers(id);
+  const naming = await library.naming(id);
+  const parts = story ? naming.filter((record) => record.type === "capability" && (record.fields as { story?: unknown }).story === id) : [];
+  const capabilities = await Promise.all(parts.map(async (part) => ({ id: part.id, title: String((part.fields as { title?: unknown }).title), shelf: (await library.frontCovers(part.id)).map(spineData) })));
+  const named = new Set([id, ...parts.map((part) => part.id)]);
+  const { heldOn } = await library.holds();
+  const increments = (await library.list("increment"))
+    .filter((increment) => increment.fields.status !== "closed" && (increment.fields.capabilities ?? []).some((capability) => named.has(capability)))
+    .map((increment) => ({ id: increment.id, title: increment.fields.title, heldOn: heldOn[increment.id] ?? [] }));
+  const listed = new Set([...covers, ...parts, ...increments].map((record) => record.id));
+  const namedBy = naming
+    .filter((record) => !listed.has(record.id) && !(record.type === "increment" && (record.fields as { status?: unknown }).status === "closed"))
+    .map((record) => {
+      const fields = record.fields as { title?: unknown; term?: unknown };
+      return { id: record.id, kind: record.type, label: String(fields.title ?? fields.term ?? record.id) };
+    });
+  const attached = { shelf: covers.map(spineData), capabilities, increments, namedBy };
+  const lines = [
+    ...covers.map(spineLine),
+    ...(capabilities.length === 0 ? [] : ["Its capabilities:", ...capabilities.flatMap((part) => [`- ${quoted(part.title)} (${part.id})`, ...part.shelf.map((cover) => `  - ${quoted(cover.spine)} (${cover.id})`)])]),
+    ...(increments.length === 0 ? [] : ["Open increments naming it:", ...increments.map((increment) => `- ${quoted(increment.title)} (${increment.id})${increment.heldOn.length === 0 ? "" : `, held on ${increment.heldOn.join(", ")}`}`)]),
+    ...(namedBy.length === 0 ? [] : ["Named by:", ...namedBy.map((record) => `- ${record.kind} ${quoted(record.label)} (${record.id})`)]),
+  ];
+  return { covers, attached, lines };
 }
 
 interface NoteArgs {

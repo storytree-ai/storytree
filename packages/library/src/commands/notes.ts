@@ -29,7 +29,7 @@ export interface NoteToolContext extends VerbContext {
   presenterOf(question: SchemaRecord<"question">): Promise<Presenter | undefined>;
 }
 
-type Findable = Note | SchemaRecord<"story" | "capability" | "contract">;
+type Findable = Note | SchemaRecord<"story" | "capability" | "contract" | "arc" | "increment">;
 type CapabilityNode = Awaited<ReturnType<Library["projectTree"]>>["stories"][number]["capabilities"][number];
 type ContractNode = CapabilityNode["contracts"][number];
 type EdgeNode = NonNullable<Awaited<ReturnType<Library["projectTree"]>>["stories"][number]["edges"]>[number];
@@ -41,7 +41,7 @@ const searchNotes = verb({
   command: NO_COMMAND("search"),
   tool: {
     name: "search_notes",
-    description: "Search the project's artifacts (decisions, definitions and other artifact kinds) and its stories, capabilities and contracts: the ones closest in meaning to your question, best first; you see each one's spine, and a decision narrowed in place says which decisions narrow it. Ask in plain words. Open one to read it whole. It gives current state: resteers, friction and superseded decisions come back with history, or a resteer or friction when kinds names it. Give projects to search the factory's library or a project it builds instead (all for every one), each result under its project.",
+    description: "Search the project's artifacts (decisions, definitions and other artifact kinds), its stories, capabilities and contracts, and its arcs and increments: the ones closest in meaning to your question, best first, with closed arcs and increments after the open ones; you see each one's spine, and a decision narrowed in place says which decisions narrow it. Ask in plain words. Open one to read it whole. It gives current state: resteers, friction and superseded decisions come back with history, or a resteer or friction when kinds names it. Give projects to search the factory's library or a project it builds instead (all for every one), each result under its project.",
   },
   inputs: {
     query: { kind: "text", verbatim: true, blank: true, describe: "What you want to know, in plain words" },
@@ -450,7 +450,7 @@ function spineOf(note: Findable): string {
 }
 
 function firstLineOf(note: Findable): string {
-  const text = note.type === "decision" ? note.fields.text : note.type === "definition" ? note.fields.meaning : note.fields.description ?? "";
+  const text = note.type === "decision" ? note.fields.text : note.type === "definition" ? note.fields.meaning : note.type === "arc" ? note.fields.intent : note.type === "increment" ? note.fields.objective : note.fields.description ?? "";
   const line = text.split(/\r?\n/, 1)[0] ?? "";
   return line.length > 120 ? `${line.slice(0, 117)}...` : line;
 }

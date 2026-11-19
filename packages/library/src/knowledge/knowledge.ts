@@ -22,7 +22,7 @@ export interface Ranking {
   readonly vectors: VectorStore;
 }
 export const RANK_LIMIT = 10;
-export type PlanKind = "story" | "capability" | "contract";
+export type PlanKind = "story" | "capability" | "contract" | "arc" | "increment";
 export type Findable = Note | SchemaRecord<PlanKind>;
 export interface Ranked<T extends SchemaRecord = Note> {
   readonly by: "meaning" | "words";
@@ -38,7 +38,7 @@ export interface RankOptions {
   readonly history?: boolean;
   readonly kinds?: readonly (NoteType | PlanKind)[];
 }
-export type PhraseKind = NoteType | PlanKind | "arc" | "increment" | "question";
+export type PhraseKind = NoteType | PlanKind | "question";
 export interface PhraseOptions {
   readonly kinds?: readonly PhraseKind[];
   readonly fields?: readonly string[];
@@ -59,10 +59,10 @@ export type NoteEdit = {
 export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = Object.keys(ARTIFACT_KINDS) as KnowledgeKind[];
 
 const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
-const PLAN_KINDS: readonly PlanKind[] = ["story", "capability", "contract"];
+const PLAN_KINDS: readonly PlanKind[] = ["story", "capability", "contract", "arc", "increment"];
 const FINDABLE_KINDS: readonly (NoteType | PlanKind)[] = [...NOTE_TYPES, ...PLAN_KINDS];
 const HISTORY_KINDS: readonly string[] = ["resteer", "friction"];
-const PHRASE_KINDS: readonly PhraseKind[] = [...NOTE_TYPES, ...PLAN_KINDS, "arc", "increment", "question"];
+const PHRASE_KINDS: readonly PhraseKind[] = [...NOTE_TYPES, ...PLAN_KINDS, "question"];
 
 const REFERENCE_FIELDS: ReadonlySet<string> = new Set([
   "links",
@@ -282,9 +282,11 @@ export class Knowledge {
     const { kinds, history = false } = options;
     for (const kind of kinds ?? []) if (!FINDABLE_KINDS.includes(kind)) throw new RangeError(`unknown kind to search: ${kind}; one of ${FINDABLE_KINDS.join(", ")}`);
     const narrowedBy = new Map<string, NarrowingDecision[]>();
+    const closed = new Set<string>();
     const ranked = await this.#rankAmong(async () => {
-      const lists = await Promise.all([this.#notes(), ...PLAN_KINDS.map((type) => this.#records.list(type))]);
-      const all: Findable[] = lists.flat().sort(byCreation);
+      const [notes, questions, ...plan] = await Promise.all([this.#notes(), this.#records.list("question"), ...PLAN_KINDS.map((type) => this.#records.list(type))]);
+      const all: Findable[] = [...notes, ...plan.flat()].sort(byCreation);
+      for (const id of closedWork(all, questions)) closed.add(id);
       const accepted = all.filter((record): record is SchemaRecord<"decision"> => record.type === "decision" && record.fields.status === "accepted");
       const superseded = new Set(accepted.flatMap((decision) => decision.fields.supersedes ?? []));
       for (const decision of accepted) {
@@ -298,7 +300,7 @@ export class Knowledge {
         if (HISTORY_KINDS.includes(record.type)) return kinds !== undefined;
         return !superseded.has(record.id);
       });
-    }, query, options);
+    }, query, options, (record) => closed.has(record.id));
     return { ...ranked, hits: ranked.hits.map((hit) => (narrowedBy.has(hit.note.id) ? { ...hit, narrowedBy: narrowedBy.get(hit.note.id)! } : hit)) };
   }
 
@@ -319,7 +321,7 @@ export class Knowledge {
     return { records, ...(found.length > limit ? { next: records.at(-1)!.id } : {}) };
   }
 
-  async #rankAmong<T extends SchemaRecord>(read: () => Promise<T[]>, query: string, options: RankOptions): Promise<Ranked<T>> {
+  async #rankAmong<T extends SchemaRecord>(read: () => Promise<T[]>, query: string, options: RankOptions, isClosed: (record: T) => boolean = () => false): Promise<Ranked<T>> {
     const limit = options.limit ?? RANK_LIMIT;
     if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError(`limit is how many to give back, a whole number above 0; got ${limit}`);
     if (query.trim() === "") throw new RangeError("a ranked search needs words to rank by");
@@ -328,10 +330,11 @@ export class Knowledge {
       embedder = await this.#ranking.embedder();
     } catch (error) {
       const why = error instanceof Error ? error.message : String(error);
-      return { by: "words", why, hits: holdingEvery(await read(), query).slice(0, limit).map((note) => ({ note })) };
+      return { by: "words", why, hits: openFirst(holdingEvery(await read(), query), isClosed).slice(0, limit).map((note) => ({ note })) };
     }
     const notes = await read();
-    const ranked = liftByTitle(await rankByMeaning(notes.map((note) => ({ item: note, text: renderNote(note) })), query, embedder, this.#ranking.vectors), query);
+    const lifted = liftByTitle(await rankByMeaning(notes.map((note) => ({ item: note, text: renderNote(note) })), query, embedder, this.#ranking.vectors), query);
+    const ranked = openFirst(lifted, ({ item }) => isClosed(item));
     return { by: "meaning", hits: ranked.slice(0, limit).map(({ item, score }) => ({ note: item, score })) };
   }
 
@@ -408,6 +411,21 @@ export class Knowledge {
 
 function textsOf(note: SchemaRecord): string[] {
   return textsIn(note.fields);
+}
+
+function openFirst<T>(ranked: readonly T[], isClosed: (item: T) => boolean): T[] {
+  return [...ranked.filter((item) => !isClosed(item)), ...ranked.filter(isClosed)];
+}
+
+function closedWork(records: readonly Findable[], questions: readonly SchemaRecord<"question">[]): string[] {
+  const increments = records.filter((record): record is SchemaRecord<"increment"> => record.type === "increment");
+  const asking = new Set(questions.filter(({ fields }) => fields.lifecycle === "open").map(({ fields }) => fields.arc));
+  const closedArcs = records.filter(({ id, type }) => {
+    if (type !== "arc" || asking.has(id)) return false;
+    const own = increments.filter(({ fields }) => fields.arc === id);
+    return own.length > 0 && own.every(({ fields }) => fields.status === "closed");
+  });
+  return [...increments.filter(({ fields }) => fields.status === "closed"), ...closedArcs].map(({ id }) => id);
 }
 
 function liftByTitle<T extends SchemaRecord>(ranked: readonly { item: T; score: number }[], query: string): { item: T; score: number }[] {

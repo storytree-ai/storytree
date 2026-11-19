@@ -129,6 +129,22 @@ test("21.5 the health report names each link or supersession pointing at a recor
   });
 });
 
+test("21.5 the health report names a front cover naming a retired story or capability, with both ends, and no front cover of a live one", async () => {
+  await withLibrary(async (library) => {
+    const story = await library.addStory({ title: "Visitor can pay" });
+    const storyCover = await library.recordDecision({ title: "Take cards only", text: "Cards cover most visitors.", status: "accepted", frontCoverOf: story.id });
+    const { capability, cover } = await shelf(library);
+    assert.deepEqual(await brokenEdges(library), []);
+
+    await library.retire(story.id, "wrongly recorded");
+    await library.retire(capability.id, "wrongly recorded");
+    assert.deepEqual(await brokenEdges(library), [
+      { from: storyCover.id, field: "frontCoverOf", to: story.id },
+      { from: cover.id, field: "frontCoverOf", to: capability.id },
+    ]);
+  });
+});
+
 test("21.5 the health report names a check's enforces edge pointing at a principle no longer live", async () => {
   await withLibrary(async (library) => {
     const principle = await library.writeKnowledge("principle", {

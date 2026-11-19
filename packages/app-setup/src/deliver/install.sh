@@ -421,10 +421,10 @@ st_op_persist() { st_save_channel "$ST_HOME" "$ST_CHANNEL" || st_fail "the relea
 st_op_quit() {
   st_tools "$1"
   if [ "$ST_SYSTEM" = linux ]; then st_exe="$1/storytree-0.3"; else st_exe="$1/Contents/MacOS/storytree-0.3"; fi
-  pgrep -f "$st_exe" >/dev/null 2>&1 || return 0
+  pgrep -f "^$st_exe( |\$)" >/dev/null 2>&1 || return 0
   "$st_exe" --quit >/dev/null 2>&1
   st_waited=0
-  while pgrep -f "$st_exe" >/dev/null 2>&1; do
+  while pgrep -f "^$st_exe( |\$)" >/dev/null 2>&1; do
     [ "$st_waited" -lt 90 ] || { st_fail 'the open storytree app did not quit. Quit it from its menu, then retry'; return; }
     sleep 1; st_waited=$((st_waited + 1))
   done

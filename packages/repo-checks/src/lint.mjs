@@ -4,12 +4,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { allocationProblems } from "./allocation.mjs";
 import { eslintProblems } from "./eslint.mjs";
 import { boundaryProblems } from "./package-boundaries.mjs";
+import { processMatchProblems } from "./process-match.mjs";
 import { typeImportProblems } from "./type-imports.mjs";
 
 export const RULES = [
   { name: "type-imports", problems: typeImportProblems },
   { name: "package-boundaries", problems: boundaryProblems },
   { name: "allocation", problems: allocationProblems },
+  { name: "process-match", problems: processMatchProblems },
   { name: "eslint", problems: eslintProblems },
 ];
 

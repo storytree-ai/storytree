@@ -95,7 +95,7 @@ step gatekeeper-log sh -c "log show --last 10m --style compact --predicate 'proc
 step xattr-after-open xattr -p com.apple.quarantine "$DOWNLOAD"
 shot first-open
 step quit-download limit 60 osascript -e 'quit app "storytree-0.3"'
-for _ in $(seq 1 30); do pgrep -f 'storytree-0.3.app/Contents/MacOS/storytree-0.3$' > /dev/null || break; sleep 2; done
+for _ in $(seq 1 30); do pgrep -f '^/[^ ]*/storytree-0\.3\.app/Contents/MacOS/storytree-0\.3$' > /dev/null || break; sleep 2; done
 step remove-download sh -c "rm -rf '$DOWNLOAD' '$HOME/Downloads/$ZIP'; pgrep -fl storytree; true"
 
 # The one-liner's install, opened as its user would, then left to update itself.

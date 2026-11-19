@@ -1,4 +1,5 @@
 // Capability 8 · Storytree's own test and gate entries.
+import anchoredProcessMatch from "./anchored-process-match.mjs";
 import gitEndOfOptions from "./git-end-of-options.mjs";
 import noComments from "./no-comments.mjs";
 import noHappyDomEqual from "./no-happy-dom-equal.mjs";
@@ -29,5 +30,6 @@ export default {
     "no-unguarded-batch-fetch": noUnguardedBatchFetch,
     "write-names-place": writeNamesPlace,
     "remote-cache-domain": remoteCacheDomain,
+    "anchored-process-match": anchoredProcessMatch,
   },
 };

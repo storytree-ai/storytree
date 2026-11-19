@@ -1,7 +1,7 @@
 // Capability 8 · Storytree's own test and gate entries.
 import path from "node:path";
 
-import { literal, unchained } from "./nodes.mjs";
+import { children, literal, unchained } from "./nodes.mjs";
 
 const COMMANDS = new Set(["ps", "lsof", "pgrep", "pkill"]);
 const SHELL_CALLS = new Set(["exec", "execSync"]);
@@ -21,17 +21,6 @@ function commandOf(call) {
   if (!SHELL_CALLS.has(name)) return undefined;
   const first = text.trimStart().split(/\s/)[0];
   return COMMANDS.has(first) ? first : undefined;
-}
-
-function children(node) {
-  const out = [];
-  for (const [key, value] of Object.entries(node)) {
-    if (key === "parent" || value === null || typeof value !== "object") continue;
-    for (const child of Array.isArray(value) ? value : [value]) {
-      if (child !== null && typeof child === "object" && typeof child.type === "string") out.push(child);
-    }
-  }
-  return out;
 }
 
 function readsPlatform(test) {

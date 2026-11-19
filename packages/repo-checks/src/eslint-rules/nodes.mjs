@@ -1,6 +1,17 @@
 // Capability 8 · Storytree's own test and gate entries.
 export const unchained = (node) => node?.type === "ChainExpression" ? node.expression : node;
 
+export function children(node) {
+  const out = [];
+  for (const [key, value] of Object.entries(node)) {
+    if (key === "parent" || value === null || typeof value !== "object") continue;
+    for (const child of Array.isArray(value) ? value : [value]) {
+      if (child !== null && typeof child === "object" && typeof child.type === "string") out.push(child);
+    }
+  }
+  return out;
+}
+
 export function literal(node) {
   if (node?.type === "Literal" && typeof node.value === "string") return node.value;
   if (node?.type === "TemplateLiteral" && node.expressions.length === 0) return node.quasis[0].value.cooked;

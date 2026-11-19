@@ -281,7 +281,7 @@ function runsPage(pkg, sources) {
   const importsLauncher = (source) =>
     [...source.runs.matchAll(NAMED_IMPORT)].some(([, names, relative]) => {
       const launchers = LAUNCHERS[`${bare(path.posix.join(path.posix.dirname(source.at), relative))}.ts`] ?? [];
-      return names.split(",").some((name) => launchers.includes(name.trim().split(/\s+as\s+/)[0]));
+      return names.split(",").some((name) => launchers.includes(name.trim().split(/(?<!\s)\s+as\s+/)[0]));
     });
   const launches = (source, seen = new Set()) => {
     if (seen.has(source)) return false;

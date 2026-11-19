@@ -214,7 +214,7 @@ const withoutConnectors = (text: string): string => text.split(/(?<=\n)/).filter
 const CAPTURE_REDACTIONS: readonly [string, RegExp, string][] = [
   ["a connector in a status line", /,?\bclaude\.ai [^=,\n"]+=[a-z]+/g, ""],
   ["a session id", /"session_id"\s*:\s*"[^"]*",?/g, ""],
-  ["a synced plugin path", /[^\s"']*plugins(?:\\{1,2}|\/)synced(?:\\{1,2}|\/)[^\s"']*/gi, "<synced-plugin>"],
+  ["a synced plugin path", /(?<![^\s"'])[^\s"']*plugins(?:\\{1,2}|\/)synced(?:\\{1,2}|\/)[^\s"']*/gi, "<synced-plugin>"],
   ["a claude.ai link", /https?:\/\/(?:www\.)?claude\.ai\b[^\s"'<>)\]]*/gi, "<claude-link>"],
 ];
 

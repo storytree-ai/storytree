@@ -199,7 +199,7 @@ export function suggestedName(folder: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+/, "")
     .slice(0, 40)
-    .replace(/-+$/, "");
+    .replace(/(?<!-)-+$/, "");
   return name === "" ? "my-project" : name;
 }
 
@@ -210,7 +210,7 @@ export function notAProjectYet(folder: string, name: string = suggestedName(fold
 export function unusedName(name: string, taken: readonly string[]): string {
   for (let n = 1; ; n++) {
     const suffix = n === 1 ? "" : `-${n}`;
-    const candidate = `${name.slice(0, 40 - suffix.length).replace(/-+$/, "")}${suffix}`;
+    const candidate = `${name.slice(0, 40 - suffix.length).replace(/(?<!-)-+$/, "")}${suffix}`;
     if (!taken.includes(candidate)) return candidate;
   }
 }

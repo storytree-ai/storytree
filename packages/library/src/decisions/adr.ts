@@ -45,7 +45,7 @@ function fileOf(view: DecisionView): string {
     lines.push(`composed: ${JSON.stringify(view.composed.statement)}`);
     if (view.composed.stale) lines.push(`composed-reads: "stale: the text has changed since it was composed"`);
   }
-  lines.push("---", "", `# ${fields.title}`, "", fields.text.replace(/\s+$/, ""), "");
+  lines.push("---", "", `# ${fields.title}`, "", fields.text.trimEnd(), "");
   return lines.join("\n");
 }
 
@@ -69,7 +69,7 @@ function parseFile(text: string, file: string): { title: string; text: string; f
   const body = lines.slice(close + 1);
   const heading = body.findIndex((line) => line.startsWith("# "));
   if (heading === -1) throw new VerbRefusal(`${file} has no "# <title>" line`);
-  const rest = body.slice(heading + 1).join("\n").replace(/^\n/, "").replace(/\s+$/, "");
+  const rest = body.slice(heading + 1).join("\n").replace(/^\n/, "").trimEnd();
   return { title: body[heading]!.slice(2).trim(), text: rest, fields };
 }
 
@@ -171,7 +171,7 @@ const push = verb({
     const stored = record.fields as Record<string, unknown>;
     const changes: Record<string, unknown> = {};
     if (pushed.title !== stored.title) changes.title = pushed.title;
-    if (pushed.text !== String(stored.text).replace(/\s+$/, "")) changes.text = pushed.text;
+    if (pushed.text !== String(stored.text).trimEnd()) changes.text = pushed.text;
     for (const key of EDITABLE) {
       if (JSON.stringify(pushed.fields[key]) !== JSON.stringify(stored[key])) changes[key] = pushed.fields[key];
     }

@@ -23,7 +23,7 @@ export function desktopCodex(options: Pick<CodexOptions, "codexHome" | "localApp
   const applications = options.applications ?? macApplications();
   const found: string[] = [];
   try {
-    const named = /^\s*CODEX_CLI_PATH\s*=\s*("(?:[^"\\]|\\.)*"|'[^']*')/m.exec(readFileSync(path.join(codexHome, "config.toml"), "utf8"))?.[1];
+    const named = /^[^\S\n\r\u2028\u2029]*CODEX_CLI_PATH\s*=\s*("(?:[^"\\]|\\.)*"|'[^']*')/m.exec(readFileSync(path.join(codexHome, "config.toml"), "utf8"))?.[1];
     if (named !== undefined) found.push(named.startsWith("'") ? named.slice(1, -1) : (JSON.parse(named) as string));
   } catch {}
   if (localAppData !== undefined) {
@@ -61,7 +61,7 @@ export function installedCodexVersion(options: CodexOptions = {}): string | unde
     : spawnSync(command, ["--version"], { env, timeout: waitMs, encoding: "utf8", windowsHide: true });
   for (const [command, shell] of [["codex", process.platform === "win32"] as const, ...desktopCodex(options).map((file) => [file, false] as const)]) {
     const answer = asked(command, shell);
-    const version = answer.status === 0 ? /\d+\.\d+\.\d+/.exec(answer.stdout)?.[0] : undefined;
+    const version = answer.status === 0 ? /(?<!\d)\d+\.\d+\.\d+/.exec(answer.stdout)?.[0] : undefined;
     if (version !== undefined) return version;
   }
   return undefined;

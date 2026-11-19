@@ -24,7 +24,7 @@ function answerOf(answer: VerbAnswer): Answer {
   if (next.length === 0) return { text: answer.text, ...(answer.data === undefined ? {} : { data: answer.data }) };
   const width = Math.max(...next.map(({ step }) => step.length));
   const lines = next.map(({ step, why }) => `  - ${step.padEnd(width)}   (${why})`);
-  return { text: `${answer.text.replace(/\s+$/, "")}\n\nnext:\n${lines.join("\n")}`, data: { ...answer.data, next } };
+  return { text: `${answer.text.trimEnd()}\n\nnext:\n${lines.join("\n")}`, data: { ...answer.data, next } };
 }
 
 function schemaOf(input: VerbInput): z.ZodType {

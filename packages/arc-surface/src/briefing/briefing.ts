@@ -98,7 +98,7 @@ const waitText = (wait: NamedWait) => `${because(workText(wait), wait.reason)}${
 const noteText = (wait: NoteWait) => !wait.holds ? `check-back passed ${wait.checkBack}: ${wait.note}`
   : wait.releaser === "owner" ? `waits for you: ${wait.note}` : `waits for an event: ${wait.note} (check back ${wait.checkBack})`;
 const agentText = (agent: BoardAgent) => `${agent.label} · ${agent.quietMinutes === 0 ? "active now" : `idle ${agent.quietMinutes} min`}`;
-const prNumber = (pr: string) => `#${/(\d+)\D*$/u.exec(pr)?.[1] ?? pr}`;
+const prNumber = (pr: string) => `#${/(?<!\d)(\d+)\D*$/u.exec(pr)?.[1] ?? pr}`;
 const prOf = (cutover: PrCutover | undefined, { pr, date }: { pr: string; date: string }) =>
   beforeCutover(cutover, date) ? pullSaid(cutover, pr, date) : prNumber(pr);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;

@@ -47,7 +47,7 @@ const CONCRETE_EVIDENCE: readonly RegExp[] = [
   /#\d+/,
   /\b[0-9a-f]{7,40}\b/,
   /\b(Error|Exception|Traceback|TS\d{2,}|ERR_[A-Z][A-Z_]+|exit code|non-zero|refused|assert(?:ion)?|FAIL(?:ED)?|throws?)\b/,
-  /["'“][^"'”]{3,}["'”]/,
+  /["'][^"'”]{3,}["'”]|(?:^|["'”])[^"'”“]*“[^"'”]{3,}["'”]/,
   /\b(pnpm|npm|npx|node|git|storytree|tsx|gh|python|pip|cargo|go)\s+[\w-]/,
 ];
 
@@ -55,7 +55,7 @@ export function hasConcreteEvidence(text: string): boolean {
   return CONCRETE_EVIDENCE.some((pattern) => pattern.test(text));
 }
 
-const QUOTED = /["“][^"”]{3,}["”]/;
+const QUOTED = /"[^"”]{3,}["”]|(?:^|["”])[^"”“]*“[^"”]{3,}["”]/;
 
 export async function recordFriction(library: Library, friction: NewFriction, options?: WriteOptions): Promise<SchemaRecord<"friction">> {
   requireConcreteEvidence(friction.evidence);

@@ -401,7 +401,7 @@
 
   const panel = document.getElementById('panel');
   const esc2 = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
-  const contractList = (ks) => `<ol class="contracts">${ks.map((k) => { const m = /^([\d.]+)\s*·\s*(.*)$/s.exec(k.title); return `<li><b>${esc2(m ? m[1] : '')}</b> ${esc2(m ? m[2] : k.title)}</li>`; }).join('')}</ol>`;
+  const contractList = (ks) => `<ol class="contracts">${ks.map((k) => { const m = /^([\d.]+)\s*·(.*)$/s.exec(k.title); return `<li><b>${esc2(m ? m[1] : '')}</b> ${esc2(m ? m[2].trimStart() : k.title)}</li>`; }).join('')}</ol>`;
   const linkRow = (l) => `<li><a href="#" data-link="${l.n}">${esc2(nameFrom(l))} → ${esc2(nameTo(l))}</a></li>`;
   const clear = () => { lit.replaceChildren(); document.querySelectorAll('.on').forEach((e) => e.classList.remove('on')); };
   const light = (ls) => {

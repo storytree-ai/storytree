@@ -177,5 +177,6 @@ test("9.1 · the dispatcher's loops running inside a checkout are found by their
   await at("78", join(checkout, "packages"), "node voice-commit.ts");
   await at("79", root, "bash /home/u/lanes/launch-pool.sh run");
   await at("80", checkout);
+  await at("81", checkout, "bash -c ps -eo args | grep launch-pool.sh run; node pause.mjs resume");
   assert.deepEqual(loopsInside(checkout, proc), ["77"]);
 });

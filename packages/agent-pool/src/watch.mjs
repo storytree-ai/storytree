@@ -641,12 +641,21 @@ export async function watchOnce({ dir, look, stateOf, storytree, cutover = async
       continue;
     }
     if (record.unreadable) {
+      let cleared = true;
       if (record.unreadable.waited) {
-        await tell(["arc", "increment", "unwait", increment, "--for", "owner", "--reason", `the watcher reads PR #${pr} on ${repoOf(record)} again`], at);
-        dated(`PR #${pr}: readable again: ${increment} no longer waits on the owner`);
+        const args = ["arc", "increment", "unwait", increment, "--for", "owner", "--reason", `the watcher reads PR #${pr} on ${repoOf(record)} again`];
+        try {
+          await storytree(args, at);
+          dated(`PR #${pr}: readable again: ${increment} no longer waits on the owner`);
+        } catch (refused) {
+          cleared = false;
+          dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${refused.message.split("\n")[0]}; trying again next time`);
+        }
       }
-      delete record.unreadable;
-      await save(dir, record);
+      if (cleared) {
+        delete record.unreadable;
+        await save(dir, record);
+      }
     }
     const fresh = (pull.queueReds ?? []).filter((red) => !(record.queueReds ?? []).some((kept) => kept.at === red.at));
     if (fresh.length) {

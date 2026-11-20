@@ -1948,9 +1948,12 @@ test("4.64 · an owner wait or its clearing that storytree refuses on an unreada
   b.options.look = async () => { if (!reading) throw new Error("HTTP 502: Bad Gateway"); return { state: "pending", head: "h1" }; };
 
   await lookAfter(0);
+  const saysRefused = (from, verb) => b.lines.slice(from).filter((line) => verb.test(line) && line.includes("refused") && line.includes("the library is unreachable") && /again/.test(line));
   refuse.add("wait");
+  let from = b.lines.length;
   await lookAfter(60 * 60_000);
   assert.equal(owner("wait").length, 1, "the wait is tried once the hour is up, and refused");
+  assert.equal(saysRefused(from, /\bwait\b/).length, 1, b.lines.slice(from).join("\n"));
   await lookAfter(60_000);
   assert.equal(owner("wait").length, 2, "the refused wait is tried again at the next look");
   await lookAfter(60_000);
@@ -1958,8 +1961,10 @@ test("4.64 · an owner wait or its clearing that storytree refuses on an unreada
 
   reading = true;
   refuse.add("unwait");
+  from = b.lines.length;
   await lookAfter(60_000);
   assert.equal(owner("unwait").length, 1, "the clearing is tried at the first good read, and refused");
+  assert.equal(saysRefused(from, /\bunwait\b/).length, 1, b.lines.slice(from).join("\n"));
   await lookAfter(60_000);
   assert.equal(owner("unwait").length, 2, "the refused clearing is tried again at the next good read");
   await lookAfter(60_000);

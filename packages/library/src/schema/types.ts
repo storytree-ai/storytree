@@ -46,6 +46,14 @@ const repositoryName = z.string().regex(/^[\w.-]+\/[\w.-]+$/, "a repository is w
 
 const ids = z.array(z.string());
 
+const justification = z
+  .string()
+  .refine((text) => text.trim() !== "", "a justification is not blank")
+  .refine((text) => text.split("\n").length <= 2, "a justification is at most two lines")
+  .refine((text) => text.split("\n").every((line) => line.length <= 200), "each line of a justification is at most 200 characters");
+
+const clause = z.string().regex(/^D\d+$/, "a clause is named D<n>");
+
 const waits = z.array(z.object({ on: z.string(), reason: nonEmpty }).strict()).optional();
 
 export const DRILL_LAYERS = ["test-writer", "builder", "lint", "tests", "mutation", "test-reviewer", "code-reviewer", "ci-linux", "ci-windows"] as const;
@@ -270,9 +278,25 @@ export const RECORD_SCHEMAS = {
       number: z.number().int().positive().optional(),
       supersedes: ids.optional(),
       supersedesClauses: z
-        .array(z.object({ decision: z.string(), clauses: z.array(z.string().regex(/^D\d+$/, "a clause is named D<n>")).min(1).optional() }).strict())
+        .array(z.object({ decision: z.string(), clauses: z.array(clause).min(1).optional() }).strict())
         .optional(),
       narrows: ids.optional(),
+      justifications: z.record(z.string(), justification).optional(),
+      archivedLinks: z
+        .array(
+          z
+            .object({
+              to: z.string(),
+              field: z.enum(["links", "supersedes", "supersedesClauses"]),
+              clauses: z.array(clause).min(1).optional(),
+              justification: justification.optional(),
+              reason: nonEmpty,
+              by: nonEmpty,
+              at: nonEmpty,
+            })
+            .strict(),
+        )
+        .optional(),
       loadBearing: z.boolean().optional(),
       decided: nonEmpty.optional(),
       authority: z

@@ -3,7 +3,7 @@ import type { KnowledgeKind, Library, NewLine, Note, NoteEdit, PhraseKind, Schem
 import { isPluginKind } from "../schema/index.js";
 import { ARTIFACT_KINDS, KNOWLEDGE_KINDS, WRITTEN_KINDS } from "../knowledge/index.js";
 import { verb, VerbRefusal, type VerbAnswer, type VerbContext, type Verb, type VerbInputs } from "../verbs/verb.js";
-import { everyHolding, holdingLines, wholeRecord, type HeldClaim } from "./index.js";
+import { everyHolding, holdingLines, justificationSaid, wholeRecord, type HeldClaim } from "./index.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
 import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
@@ -145,6 +145,7 @@ const writeNote = verb({
     term: { kind: "text", optional: true, verbatim: true, blank: true, describe: "A definition's term" },
     meaning: { kind: "text", optional: true, verbatim: true, blank: true, describe: "A definition's meaning" },
     links: { kind: "text", many: true, optional: true, describe: "The ids of artifacts this one links to" },
+    justifications: { kind: "fields", json: true, describe: "A decision only: each decision it links to, by id, to why: at most two lines, why an agent would follow it and why it was linked" },
     front_cover_of: { kind: "text", optional: true, describe: "A decision only: the story or capability it is a front cover of" },
   },
   async act(input, context: NoteToolContext) {
@@ -211,9 +212,10 @@ async function openRecord(id: string, context: NoteToolContext): Promise<VerbAns
     ...[...linksTo, ...linkedFrom].map((shown) => ({ note: shown.id, found: "link" as const, read: "peek" as const })),
   ]);
   const out = [wholeOf(note)];
-  if (linksTo.length > 0) out.push("It links to:", ...linksTo.map(spineLine));
+  const justified = (target: Findable): string => (note.type === "decision" ? justificationSaid(note.fields, target.id, " — ") : "");
+  if (linksTo.length > 0) out.push("It links to:", ...linksTo.map((target) => `${spineLine(target)}${justified(target)}`));
   if (linkedFrom.length > 0) out.push("Linked from:", ...linkedFrom.map(spineLine));
-  return { text: out.join("\n"), data: { note: { id, kind: note.type, ...note.fields }, linksTo: linksTo.map(spineData), linkedFrom: linkedFrom.map(spineData) } };
+  return { text: out.join("\n"), data: { note: { id, kind: note.type, ...note.fields }, linksTo: linksTo.map((target) => ({ ...spineData(target), ...(justified(target) === "" ? {} : { justification: (note.fields as { justifications: Record<string, string> }).justifications[target.id] }) })), linkedFrom: linkedFrom.map(spineData) } };
 }
 
 async function openField(id: string, field: string, context: NoteToolContext): Promise<VerbAnswer> {
@@ -316,6 +318,7 @@ interface NoteArgs {
   readonly term?: string | undefined;
   readonly meaning?: string | undefined;
   readonly links: readonly string[];
+  readonly justifications?: Readonly<Record<string, unknown>> | undefined;
   readonly front_cover_of?: string | undefined;
 }
 
@@ -338,6 +341,7 @@ async function writeArtifact(args: NoteArgs, context: NoteToolContext): Promise<
   const extra = given.filter((field) => !needs.includes(field));
   if (missing.length > 0 || extra.length > 0) throw new VerbRefusal(`A ${args.kind} is written with ${needs.join(" and ")}${extra.length > 0 ? `, not ${extra.join(" or ")}` : ""}.`);
   if (args.front_cover_of !== undefined && args.kind !== "decision") throw new VerbRefusal("Only a decision can be a front cover.");
+  if (args.kind !== "decision" && Object.keys(args.justifications ?? {}).length > 0) throw new VerbRefusal("Only a decision carries justifications, of the decisions it links to.");
 
   for (const id of links ?? []) {
     const part = await context.library.get(id);
@@ -388,7 +392,7 @@ async function writeArtifact(args: NoteArgs, context: NoteToolContext): Promise<
 function write(library: Library, args: NoteArgs, fields: NoteArgs["fields"] | undefined, place: { links?: string[]; frontCoverOf?: string }, writer: WriteOptions): Promise<Note> {
   switch (args.kind) {
     case "decision":
-      return library.recordDecision({ status: "accepted", title: args.title!, text: args.text!, ...place }, writer);
+      return library.recordDecision({ status: "accepted", title: args.title!, text: args.text!, ...place, ...(Object.keys(args.justifications ?? {}).length === 0 ? {} : { justifications: args.justifications as Record<string, string> }) }, writer);
     case "definition":
       return library.defineTerm({ term: args.term!, meaning: args.meaning!, ...(place.links === undefined ? {} : { links: place.links }) }, writer);
     default:

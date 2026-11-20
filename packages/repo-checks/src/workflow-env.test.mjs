@@ -96,6 +96,27 @@ test(`8.30 · workflowEnvProblems refuses the shape of ${ESCAPE}: website.yml's 
   assertNames(problems[0], { workflow: "website.yml", job: "build", at: BUILD_AT, variable: "WEBSITE_SHA" });
 });
 
+test(`8.30 · workflowEnvProblems refuses ${ESCAPE}'s own instance: inside buildWebsite(output, options), const commit is bound from "commit" in options ? options.commit : process.env.WEBSITE_SHA and falls back with commit || "unpublished local build"; with only the publish job setting WEBSITE_SHA, exactly one problem names website.yml, job build, packages/website/src/build.ts:8 and WEBSITE_SHA`, async (t) => {
+  const instance = [
+    `import path from "node:path";`,
+    ``,
+    `export async function buildWebsite(output = path.join("dist"), options: { commit?: string | undefined; preview?: boolean; base?: string } = {}) {`,
+    `  const commit = "commit" in options ? options.commit : process.env.WEBSITE_SHA;`,
+    `  const preview = options.preview ?? process.env.WEBSITE_PREVIEW === "1";`,
+    `  const base = options.base ?? "/";`,
+    `  if (commit && !/^[a-f0-9]{40}$/.test(commit)) throw new Error("The website's commit must be a full Git commit hash.");`,
+    `  const version = commit || "unpublished local build";`,
+    `  return { output, preview, base, version };`,
+    `}`,
+    ``,
+    `await buildWebsite();`,
+    ``,
+  ].join("\n");
+  const problems = await problemsOf(t, { ...WEBSITE_FILES, "packages/website/src/build.ts": instance, ".github/workflows/website.yml": websiteYml() });
+  assert.equal(problems.length, 1, problems.join("\n"));
+  assertNames(problems[0], { workflow: "website.yml", job: "build", at: "packages/website/src/build.ts:8", variable: "WEBSITE_SHA" });
+});
+
 test(`8.30 · workflowEnvProblems refuses a job running node <file> or pnpm run <script> from the root package.json, whose script reads process.env.X ?? or process.env.Y || directly, when another job sets X and Y and this one does not: one problem per job and variable, at the read's line (${ESCAPE})`, async (t) => {
   const stamp = [
     `import { writeFileSync } from "node:fs";`,

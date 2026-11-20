@@ -30,6 +30,7 @@ export const runnerStart = (runner, args) => ["--import", import.meta.resolve("t
 export const RESTART = 3;
 const HELD_DAYS = 3;
 const HELD_MS = HELD_DAYS * 86_400_000;
+const UNREADABLE_MS = 60 * 60_000;
 const ENQUEUE_TRIES = 3;
 
 export function readPull(pull, { since, now, graceMs, home = HOME }) {
@@ -622,7 +623,28 @@ export async function watchOnce({ dir, look, stateOf, storytree, cutover = async
     }
     let pull;
     try { pull = await look(pr, record); }
-    catch (error) { dated(`PR #${pr}: could not read it (${error.message.split("\n")[0]}); looking again next time`); continue; }
+    catch (error) {
+      const why = error.message.split("\n")[0];
+      dated(`PR #${pr}: could not read it (${why}); looking again next time`);
+      record.unreadable = { since: record.unreadable?.since ?? new Date(now()).toISOString(), why, ...(record.unreadable?.waited ? { waited: true } : {}) };
+      if (!record.closed && !record.unreadable.waited && now() - Date.parse(record.unreadable.since) >= UNREADABLE_MS) {
+        await tell(["arc", "increment", "wait", increment, "--for", "owner",
+          "--note", `The watcher could not read PR #${pr} on ${repoOf(record)} for an hour (${why}). Give the box's gh read access to ${repoOf(record)}, or close ${increment} by hand if its pull request merged.`,
+          "--why", `until the watcher can read PR #${pr}, ${increment} stays held from the pool`], at);
+        record.unreadable.waited = true;
+        dated(`PR #${pr}: unreadable for an hour: ${increment} waits on the owner`);
+      }
+      await save(dir, record);
+      continue;
+    }
+    if (record.unreadable) {
+      if (record.unreadable.waited) {
+        await tell(["arc", "increment", "unwait", increment, "--for", "owner", "--reason", `the watcher reads PR #${pr} on ${repoOf(record)} again`], at);
+        dated(`PR #${pr}: readable again: ${increment} no longer waits on the owner`);
+      }
+      delete record.unreadable;
+      await save(dir, record);
+    }
     const fresh = (pull.queueReds ?? []).filter((red) => !(record.queueReds ?? []).some((kept) => kept.at === red.at));
     if (fresh.length) {
       record.queueReds = [...(record.queueReds ?? []), ...fresh];
@@ -845,7 +867,7 @@ export async function ownerOf({ increment, projects, home, has, repoOf }) {
 export const homeOf = ({ env, home }) => env.STORYTREE_HOME || join(home, ".storytree", "0.3");
 
 export const libraryOf = (record) => (record.project?.repo ? record.project : undefined);
-const repoOf = (record) => record.project?.repo ?? HOME;
+export const repoOf = (record) => record.project?.repo ?? HOME;
 
 export function freeOf(env) {
   const free = { ...env };

@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 
 import { poolConfig, readCap } from "./pool-config.mjs";
 import { countEngines } from "./queue.mjs";
-import { HOME, readPull } from "./watch.mjs";
+import { readPull, repoOf } from "./watch.mjs";
 
 const run = promisify(execFile);
 const DISPATCHER = /launch\.mjs pool( |$)/;
@@ -124,11 +124,12 @@ export async function poolHealth(b) {
   if (handed.length && !(await alive(join(L, "watch", "watch.pid"), WATCHER))) concerns.push(`watcher not running while it holds ${plural(handed.length, "hand-off")}`);
   for (const record of handed) {
     const name = `PR #${record.pr} ${record.increment}`;
+    const repo = repoOf(record);
     let raw;
-    try { raw = await b.pull(record.pr); }
+    try { raw = await b.pull(record.pr, repo); }
     catch (error) { concerns.push(`${name}: could not read it on GitHub (${String(error.message).split("\n")[0]})`); continue; }
-    const pull = readPull(raw, { since: record.fixes?.at(-1)?.at ?? record.handedAt, now, graceMs: 10 * 60_000 });
-    if (pull.state === "foreign") { concerns.push(`${name}: its head is not on ${HOME}, or GitHub did not say where it is`); continue; }
+    const pull = readPull(raw, { since: record.fixes?.at(-1)?.at ?? record.handedAt, now, graceMs: 10 * 60_000, home: repo });
+    if (pull.state === "foreign") { concerns.push(`${name}: its head is not on ${repo}, or GitHub did not say where it is`); continue; }
     if (stalledGreen(raw)) concerns.push(`${name} stalled green: open, ready, clean and its verify passed, but not in the merge queue`);
     const fixes = record.fixes?.length ?? 0;
     details.push(`hand-off ${name}: handed ${ago(now - Date.parse(record.handedAt))} ago, ${pull.state}${pull.why ? ` (${pull.why})` : ""}, `
@@ -156,7 +157,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
     maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     serviceOn: async () => (await import("@storytree/project-and-caller")).readServicesOn().includes("agent-pool/dispatcher"),
-    pull: async (pr) => JSON.parse((await run("gh", ["api", "graphql", "-f", "owner=storytree-ai", "-f", "name=storytree", "-F", `pr=${pr}`, "-f", `query=${QUERY}`],
+    pull: async (pr, repo) => JSON.parse((await run("gh", ["api", "graphql", "-f", `owner=${repo.split("/")[0]}`, "-f", `name=${repo.split("/")[1]}`, "-F", `pr=${pr}`, "-f", `query=${QUERY}`],
       { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout).data.repository.pullRequest,
   };
 }

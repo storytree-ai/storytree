@@ -274,3 +274,31 @@ async function libraryClockPast(at: Date): Promise<void> {
     `the library's clock to pass ${at.toISOString()}`,
   );
 }
+
+test("26.11 · the link tool takes why, the supersede tool justifications and the annotate tool why, each stored as the justification of the decision edge it writes; the link tool joining two decisions with no why is refused naming justification and the target, and a definition rests on a decision with none", async () => {
+  await withLibrary(async (library) => {
+    const decide = (title: string) => library.recordDecision({ status: "accepted", title, text: `${title}.` });
+    const queue = await decide("Mail by queue");
+    const log = await decide("Mail is logged");
+    const hand = await decide("Mail by hand");
+    const retries = await decide("Retries are twice");
+    const term = await library.defineTerm({ term: "Retry", meaning: "Sending again." });
+    const call: ToolCall = { library, project: library.name, folder: ".", caller: { session: "curator" }, writer: { actor: "curator" }, log: { lines: async () => [] } };
+    const acts = new Map<string, (args: unknown) => Promise<ToolAnswer>>();
+    librarianTools().registerTools!((name, _description, input, act) => void acts.set(name, (args) => act(input.parse(args), call)));
+    const justified = async (id: string): Promise<Record<string, string> | undefined> => ((await library.get(id))?.fields as { justifications?: Record<string, string> } | undefined)?.justifications;
+
+    const { cursor } = await library.changesSince(0);
+    await assert.rejects(acts.get("link")!({ from: retries.id, to: queue.id }), (error: Error) => error.message.includes("justification") && error.message.includes(queue.id));
+    assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
+    await acts.get("link")!({ from: retries.id, to: queue.id, why: "Follow it for where a retry waits." });
+    await acts.get("link")!({ from: term.id, to: queue.id });
+    assert.deepEqual(((await library.get(term.id))?.fields as { links?: string[] }).links, [queue.id], "a definition's link to its decision needs no why");
+
+    const answer = await acts.get("supersede")!({ olds: [hand.id], successor: { title: "Mail by machine", text: "By machine." }, justifications: { [hand.id]: "Machines replace sending by hand." } });
+    assert.deepEqual(await justified(answer.data!.id as string), { [hand.id]: "Machines replace sending by hand." });
+
+    await acts.get("annotate")!({ target: log.id, by: retries.id, note: "Retries are logged once.", date: "2026-11-20", clauses: ["D1"], why: "Retries narrow what is logged." });
+    assert.deepEqual(await justified(retries.id), { [queue.id]: "Follow it for where a retry waits.", [log.id]: "Retries narrow what is logged." });
+  });
+});

@@ -316,7 +316,7 @@ for (const backend of [memory, postgres]) {
     const old = await knowledge.recordDecision({ ...DECIDE, frontCoverOf: story.id });
     assert.equal((await knowledge.decision(old.id))?.status, "accepted");
 
-    const proposal = await knowledge.recordDecision({ ...DECIDE, title: "Send through SES", status: "proposed", supersedes: [old.id] });
+    const proposal = await knowledge.recordDecision({ ...DECIDE, title: "Send through SES", status: "proposed", supersedes: [old.id], justifications: { [old.id]: "SES replaces Mailgun." } });
     assert.equal((await knowledge.decision(old.id))?.status, "accepted", "a proposal supersedes nothing yet");
     assert.deepEqual((await knowledge.frontCovers(story.id)).map(({ id }) => id), [old.id]);
 
@@ -330,16 +330,16 @@ for (const backend of [memory, postgres]) {
 
     const history = await transactions.history();
     await assert.rejects(
-      knowledge.editNote(old.id, { supersedes: [proposal.id] }),
+      knowledge.editNote(old.id, { supersedes: [proposal.id], justifications: { [proposal.id]: "A loop, refused." } }),
       (error: unknown) => error instanceof SupersessionLoopError && error.message.includes(`${old.id} → ${proposal.id} → ${old.id}`),
     );
-    await assert.rejects(knowledge.editNote(old.id, { supersedes: [old.id] }), SupersessionLoopError);
+    await assert.rejects(knowledge.editNote(old.id, { supersedes: [old.id], justifications: { [old.id]: "A loop, refused." } }), SupersessionLoopError);
     assert.deepEqual(await transactions.history(), history, "nothing was written");
   });
 
   contract("13.9", "decisions() gives every live decision's view in one reading, oldest first, as decision(id) does", async ({ knowledge }) => {
     const old = await knowledge.recordDecision(DECIDE);
-    const next = await knowledge.recordDecision({ ...DECIDE, title: "Send through SES", supersedes: [old.id] });
+    const next = await knowledge.recordDecision({ ...DECIDE, title: "Send through SES", supersedes: [old.id], justifications: { [old.id]: "SES replaces Mailgun." } });
     const open = await knowledge.recordDecision({ ...DECIDE, title: "Queue the mail", status: "proposed" });
     await knowledge.composeStatement(open.id, "Mail waits in a queue.");
     const views = await knowledge.decisions();
@@ -428,7 +428,7 @@ for (const backend of [memory, postgres]) {
     const scoped = await knowledge.recordDecision(DECIDE);
     const partly = await knowledge.recordDecision({ ...DECIDE, title: "Mail from a queue" });
     const term = await knowledge.defineTerm({ term: "Mail", meaning: "Email." });
-    const by = await knowledge.recordDecision({ ...DECIDE, title: "Receipts through SES", supersedesClauses: [{ decision: scoped.id, clauses: ["D2", "D3"] }, { decision: partly.id }] });
+    const by = await knowledge.recordDecision({ ...DECIDE, title: "Receipts through SES", supersedesClauses: [{ decision: scoped.id, clauses: ["D2", "D3"] }, { decision: partly.id }], justifications: { [scoped.id]: "Receipts replace its D2 and D3.", [partly.id]: "Receipts replace part of it." } });
     assert.deepEqual((await knowledge.decision(by.id))?.record.fields.supersedesClauses, [{ decision: scoped.id, clauses: ["D2", "D3"] }, { decision: partly.id }]);
 
     const partial = await knowledge.decision(partly.id);
@@ -437,10 +437,10 @@ for (const backend of [memory, postgres]) {
     assert.ok((await knowledge.rankAll("queue", { limit: 20 })).hits.some(({ note }) => note.id === partly.id), "current state still finds it");
 
     const history = await transactions.history();
-    await assert.rejects(knowledge.recordDecision({ ...DECIDE, supersedesClauses: [{ decision: term.id }] }), /supersedesClauses/, "a term is not a decision");
-    await assert.rejects(knowledge.recordDecision({ ...DECIDE, supersedesClauses: [{ decision: "decision_000000000000", clauses: ["D1"] }] }), /supersedesClauses/, "a missing decision");
-    await assert.rejects(knowledge.recordDecision({ ...DECIDE, supersedesClauses: [{ decision: scoped.id, clauses: ["2"] as never }] }), /supersedesClauses/, "a clause is named D<n>");
-    await assert.rejects(knowledge.editNote(by.id, { supersedesClauses: [{ decision: "decision_000000000000" }] }), /supersedesClauses/, "an edit names a live decision too");
+    await assert.rejects(knowledge.recordDecision({ ...DECIDE, supersedesClauses: [{ decision: term.id }], justifications: { [term.id]: "Not a decision." } }), /supersedesClauses/, "a term is not a decision");
+    await assert.rejects(knowledge.recordDecision({ ...DECIDE, supersedesClauses: [{ decision: "decision_000000000000", clauses: ["D1"] }], justifications: { decision_000000000000: "A missing decision." } }), /supersedesClauses/, "a missing decision");
+    await assert.rejects(knowledge.recordDecision({ ...DECIDE, supersedesClauses: [{ decision: scoped.id, clauses: ["2"] as never }], justifications: { [scoped.id]: "A clause misnamed." } }), /supersedesClauses/, "a clause is named D<n>");
+    await assert.rejects(knowledge.editNote(by.id, { supersedesClauses: [{ decision: "decision_000000000000" }], justifications: { decision_000000000000: "A missing decision." } }), /supersedesClauses/, "an edit names a live decision too");
     assert.deepEqual(await transactions.history(), history, "nothing was written");
   });
 
@@ -448,8 +448,34 @@ for (const backend of [memory, postgres]) {
     const narrowed = await knowledge.recordDecision(DECIDE);
     const other = await knowledge.recordDecision({ ...DECIDE, title: "Send through SES" });
     const history = await transactions.history();
-    await assert.rejects(knowledge.recordDecision({ ...DECIDE, title: "Receipts only", narrows: [narrowed.id] }), /supersedesClauses/);
-    await assert.rejects(knowledge.editNote(other.id, { narrows: [narrowed.id] }), /supersedesClauses/);
+    await assert.rejects(knowledge.recordDecision({ ...DECIDE, title: "Receipts only", narrows: [narrowed.id], justifications: { [narrowed.id]: "Receipts narrow it." } }), /supersedesClauses/);
+    await assert.rejects(knowledge.editNote(other.id, { narrows: [narrowed.id], justifications: { [narrowed.id]: "SES narrows it." } }), /supersedesClauses/);
     assert.deepEqual(await transactions.history(), history, "nothing was written");
+  });
+
+  contract("13.19", "a decision recorded with a link, supersedes or supersedesClauses entry to a decision and no justification for that target is refused, naming justification, the target and the justifications to pass, with nothing written; recorded with one it is stored, and a link to a story or a definition needs none", async ({ knowledge, records, transactions }) => {
+    const target = await knowledge.recordDecision(DECIDE);
+    const other = await knowledge.recordDecision({ ...DECIDE, title: "Send through SES" });
+    const story = await records.create("story", { title: "Visitor can sign up" });
+    const term = await knowledge.defineTerm({ term: "Mail", meaning: "Email." });
+    const naming = (id: string) => (error: unknown) => error instanceof Error && error.message.includes("justification") && error.message.includes(id) && error.message.includes("justifications");
+
+    const history = await transactions.history();
+    await assert.rejects(knowledge.recordDecision({ ...DECIDE, title: "Retry", links: [target.id] }), naming(target.id), "a link");
+    await assert.rejects(knowledge.recordDecision({ ...DECIDE, title: "Retry", status: "proposed", supersedes: [target.id] }), naming(target.id), "a supersedes");
+    await assert.rejects(knowledge.recordDecision({ ...DECIDE, title: "Retry", supersedesClauses: [{ decision: target.id, clauses: ["D1"] }] }), naming(target.id), "a supersedesClauses entry");
+    await assert.rejects(
+      knowledge.recordDecision({ ...DECIDE, title: "Retry", links: [other.id, target.id], justifications: { [other.id]: "Follow it for the other sender." } } as never),
+      naming(target.id),
+      "a justification of another target does not justify this one",
+    );
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+
+    const why = "Follow it for the queue's retry rule.\nLinked because this decision sends through it.";
+    const justified = await knowledge.recordDecision({ ...DECIDE, title: "Retry", links: [target.id, story.id, term.id], justifications: { [target.id]: why } } as never);
+    const stored = (await records.get(justified.id))?.fields as { links?: string[]; justifications?: Record<string, string> } | undefined;
+    assert.deepEqual([stored?.links, stored?.justifications], [[target.id, story.id, term.id], { [target.id]: why }], "stored with its justification, keyed by its target");
+    const plain = await knowledge.recordDecision({ ...DECIDE, title: "Log mail", links: [story.id, term.id] });
+    assert.deepEqual(plain.fields.links, [story.id, term.id], "links to a story and a definition need no justification");
   });
 }

@@ -146,11 +146,11 @@ test("13.17 · supersessionPairs and `adr pairs` flag a clause-scoped supersedes
     t.mock.timers.tick(86_400_000);
 
     const scoped = await decide("Mail retries", "D1. Retry. D2. Thrice.");
-    const scoping = await decide("Retries are twice", "D1. Twice.", { supersedesClauses: [{ decision: scoped.id, clauses: ["D2"] }] });
+    const scoping = await decide("Retries are twice", "D1. Twice.", { supersedesClauses: [{ decision: scoped.id, clauses: ["D2"] }], justifications: { [scoped.id]: "Twice replaces its D2." } });
     await note(scoped.id, `*Narrowed 2026-11-20 by ${adrOf(scoping)}:* D2 reads twice.`);
 
     const whole = await decide("Mail by hand", "D1. By hand.");
-    const replacing = await decide("Mail by machine", "D1. By machine.", { supersedes: [whole.id] });
+    const replacing = await decide("Mail by machine", "D1. By machine.", { supersedes: [whole.id], justifications: { [whole.id]: "Machines replace hands." } });
     await note(whole.id, `superseded on 2026-11-20 by ${replacing.id}`);
 
     const legacyTarget = await decide("Mail is signed", "D1. Sign it.");
@@ -158,7 +158,7 @@ test("13.17 · supersessionPairs and `adr pairs` flag a clause-scoped supersedes
     await note(legacyTarget.id, `*Annotated 2026-11-20 by ${legacy.id}:* signing is optional.`);
 
     const unnoted = await decide("Mail has a footer", "D1. A footer.");
-    const unnoting = await decide("Footers are short", "D1. Short.", { supersedesClauses: [{ decision: unnoted.id }] });
+    const unnoting = await decide("Footers are short", "D1. Short.", { supersedesClauses: [{ decision: unnoted.id }], justifications: { [unnoted.id]: "Short footers replace part of it." } });
 
     const edgeless = await decide("Bounces are logged", "D1. Log bounces.");
     const amended = await decide("Bounces are dropped", `D1. Drop them. *Amended by ${adrOf(edgeless)}.*`);
@@ -172,10 +172,108 @@ test("13.17 · supersessionPairs and `adr pairs` flag a clause-scoped supersedes
     await assert.rejects(verbOf("pairs").act({} as never, context, WORDS), VerbRefusal, "the command fails while a pair is flagged");
 
     await note(unnoted.id, `*Narrowed by ${adrOf(unnoting)}*`);
-    await library.editNote(edgeless.id, { supersedesClauses: [{ decision: amended.id, clauses: ["D1"] }] });
+    await library.editNote(edgeless.id, { supersedesClauses: [{ decision: amended.id, clauses: ["D1"] }], justifications: { [amended.id]: "Logging replaces its D1." } });
     assert.deepEqual(await library.supersessionPairs(), { flagged: [], backlog: 2 });
     await verbOf("pairs").act({} as never, context, WORDS);
   } finally {
     t.mock.timers.reset();
   }
+});
+
+test("13.20 · `adr new --why <target>=<text>` writes each decision link's and supersession's justification, split on the first =; `adr new` linking or superseding a decision with no --why for it is refused naming justification and the target, with nothing written", async (t) => {
+  const { library, context, verbOf } = await adrWorld(t);
+  const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
+  const hand = await library.recordDecision({ status: "accepted", title: "Mail by hand", text: "By hand." });
+  const decision = { title: "Retries are twice", text: "Retry twice.", status: "accepted", basis: "agent-derived" };
+
+  const { cursor } = await library.changesSince(0);
+  await assert.rejects(verbOf("new").act({ ...decision, links: queue.id }, context, WORDS), (error: Error) => error.message.includes("justification") && error.message.includes(queue.id), "a link with no --why");
+  await assert.rejects(verbOf("new").act({ ...decision, supersedes: hand.id, why: [`${queue.id}=Not the superseded one.`] }, context, WORDS), (error: Error) => error.message.includes("justification") && error.message.includes(hand.id), "a supersession with no --why for it");
+  assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
+
+  await verbOf("new").act({ ...decision, links: queue.id, supersedes: hand.id, why: [`${queue.id}=Follow it for where a retry waits; a=b stays whole.`, `${hand.id}=Retries replace sending by hand.`] }, context, WORDS);
+  const recorded = (await library.decisions()).find((view) => view.record.fields.title === "Retries are twice");
+  assert.deepEqual((recorded?.record.fields as { justifications?: unknown } | undefined)?.justifications, {
+    [queue.id]: "Follow it for where a retry waits; a=b stays whole.",
+    [hand.id]: "Retries replace sending by hand.",
+  });
+});
+
+test("13.21 · `adr pull` shows a decision's justifications as an editable front-matter line keyed by target, and `adr push` writes an edited one back", async (t) => {
+  const { library, context, verbOf } = await adrWorld(t);
+  const folder = mkdtempSync(path.join(tmpdir(), "library-adr-why-"));
+  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
+  const linking = await library.recordDecision({ status: "accepted", title: "Retries are twice", text: "Retry twice.", links: [queue.id], justifications: { [queue.id]: "Follow it for where a retry waits." } } as never);
+  const here = { ...context, folder };
+
+  await verbOf("pull").act({ decision: linking.id, out: "why.md" }, here, WORDS);
+  const file = readFileSync(path.join(folder, "why.md"), "utf8");
+  const editable = file.slice(0, file.indexOf("# read only"));
+  assert.ok(editable.split("\n").includes(`justifications: ${JSON.stringify({ [queue.id]: "Follow it for where a retry waits." })}`), `the justification sits beside its target in the editable front matter:\n${file}`);
+
+  writeFileSync(path.join(folder, "why.md"), file.replace("Follow it for where a retry waits.", "Follow it for the queue a retry waits in."));
+  const pushed = await verbOf("push").act({ decision: linking.id, file: "why.md" }, here, WORDS);
+  assert.equal(pushed.text, `Pushed ${linking.id}: justifications.`);
+  assert.deepEqual(((await library.decision(linking.id))?.record.fields as { justifications?: unknown }).justifications, { [queue.id]: "Follow it for the queue a retry waits in." });
+});
+
+test("13.22 · decisionLinkBacklog and `adr backlog` count the old-shape decision links, stored with no justification, and the decisions holding them, never failing on them; a justified link or a link to a story is not counted, and an old-shape decision's text still edits", async (t) => {
+  const { library, records, context, verbOf } = await adrWorld(t);
+  const story = await library.addStory({ title: "Mail" });
+  const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
+  const log = await library.recordDecision({ status: "accepted", title: "Mail is logged", text: "Log it." });
+  const hand = await library.recordDecision({ status: "accepted", title: "Mail by hand", text: "By hand." });
+  assert.deepEqual(await library.decisionLinkBacklog(), { links: 0, decisions: 0 }, "none before any old-shape link");
+
+  const old = await records.create("decision", { status: "accepted", title: "Retries", text: "Retry thrice.", links: [queue.id, log.id, story.id] });
+  await records.create("decision", { status: "accepted", title: "Bounces", text: "Drop them.", supersedesClauses: [{ decision: hand.id, clauses: ["D1"] }] });
+  await library.recordDecision({ status: "accepted", title: "Receipts", text: "Send them.", links: [queue.id], justifications: { [queue.id]: "Follow it for where receipts wait." } } as never);
+
+  assert.deepEqual(await library.decisionLinkBacklog(), { links: 3, decisions: 2 });
+  const answer = await verbOf("backlog").act({} as never, context, WORDS);
+  assert.equal(answer.text, "3 old-shape decision links (no justification) across 2 decisions");
+
+  await library.editNote(old.id, { text: "Retry twice." });
+  assert.equal((await library.decision(old.id))?.record.fields.text, "Retry twice.", "the old shape is tolerated by a later edit");
+  assert.deepEqual(await library.decisionLinkBacklog(), { links: 3, decisions: 2 }, "and still counted");
+});
+
+test("13.23 · `adr prune` archives a decision link with who, when and why and its justification, so links, `library links` and the backlog no longer show it, `adr pruned` lists it, and `adr restore` puts it back with its justification, or --why for one that had none; a prune with no reason or no such link is refused", async (t) => {
+  const { library, records, context, verbOf } = await adrWorld(t);
+  const links = LIBRARY_FAMILIES.find((family) => family.name === "library")!.verbs.find((one) => "name" in one.command && one.command.name === "links")!;
+  const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
+  const linking = await library.recordDecision({ status: "accepted", title: "Retries are twice", text: "Retry twice.", links: [queue.id], justifications: { [queue.id]: "Follow it for where a retry waits." } } as never);
+  const old = await records.create("decision", { status: "accepted", title: "Bounces", text: "Drop them.", links: [queue.id] });
+  assert.deepEqual(await library.decisionLinkBacklog(), { links: 1, decisions: 1 });
+
+  const { cursor } = await library.changesSince(0);
+  await assert.rejects(verbOf("prune").act({ decision: linking.id, target: queue.id, reason: undefined } as never, context, WORDS), VerbRefusal, "no reason");
+  await assert.rejects(verbOf("prune").act({ decision: linking.id, target: old.id, reason: "Not linked." } as never, context, WORDS), VerbRefusal, "no such link");
+  assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
+
+  const before = Date.now();
+  await verbOf("prune").act({ decision: linking.id, target: queue.id, reason: "The queue rule moved." } as never, context, WORDS);
+  await verbOf("prune").act({ decision: old.id, target: queue.id, reason: "Bounces never queue." } as never, context, WORDS);
+  const pruned = (await library.get(linking.id))?.fields as { links?: string[]; archivedLinks?: { to: string; field: string; justification?: string; reason: string; by: string; at: string }[] };
+  assert.deepEqual(pruned.links ?? [], [], "the link is out of links");
+  assert.deepEqual(pruned.archivedLinks?.map(({ at: _at, ...rest }) => rest), [{ to: queue.id, field: "links", justification: "Follow it for where a retry waits.", reason: "The queue rule moved.", by: "session:s" }]);
+  const at = Date.parse(pruned.archivedLinks![0]!.at);
+  assert.ok(at >= before - 1000 && at <= Date.now() + 1000, `archived at the time of the prune: ${pruned.archivedLinks![0]!.at}`);
+  assert.equal((await links.act({ artifact: queue.id }, context as never, WORDS)).text, `No artifact links to ${queue.id}.`, "an archived link is not followed");
+  assert.deepEqual(await library.decisionLinkBacklog(), { links: 0, decisions: 0 }, "nor counted as an old-shape link");
+
+  const listed = (await verbOf("pruned").act({ decision: undefined } as never, context, WORDS)).text;
+  for (const [from, reason] of [[linking.id, "The queue rule moved."], [old.id, "Bounces never queue."]] as const) {
+    const line = listed.split("\n").find((one) => one.includes(from));
+    assert.ok(line !== undefined && line.includes(queue.id) && line.includes("links") && line.includes("session:s") && line.includes(reason), `adr pruned lists ${from}'s archived link with field, by and reason:\n${listed}`);
+  }
+
+  await verbOf("restore").act({ decision: linking.id, target: queue.id, why: undefined } as never, context, WORDS);
+  const restored = (await library.get(linking.id))?.fields as { links?: string[]; justifications?: Record<string, string>; archivedLinks?: unknown[] };
+  assert.deepEqual([restored.links, restored.justifications, restored.archivedLinks ?? []], [[queue.id], { [queue.id]: "Follow it for where a retry waits." }, []], "back with its justification, out of the archive");
+  await assert.rejects(verbOf("restore").act({ decision: old.id, target: queue.id, why: undefined } as never, context, WORDS), (error: Error) => error.message.includes("justification") && error.message.includes(queue.id), "an old-shape link comes back only with a justification");
+  await verbOf("restore").act({ decision: old.id, target: queue.id, why: "Follow it for how bounces would queue." } as never, context, WORDS);
+  const back = (await library.get(old.id))?.fields as { links?: string[]; justifications?: Record<string, string> };
+  assert.deepEqual([back.links, back.justifications], [[queue.id], { [queue.id]: "Follow it for how bounces would queue." }]);
 });

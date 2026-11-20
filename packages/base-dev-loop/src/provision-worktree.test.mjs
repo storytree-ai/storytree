@@ -625,7 +625,7 @@ test("3.8 with no installed Node meeting the floor, the cloud session is told th
 test("3.8 a found Node with no CLAUDE_ENV_FILE to write is named to the session to put first on its path", (t) => {
   const { root } = floored(t);
   const result = cloudNode({ root, env: { CLAUDE_CODE_REMOTE: "true" }, version: "v22.23.4", nodes: [...INSTALLED.keys()], versionOf });
-  assert.match(result.message, new RegExp(`export PATH='${path.join("/opt", "node26", "bin").replaceAll("\\", "\\\\")}':"\\$PATH"`));
+  assert.match(result.message, new RegExp(`export PATH='${path.join("/opt", "node26", "bin").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}':"\\$PATH"`));
 });
 
 test("3.8 outside a cloud container, or at the floor, the session's path is left as it was", (t) => {

@@ -1,6 +1,8 @@
 // Capability 4 · Updates
 import path from "node:path";
 
+import { outageSaidOnce } from "@storytree/library/connection-error";
+
 export const RELEASE_CHECK_EVERY_MS = 3 * 60_000;
 
 export function keepCheckingReleases({ updater, log, waiting, every = RELEASE_CHECK_EVERY_MS }: {
@@ -9,10 +11,13 @@ export function keepCheckingReleases({ updater, log, waiting, every = RELEASE_CH
   waiting: () => string;
   every?: number;
 }): { stop(): void } {
+  const outage = outageSaidOnce((line, ...error) => log.error(error.length > 0 ? error[0] : `releases: ${line}`));
   const check = async (): Promise<void> => {
     try {
-      if (await updater.check() === "waiting") log.info(waiting());
-    } catch (error) { log.error(error); }
+      const answer = await updater.check();
+      outage.answered();
+      if (answer === "waiting") log.info(waiting());
+    } catch (error) { outage.failed("the release check failed", error); }
   };
   const timer = setInterval(() => void check(), every);
   timer.unref();

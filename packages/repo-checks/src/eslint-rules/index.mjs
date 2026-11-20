@@ -9,6 +9,7 @@ import noSwallowedAssert from "./no-swallowed-assert.mjs";
 import noTagStrip from "./no-tag-strip.mjs";
 import noUnguardedBatchFetch from "./no-unguarded-batch-fetch.mjs";
 import numberedTestAsserts from "./numbered-test-asserts.mjs";
+import pollSaysOutageOnce from "./poll-says-outage-once.mjs";
 import posixCommands from "./posix-commands.mjs";
 import remoteCacheDomain from "./remote-cache-domain.mjs";
 import sketchBundleNames from "./sketch-bundle-names.mjs";
@@ -31,5 +32,6 @@ export default {
     "write-names-place": writeNamesPlace,
     "remote-cache-domain": remoteCacheDomain,
     "anchored-process-match": anchoredProcessMatch,
+    "poll-says-outage-once": pollSaysOutageOnce,
   },
 };

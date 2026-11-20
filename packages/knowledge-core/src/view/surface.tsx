@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 import type { Change, Line, RecordEnvelope, SchemaRecord } from "@storytree/library";
+import { outageSaidOnce } from "@storytree/library/connection-error";
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
 import { HIDDEN_AT_START, drawnPoints, kindRows } from "../kinds/kinds.js";
@@ -62,13 +63,15 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
   };
   let windowTimer: ReturnType<typeof setInterval> | undefined;
   let windowOut: string | undefined;
+  const windowOutage = outageSaidOnce((line, ...error) => console.error(`knowledge-core: ${line}`, ...error));
   const readWindow = (session: string): void => {
     if (host === undefined || windowOut === session) return;
     windowOut = session;
     host.windowReading(project, session).then((window) => {
+      windowOutage.answered();
       if (state.session === session) store.set({ window });
     }, (error: unknown) => {
-      console.error("knowledge-core: the selected session's window could not be read", error);
+      windowOutage.failed("the selected session's window could not be read", error);
     }).finally(() => { if (windowOut === session) windowOut = undefined; });
   };
   let inheritedOut = false, inheritedAgain = false;

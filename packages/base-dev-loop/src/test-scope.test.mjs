@@ -217,6 +217,32 @@ test("2.1 a path into another package's file depends only on that file and what 
   assert.deepEqual(classify(["packages/library/src/l.ts"], ws).dirs, ["packages/forest", "packages/library", "packages/shop"], "a package the reached file imports by name is followed");
 });
 
+test("2.1 a test reading another package's file through the repo root, one string per segment or one repo-root string, depends on that file and no other; one naming a file not in the checkout reaches nothing (escape_b8be7e9ef2a8)", (t) => {
+  const root = workspace(t, {
+    packages: {
+      "packages/teaching-cards": { name: "@x/teaching-cards", files: { "src/cards.ts": "export const cards = [];\n", "src/deck.ts": "export const deck = [];\n" } },
+      "apps/desktop": { name: "@x/desktop", files: { "src/main/app-icon.ts": "export const icon = 1;\n", "src/main/window.ts": "export const window = 1;\n" } },
+      "packages/teacher": {
+        name: "@x/teacher",
+        files: { "src/cards.test.ts": 'const text = readFileSync(path.join(root, "packages", "teaching-cards", "src", "cards.ts"), "utf8");\n' },
+      },
+      "packages/icons": {
+        name: "@x/icons",
+        files: { "src/icon.test.ts": 'const icon = readFileSync(path.join(root, "apps/desktop/src/main/app-icon.ts"), "utf8");\n' },
+      },
+      "packages/ghost": {
+        name: "@x/ghost",
+        files: { "src/ghost.test.ts": 'const gone = readFileSync(path.join(root, "packages/teaching-cards/src/retired.ts"), "utf8");\n' },
+      },
+    },
+  });
+  const ws = readWorkspace(root);
+  assert.deepEqual(classify(["packages/teaching-cards/src/cards.ts"], ws).dirs, ["packages/teacher", "packages/teaching-cards"]);
+  assert.deepEqual(classify(["apps/desktop/src/main/app-icon.ts"], ws).dirs, ["apps/desktop", "packages/icons"]);
+  assert.deepEqual(classify(["packages/teaching-cards/src/deck.ts"], ws).dirs, ["packages/teaching-cards"], "a file the reader names nowhere does not select it, nor does a missing file reach its package");
+  assert.deepEqual(classify(["apps/desktop/src/main/window.ts"], ws).dirs, ["apps/desktop"]);
+});
+
 test("2.1 a path into desktop's renderer, or its build output, depends on desktop's files it imports by path, not on the stories it mounts; a folder, on what under it something runs", (t) => {
   const root = workspace(t, {
     packages: {

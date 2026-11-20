@@ -50,7 +50,7 @@ test("4.30 a following app checks for a release at start and every three minutes
 
 test("4.51 · release checks failing through a library outage say it once, as one line with no stack, then once that the library answers again when a check succeeds; any other failed check is logged in full each time", async (t) => {
   t.mock.timers.enable({ apis: ["setInterval"] });
-  const outage = new ConnectionError("unreachable", "The library cannot be reached: connect EHOSTUNREACH 100.64.0.1:5432");
+  const outage = new ConnectionError("unreachable", "The library cannot be reached: connect EHOSTUNREACH 192.0.2.1:5432");
   const broken = new Error("the release feed answered 500");
   const answers: Array<string | Error> = [outage, outage, outage, "none", "none", broken, broken];
   const said: Array<{ to: "info" | "error"; what: unknown }> = [];
@@ -79,7 +79,7 @@ test("4.51 · release checks failing through a library outage say it once, as on
     assert.equal(line?.to, "error");
     assert.equal(typeof line?.what, "string", "a line, not the error with its stack");
     assert.doesNotMatch(line?.what as string, /\n/, "one line");
-    assert.match(line?.what as string, /The library cannot be reached: connect EHOSTUNREACH 100\.64\.0\.1:5432/);
+    assert.match(line?.what as string, /The library cannot be reached: connect EHOSTUNREACH 192\.0\.2\.1:5432/);
 
     await nextCheck();
     assert.equal(said.length, 2);

@@ -76,7 +76,7 @@ test("4.16, 4.23 a failed read of the selected session's window, or of the facto
 test("4.26 · a selected session's window re-read every ten seconds through a library outage says it once to the console, one line with no stack, then once that the library answers again when a read succeeds; any other failed read is logged in full each time", async (t) => {
   t.mock.timers.enable({ apis: ["setInterval"] });
   const logged = t.mock.method(console, "error", () => {});
-  const outage = new Error(`${LIBRARY_UNREACHABLE}: connect EHOSTUNREACH 100.64.0.1:5432`);
+  const outage = new Error(`${LIBRARY_UNREACHABLE}: connect EHOSTUNREACH 192.0.2.1:5432`);
   const broken = new Error("the window's reads table is missing");
   const reading = (session: string): SessionWindow => ({ session, at: "-", inView: [], opens: [], glimpses: [], compactions: 0 });
   const answers: Array<SessionWindow | Error> = [outage, outage, outage, reading("S"), reading("S"), broken, broken];
@@ -100,7 +100,7 @@ test("4.26 · a selected session's window re-read every ten seconds through a li
     assert.equal(line?.length, 1, "a line, with no error beside it");
     assert.equal(typeof line?.[0], "string");
     assert.doesNotMatch(line?.[0] as string, /\n/, "one line");
-    assert.match(line?.[0] as string, /The library cannot be reached: connect EHOSTUNREACH 100\.64\.0\.1:5432/);
+    assert.match(line?.[0] as string, /The library cannot be reached: connect EHOSTUNREACH 192\.0\.2\.1:5432/);
 
     await nextRead();
     assert.equal(said().length, 2);

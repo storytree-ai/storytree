@@ -132,6 +132,7 @@ function envRead(node) {
 function initializerReads(node) {
   if (ts.isParenthesizedExpression(node)) return initializerReads(node.expression);
   if (ts.isBinaryExpression(node) && FALLBACK.has(node.operatorToken.kind)) return [...initializerReads(node.left), ...initializerReads(node.right)];
+  if (ts.isConditionalExpression(node)) return [...initializerReads(node.whenTrue), ...initializerReads(node.whenFalse)];
   const name = envRead(node);
   return name === null ? [] : [name];
 }

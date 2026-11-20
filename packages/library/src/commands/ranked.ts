@@ -18,5 +18,7 @@ export async function rankedSearch(library: Library, query: string, options: { r
 
 export function narrowedSaid(narrowedBy: readonly NarrowingDecision[] | undefined): string {
   if (narrowedBy === undefined || narrowedBy.length === 0) return "";
-  return `  (narrowed by ${narrowedBy.map(({ id, number }) => (number === undefined ? id : `ADR-${String(number).padStart(4, "0")}`)).join(", ")})`;
+  return `  (${narrowedBy
+    .map(({ id, number, clauses }) => `${clauses === undefined || clauses.length === 0 ? "partly" : clauses.join(", ")} superseded by ${number === undefined ? id : `ADR-${String(number).padStart(4, "0")}`}`)
+    .join("; ")})`;
 }

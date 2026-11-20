@@ -233,10 +233,37 @@ const list = verb({
   },
 });
 
+const moveNarrows = verb({
+  command: { family: "adr", name: "move-narrows", summary: "move every stored narrows onto supersedesClauses, its clauses those the narrowing text names beside the narrowed decision's number, partial where it names none (ADR-1379 D1)", usage: "adr move-narrows" },
+  tool: { absent: NO_TOOL },
+  inputs: {},
+  writes: true,
+  async act(_inputs, context: VerbContext) {
+    const moved = await context.library.moveNarrowsToClauses(context.writer);
+    if (moved.decisions.length === 0) return { text: "No decision stores a narrows: nothing to move." };
+    return { text: `Moved ${moved.edges} ${moved.edges === 1 ? "narrowing" : "narrowings"} onto supersedesClauses (${moved.partial} partial), from ${moved.decisions.length} ${moved.decisions.length === 1 ? "decision" : "decisions"}: ${moved.decisions.join(", ")}.` };
+  },
+});
+
+const pairs = verb({
+  command: { family: "adr", name: "pairs", summary: "check each clause-scoped supersedes has its in-place note, and each in-place note its edge; what came before 2026-11-20 is counted, not failed", usage: "adr pairs" },
+  tool: { absent: NO_TOOL },
+  inputs: {},
+  async act(_inputs, context: VerbContext) {
+    const { flagged, backlog } = await context.library.supersessionPairs();
+    const counted = `${backlog} older ${backlog === 1 ? "pair" : "pairs"} counted as backlog.`;
+    if (flagged.length > 0) {
+      const lines = flagged.map(({ kind, from, to }) => (kind === "no-note" ? `  ${from} supersedes clauses of ${to}, which has no in-place note naming it` : `  ${to} has an in-place note naming ${from}, which has no supersession edge to it`));
+      throw new VerbRefusal([`${flagged.length} unpaired ${flagged.length === 1 ? "supersession" : "supersessions"}:`, ...lines, counted].join("\n"));
+    }
+    return { text: `Every supersession is paired with its in-place note. ${counted}` };
+  },
+});
+
 export const ADR_FAMILY: VerbFamily = {
   name: "adr",
-  summary: "the decision log: new, pull, push, compose, list",
+  summary: "the decision log: new, pull, push, compose, list, move-narrows, pairs",
   order: 4,
   guesses: { read: "adr pull <decision>", get: "adr pull <decision>", open: "adr pull <decision>" },
-  verbs: [list, create, pull, push, compose],
+  verbs: [list, create, pull, push, compose, moveNarrows, pairs],
 };

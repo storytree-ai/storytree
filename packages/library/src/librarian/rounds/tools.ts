@@ -53,7 +53,7 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
         const note = await correct(library, id, defined(fields), writer);
         return { text: `Corrected ${id} in place.`, data: { id: note.id } };
       }, { writes: true });
-      define("annotate", "Leave a dated annotation in the decision a newer decision narrows, naming that newer decision.", z.object({ target: text, by: text, note: text, date: text.optional() }), async ({ target, ...annotation }, { library, writer }) => {
+      define("annotate", "Leave a dated annotation in the decision a newer decision supersedes in part, naming that newer decision and the clauses it supersedes (D2, D3); with no clauses named, the supersession is partial.", z.object({ target: text, by: text, note: text, date: text.optional(), clauses: z.array(text).optional() }), async ({ target, ...annotation }, { library, writer }) => {
         const note = await annotate(library, target, defined(annotation), writer);
         return { text: `Annotated ${target}.`, data: { id: note.id } };
       }, { writes: true });

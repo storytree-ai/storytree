@@ -183,3 +183,19 @@ test("8.9 · A lane whose engine started with any tool server other than storytr
   assert.equal(await main([], clean.b), 1);
   assert.deepEqual(clean.lines.slice(1), [`concern: a stored claude.ai login is on this box (${clean.b.credentials}); lanes run only on the lane token, so sign the box out of claude.ai`]);
 });
+
+test("8.10 · each hand-off is read on its own project's repository, and one its repository cannot read is a concern, never another repository's pull request of that number", async (t) => {
+  const asked = [];
+  const { lanesDir, lines, b } = await box(t);
+  b.pull = async (pr, repo) => {
+    asked.push([pr, repo]);
+    if (repo !== "storytree-ai/storytree") throw new Error("Could not resolve to a PullRequest with the number of 31.\nmore");
+    return green({ state: "MERGED", mergeQueueEntry: null });
+  };
+  await hand(lanesDir, 11, "increment_a");
+  await hand(lanesDir, 31, "increment_r", { project: { repo: "storytree-ai/reward-access-website", folder: "/srv/reward" } });
+  assert.equal(await main(["--all"], b), 1);
+  assert.deepEqual(asked, [[11, "storytree-ai/storytree"], [31, "storytree-ai/reward-access-website"]]);
+  assert.ok(lines.includes("concern: PR #31 increment_r: could not read it on GitHub (Could not resolve to a PullRequest with the number of 31.)"), lines.join("\n"));
+  assert.ok(!lines.some((line) => line.startsWith("hand-off PR #31")), lines.join("\n"));
+});

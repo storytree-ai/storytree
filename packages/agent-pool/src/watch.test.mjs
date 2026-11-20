@@ -1874,3 +1874,51 @@ test("4.29 · the watcher reads a pull request's red below the rerun limit as th
 
   assert.equal(look.runner?.why, "verify on macOS: the browser crashed at launch", "a first attempt's failed log is read, and the crash it shows is the runner's");
 });
+
+test("4.64 · a hand-off whose pull request reads have failed for an hour since the first failure gets one owner wait on its open increment naming the pull request, its repository and the error's first line; a closed one gets none, and a later read clears it", async (t) => {
+  const web = { folder: "/srv/web", home: "/h", name: "reward-access-website", repo: "storytree-ai/reward-access-website", checks: ["pnpm test"] };
+  const b = await box(t);
+  await handOff(b, 41, "increment_one");
+  await hand({ ...b.options, pr: 7, increment: "increment_web", session: SESSION, branch: "claude/web", project: web, startWatcher: async () => {} });
+  await handOff(b, 43, "increment_shut");
+  await writeFile(join(b.dir, "43.json"), JSON.stringify({ ...(await saved(b, 43)), closed: true }));
+  for (const pr of [41, 7, 43]) b.looks[pr] = { state: "pending", head: "h1" };
+  b.calls.length = 0;
+  const owner = (verb) => b.calls.filter((args) => args[2] === verb && args[4] === "--for" && args[5] === "owner");
+  const lookAfter = async (ms) => { b.tick(ms); await watchOnce(b.options); };
+
+  await lookAfter(2 * 60 * 60_000);
+  assert.deepEqual(owner("unwait"), [], "a read with no owner wait of its own standing clears none");
+
+  let reading = false;
+  b.options.look = async (pr) => { if (!reading) throw new Error("HTTP 502: Bad Gateway\nretry later"); return b.looks[pr]; };
+  await lookAfter(0);
+  await lookAfter(30 * 60_000);
+  await lookAfter(29 * 60_000);
+  assert.deepEqual(owner("wait"), [], "59 minutes of failed reads, though handed over hours ago, set no owner wait");
+
+  await lookAfter(60_000);
+  const waits = owner("wait");
+  assert.deepEqual(waits.map((args) => args.slice(0, 7)).sort(), [
+    ["arc", "increment", "wait", "increment_one", "--for", "owner", "--note"],
+    ["arc", "increment", "wait", "increment_web", "--for", "owner", "--note"],
+  ], "an hour of failed reads sets one owner wait on each open increment, none on the closed one");
+  const note = (increment) => waits.find((args) => args[3] === increment)[6];
+  for (const fact of ["PR #41", "storytree-ai/storytree", "HTTP 502: Bad Gateway"]) assert.ok(note("increment_one").includes(fact), `${fact} in: ${note("increment_one")}`);
+  for (const fact of ["PR #7", "storytree-ai/reward-access-website", "HTTP 502: Bad Gateway"]) assert.ok(note("increment_web").includes(fact), `${fact} in: ${note("increment_web")}`);
+
+  await lookAfter(10 * 60_000);
+  assert.equal(owner("wait").length, 2, "a further failed read sets no second wait");
+  assert.deepEqual(owner("unwait"), []);
+
+  reading = true;
+  await lookAfter(60_000);
+  assert.deepEqual(owner("unwait").map((args) => args.slice(0, 6)).sort(), [
+    ["arc", "increment", "unwait", "increment_one", "--for", "owner"],
+    ["arc", "increment", "unwait", "increment_web", "--for", "owner"],
+  ], "a later read clears each wait it set");
+
+  reading = false;
+  await lookAfter(60_000);
+  assert.equal(owner("wait").length, 2, "a failed read after a good one starts its hour again");
+});

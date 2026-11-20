@@ -1897,7 +1897,13 @@ test("4.64 · a hand-off whose pull request reads have failed for an hour since 
   await lookAfter(29 * 60_000);
   assert.deepEqual(owner("wait"), [], "59 minutes of failed reads, though handed over hours ago, set no owner wait");
 
+  const said = (from, pr, increment, pattern) => b.lines.slice(from).filter((line) => line.includes(`PR #${pr}`) && line.includes(increment) && pattern.test(line));
+  const waiting = /^(?!.*no longer).*waits on the owner/;
+  let from = b.lines.length;
   await lookAfter(60_000);
+  assert.equal(said(from, 41, "increment_one", waiting).length, 1, b.lines.slice(from).join("\n"));
+  assert.equal(said(from, 7, "increment_web", waiting).length, 1, b.lines.slice(from).join("\n"));
+  assert.deepEqual(said(from, 43, "increment_shut", /waits on the owner/), []);
   const waits = owner("wait");
   assert.deepEqual(waits.map((args) => args.slice(0, 7)).sort(), [
     ["arc", "increment", "wait", "increment_one", "--for", "owner", "--note"],
@@ -1912,7 +1918,10 @@ test("4.64 · a hand-off whose pull request reads have failed for an hour since 
   assert.deepEqual(owner("unwait"), []);
 
   reading = true;
+  from = b.lines.length;
   await lookAfter(60_000);
+  assert.equal(said(from, 41, "increment_one", /no longer waits on the owner/).length, 1, b.lines.slice(from).join("\n"));
+  assert.equal(said(from, 7, "increment_web", /no longer waits on the owner/).length, 1, b.lines.slice(from).join("\n"));
   assert.deepEqual(owner("unwait").map((args) => args.slice(0, 6)).sort(), [
     ["arc", "increment", "unwait", "increment_one", "--for", "owner"],
     ["arc", "increment", "unwait", "increment_web", "--for", "owner"],
@@ -1921,4 +1930,38 @@ test("4.64 · a hand-off whose pull request reads have failed for an hour since 
   reading = false;
   await lookAfter(60_000);
   assert.equal(owner("wait").length, 2, "a failed read after a good one starts its hour again");
+});
+
+test("4.64 · an owner wait or its clearing that storytree refuses on an unreadable hand-off is tried again at the next look, and not after it lands", async (t) => {
+  const b = await box(t);
+  await handOff(b, 41, "increment_one");
+  b.calls.length = 0;
+  const refuse = new Set();
+  b.options.storytree = async (args) => {
+    b.calls.push(args);
+    if (refuse.delete(args[2])) throw new Error("the library is unreachable");
+    return "";
+  };
+  const owner = (verb) => b.calls.filter((args) => args[2] === verb && args[3] === "increment_one" && args[4] === "--for" && args[5] === "owner");
+  const lookAfter = async (ms) => { b.tick(ms); await watchOnce(b.options); };
+  let reading = false;
+  b.options.look = async () => { if (!reading) throw new Error("HTTP 502: Bad Gateway"); return { state: "pending", head: "h1" }; };
+
+  await lookAfter(0);
+  refuse.add("wait");
+  await lookAfter(60 * 60_000);
+  assert.equal(owner("wait").length, 1, "the wait is tried once the hour is up, and refused");
+  await lookAfter(60_000);
+  assert.equal(owner("wait").length, 2, "the refused wait is tried again at the next look");
+  await lookAfter(60_000);
+  assert.equal(owner("wait").length, 2, "once it lands it is not tried again");
+
+  reading = true;
+  refuse.add("unwait");
+  await lookAfter(60_000);
+  assert.equal(owner("unwait").length, 1, "the clearing is tried at the first good read, and refused");
+  await lookAfter(60_000);
+  assert.equal(owner("unwait").length, 2, "the refused clearing is tried again at the next good read");
+  await lookAfter(60_000);
+  assert.equal(owner("unwait").length, 2, "once it lands it is not tried again");
 });

@@ -207,3 +207,13 @@ test("8.10 · a project's hand-off whose pull request reads on its own repositor
   assert.deepEqual(lines.filter((line) => line.startsWith("concern")), []);
   assert.ok(lines.includes("hand-off PR #32 increment_w: handed 30m ago, pending, 0 fix sessions"), lines.join("\n"));
 });
+
+test("8.5 · a hand-off's merge-queue removal is read from its last fix session, or from its hand-over when it has had none", async (t) => {
+  const ejected = (extra = {}) => green({ mergeQueueEntry: null, mergeStateStatus: "BLOCKED", timelineItems: { nodes: [{ createdAt: ago(20).toISOString(), reason: "FAILED_CHECKS" }] }, ...extra });
+  const { lanesDir, lines, b } = await box(t, { pulls: { 41: ejected(), 42: ejected() } });
+  await hand(lanesDir, 41, "increment_a");
+  await hand(lanesDir, 42, "increment_b", { fixes: [{ at: ago(5).toISOString() }] });
+  await main(["--all"], b);
+  assert.ok(lines.includes("hand-off PR #41 increment_a: handed 30m ago, red (the merge queue removed it (FAILED_CHECKS) and did not take it back), 0 fix sessions"), lines.join("\n"));
+  assert.ok(lines.includes("hand-off PR #42 increment_b: handed 30m ago, pending, 1 fix session"), lines.join("\n"));
+});

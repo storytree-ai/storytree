@@ -31,7 +31,8 @@ for (const flag of ["links", "capabilities", "stories"] as const) {
       assert.match(refused.stderr, /array/);
       assert.ok(refused.stderr.includes(`--${flag} "id1,id2"`), refused.stderr);
 
-      const accepted = await world.run([...args, `--${flag}`, ` ${ids.join(", ")} `]);
+      const why = flag === "links" ? ids.flatMap((id) => ["--why", `${id}=Follow it for the service it names.`]) : [];
+      const accepted = await world.run([...args, `--${flag}`, ` ${ids.join(", ")} `, ...why]);
       assert.equal(accepted.code, 0, accepted.stderr);
       const kind = flag === "links" ? "decision" : flag === "capabilities" ? "increment" : "arc";
       const created = (await library.list(kind)).find(({ id }) => accepted.stdout.includes(id));

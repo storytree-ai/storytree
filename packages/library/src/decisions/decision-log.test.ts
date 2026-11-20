@@ -453,10 +453,9 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), history, "nothing was written");
   });
 
-  contract("13.19", "a decision recorded with a link, supersedes or supersedesClauses entry to a decision and no justification for that target is refused, naming justification, the target and the justifications to pass, with nothing written; recorded with one it is stored, and a link to a story or a definition needs none", async ({ knowledge, records, transactions }) => {
+  contract("13.19", "a decision recorded with a link, supersedes or supersedesClauses entry to a decision and no justification for that target is refused, naming justification, the target and the justifications to pass, with nothing written; recorded with one it is stored, and a link to a definition needs none", async ({ knowledge, records, transactions }) => {
     const target = await knowledge.recordDecision(DECIDE);
     const other = await knowledge.recordDecision({ ...DECIDE, title: "Send through SES" });
-    const story = await records.create("story", { title: "Visitor can sign up" });
     const term = await knowledge.defineTerm({ term: "Mail", meaning: "Email." });
     const naming = (id: string) => (error: unknown) => error instanceof Error && error.message.includes("justification") && error.message.includes(id) && error.message.includes("justifications");
 
@@ -472,10 +471,10 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), history, "nothing was written");
 
     const why = "Follow it for the queue's retry rule.\nLinked because this decision sends through it.";
-    const justified = await knowledge.recordDecision({ ...DECIDE, title: "Retry", links: [target.id, story.id, term.id], justifications: { [target.id]: why } } as never);
+    const justified = await knowledge.recordDecision({ ...DECIDE, title: "Retry", links: [target.id, term.id], justifications: { [target.id]: why } } as never);
     const stored = (await records.get(justified.id))?.fields as { links?: string[]; justifications?: Record<string, string> } | undefined;
-    assert.deepEqual([stored?.links, stored?.justifications], [[target.id, story.id, term.id], { [target.id]: why }], "stored with its justification, keyed by its target");
-    const plain = await knowledge.recordDecision({ ...DECIDE, title: "Log mail", links: [story.id, term.id] });
-    assert.deepEqual(plain.fields.links, [story.id, term.id], "links to a story and a definition need no justification");
+    assert.deepEqual([stored?.links, stored?.justifications], [[target.id, term.id], { [target.id]: why }], "stored with its justification, keyed by its target");
+    const plain = await knowledge.recordDecision({ ...DECIDE, title: "Log mail", links: [term.id] });
+    assert.deepEqual(plain.fields.links, [term.id], "a link to a definition needs no justification");
   });
 }

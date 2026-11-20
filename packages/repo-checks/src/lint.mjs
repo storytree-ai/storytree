@@ -6,12 +6,14 @@ import { eslintProblems } from "./eslint.mjs";
 import { boundaryProblems } from "./package-boundaries.mjs";
 import { processMatchProblems } from "./process-match.mjs";
 import { typeImportProblems } from "./type-imports.mjs";
+import { workflowEnvProblems } from "./workflow-env.mjs";
 
 export const RULES = [
   { name: "type-imports", problems: typeImportProblems },
   { name: "package-boundaries", problems: boundaryProblems },
   { name: "allocation", problems: allocationProblems },
   { name: "process-match", problems: processMatchProblems },
+  { name: "workflow-env", problems: workflowEnvProblems },
   { name: "eslint", problems: eslintProblems },
 ];
 

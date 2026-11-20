@@ -4,6 +4,8 @@ import { registerHooks } from "node:module";
 import path from "node:path";
 import { test } from "node:test";
 
+import { ConnectionError } from "@storytree/library/connection-error";
+
 import { channelOffered, installationFolder, keepCheckingReleases, refreshAgentTools, RELEASE_CHECK_EVERY_MS } from "./follow-releases.js";
 import { appVersion } from "./version.js";
 
@@ -44,6 +46,55 @@ test("4.30 a following app checks for a release at start and every three minutes
   t.mock.timers.tick(RELEASE_CHECK_EVERY_MS * 3);
   await settle();
   assert.equal(checks, 3, "and no check runs after it");
+});
+
+test("4.51 · release checks failing through a library outage say it once, as one line with no stack, then once that the library answers again when a check succeeds; any other failed check is logged in full each time", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const outage = new ConnectionError("unreachable", "The library cannot be reached: connect EHOSTUNREACH 192.0.2.1:5432");
+  const broken = new Error("the release feed answered 500");
+  const answers: Array<string | Error> = [outage, outage, outage, "none", "none", broken, broken];
+  const said: Array<{ to: "info" | "error"; what: unknown }> = [];
+  let checks = 0;
+  const checking = keepCheckingReleases({
+    updater: {
+      check: async () => {
+        const answer = answers[checks++] ?? "none";
+        if (answer instanceof Error) throw answer;
+        return answer;
+      },
+      stop: () => {},
+    },
+    log: { info: (line) => said.push({ to: "info", what: line }), error: (error) => said.push({ to: "error", what: error }) },
+    waiting: () => "installs at the next quiet moment",
+  });
+  const settle = () => new Promise((resolve) => setImmediate(resolve));
+  const nextCheck = async () => { t.mock.timers.tick(RELEASE_CHECK_EVERY_MS); await settle(); };
+  try {
+    await settle();
+    await nextCheck();
+    await nextCheck();
+    assert.equal(checks, 3);
+    assert.equal(said.length, 1, "three checks failing through the outage say it once");
+    const [line] = said;
+    assert.equal(line?.to, "error");
+    assert.equal(typeof line?.what, "string", "a line, not the error with its stack");
+    assert.doesNotMatch(line?.what as string, /\n/, "one line");
+    assert.match(line?.what as string, /The library cannot be reached: connect EHOSTUNREACH 192\.0\.2\.1:5432/);
+
+    await nextCheck();
+    assert.equal(said.length, 2);
+    assert.equal(typeof said[1]?.what, "string");
+    assert.match(said[1]?.what as string, /the library answers again$/);
+    await nextCheck();
+    assert.equal(said.length, 2, "a later success says nothing more");
+
+    await nextCheck();
+    await nextCheck();
+    assert.equal(checks, 7);
+    assert.deepEqual(said.slice(2), [{ to: "error", what: broken }, { to: "error", what: broken }], "any other failure is logged in full, each check");
+  } finally {
+    checking.stop();
+  }
 });
 
 test("4.31 only an installed Linux AppImage refreshes the agent tools beside it, and a refresh that fails is said", () => {

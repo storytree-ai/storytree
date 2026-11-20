@@ -11,7 +11,7 @@ import { gateSteps } from "./gate-steps.mjs";
 import { lint, RULES } from "./lint.mjs";
 
 test("8.5 pnpm lint runs its rules and fails naming each rule and file that breaks; it passes when none does", async (t) => {
-  assert.deepEqual(RULES.map(({ name }) => name), ["type-imports", "package-boundaries", "allocation", "process-match", "eslint"]);
+  assert.deepEqual(RULES.map(({ name }) => name), ["type-imports", "package-boundaries", "allocation", "process-match", "workflow-env", "eslint"]);
 
   const root = mkdtempSync(path.join(tmpdir(), "lint-"));
   t.after(() => removeTemp(root));

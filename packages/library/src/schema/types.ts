@@ -269,6 +269,9 @@ export const RECORD_SCHEMAS = {
       status: z.enum(["proposed", "accepted"]),
       number: z.number().int().positive().optional(),
       supersedes: ids.optional(),
+      supersedesClauses: z
+        .array(z.object({ decision: z.string(), clauses: z.array(z.string().regex(/^D\d+$/, "a clause is named D<n>")).min(1).optional() }).strict())
+        .optional(),
       narrows: ids.optional(),
       loadBearing: z.boolean().optional(),
       decided: nonEmpty.optional(),

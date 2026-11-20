@@ -34,19 +34,23 @@ test("22.2 correct changes a decision in place, keeping the old wording in histo
   });
 });
 
-test("22.3 annotate adds a dated note to the target naming the decision that narrows it, and refuses a narrowing record that is not a live decision", async () => {
+test("22.3 · annotate adds a dated note to the target naming the decision that supersedes clauses of it, names the target once in that decision's supersedesClauses with the clauses given added (partial when none are given), and refuses a superseding record that is not a live decision", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const narrowing = await library.recordDecision({ title: "Transactional email only", text: "Mailgun sends receipts, never newsletters.", status: "accepted" });
     const definition = await library.defineTerm({ term: "Newsletters", meaning: "Newsletters go elsewhere." });
+    const stored = async (): Promise<Record<string, unknown>> => (await library.decision(narrowing.id))!.record.fields as Record<string, unknown>;
 
     await annotate(library, cover.id, { by: narrowing.id, note: "Mailgun now sends transactional email only.", date: "2026-09-27" });
     const text = (await library.decision(cover.id))?.record.fields.text ?? "";
     assert.ok(text.startsWith("Mailgun: the simplest API."));
     assert.match(text, /Annotated 2026-09-27 by .*Transactional email only.*Mailgun now sends transactional email only\./s);
-    assert.deepEqual((await library.decision(narrowing.id))?.record.fields.narrows, [cover.id], "the narrowing decision names what it narrows");
-    await annotate(library, cover.id, { by: narrowing.id, note: "And receipts only.", date: "2026-09-28" });
-    assert.deepEqual((await library.decision(narrowing.id))?.record.fields.narrows, [cover.id], "named once, however often it annotates");
+    assert.deepEqual((await stored()).supersedesClauses, [{ decision: cover.id }], "partial when no clause is given");
+    assert.equal((await stored()).narrows, undefined, "never written as narrows");
+    await annotate(library, cover.id, { by: narrowing.id, note: "And receipts only.", date: "2026-09-28", clauses: ["D2"] });
+    assert.deepEqual((await stored()).supersedesClauses, [{ decision: cover.id, clauses: ["D2"] }], "the clauses given are added to its entry");
+    await annotate(library, cover.id, { by: narrowing.id, note: "And no attachments.", date: "2026-09-29", clauses: ["D2", "D3"] });
+    assert.deepEqual((await stored()).supersedesClauses, [{ decision: cover.id, clauses: ["D2", "D3"] }], "named once, however often it annotates, each clause once");
 
     const { cursor } = await library.changesSince(0);
     await assert.rejects(annotate(library, cover.id, { by: definition.id, note: "Not a decision." }), /not a live decision/);

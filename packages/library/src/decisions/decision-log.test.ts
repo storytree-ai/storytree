@@ -423,4 +423,33 @@ for (const backend of [memory, postgres]) {
     );
     assert.deepEqual(await transactions.history(), history, "nothing was written");
   });
+
+  contract("13.15", "a supersedesClauses entry names a live decision and clauses D<n>, or nothing is written; one naming no clause is partial and leaves the decision current", async ({ knowledge, transactions }) => {
+    const scoped = await knowledge.recordDecision(DECIDE);
+    const partly = await knowledge.recordDecision({ ...DECIDE, title: "Mail from a queue" });
+    const term = await knowledge.defineTerm({ term: "Mail", meaning: "Email." });
+    const by = await knowledge.recordDecision({ ...DECIDE, title: "Receipts through SES", supersedesClauses: [{ decision: scoped.id, clauses: ["D2", "D3"] }, { decision: partly.id }] });
+    assert.deepEqual((await knowledge.decision(by.id))?.record.fields.supersedesClauses, [{ decision: scoped.id, clauses: ["D2", "D3"] }, { decision: partly.id }]);
+
+    const partial = await knowledge.decision(partly.id);
+    assert.equal(partial?.status, "accepted", "an entry naming no clause never reads as superseding the whole decision");
+    assert.deepEqual(partial?.supersededBy, []);
+    assert.ok((await knowledge.rankAll("queue", { limit: 20 })).hits.some(({ note }) => note.id === partly.id), "current state still finds it");
+
+    const history = await transactions.history();
+    await assert.rejects(knowledge.recordDecision({ ...DECIDE, supersedesClauses: [{ decision: term.id }] }), /supersedesClauses/, "a term is not a decision");
+    await assert.rejects(knowledge.recordDecision({ ...DECIDE, supersedesClauses: [{ decision: "decision_000000000000", clauses: ["D1"] }] }), /supersedesClauses/, "a missing decision");
+    await assert.rejects(knowledge.recordDecision({ ...DECIDE, supersedesClauses: [{ decision: scoped.id, clauses: ["2"] as never }] }), /supersedesClauses/, "a clause is named D<n>");
+    await assert.rejects(knowledge.editNote(by.id, { supersedesClauses: [{ decision: "decision_000000000000" }] }), /supersedesClauses/, "an edit names a live decision too");
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+  });
+
+  contract("13.18", "a decision given a new narrows, recorded or edited, is refused naming supersedesClauses, and nothing is written", async ({ knowledge, transactions }) => {
+    const narrowed = await knowledge.recordDecision(DECIDE);
+    const other = await knowledge.recordDecision({ ...DECIDE, title: "Send through SES" });
+    const history = await transactions.history();
+    await assert.rejects(knowledge.recordDecision({ ...DECIDE, title: "Receipts only", narrows: [narrowed.id] }), /supersedesClauses/);
+    await assert.rejects(knowledge.editNote(other.id, { narrows: [narrowed.id] }), /supersedesClauses/);
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+  });
 }

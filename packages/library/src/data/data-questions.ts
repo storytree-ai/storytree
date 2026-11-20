@@ -86,8 +86,12 @@ export class DataQuestions {
 
   async findByTitle(words: readonly string[], options: { readonly history?: boolean } = {}): Promise<TitleHit[]> {
     if (words.length === 0) return [];
-    const namedBy = (field: "supersedes" | "narrows"): string =>
-      `EXISTS (SELECT 1 FROM record other WHERE other.type = 'decision' AND other.fields->>'status' = 'accepted' AND other.fields->'${field}' ? record.id)`;
+    const namedBy = (field: "supersedes" | "partly"): string =>
+      `EXISTS (SELECT 1 FROM record other WHERE other.type = 'decision' AND other.fields->>'status' = 'accepted' AND ${
+        field === "supersedes"
+          ? "other.fields->'supersedes' ? record.id"
+          : "(other.fields->'narrows' ? record.id OR other.fields->'supersedesClauses' @> jsonb_build_array(jsonb_build_object('decision', record.id)))"
+      })`;
     const current = options.history === true ? "" : `AND type NOT IN ('resteer', 'friction') AND NOT (type = 'decision' AND ${namedBy("supersedes")})`;
     const { rows } = await this.#pool.query<TitleHit>(
       `SELECT id, type, ${TITLE} AS title FROM record
@@ -95,7 +99,7 @@ export class DataQuestions {
         ORDER BY CASE
                    WHEN type IN ('resteer', 'friction') THEN 2
                    WHEN type = 'decision' AND ${namedBy("supersedes")} THEN 2
-                   WHEN type = 'decision' AND ${namedBy("narrows")} THEN 1
+                   WHEN type = 'decision' AND ${namedBy("partly")} THEN 1
                    ELSE 0
                  END, updated_at DESC, id
         LIMIT ${ANSWER_ROWS}`,

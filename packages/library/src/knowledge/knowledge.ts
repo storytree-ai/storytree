@@ -4,15 +4,17 @@ import { checkReference, checkReferences, liveRecord, type Expected } from "../r
 import { judgedState, SchemaError, unstorable, type FieldsOf, type KnowledgeKind, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import { defaultEmbedder } from "./embedding-model.js";
 import { ARTIFACT_KINDS } from "./kinds.js";
-import { checkFrontCover, DecisionLog, type DecisionNumberPlan, type DecisionView, type NewDecision } from "../decisions/index.js";
+import { checkClauseSupersession, checkFrontCover, DecisionLog, partlySupersedes, type DecisionNumberPlan, type DecisionView, type NarrowsMove, type NewDecision, type SupersessionPairs } from "../decisions/index.js";
 import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";
 import { artifactsOnly, frontCovers } from "./front-covers.js";
 import { relatedEach, relatedTo, type Related, type RelatedOptions, type SimilarityDoc } from "./similarity.js";
 import { holdsName, normalisedWords } from "./whole-words.js";
 
-export const REFERENCE_FIELD_NAMES = ["links", "context", "rules", "antiPatterns", "enforces", "supersedes", "narrows", "stepRefs", "branchEdges"] as const;
+export const REFERENCE_FIELD_NAMES = ["links", "context", "rules", "antiPatterns", "enforces", "supersedes", "supersedesClauses", "narrows", "stepRefs", "branchEdges"] as const;
 
-const LINK_FIELDS = REFERENCE_FIELD_NAMES.filter((field) => field !== "supersedes" && field !== "narrows");
+const SUPERSESSION_FIELDS: readonly string[] = ["supersedes", "supersedesClauses", "narrows"];
+
+const LINK_FIELDS = REFERENCE_FIELD_NAMES.filter((field) => !SUPERSESSION_FIELDS.includes(field));
 
 export type NoteType = "decision" | "definition" | KnowledgeKind;
 export type NewKnowledge<K extends KnowledgeKind = KnowledgeKind> = K extends "friction" ? Omit<FieldsOf<K>, "state"> : FieldsOf<K>;
@@ -32,6 +34,7 @@ export interface Ranked<T extends SchemaRecord = Note> {
 export interface NarrowingDecision {
   readonly id: string;
   readonly number?: number;
+  readonly clauses?: readonly string[];
 }
 export interface RankOptions {
   readonly limit?: number;
@@ -74,6 +77,7 @@ const REFERENCE_FIELDS: ReadonlySet<string> = new Set([
   "refs",
   "to",
   "supersedes",
+  "supersedesClauses",
   "narrows",
   "fingerprint",
   "story",
@@ -183,6 +187,14 @@ export class Knowledge {
     return this.#log.composeStatement(id, statement, options);
   }
 
+  moveNarrowsToClauses(options?: WriteOptions): Promise<NarrowsMove> {
+    return this.#log.moveNarrowsToClauses(options);
+  }
+
+  supersessionPairs(): Promise<SupersessionPairs> {
+    return this.#log.supersessionPairs();
+  }
+
   async writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>, options?: WriteOptions): Promise<SchemaRecord<K>> {
     if (!KNOWLEDGE_KINDS.includes(kind)) {
       throw new RangeError(`writeKnowledge writes ${KNOWLEDGE_KINDS.join(", ")}, not ${JSON.stringify(kind)}`);
@@ -237,7 +249,7 @@ export class Knowledge {
       await checkReferences(this.#records, "supersedes", fields.supersedes, "decision");
       if (Array.isArray(fields.supersedes)) await this.#refuseSupersessionLoop(id, fields.supersedes);
     }
-    if ("narrows" in fields) await checkReferences(this.#records, "narrows", fields.narrows, "decision");
+    await checkClauseSupersession(this.#records, fields);
     const { checkCurrent, ...writer } = options ?? {};
     return (await this.#records.edit(id, fields, {
       ...writer,
@@ -290,8 +302,8 @@ export class Knowledge {
       const accepted = all.filter((record): record is SchemaRecord<"decision"> => record.type === "decision" && record.fields.status === "accepted");
       const superseded = new Set(accepted.flatMap((decision) => decision.fields.supersedes ?? []));
       for (const decision of accepted) {
-        for (const target of decision.fields.narrows ?? []) {
-          narrowedBy.set(target, [...(narrowedBy.get(target) ?? []), { id: decision.id, ...(decision.fields.number === undefined ? {} : { number: decision.fields.number }) }]);
+        for (const { decision: target, clauses } of partlySupersedes(decision.fields)) {
+          narrowedBy.set(target, [...(narrowedBy.get(target) ?? []), { id: decision.id, ...(decision.fields.number === undefined ? {} : { number: decision.fields.number }), ...(clauses === undefined ? {} : { clauses }) }]);
         }
       }
       return all.filter((record) => {
@@ -479,13 +491,19 @@ export function referenceEdgesOf(fields: object): { field: string; to: string }[
   const at = fields as Record<string, unknown>;
   return REFERENCE_FIELD_NAMES.flatMap((field) => {
     const ids =
-      field === "stepRefs" ? listOf(at[field]).flatMap((step) => listOf(fieldOf(step, "refs"))) : field === "branchEdges" ? listOf(at[field]).map((edge) => fieldOf(edge, "to")) : listOf(at[field]);
+      field === "stepRefs"
+        ? listOf(at[field]).flatMap((step) => listOf(fieldOf(step, "refs")))
+        : field === "branchEdges"
+          ? listOf(at[field]).map((edge) => fieldOf(edge, "to"))
+          : field === "supersedesClauses"
+            ? listOf(at[field]).map((entry) => fieldOf(entry, "decision"))
+            : listOf(at[field]);
     return ids.filter((id): id is string => typeof id === "string").map((to) => ({ field, to }));
   });
 }
 
 function linksOf(fields: object): string[] {
-  return referenceEdgesOf(fields).flatMap(({ field, to }) => (field === "supersedes" || field === "narrows" ? [] : [to]));
+  return referenceEdgesOf(fields).flatMap(({ field, to }) => (SUPERSESSION_FIELDS.includes(field) ? [] : [to]));
 }
 
 function loopThrough(graph: ReadonlyMap<string, readonly unknown[]>, id: string): string[] | null {

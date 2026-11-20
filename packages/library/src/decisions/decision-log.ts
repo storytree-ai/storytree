@@ -21,6 +21,43 @@ export interface DecisionView {
   readonly composed?: { readonly statement: string; readonly composedAt: string; readonly stale: boolean };
 }
 
+export type ClauseSupersession = NonNullable<FieldsOf<"decision">["supersedesClauses"]>[number];
+
+export interface NarrowsMove {
+  readonly decisions: string[];
+  readonly edges: number;
+  readonly partial: number;
+}
+
+export interface SupersessionPair {
+  readonly kind: "no-note" | "no-edge";
+  readonly from: string;
+  readonly to: string;
+}
+
+export interface SupersessionPairs {
+  readonly flagged: SupersessionPair[];
+  readonly backlog: number;
+}
+
+const PAIRS_FROM = "2026-11-20";
+
+export function partlySupersedes(fields: Pick<FieldsOf<"decision">, "supersedesClauses" | "narrows">): ClauseSupersession[] {
+  const entries: ClauseSupersession[] = [...(fields.supersedesClauses ?? [])];
+  for (const decision of fields.narrows ?? []) if (!entries.some((entry) => entry.decision === decision)) entries.push({ decision });
+  return entries;
+}
+
+export async function checkClauseSupersession(records: SchemaRecords, edit: object): Promise<void> {
+  const fields = edit as { readonly narrows?: unknown; readonly supersedesClauses?: unknown };
+  if (Array.isArray(fields.narrows) && fields.narrows.length > 0) {
+    throw new RangeError('a decision no longer writes "narrows": name the decision it supersedes in part, and its clauses, in "supersedesClauses" (ADR-1379 D1)');
+  }
+  if (Array.isArray(fields.supersedesClauses)) {
+    await checkReferences(records, "supersedesClauses", fields.supersedesClauses.map((entry: unknown) => (entry !== null && typeof entry === "object" ? (entry as Record<string, unknown>).decision : entry)), "decision");
+  }
+}
+
 export interface DecisionNumberPlan {
   readonly id: string;
   readonly oldNumber: number | undefined;
@@ -49,7 +86,7 @@ export class DecisionLog {
     await this.#checkLinks(decision.links);
     await this.#checkFrontCover(decision.frontCoverOf);
     await checkReferences(this.#records, "supersedes", decision.supersedes, "decision");
-    await checkReferences(this.#records, "narrows", decision.narrows, "decision");
+    await checkClauseSupersession(this.#records, decision);
     return this.#records.create("decision", decision, {
       ...options, sequence: "number",
       ...(floor === undefined ? {} : { sequenceFloor: floor }),
@@ -224,6 +261,59 @@ export class DecisionLog {
     return (await this.#records.edit(id, { composed }, options)) as SchemaRecord<"decision"> | null;
   }
 
+  async moveNarrowsToClauses(options?: WriteOptions): Promise<NarrowsMove> {
+    const all = [...(await this.#records.list("decision"))].sort(byCreation);
+    const numbers = new Map(all.map((record) => [record.id, record.fields.number]));
+    const decisions: string[] = [];
+    let edges = 0;
+    let partial = 0;
+    for (const record of all) {
+      const narrows = record.fields.narrows;
+      if (narrows === undefined) continue;
+      let entries: ClauseSupersession[] = [...(record.fields.supersedesClauses ?? [])];
+      for (const target of narrows) {
+        const clauses = clausesNamed(record.fields.text, numbers.get(target));
+        edges += 1;
+        if (clauses.length === 0) partial += 1;
+        entries = withClauses(entries, target, clauses);
+      }
+      await this.#records.edit(record.id, { narrows: undefined, supersedesClauses: entries.length === 0 ? undefined : entries }, options);
+      decisions.push(record.id);
+    }
+    return { decisions, edges, partial };
+  }
+
+  async supersessionPairs(): Promise<SupersessionPairs> {
+    const all = await this.#records.list("decision");
+    const byNumber = new Map(all.flatMap((record) => (record.fields.number === undefined ? [] : [[record.fields.number, record.id] as const])));
+    const created = new Map(all.map((record) => [record.id, record.createdAt]));
+    const pair = (from: string, to: string): string => `${from} ${to}`;
+    const edges = new Set<string>();
+    const clauseEdges: [string, string][] = [];
+    for (const record of all.filter((one) => one.fields.status === "accepted")) {
+      for (const to of record.fields.supersedes ?? []) edges.add(pair(record.id, to));
+      for (const { decision } of partlySupersedes(record.fields)) {
+        edges.add(pair(record.id, decision));
+        clauseEdges.push([record.id, decision]);
+      }
+    }
+    const notes = new Set<string>();
+    const noted: [string, string][] = [];
+    for (const record of all) {
+      for (const from of notesIn(record.fields.text, byNumber)) {
+        if (from === record.id || !created.has(from) || notes.has(pair(from, record.id))) continue;
+        notes.add(pair(from, record.id));
+        noted.push([from, record.id]);
+      }
+    }
+    const unpaired: SupersessionPair[] = [
+      ...clauseEdges.filter(([from, to]) => !notes.has(pair(from, to))).map(([from, to]) => ({ kind: "no-note" as const, from, to })),
+      ...noted.filter(([from, to]) => !edges.has(pair(from, to))).map(([from, to]) => ({ kind: "no-edge" as const, from, to })),
+    ];
+    const backlog = unpaired.filter(({ from }) => (created.get(from) ?? "") < PAIRS_FROM);
+    return { flagged: unpaired.filter((one) => !backlog.includes(one)), backlog: backlog.length };
+  }
+
   #checkLinks(links: unknown): Promise<void> {
     return checkReferences(this.#records, "links", links, this.#links);
   }
@@ -231,6 +321,30 @@ export class DecisionLog {
   #checkFrontCover(frontCoverOf: unknown): Promise<void> {
     return checkFrontCover(this.#records, frontCoverOf);
   }
+}
+
+export function withClauses(entries: readonly ClauseSupersession[], decision: string, clauses: readonly string[]): ClauseSupersession[] {
+  const entry = entries.find((one) => one.decision === decision);
+  const merged = [...new Set([...(entry?.clauses ?? []), ...clauses])];
+  const next = { decision, ...(merged.length === 0 ? {} : { clauses: merged }) };
+  return entry === undefined ? [...entries, next] : entries.map((one) => (one === entry ? next : one));
+}
+
+function clausesNamed(text: string, number: number | undefined): string[] {
+  if (number === undefined) return [];
+  const named = new RegExp(`ADR-0*${number}(?!\\d)(?:['’]s)?((?:(?:\\s*,\\s*and\\s+|\\s*,\\s*|\\s+and\\s+|\\s*&\\s*|\\s+)D\\d+(?!\\d))+)`, "g");
+  return [...new Set([...text.matchAll(named)].flatMap((match) => match[1]!.match(/D\d+/g) ?? []))];
+}
+
+const IN_PLACE_NOTE = /\b(?:narrowed|annotated|replaced|superseded|amended|overtaken|withdrawn)\b[^.\n]*?\bby\s+(ADR-\d+|decision_[0-9a-f]{12})(?![0-9a-f])/gi;
+
+function notesIn(text: string, byNumber: ReadonlyMap<number, string>): string[] {
+  return [...text.matchAll(IN_PLACE_NOTE)].flatMap((match) => {
+    const named = match[1]!;
+    if (!/^ADR-/i.test(named)) return [named];
+    const id = byNumber.get(Number(named.slice(4)));
+    return id === undefined ? [] : [id];
+  });
 }
 
 function fingerprintOf(text: string): string {

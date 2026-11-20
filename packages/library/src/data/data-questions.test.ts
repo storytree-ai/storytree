@@ -5,6 +5,7 @@ import { test, type TestContext } from "node:test";
 
 import { connect, type Library } from "../index.js";
 import { LIBRARY_FAMILIES, type LibraryVerbContext } from "../commands/index.js";
+import { connect as connectProject } from "../project/index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
 
@@ -27,26 +28,33 @@ async function world(t: TestContext): Promise<{ library: Library; run: (name: st
   return { library, run: async (name, inputs) => (await verbOf(name).act(inputs as never, context, WORDS)).text };
 }
 
-test("27.6 · library find gives current state: other records, then decisions narrowed in place, each most recently changed first; resteers, friction and superseded decisions come back, last and most recently changed first, only with --history", async (t) => {
+test("27.6 · library find gives current state: other records, then decisions superseded in part (clause-scoped, or a narrows not yet moved), each most recently changed first; resteers, friction and superseded decisions come back, last and most recently changed first, only with --history", async (t) => {
   const { library, run } = await world(t);
   const current = await library.defineTerm({ term: "Mapped colour", meaning: "Green, red or yellow once explored." });
   const replaced = await library.recordDecision({ status: "accepted", title: "Mapped colour is grey", text: "D1. Grey." });
   await library.recordDecision({ status: "accepted", title: "Grey for parked", text: "D1. Grey is parked's.", supersedes: [replaced.id] });
-  const narrowed = await library.recordDecision({ status: "accepted", title: "Mapped colour is brown", text: "D1. Brown." });
-  await library.recordDecision({ status: "accepted", title: "Explored islands take their health", text: "D1. Explored is not brown.", narrows: [narrowed.id] });
+  const narrowed = await library.recordDecision({ status: "accepted", title: "Mapped colour is brown", text: "D1. Brown. D2. Brown everywhere." });
+  await library.recordDecision({ status: "accepted", title: "Explored islands take their health", text: "D1. Explored is not brown.", supersedesClauses: [{ decision: narrowed.id, clauses: ["D2"] }] });
+  const ochre = await library.recordDecision({ status: "accepted", title: "Mapped colour is ochre", text: "D1. Ochre." });
+  const lower = await connectProject({ url: testServerUrl() });
+  try {
+    await (await lower.openProject(library.name)).records.create("decision", { status: "accepted", title: "Coasts take sand", text: "D1. Coasts are sand.", narrows: [ochre.id] });
+  } finally {
+    await lower.close();
+  }
   const resteer = await library.writeKnowledge("resteer", {
     title: "Mapped colour redirect", description: "Redirected.", doing: "Painting", redirect: "Not brown", evidence: "He said so.", disposition: "taste", dispositionBy: "owner",
   });
   const friction = await library.writeKnowledge("friction", { title: "Mapped colour confusion", description: "Confused.", statement: "Two colours.", evidence: "Seen twice.", impact: "Stale answers." });
-  await library.editNote(narrowed.id, { text: "D1. Brown, for the unexplored part." });
+  await library.editNote(narrowed.id, { text: "D1. Brown, for the unexplored part. D2. Brown everywhere." });
 
   const ids = async (history: boolean): Promise<string[]> =>
     (await run("find", { words: ["mapped", "colour"], history })).split("\n").map((line) => /^\s+(\w+_[0-9a-f]{12})\s/.exec(line)?.[1]).filter((id) => id !== undefined);
-  assert.deepEqual(await ids(false), [current.id, narrowed.id], "current state only: no resteer, friction or superseded decision");
+  assert.deepEqual(await ids(false), [current.id, narrowed.id, ochre.id], "current state only: no resteer, friction or superseded decision");
   const order = await ids(true);
-  assert.deepEqual(order.slice(0, 2), [current.id, narrowed.id], "current first, then the narrowed decision, though it was edited last");
-  assert.deepEqual(new Set(order.slice(2)), new Set([replaced.id, resteer.id, friction.id]), "history last");
-  assert.deepEqual(order.slice(2), [friction.id, resteer.id, replaced.id], "history most recently changed first");
+  assert.deepEqual(order.slice(0, 3), [current.id, narrowed.id, ochre.id], "current first, then the decisions superseded in part, most recently changed first, though one was edited last");
+  assert.deepEqual(new Set(order.slice(3)), new Set([replaced.id, resteer.id, friction.id]), "history last");
+  assert.deepEqual(order.slice(3), [friction.id, resteer.id, replaced.id], "history most recently changed first");
 });
 
 test("27.1 · library count tallies live records by kind and status, and open increments by arc, leaving health out", async (t) => {

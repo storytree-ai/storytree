@@ -317,7 +317,7 @@ const dataFiles = new Map();
 function readsOnly(root, text, folder, script) {
   const name = path.posix.basename(script);
   const extension = name.slice(name.lastIndexOf("."));
-  if (text.includes(name) || new RegExp(`["'\`*]\\${extension}["'\`]`).test(text) || UNREADABLE_IMPORT.test(text)) return false;
+  if (text.includes(name) || new RegExp(`["'\`*]${extension.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'\`]`).test(text) || UNREADABLE_IMPORT.test(text)) return false;
   const at = path.join(root, folder);
   if (!dataFiles.has(at)) {
     const files = globSync("**/*", { cwd: at, withFileTypes: true, exclude: (entry) => entry.name === "node_modules" });

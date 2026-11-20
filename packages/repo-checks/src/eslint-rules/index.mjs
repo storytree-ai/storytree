@@ -5,6 +5,7 @@ import noComments from "./no-comments.mjs";
 import noHappyDomEqual from "./no-happy-dom-equal.mjs";
 import noOneCharacterEscape from "./no-one-character-escape.mjs";
 import noPartialEscape from "./no-partial-escape.mjs";
+import noPartialRegexpEscape from "./no-partial-regexp-escape.mjs";
 import noSwallowedAssert from "./no-swallowed-assert.mjs";
 import noTagStrip from "./no-tag-strip.mjs";
 import noUnguardedBatchFetch from "./no-unguarded-batch-fetch.mjs";
@@ -21,6 +22,7 @@ export default {
     "no-comments": noComments,
     "no-tag-strip": noTagStrip,
     "no-partial-escape": noPartialEscape,
+    "no-partial-regexp-escape": noPartialRegexpEscape,
     "no-one-character-escape": noOneCharacterEscape,
     "git-end-of-options": gitEndOfOptions,
     "no-happy-dom-equal": noHappyDomEqual,

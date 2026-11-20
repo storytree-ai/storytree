@@ -157,7 +157,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
     maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     serviceOn: async () => (await import("@storytree/project-and-caller")).readServicesOn().includes("agent-pool/dispatcher"),
-    pull: async (pr, repo) => JSON.parse((await run("gh", ["api", "graphql", "-f", `owner=${repo.split("/")[0]}`, "-f", `name=${repo.split("/")[1]}`, "-F", `pr=${pr}`, "-f", `query=${QUERY}`],
+    pull: async (pr, slug) => JSON.parse((await run("gh", ["api", "graphql", "-f", `owner=${slug.split("/")[0]}`, "-f", `name=${slug.split("/")[1]}`, "-F", `pr=${pr}`, "-f", `query=${QUERY}`],
       { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout).data.repository.pullRequest,
   };
 }

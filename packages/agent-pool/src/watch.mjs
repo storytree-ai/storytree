@@ -628,11 +628,14 @@ export async function watchOnce({ dir, look, stateOf, storytree, cutover = async
       dated(`PR #${pr}: could not read it (${why}); looking again next time`);
       record.unreadable = { since: record.unreadable?.since ?? new Date(now()).toISOString(), why, ...(record.unreadable?.waited ? { waited: true } : {}) };
       if (!record.closed && !record.unreadable.waited && now() - Date.parse(record.unreadable.since) >= UNREADABLE_MS) {
-        await tell(["arc", "increment", "wait", increment, "--for", "owner",
+        const args = ["arc", "increment", "wait", increment, "--for", "owner",
           "--note", `The watcher could not read PR #${pr} on ${repoOf(record)} for an hour (${why}). Give the box's gh read access to ${repoOf(record)}, or close ${increment} by hand if its pull request merged.`,
-          "--why", `until the watcher can read PR #${pr}, ${increment} stays held from the pool`], at);
-        record.unreadable.waited = true;
-        dated(`PR #${pr}: unreadable for an hour: ${increment} waits on the owner`);
+          "--why", `until the watcher can read PR #${pr}, ${increment} stays held from the pool`];
+        try {
+          await storytree(args, at);
+          record.unreadable.waited = true;
+          dated(`PR #${pr}: unreadable for an hour: ${increment} waits on the owner`);
+        } catch (refused) { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${refused.message.split("\n")[0]}; trying again next time`); }
       }
       await save(dir, record);
       continue;

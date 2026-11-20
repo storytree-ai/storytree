@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 
+import { removeTemp } from "@storytree/test-waits";
+
 import { VerbRefusal, type DoorWords, type VerbContext } from "../verbs/verb.js";
 
 import { connect, type Library } from "../index.js";
@@ -202,7 +204,7 @@ test("13.20 · `adr new --why <target>=<text>` writes each decision link's and s
 test("13.21 · `adr pull` shows a decision's justifications as an editable front-matter line keyed by target, and `adr push` writes an edited one back", async (t) => {
   const { library, context, verbOf } = await adrWorld(t);
   const folder = mkdtempSync(path.join(tmpdir(), "library-adr-why-"));
-  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  t.after(() => removeTemp(folder));
   const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
   const linking = await library.recordDecision({ status: "accepted", title: "Retries are twice", text: "Retry twice.", links: [queue.id], justifications: { [queue.id]: "Follow it for where a retry waits." } } as never);
   const here = { ...context, folder };

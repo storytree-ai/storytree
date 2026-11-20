@@ -1416,3 +1416,53 @@ test("17.35 · The open tool shows each decision a decision links to with its ju
   const linksTo = (opened.data as { linksTo: { id: string; justification?: string }[] }).linksTo;
   assert.deepEqual(linksTo.map(({ id: target, justification }) => [target, justification]), [[queue.id, "Follow it for where a retry waits."], [term.id, undefined]]);
 });
+
+test("17.36 · library links, library read's \"Linked from:\" and the open tool's \"Linked from:\" list every record linking to a decision, an increment, a question and a friction it discharged beside a note, and not a note citing it only in its text; reading or opening a decision says \"Superseded by ADR-n\" when a later one supersedes it whole and \"Superseded in part by ADR-n (D2, D3)\" when one supersedes those clauses", async (t) => {
+  const { library, verbOf, toolOf, context, tools } = await justifiedWorld(t);
+  const adrOf = (decision: { readonly fields: { readonly number?: number | undefined } }): string => `ADR-${String(decision.fields.number).padStart(4, "0")}`;
+  const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "D1. Queue. D2. Retry. D3. Bounce." });
+  const hand = await library.recordDecision({ status: "accepted", title: "Mail by hand", text: "By hand." });
+  const topic = await library.recordDecision({ status: "accepted", title: "Mail by topic", text: "Topics replace sending by hand.", supersedes: [hand.id], justifications: { [hand.id]: "It replaces sending by hand." } } as never);
+  const retries = await library.recordDecision({ status: "accepted", title: "Retries are twice", text: "Retry twice.", supersedesClauses: [{ decision: queue.id, clauses: ["D2", "D3"] }], justifications: { [queue.id]: "It replaces the queue's retry and bounce rules." } } as never);
+  const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Queue the mail", objective: "Build it", body: "Red then green", links: [queue.id] });
+  const question = await library.raiseQuestion({ arc: arc.id, title: "Which queue?", stakes: "Mail needs one.", statement: "Which?", context: "Two.", options: "Redis or Postgres.", links: [queue.id] });
+  const principle = await library.writeKnowledge("principle", {
+    title: "Never send inline", description: "Inline sends block the request.", statement: "Mail leaves through the queue.", why: "Requests stay fast.", howToApply: "Enqueue, never send.", links: [queue.id],
+  });
+  const friction = await library.writeKnowledge("friction", {
+    title: "Mail sent inline", description: "A send blocked sign-up.", statement: "Sign-up waited on the mail server.", evidence: "Sign-up took 9 s.", impact: "Visitors left.",
+  });
+  await library.editNote(friction.id, { route: "adr", routeReason: "Decided to queue.", dischargedBy: queue.id });
+  const citing = await library.writeKnowledge("principle", {
+    title: "Mail is cheap", description: "Sending costs little.", statement: `As ${queue.id} says, mail is queued.`, why: "It is.", howToApply: "Send freely.",
+  });
+  const linking = [increment, question, principle, friction];
+
+  const listed = (await verbOf("links").act({ artifact: queue.id }, context, WORDS)).text;
+  const listedLines = listed.split("\n");
+  assert.equal(listedLines[0], `4 artifacts link to ${queue.id}:`, listed);
+  for (const record of linking) assert.ok(listedLines.some((line) => line.startsWith(`  ${record.id}  [${record.type}]  `)), `library links lists the ${record.type}:\n${listed}`);
+  assert.ok(!listed.includes(citing.id), `not the note citing it in its text:\n${listed}`);
+
+  const read = (await verbOf("read").act({ ids: [queue.id], linked: false, field: undefined }, context, WORDS)).text;
+  const readLines = read.split("\n");
+  assert.ok(readLines.includes("Linked from:"), `library read has a Linked from section:\n${read}`);
+  const readFrom = readLines.slice(readLines.indexOf("Linked from:") + 1);
+  for (const record of linking) assert.ok(readFrom.some((line) => line.startsWith(`  ${record.id}  [${record.type}]  `)), `library read lists the ${record.type} under Linked from:\n${read}`);
+  assert.ok(!read.includes(citing.id), `not the note citing it in its text:\n${read}`);
+  assert.ok(readLines.includes(`Superseded in part by ${adrOf(retries)} (D2, D3)`), `library read names the clause supersession:\n${read}`);
+  const readHand = (await verbOf("read").act({ ids: [hand.id], linked: false, field: undefined }, context, WORDS)).text;
+  assert.ok(readHand.split("\n").includes(`Superseded by ${adrOf(topic)}`), `library read names the whole supersession:\n${readHand}`);
+
+  const opened = await toolOf("open").act({ id: queue.id }, tools, WORDS);
+  const openLines = opened.text.split("\n");
+  assert.ok(openLines.includes("Linked from:"), `open has a Linked from section:\n${opened.text}`);
+  const openFrom = openLines.slice(openLines.indexOf("Linked from:") + 1);
+  for (const record of linking) assert.ok(openFrom.some((line) => line.includes(record.id)), `open lists the ${record.type} under Linked from:\n${opened.text}`);
+  assert.deepEqual((opened.data as { linkedFrom: { id: string }[] }).linkedFrom.map(({ id }) => id).sort(), linking.map(({ id }) => id).sort());
+  assert.ok(!opened.text.includes(citing.id), `not the note citing it in its text:\n${opened.text}`);
+  assert.ok(openLines.includes(`Superseded in part by ${adrOf(retries)} (D2, D3)`), `open names the clause supersession:\n${opened.text}`);
+  const openedHand = (await toolOf("open").act({ id: hand.id }, tools, WORDS)).text;
+  assert.ok(openedHand.split("\n").includes(`Superseded by ${adrOf(topic)}`), `open names the whole supersession:\n${openedHand}`);
+});

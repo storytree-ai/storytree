@@ -199,3 +199,11 @@ test("8.10 · each hand-off is read on its own project's repository, and one its
   assert.ok(lines.includes("concern: PR #31 increment_r: could not read it on GitHub (Could not resolve to a PullRequest with the number of 31.)"), lines.join("\n"));
   assert.ok(!lines.some((line) => line.startsWith("hand-off PR #31")), lines.join("\n"));
 });
+
+test("8.10 · a project's hand-off whose pull request reads on its own repository with its head there is judged against that repository, not read as a head off storytree's", async (t) => {
+  const { lanesDir, lines, b } = await box(t, { pulls: { 32: green({ headRepository: { nameWithOwner: "storytree-ai/reward-access-website" } }) } });
+  await hand(lanesDir, 32, "increment_w", { project: { repo: "storytree-ai/reward-access-website", folder: "/srv/reward" } });
+  assert.equal(await main(["--all"], b), 0, lines.join("\n"));
+  assert.deepEqual(lines.filter((line) => line.startsWith("concern")), []);
+  assert.ok(lines.includes("hand-off PR #32 increment_w: handed 30m ago, pending, 0 fix sessions"), lines.join("\n"));
+});

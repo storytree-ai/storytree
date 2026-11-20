@@ -275,7 +275,7 @@ async function libraryClockPast(at: Date): Promise<void> {
   );
 }
 
-test("26.11 · the link tool takes why, the supersede tool justifications and the annotate tool why, each stored as the justification of the decision edge it writes; the link tool joining two decisions with no why is refused naming justification and the target, and a definition rests on a decision with none", async () => {
+test("26.12 · the link tool takes why, the supersede tool justifications and the annotate tool why, each stored as the justification of the decision edge it writes; the link tool joining two decisions with no why is refused naming justification and the target, and a definition rests on a decision with none", async () => {
   await withLibrary(async (library) => {
     const decide = (title: string) => library.recordDecision({ status: "accepted", title, text: `${title}.` });
     const queue = await decide("Mail by queue");

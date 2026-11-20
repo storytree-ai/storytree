@@ -58,6 +58,90 @@ export async function checkClauseSupersession(records: SchemaRecords, edit: obje
   }
 }
 
+export type ArchivedLink = NonNullable<FieldsOf<"decision">["archivedLinks"]>[number];
+
+export interface ArchivedDecisionLink extends ArchivedLink {
+  readonly from: string;
+}
+
+export interface DecisionLinkBacklog {
+  readonly links: number;
+  readonly decisions: number;
+}
+
+const EDGE_FIELDS = ["links", "supersedes", "supersedesClauses", "narrows", "justifications"];
+
+export function decisionEdgeTargets(fields: object): string[] {
+  const at = fields as Record<string, unknown>;
+  const clauses = listOf(at.supersedesClauses).map((entry) => (entry !== null && typeof entry === "object" ? (entry as Record<string, unknown>).decision : entry));
+  const ids = [...listOf(at.links), ...listOf(at.supersedes), ...clauses, ...listOf(at.narrows)];
+  return [...new Set(ids.filter((id): id is string => typeof id === "string"))];
+}
+
+export async function justifiedEdit<T extends object>(records: SchemaRecords, from: string | undefined, before: object | undefined, edit: T): Promise<T> {
+  if (before !== undefined && !EDGE_FIELDS.some((field) => field in edit)) return edit;
+  const given = (edit as { readonly justifications?: unknown }).justifications;
+  if (given !== undefined && (given === null || typeof given !== "object" || Array.isArray(given))) return edit;
+  const stored = (before as { readonly justifications?: Readonly<Record<string, string>> } | undefined)?.justifications;
+  const merged: Record<string, unknown> = { ...stored, ...(given as object | undefined) };
+  const targets = decisionEdgeTargets({ ...before, ...edit });
+  const held = new Set(before === undefined ? [] : decisionEdgeTargets(before));
+  for (const target of targets) {
+    if (held.has(target) || merged[target] !== undefined) continue;
+    if ((await liveRecord(records, target, ["decision"])) === null) continue;
+    throw new RangeError(
+      `${from ?? "a new decision"} → ${target}: a link to a decision is written with its justification, at most two lines (why an agent would follow it, why it was linked): pass justifications ${JSON.stringify({ [target]: "…" })} (ADR-1379 D2)`,
+    );
+  }
+  const kept = Object.fromEntries(Object.entries(merged).filter(([target]) => targets.includes(target)));
+  const { justifications: _given, ...rest } = edit as Record<string, unknown>;
+  if (Object.keys(kept).length > 0) return { ...rest, justifications: kept } as T;
+  return (stored === undefined ? rest : { ...rest, justifications: undefined }) as T;
+}
+
+export function prunedEdit(record: SchemaRecord<"decision">, to: string, reason: string, by: string): Partial<FieldsOf<"decision">> {
+  const fields = record.fields;
+  const justification = fields.justifications?.[to];
+  const at = new Date().toISOString();
+  const archived = (field: ArchivedLink["field"], clauses?: readonly string[]): ArchivedLink => ({
+    to, field, ...(clauses === undefined ? {} : { clauses: [...clauses] }), ...(justification === undefined ? {} : { justification }), reason, by, at,
+  });
+  const without = (ids: readonly string[]): string[] | undefined => (ids.length === 1 ? undefined : ids.filter((id) => id !== to));
+  const edit: Partial<FieldsOf<"decision">> = {};
+  const moved: ArchivedLink[] = [];
+  if (fields.links?.includes(to) === true) {
+    moved.push(archived("links"));
+    edit.links = without(fields.links);
+  }
+  if (fields.supersedes?.includes(to) === true) {
+    moved.push(archived("supersedes"));
+    edit.supersedes = without(fields.supersedes);
+  }
+  const entry = fields.supersedesClauses?.find((one) => one.decision === to);
+  if (entry !== undefined) {
+    moved.push(archived("supersedesClauses", entry.clauses));
+    const rest = fields.supersedesClauses!.filter((one) => one !== entry);
+    edit.supersedesClauses = rest.length === 0 ? undefined : rest;
+  }
+  if (moved.length === 0) throw new RangeError(`${record.id} has no link to ${to} to prune`);
+  return { ...edit, archivedLinks: [...(fields.archivedLinks ?? []), ...moved] };
+}
+
+export function restoredEdit(record: SchemaRecord<"decision">, to: string, justification?: string): Partial<FieldsOf<"decision">> {
+  const fields = record.fields;
+  const archived = fields.archivedLinks ?? [];
+  const back = archived.filter((one) => one.to === to);
+  if (back.length === 0) throw new RangeError(`${record.id} has no archived link to ${to} to restore`);
+  const rest = archived.filter((one) => one.to !== to);
+  const edit: Partial<FieldsOf<"decision">> = { archivedLinks: rest.length === 0 ? undefined : rest };
+  for (const { field, clauses } of back) {
+    if (field === "supersedesClauses") edit.supersedesClauses = withClauses(edit.supersedesClauses ?? fields.supersedesClauses ?? [], to, clauses ?? []);
+    else edit[field] = [...new Set([...(edit[field] ?? fields[field] ?? []), to])];
+  }
+  const why = justification ?? back.find((one) => one.justification !== undefined)?.justification;
+  return why === undefined ? edit : { ...edit, justifications: { [to]: why } };
+}
+
 export interface DecisionNumberPlan {
   readonly id: string;
   readonly oldNumber: number | undefined;
@@ -87,7 +171,8 @@ export class DecisionLog {
     await this.#checkFrontCover(decision.frontCoverOf);
     await checkReferences(this.#records, "supersedes", decision.supersedes, "decision");
     await checkClauseSupersession(this.#records, decision);
-    return this.#records.create("decision", decision, {
+    const justified = await justifiedEdit(this.#records, undefined, undefined, decision);
+    return this.#records.create("decision", justified, {
       ...options, sequence: "number",
       ...(floor === undefined ? {} : { sequenceFloor: floor }),
       ...(own ? { sequenceNeverHeld: true } : {}),
@@ -314,6 +399,25 @@ export class DecisionLog {
     return { flagged: unpaired.filter((one) => !backlog.includes(one)), backlog: backlog.length };
   }
 
+  async decisionLinkBacklog(): Promise<DecisionLinkBacklog> {
+    const all = await this.#records.list("decision");
+    const live = new Set(all.map((record) => record.id));
+    let links = 0;
+    let decisions = 0;
+    for (const record of all) {
+      const justified = record.fields.justifications ?? {};
+      const old = decisionEdgeTargets(record.fields).filter((target) => live.has(target) && justified[target] === undefined).length;
+      links += old;
+      if (old > 0) decisions += 1;
+    }
+    return { links, decisions };
+  }
+
+  async archivedLinks(from?: string): Promise<ArchivedDecisionLink[]> {
+    const all = [...(await this.#records.list("decision"))].sort(byCreation);
+    return all.filter((record) => from === undefined || record.id === from).flatMap((record) => (record.fields.archivedLinks ?? []).map((archived) => ({ from: record.id, ...archived })));
+  }
+
   #checkLinks(links: unknown): Promise<void> {
     return checkReferences(this.#records, "links", links, this.#links);
   }
@@ -345,6 +449,10 @@ function notesIn(text: string, byNumber: ReadonlyMap<number, string>): string[] 
     const id = byNumber.get(Number(named.slice(4)));
     return id === undefined ? [] : [id];
   });
+}
+
+function listOf(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
 }
 
 function fingerprintOf(text: string): string {

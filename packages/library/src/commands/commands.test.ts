@@ -862,9 +862,9 @@ test("17.24 · library search and search_notes give current state unless told: -
   });
   const library = await storytree.openProject(project);
   const old = await library.recordDecision({ status: "accepted", title: "Mapped is grey", text: "Mapped islands are grey." });
-  await library.recordDecision({ status: "accepted", title: "Grey for parked", text: "Parked islands are grey, and mapped ones are not.", supersedes: [old.id] });
+  await library.recordDecision({ status: "accepted", title: "Grey for parked", text: "Parked islands are grey, and mapped ones are not.", supersedes: [old.id], justifications: { [old.id]: "It replaces the earlier rule." } });
   const narrowed = await library.recordDecision({ status: "accepted", title: "Mapped is brown", text: "Mapped islands are brown." });
-  const narrowing = await library.recordDecision({ status: "accepted", title: "Explored islands take their health", text: "Only unexplored mapped islands stay brown.", supersedesClauses: [{ decision: narrowed.id }] });
+  const narrowing = await library.recordDecision({ status: "accepted", title: "Explored islands take their health", text: "Only unexplored mapped islands stay brown.", supersedesClauses: [{ decision: narrowed.id }], justifications: { [narrowed.id]: "It replaces part of the earlier rule." } });
   const resteer = await library.writeKnowledge("resteer", {
     title: "Mapped islands are not grey", description: "Redirected.", doing: "Painting mapped islands", redirect: "Not grey", evidence: "He said so.", disposition: "taste", dispositionBy: "owner",
   });
@@ -1337,4 +1337,82 @@ test("17.32 · The open tool and library read, on a story or a capability, list 
     for (const id of attached) assert.ok(text.includes(id), `${door} ${part} lists ${id}`);
     for (const id of [closed.id, prose.id]) assert.ok(!text.includes(id), `${door} ${part} leaves out ${id}`);
   }
+});
+
+async function justifiedWorld(t: { after(fn: () => Promise<void>): void }) {
+  const storytree = await connect({ url: testServerUrl() });
+  const lower = await connectProject({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    await lower.close();
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const { records } = await lower.openProject(project);
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family.verbs.find((one) => mounted(one.command) && one.command.name === name)!;
+  const toolOf = (name: string): Verb<VerbInputs, NoteToolContext> => NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === name)!;
+  const base = { library, project, session: "curator", folder: process.cwd(), writer: { actor: "session:curator" }, claims: async () => [] };
+  const context: LibraryVerbContext = { ...base, testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const tools: NoteToolContext = { ...base, notesRead: async () => [], recordReads: async () => {}, presenterOf: async () => undefined };
+  return { library, records, verbOf, toolOf, context, tools };
+}
+
+test("17.34 · library read of a decision lists each link to a decision with its field, its target and its justification on one line, an old-shape one said to have none; library links shows each linking decision's justification beside it; library edit --justifications writes one, and an edit adding a decision link without one is refused naming it", async (t) => {
+  const { library, records, verbOf, context } = await justifiedWorld(t);
+  const story = await library.addStory({ title: "Mail" });
+  const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
+  const hand = await library.recordDecision({ status: "accepted", title: "Mail by hand", text: "By hand." });
+  const log = await library.recordDecision({ status: "accepted", title: "Mail is logged", text: "Log it." });
+  const linking = await records.create("decision", {
+    status: "accepted", title: "Retries are twice", text: "Retry twice.",
+    links: [queue.id, log.id, story.id], supersedes: [hand.id],
+    justifications: { [queue.id]: "Follow it for where a retry waits.", [hand.id]: "Retries replace sending by hand." },
+  } as never);
+
+  const read = (await verbOf("read").act({ ids: [linking.id], linked: false, field: undefined }, context, WORDS)).text;
+  const lines = read.split("\n");
+  const block = lines.slice(lines.indexOf("decision links:"));
+  assert.ok(lines.includes("decision links:"), `a decision links block:\n${read}`);
+  for (const line of [`  links ${queue.id}  Follow it for where a retry waits.`, `  links ${log.id}  (old shape: no justification)`, `  supersedes ${hand.id}  Retries replace sending by hand.`]) {
+    assert.ok(block.includes(line), `library read shows ${JSON.stringify(line)}:\n${read}`);
+  }
+  assert.ok(!block.some((line) => line.includes(story.id) && /^  links /.test(line)), "a link to a story is not a decision link");
+
+  const linked = (await verbOf("links").act({ artifact: queue.id }, context, WORDS)).text;
+  const line = linked.split("\n").find((one) => one.includes(linking.id));
+  assert.ok(line?.includes("Follow it for where a retry waits."), `library links shows the justification beside the linking decision:\n${linked}`);
+
+  const editing = await library.recordDecision({ status: "accepted", title: "Bounces are dropped", text: "Drop them." });
+  const { cursor } = await library.changesSince(0);
+  await assert.rejects(verbOf("edit").act({ "<id>": editing.id, "<fields>": { links: queue.id } }, context, WORDS), (error: Error) => error.message.includes("justification") && error.message.includes(queue.id));
+  assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
+  await verbOf("edit").act({ "<id>": editing.id, "<fields>": { links: queue.id, justifications: JSON.stringify({ [queue.id]: "Follow it for where a bounce would wait." }) } }, context, WORDS);
+  const edited = (await library.get(editing.id))?.fields as { links?: string[]; justifications?: Record<string, string> };
+  assert.deepEqual([edited.links, edited.justifications], [[queue.id], { [queue.id]: "Follow it for where a bounce would wait." }]);
+});
+
+test("17.35 · The open tool shows each decision a decision links to with its justification on the same line, and in its data; write_note writes a decision's justifications, and refuses a decision linking a decision without one, naming it", async (t) => {
+  const { library, toolOf, tools } = await justifiedWorld(t);
+  const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
+  const term = await library.defineTerm({ term: "Retry", meaning: "Sending again." });
+  const note = { kind: "decision", fields: {}, title: "Retries are twice", text: "Retry twice.", term: undefined, meaning: undefined, front_cover_of: undefined };
+
+  const { cursor } = await library.changesSince(0);
+  await assert.rejects(toolOf("write_note").act({ ...note, links: [queue.id] }, tools, WORDS), (error: Error) => error.message.includes("justification") && error.message.includes(queue.id));
+  assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
+  const written = await toolOf("write_note").act({ ...note, links: [queue.id, term.id], justifications: { [queue.id]: "Follow it for where a retry waits." } }, tools, WORDS);
+  const id = (written.data as { id: string }).id;
+  assert.deepEqual(((await library.get(id))?.fields as { justifications?: unknown }).justifications, { [queue.id]: "Follow it for where a retry waits." });
+
+  const opened = await toolOf("open").act({ id }, tools, WORDS);
+  const lines = opened.text.split("\n");
+  const queueLine = lines.slice(lines.indexOf("It links to:")).find((line) => line.includes(queue.id));
+  assert.ok(queueLine?.endsWith(" — Follow it for where a retry waits."), `the justification beside its target:\n${opened.text}`);
+  const linksTo = (opened.data as { linksTo: { id: string; justification?: string }[] }).linksTo;
+  assert.deepEqual(linksTo.map(({ id: target, justification }) => [target, justification]), [[queue.id, "Follow it for where a retry waits."], [term.id, undefined]]);
 });

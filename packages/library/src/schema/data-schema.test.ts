@@ -535,7 +535,28 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), before, "nothing was written");
   });
 
-  contract("3.12", "a process's schedule, time zone and precheck are validated: good words (a daily schedule's grace among them) are kept, bad words, a grace on any but a daily schedule, an unknown time zone, a precheck not on the fixed list, or a time zone or precheck with no schedule are refused and named", async ({ records, transactions }) => {
+  contract("3.23", "a decision's justification of a link is at most two lines of at most 200 characters each: two lines read back as written, three lines, a 201-character line or a blank one are refused naming justifications, with nothing written", async ({ records, transactions }) => {
+    const target = await records.create("decision", MINIMAL.decision, { id: "decision-target" });
+    const twoLines = "Follow it for the queue's retry rule.\nLinked because this decision sends through that queue.";
+    const saved = await records.create("decision", { ...MINIMAL.decision, title: "Retry twice", links: [target.id], justifications: { [target.id]: twoLines } } as FieldsOf<"decision">, { id: "decision-linking" });
+    assert.deepEqual((saved.fields as { justifications?: unknown }).justifications, { [target.id]: twoLines });
+    const longest = "x".repeat(200);
+    await records.edit("decision-linking", { justifications: { [target.id]: `${longest}\n${longest}` } } as never);
+    assert.deepEqual(((await records.get("decision-linking"))?.fields as { justifications?: unknown }).justifications, { [target.id]: `${longest}\n${longest}` }, "two lines of 200 characters are the most it holds");
+
+    const before = await transactions.history();
+    for (const justification of ["One.\nTwo.\nThree.", "x".repeat(201), `Short.\n${"x".repeat(201)}`, "", "   "]) {
+      await assert.rejects(
+        records.create("decision", untyped({ ...MINIMAL.decision, title: "Refused", links: [target.id], justifications: { [target.id]: justification } })),
+        (error) => error instanceof SchemaError && error.type === "decision" && error.fields.some((field) => field.startsWith("justifications")),
+        JSON.stringify(justification),
+      );
+    }
+    await assert.rejects(records.edit("decision-linking", { justifications: { [target.id]: "One.\nTwo.\nThree." } } as never), (error) => error instanceof SchemaError && error.fields.some((field) => field.startsWith("justifications")), "an edit to three lines is refused too");
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
+
+  contract("3.12","a process's schedule, time zone and precheck are validated: good words (a daily schedule's grace among them) are kept, bad words, a grace on any but a daily schedule, an unknown time zone, a precheck not on the fixed list, or a time zone or precheck with no schedule are refused and named", async ({ records, transactions }) => {
     const process = { title: "Read the spend", description: "Daily spend reading", statement: "S", trigger: "T", steps: "1. Read", surfaces: "GCP", failureModes: "None" };
     const good = ["every run", "every hour", "every 2 hours", "Every 30 minutes", "every 1 day", "daily at 09:15", "daily at 09:15 and 21:15", "daily at 06:00, 12:00 and 18:00", "daily at 09:15, grace 2 hours", "daily at 06:00, 18:00, grace 90 minutes"];
     for (const [index, schedule] of good.entries()) {

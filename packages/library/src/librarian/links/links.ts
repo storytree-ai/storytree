@@ -5,7 +5,7 @@ import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Referen
 
 const UNLINKED = { friction: "friction", resteer: "a re-steer" } as const;
 
-export async function link(library: Library, from: string, to: string, writer?: WriteOptions): Promise<Note | SchemaRecord<"question">> {
+export async function link(library: Library, from: string, to: string, writer?: WriteOptions, why?: string): Promise<Note | SchemaRecord<"question">> {
   const question = await library.get(from);
   if (question?.type === "question") {
     const links = (question as SchemaRecord<"question">).fields.links ?? [];
@@ -24,7 +24,7 @@ export async function link(library: Library, from: string, to: string, writer?: 
   }
   const links = note.fields.links ?? [];
   if (links.includes(to)) return note;
-  const linked = await library.editNote(from, { links: [...links, to] }, writer);
+  const linked = await library.editNote(from, { links: [...links, to], ...(why === undefined ? {} : { justifications: { [to]: why } }) }, writer);
   if (linked === null) throw new LibrarianRefusal(`there is no live note ${from}`);
   return linked;
 }

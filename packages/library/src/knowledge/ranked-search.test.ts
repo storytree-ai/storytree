@@ -248,9 +248,9 @@ for (const backend of [memory, postgres]) {
 
   contract("14.18", "rankAll ranks current state unless told: resteers, friction and superseded decisions come back with history, a resteer or friction when its kind is named, and a decision superseded in part (clause-scoped, or a narrows not yet moved) names the decisions that supersede its clauses, and the clauses each names", async (_, { knowledge, records }) => {
     const old = await knowledge.recordDecision({ status: "accepted", title: "Email through Mailgun", text: "Every email goes through Mailgun." });
-    const successor = await knowledge.recordDecision({ status: "accepted", title: "Email through Postmark", text: "Every email goes through Postmark.", supersedes: [old.id] });
+    const successor = await knowledge.recordDecision({ status: "accepted", title: "Email through Postmark", text: "Every email goes through Postmark.", supersedes: [old.id], justifications: { [old.id]: "It replaces the earlier rule." } });
     const narrowed = await knowledge.recordDecision({ status: "accepted", title: "Email the sender", text: "The sender gets an email copy." });
-    const narrowing = await knowledge.recordDecision({ status: "accepted", title: "Email copies are opt-in", text: "A sender asks for an email copy.", supersedesClauses: [{ decision: narrowed.id, clauses: ["D2"] }] });
+    const narrowing = await knowledge.recordDecision({ status: "accepted", title: "Email copies are opt-in", text: "A sender asks for an email copy.", supersedesClauses: [{ decision: narrowed.id, clauses: ["D2"] }], justifications: { [narrowed.id]: "It replaces the earlier rule's D2." } });
     const partly = await knowledge.recordDecision({ status: "accepted", title: "Email receipts", text: "Every receipt goes by email." });
     const legacy = await records.create("decision", { status: "accepted", title: "Email receipts are printed too", text: "A receipt is printed beside its email.", narrows: [partly.id] });
     const resteer = await knowledge.writeKnowledge("resteer", {

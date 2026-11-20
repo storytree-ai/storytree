@@ -41,7 +41,7 @@ test("22.3 · annotate adds a dated note to the target naming the decision that 
     const definition = await library.defineTerm({ term: "Newsletters", meaning: "Newsletters go elsewhere." });
     const stored = async (): Promise<Record<string, unknown>> => (await library.decision(narrowing.id))!.record.fields as Record<string, unknown>;
 
-    await annotate(library, cover.id, { by: narrowing.id, note: "Mailgun now sends transactional email only.", date: "2026-09-27" });
+    await annotate(library, cover.id, { by: narrowing.id, note: "Mailgun now sends transactional email only.", date: "2026-09-27", why: "Transactional email narrows what Mailgun sends." });
     const text = (await library.decision(cover.id))?.record.fields.text ?? "";
     assert.ok(text.startsWith("Mailgun: the simplest API."));
     assert.match(text, /Annotated 2026-09-27 by .*Transactional email only.*Mailgun now sends transactional email only\./s);

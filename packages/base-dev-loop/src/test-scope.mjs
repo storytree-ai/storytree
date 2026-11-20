@@ -9,6 +9,8 @@ const INFRA = "infra";
 const DOCS = "docs/";
 const SOURCE = /\.(?:[cm]?[jt]sx?)$/;
 const RELATIVE_PATH = /["'`](\.{1,2}\/[^"'`$\r\n]*)["'`]/g;
+const ROOTED = /\b(?:join|resolve)\(\s*[\w.]+(?:\(\))?\s*,\s*((?:["'`][^"'`$\r\n]*["'`]\s*,\s*)*["'`][^"'`$\r\n]*["'`])/g;
+const LITERAL = /["'`]([^"'`$\r\n]*)["'`]/g;
 const PATH_TOKEN = /[\w.*-]+(?:\/[\w.*-]+)*\/?/g;
 const UNREADABLE_IMPORT = /\b(?:import|require)\s*\(\s*(?!["'][^"'`]*["']\s*[,)])[^)\s]|`\.{1,2}\/[^`]*\$\{/;
 const SPECIFIER = /["'`](@?[\w.-]+(?:\/[\w.-]+)*)["'`]/g;
@@ -80,7 +82,7 @@ function reachingPaths(root, packages) {
       const runs = text.replace(TYPE_ONLY, "");
       const targets = [...runs.matchAll(RELATIVE_PATH)].map(([, relative]) => path.posix.normalize(path.posix.join(from, relative)));
       targets.push(...(DESKTOP_ONLY[at]?.targets ?? []));
-      sources.push({ at, targets, evidence: at.split("/").includes("evidence"), text, runs });
+      sources.push({ at, targets, reads: rootReads(root, runs), evidence: at.split("/").includes("evidence"), text, runs });
     }
   }
   const named = new Set();
@@ -125,7 +127,19 @@ function reachingPaths(root, packages) {
       if (imported) keep(imported);
     }
   }
-  return { reaching: [...kept].map(({ at, targets, text }) => ({ at, targets, text })), sources, kept };
+  return { reaching: [...kept].map(({ at, targets, reads, text }) => ({ at, targets, reads, text })), sources, kept };
+}
+
+function rootReads(root, runs) {
+  const reads = new Set();
+  for (const [, run] of runs.matchAll(ROOTED)) {
+    const joined = path.posix.normalize([...run.matchAll(LITERAL)].map(([, segment]) => segment).join("/"));
+    if (!WORKSPACE_ROOTS.some((base) => joined.startsWith(`${base}/`))) continue;
+    try {
+      if (statSync(path.join(root, joined)).isFile()) reads.add(joined);
+    } catch {}
+  }
+  return [...reads];
 }
 
 const BEFORE_REGEX = /(?:^|[(,=:[!&|?{};+\-*%<>~^]|\b(?:return|typeof|case|do|else|in|of|new|delete|void|throw|yield|await))$/;
@@ -316,8 +330,14 @@ function reachesOf(pkg, packages, reaching, { reach }) {
   const reaches = new Set();
   const through = { files: new Set(), folders: new Set(), dirs: new Set() };
   const seen = new Set();
-  for (const { at, targets, text } of reaching) {
+  for (const { at, targets, reads, text } of reaching) {
     if (!at.startsWith(`${pkg.dir}/`)) continue;
+    for (const file of reads) {
+      const owner = packages.find((p) => p !== pkg && file.startsWith(`${p.dir}/`));
+      if (!owner) continue;
+      reaches.add(owner.dir);
+      through.files.add(file);
+    }
     for (const target of targets) {
       if (target.startsWith(DOCS)) {
         through.files.add(target);

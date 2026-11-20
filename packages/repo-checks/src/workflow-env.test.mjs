@@ -117,6 +117,44 @@ test(`8.30 · workflowEnvProblems refuses ${ESCAPE}'s own instance: inside build
   assertNames(problems[0], { workflow: "website.yml", job: "build", at: "packages/website/src/build.ts:8", variable: "WEBSITE_SHA" });
 });
 
+test(`8.30 · workflowEnvProblems refuses the build job of ${ESCAPE}'s shape when its step runs pnpm --filter @storytree/website build from a multi-line run: | block: one problem names website.yml, job build, packages/website/src/build.ts:5 and WEBSITE_SHA`, async (t) => {
+  const workflow = [
+    `name: Publish website\n`,
+    `on:\n  push:\n    branches: [main]\n`,
+    `jobs:\n`,
+    `  build:\n    runs-on: ubuntu-latest\n    steps:\n`,
+    `      - uses: actions/checkout@v6\n`,
+    `      - name: Install and build\n        run: |\n          pnpm install --frozen-lockfile\n\n          pnpm --filter @storytree/website build\n`,
+    `      - uses: actions/upload-artifact@v7\n        with:\n          name: website-dist\n          path: dist/\n`,
+    `  publish:\n    needs: build\n    runs-on: ubuntu-latest\n    env:\n      WEBSITE_SHA: \${{ github.sha }}\n    steps:\n`,
+    `      - run: node scripts/publish.mjs\n`,
+  ].join("");
+  const problems = await problemsOf(t, { ...WEBSITE_FILES, ".github/workflows/website.yml": workflow });
+  assert.equal(problems.length, 1, problems.join("\n"));
+  assertNames(problems[0], { workflow: "website.yml", job: "build", at: BUILD_AT, variable: "WEBSITE_SHA" });
+});
+
+test(`8.30 · workflowEnvProblems refuses a fallback read of process.env.RELEASE_TAG nested inside an if whose condition is not on process.argv, when the job running node scripts/stamp.mjs lacks RELEASE_TAG and another job sets it: one problem at the read's line (${ESCAPE})`, async (t) => {
+  const stamp = [
+    `const verbose = process.argv.length > 3;`,
+    `if (verbose) {`,
+    `  const tag = process.env.RELEASE_TAG ?? "dev";`,
+    `  console.log(tag);`,
+    `}`,
+    ``,
+  ].join("\n");
+  const release = [
+    `name: Release\n`,
+    `on: [push]\n`,
+    `jobs:\n`,
+    `  direct:\n    runs-on: ubuntu-latest\n    steps:\n      - run: node scripts/stamp.mjs --verbose\n`,
+    `  ship:\n    runs-on: ubuntu-latest\n    env:\n      RELEASE_TAG: \${{ github.ref_name }}\n    steps:\n      - run: node scripts/stamp.mjs\n`,
+  ].join("");
+  const problems = await problemsOf(t, { ...ROOT_FILES, "scripts/stamp.mjs": stamp, ".github/workflows/release.yml": release });
+  assert.equal(problems.length, 1, problems.join("\n"));
+  assertNames(problems[0], { workflow: "release.yml", job: "direct", at: "scripts/stamp.mjs:3", variable: "RELEASE_TAG" });
+});
+
 test(`8.30 · workflowEnvProblems refuses a job running node <file> or pnpm run <script> from the root package.json, whose script reads process.env.X ?? or process.env.Y || directly, when another job sets X and Y and this one does not: one problem per job and variable, at the read's line (${ESCAPE})`, async (t) => {
   const stamp = [
     `import { writeFileSync } from "node:fs";`,

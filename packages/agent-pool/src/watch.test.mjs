@@ -1903,7 +1903,7 @@ test("4.64 · a hand-off whose pull request reads have failed for an hour since 
     ["arc", "increment", "wait", "increment_one", "--for", "owner", "--note"],
     ["arc", "increment", "wait", "increment_web", "--for", "owner", "--note"],
   ], "an hour of failed reads sets one owner wait on each open increment, none on the closed one");
-  const note = (increment) => waits.find((args) => args[3] === increment)[6];
+  const note = (increment) => waits.find((args) => args[3] === increment)[7];
   for (const fact of ["PR #41", "storytree-ai/storytree", "HTTP 502: Bad Gateway"]) assert.ok(note("increment_one").includes(fact), `${fact} in: ${note("increment_one")}`);
   for (const fact of ["PR #7", "storytree-ai/reward-access-website", "HTTP 502: Bad Gateway"]) assert.ok(note("increment_web").includes(fact), `${fact} in: ${note("increment_web")}`);
 

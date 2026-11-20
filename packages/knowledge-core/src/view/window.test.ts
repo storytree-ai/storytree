@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { LIBRARY_UNREACHABLE } from "@storytree/library/connection-error";
 import type { SessionWindow } from "@storytree/session-management";
 
 import { createKnowledgeCore } from "./surface.js";
@@ -67,6 +68,53 @@ test("4.16, 4.23 a failed read of the selected session's window, or of the facto
       ["knowledge-core: the factory's notes could not be read", "the factory did not answer"],
       ["knowledge-core: the selected session's window could not be read", "the window was not read"],
     ]);
+  } finally {
+    core.dispose();
+  }
+});
+
+test("4.26 · a selected session's window re-read every ten seconds through a library outage says it once to the console, one line with no stack, then once that the library answers again when a read succeeds; any other failed read is logged in full each time", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const logged = t.mock.method(console, "error", () => {});
+  const outage = new Error(`${LIBRARY_UNREACHABLE}: connect EHOSTUNREACH 100.64.0.1:5432`);
+  const broken = new Error("the window's reads table is missing");
+  const reading = (session: string): SessionWindow => ({ session, at: "-", inView: [], opens: [], glimpses: [], compactions: 0 });
+  const answers: Array<SessionWindow | Error> = [outage, outage, outage, reading("S"), reading("S"), broken, broken];
+  let reads = 0;
+  const core = createKnowledgeCore("app", { reads: { windowReading: async () => {
+    const answer = answers[reads++] ?? reading("S");
+    if (answer instanceof Error) throw answer;
+    return answer;
+  } } });
+  const settle = () => new Promise((resolve) => setImmediate(resolve));
+  const nextRead = async () => { t.mock.timers.tick(10_000); await settle(); };
+  const said = () => logged.mock.calls.map((call) => call.arguments);
+  try {
+    core.select("S");
+    await settle();
+    await nextRead();
+    await nextRead();
+    assert.equal(reads, 3);
+    assert.equal(said().length, 1, "three reads failing through the outage say it once");
+    const [line] = said();
+    assert.equal(line?.length, 1, "a line, with no error beside it");
+    assert.equal(typeof line?.[0], "string");
+    assert.doesNotMatch(line?.[0] as string, /\n/, "one line");
+    assert.match(line?.[0] as string, /The library cannot be reached: connect EHOSTUNREACH 100\.64\.0\.1:5432/);
+
+    await nextRead();
+    assert.equal(said().length, 2);
+    assert.equal(said()[1]?.length, 1);
+    assert.match(said()[1]?.[0] as string, /the library answers again$/);
+    await nextRead();
+    assert.equal(said().length, 2, "a later read that succeeds says nothing more");
+
+    await nextRead();
+    await nextRead();
+    assert.equal(reads, 7);
+    const others = said().slice(2);
+    assert.equal(others.length, 2, "any other failure is logged each read");
+    for (const other of others) assert.equal(other.at(-1), broken, "with the error itself, in full");
   } finally {
     core.dispose();
   }

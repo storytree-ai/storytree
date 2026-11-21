@@ -10,10 +10,14 @@ import { parseJunit, packageOf } from "./test-run.mjs";
 
 export const VERIFIED_BY_FACTORY = "factory test run";
 
-export function factoryPlugins(stories, factory) {
-  return stories
-    .map((story) => ({ story, folder: `plugins/${story.plugin ?? packageOf(story)}` }))
-    .filter(({ folder }) => existsSync(path.join(factory, folder, "package.json")));
+export function factoryPlugins(stories, factory, missing = []) {
+  const plugins = [];
+  for (const story of stories) {
+    const folder = `plugins/${story.plugin ?? packageOf(story)}`;
+    if (existsSync(path.join(factory, folder, "package.json"))) plugins.push({ story, folder });
+    else if (story.plugin !== undefined) missing.push({ story, folder });
+  }
+  return plugins;
 }
 
 export function factoryArgument(args, chosen) {
@@ -26,7 +30,9 @@ export function factoryArgument(args, chosen) {
 export async function recordFactory(library, stories, linked, { unrecorded = false, env = process.env, runTests = (folder) => runFactoryTests(linked, folder, env), log = (line) => console.log(line), error = (line) => console.error(line) } = {}) {
   const factory = realpathSync(linked);
   const writer = { by: VERIFIED_BY_FACTORY, source: "local", commit: factoryCommit(factory) };
-  const plugins = factoryPlugins(stories, factory);
+  const missing = [];
+  const plugins = factoryPlugins(stories, factory, missing);
+  for (const { story, folder } of missing) log(`"${story.title}" names its plugin at ${folder}, but the factory at ${factory} has no ${folder}/package.json, so it is not recorded.`);
   if (plugins.length === 0) {
     error(`the factory at ${factory}, commit ${writer.commit}: no plugin is a story's package, so nothing is recorded and the commit stays unrecorded`);
     return 1;

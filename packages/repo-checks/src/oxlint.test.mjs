@@ -14,7 +14,8 @@ import { oxlintProblems } from "./oxlint.mjs";
 const REFUSED = "This comment's content goes to a decision or the library, not the code (ADR-1366, ADR-1369).";
 const MOVE = String.raw`Any attack string /\s+/ plus some rejecting suffix will cause quadratic runtime because of this quantifier.`;
 const GIT_FETCH = `passes an input-built argument to git fetch with no "--" before it (CodeQL's js/second-order-command-line-injection): a value opening with "-" is read as an option; put "--" before the first input-built argument`;
-const PEAK = /peak memory \d+(?:\.\d+)? MB\b/;
+const UNPLACED = `runs the write "storytree arc new" naming no place: a write naming none of "--project", "--arc" or "--increment" is refused (ADR-1348 D3, escape_d6cd4011df60); pass one of them`;
+const PEAK =/peak memory \d+(?:\.\d+)? MB\b/;
 
 function checkout(t, files, track = Object.keys(files)) {
   const root = mkdtempSync(path.join(tmpdir(), "oxlint-"));
@@ -66,6 +67,16 @@ test("8.32 · oxlintProblems runs storytree's rules and regexp/no-super-linear-m
   assert.match(logged[0], /^oxlint /);
   assert.match(logged[0], /\b4 files\b/);
   assert.match(logged[0], PEAK);
+});
+
+test("8.32 · under oxlintProblems storytree/write-names-place reads storytree's writes as under ESLint: a tracked .mjs whose argv array spells arc new with no --project, --arc or --increment is one problem naming its file, line, the rule and its message", async (t) => {
+  const root = checkout(t, {
+    "packages/a/src/park.mjs": lines("export const kept = 1;", `export const parked = (t) => ["arc", "new", "--title", t];`),
+  });
+
+  assert.deepEqual(await oxlintProblems(root), [
+    `packages/a/src/park.mjs:2 storytree/write-names-place: ${UNPLACED}`,
+  ]);
 });
 
 test("8.32 · pnpm lint's last rule is named oxlint and runs oxlintProblems; on a tree no rule breaks it gives no problem, lint exits 0, and its summary line naming 2 files and the peak memory in MB reaches lint's log", async (t) => {

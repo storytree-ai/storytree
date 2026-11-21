@@ -1038,6 +1038,71 @@ for (const backend of [memory, postgres]) {
     assert.equal(titleOf(await work.editContract(bare.id, { edge: reads.id }, { testedNumbers: ["2.2"] })), "2.3 · Notes a gift", "past the dependent's contracts and its tests");
     assert.equal(titleOf(await work.editContract(plain.id, { edge: reads.id, title: "Payment applies the coupon" })), "2.4 · Payment applies the coupon", "a bare title on a contract with no number");
   });
+
+  contract("4.52", "a capability names a parent capability of its own story at any depth and keeps the story's next plain number; the tree carries its parent, a parent cleared makes it a top capability again, and a parent that is no live capability of its story, itself or one inside it is refused, as is moving to another story a capability with a parent or with capabilities inside it, with nothing written", async ({ work, records, transactions }) => {
+    const story = await work.addStory({ title: "Host keeps running" });
+    const behind = { levels: ["packages/host/src/watch"] };
+    const watch = await work.addCapability({ title: "Watching the host", story: story.id });
+    const restart = await work.addCapability({ title: "Restarting it", story: story.id, parent: watch.id }, behind);
+    assert.deepEqual([restart.fields.title, restart.fields.parent], ["2 · Restarting it", watch.id], "a child takes the story's next plain number");
+    const backoff = await work.addCapability({ title: "Backing off", story: story.id, parent: restart.id }, { levels: ["packages/host/src/watch/restart"] });
+    assert.deepEqual([backoff.fields.title, backoff.fields.parent], ["3 · Backing off", restart.id], "a grandchild under a child");
+    const logs = await work.addCapability({ title: "Reading the logs", story: story.id });
+    assert.equal((await work.editCapability(logs.id, { parent: watch.id }, behind))?.fields.parent, watch.id, "an edit sets a parent");
+
+    const nodes = async () => (await work.projectTree()).stories[0]!.capabilities.map((node) => ({ id: node.id, title: node.title, ...("parent" in node ? { parent: node.parent } : {}) })).sort((a, b) => a.title.localeCompare(b.title));
+    assert.deepEqual(await nodes(), [
+      { id: watch.id, title: "1 · Watching the host" },
+      { id: restart.id, title: "2 · Restarting it", parent: watch.id },
+      { id: backoff.id, title: "3 · Backing off", parent: restart.id },
+      { id: logs.id, title: "4 · Reading the logs", parent: watch.id },
+    ], "the tree carries each parent, and none on a top capability");
+
+    const cleared = await work.editCapability(logs.id, { parent: undefined });
+    assert.equal(cleared !== null && "parent" in cleared.fields, false, "a parent cleared, with no levels given, leaves a top capability");
+    assert.deepEqual((await nodes()).find(({ id }) => id === logs.id), { id: logs.id, title: "4 · Reading the logs" });
+
+    const elsewhere = await work.addStory({ title: "Host reports" });
+    const foreign = await work.addCapability({ title: "Paging the owner", story: elsewhere.id });
+    const gone = await work.addCapability({ title: "Rotating the logs", story: story.id });
+    await records.retire(gone.id, "dropped");
+    const before = await transactions.history();
+    for (const [attempt, why] of [
+      [() => work.addCapability({ title: "Orphan", story: story.id, parent: NO_CAPABILITY }, behind), "no capability"],
+      [() => work.addCapability({ title: "Orphan", story: story.id, parent: gone.id }, behind), "a retired capability"],
+      [() => work.addCapability({ title: "Orphan", story: story.id, parent: story.id }, behind), "a story"],
+      [() => work.addCapability({ title: "Orphan", story: story.id, parent: foreign.id }, behind), "another story's capability"],
+      [() => work.editCapability(logs.id, { parent: foreign.id }, behind), "another story's capability, on edit"],
+      [() => work.editCapability(watch.id, { parent: watch.id }, behind), "itself"],
+      [() => work.editCapability(watch.id, { parent: restart.id }, behind), "its child"],
+      [() => work.editCapability(watch.id, { parent: backoff.id }, behind), "its grandchild"],
+      [() => work.editCapability(restart.id, { story: elsewhere.id }), "a capability with a parent moved to another story"],
+      [() => work.editCapability(watch.id, { story: elsewhere.id }), "a capability with capabilities inside it moved to another story"],
+    ] as const) await assert.rejects(attempt(), schemaError("capability", ["parent"]), why);
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
+
+  contract("4.53", "a child capability planned or corrected with no folder with its own entry file or nested package behind its parent is refused, naming the parent and why; nothing is written", async ({ work, transactions }) => {
+    const story = await work.addStory({ title: "Host keeps running" });
+    const watch = await work.addCapability({ title: "Watching the host", story: story.id });
+    const logs = await work.addCapability({ title: "Reading the logs", story: story.id });
+    const before = await transactions.history();
+    for (const [attempt, why] of [
+      [() => work.addCapability({ title: "Restarting it", story: story.id, parent: watch.id }), "planned with no levels"],
+      [() => work.addCapability({ title: "Restarting it", story: story.id, parent: watch.id }, { levels: [] }), "planned with none"],
+      [() => work.editCapability(logs.id, { parent: watch.id }), "corrected with no levels"],
+      [() => work.editCapability(logs.id, { parent: watch.id }, { levels: [] }), "corrected with none"],
+    ] as const) {
+      await assert.rejects(attempt(), (error: unknown) => {
+        schemaError("capability", ["parent"])(error);
+        const message = (error as Error).message;
+        assert.ok(message.includes(watch.id), `the problem names the parent: ${message}`);
+        for (const said of ["entry file", "index.ts", "index.js", "__init__.py", "nested package"]) assert.ok(message.includes(said), `the problem says why, naming ${said}: ${message}`);
+        return true;
+      }, why);
+    }
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
 }
 
 async function assertCreated(

@@ -262,3 +262,20 @@ test("4.53 a capability's contracts, and a link's, come in the order their numbe
   assert.deepEqual(panel?.capabilities.find(({ id }) => id === "c")?.contracts.map(({ id }) => id), ["c", "d", "a", "b", "loose"]);
   assert.deepEqual(panel?.edges?.[0]?.contracts.map(({ id }) => id), ["e1", "e2"]);
 });
+
+test("4.56 each capability line names its parent and the capabilities directly inside it; a top capability names no parent, and one with none inside names none", () => {
+  const under = (child: AnnotatedCapability, parent: string): AnnotatedCapability => ({ ...child, parent });
+  const tree: AnnotatedTree = {
+    stories: [story("s", capability("watch", []), under(capability("restart", []), "watch"), under(capability("backoff", []), "restart"), under(capability("logs", []), "watch"), capability("alone", []))],
+    arcs: [],
+  };
+  const lines = drillDown(tree, "s", workStates([]), [])?.capabilities ?? [];
+  const seen = new Map(lines.map((line) => [line.id, { parent: "parent" in line ? line.parent : "none", inside: [...(line.inside ?? [])].sort() }]));
+  assert.deepEqual(Object.fromEntries(seen), {
+    watch: { parent: "none", inside: ["logs", "restart"] },
+    restart: { parent: "watch", inside: ["backoff"] },
+    backoff: { parent: "restart", inside: [] },
+    logs: { parent: "watch", inside: [] },
+    alone: { parent: "none", inside: [] },
+  });
+});

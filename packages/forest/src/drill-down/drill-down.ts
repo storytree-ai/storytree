@@ -39,6 +39,8 @@ export interface CapabilityLine {
   id: string;
   title: string;
   description: string;
+  parent?: string;
+  inside?: string[];
   reported: HealthState;
   verified?: HealthState;
   sources?: HealthSource[];
@@ -88,6 +90,9 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
   const byId = new Map(found.capabilities.map((capability) => [capability.id, capability]));
   const trails = reportedTrails(history);
 
+  const inside = new Map<string, string[]>();
+  for (const { id, parent } of found.capabilities) if (parent !== undefined) inside.set(parent, [...(inside.get(parent) ?? []), id]);
+
   const capabilities = grove(found, states).flatMap(({ capability: id }): CapabilityLine[] => {
     const capability = id === undefined ? undefined : byId.get(id);
     if (capability === undefined) return [];
@@ -99,6 +104,8 @@ export function drillDown(tree: AnnotatedTree, story: string, states: PartStates
         id: capability.id,
         title: capability.title,
         description: sentences(capability.description),
+        ...(capability.parent === undefined ? {} : { parent: capability.parent }),
+        ...(inside.has(capability.id) ? { inside: inside.get(capability.id)! } : {}),
         reported: capability.health.reported.state,
         ...(seen.length === 0 ? {} : { verified: capability.health.verified.state }),
         ...(sources === undefined ? {} : { sources }),

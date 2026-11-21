@@ -2,7 +2,7 @@
 import { FUNCTIONS } from "./assertions.mjs";
 import { methodOf, unchained } from "./nodes.mjs";
 
-const FETCHED = /\/jobs\/[^/]+\/logs(?![\w-])|\/artifacts(?![\w-])/;
+const FETCHED = /\/jobs\/[^/]+\/logs(?![\w-])|\/artifacts(?![\w-])|\/pulls\/[^/?]+/;
 const SKIP_KEYS = new Set(["parent", "loc", "range", "start", "end", "tokens", "comments", "leadingComments", "trailingComments"]);
 
 function children(node, visit) {
@@ -81,21 +81,27 @@ export default {
     type: "problem",
     schema: [],
     messages: {
-      unguarded: "awaits a job-log or artifacts fetch inside Promise.all(list.map(async ...)) that nothing catches, so one item GitHub no longer has (HTTP 404 or 410) rejects the whole batch (escape_9d756d18be61); catch the not-found read around the await or with .catch, and rethrow anything else",
+      unguarded: "awaits a job-log, artifacts or single pull request (pulls/<n>) fetch inside Promise.all(list.map(async ...)) or a for-of loop's body that nothing there catches, so one item GitHub no longer has (HTTP 404 or 410) rejects the whole batch (escape_9d756d18be61); catch the not-found read around the await or with .catch, and rethrow anything else",
     },
   },
   create(context) {
     let helpers;
+    const reported = new WeakSet();
+    const check = (body) => awaits(body, false, (inner, guarded) => {
+      if (guarded || reported.has(inner) || !unguarded(inner.argument, helpers, new Set())) return;
+      reported.add(inner);
+      context.report({ node: inner, messageId: "unguarded" });
+    });
     return {
       Program(program) {
         helpers = helpersOf(program);
       },
       CallExpression(node) {
         const callback = batchCallback(node);
-        if (callback === undefined) return;
-        awaits(callback.body, false, (inner, guarded) => {
-          if (!guarded && unguarded(inner.argument, helpers, new Set())) context.report({ node: inner, messageId: "unguarded" });
-        });
+        if (callback !== undefined) check(callback.body);
+      },
+      ForOfStatement(node) {
+        check(node.body);
       },
     };
   },

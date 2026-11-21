@@ -159,7 +159,8 @@ test("3.3 a job log holding terminal escape sequences is read all the same, from
   writeFileSync(strict, `if (!process.argv.includes("--allow-escape-sequences")) { process.stderr.write("the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway\\n"); process.exit(1); }\nprocess.stdout.write(${JSON.stringify(log)});\n`);
   const plain = path.join(folder, "gh-plain.mjs");
   writeFileSync(plain, `if (process.argv.includes("--allow-escape-sequences")) { process.stderr.write("unknown flag: --allow-escape-sequences\\n"); process.exit(1); }\nprocess.stdout.write(${JSON.stringify(log)});\n`);
-  for (const gh of [strict, plain]) assert.equal(await ghApi(process.execPath, [gh]).text("repos/acme/shop/actions/jobs/1/logs"), log, path.basename(gh));
+  assert.equal(await ghApi(process.execPath, [strict]).text("repos/acme/shop/actions/jobs/1/logs"), log, path.basename(strict));
+  assert.equal(await ghApi(process.execPath, [plain]).text("repos/acme/shop/actions/jobs/1/logs"), log, path.basename(plain));
 });
 
 test("3.18 · a Python story's pytest tests are verified from its CI as a JavaScript story's are: the run's commit's .py files under packages are read beside its JS and TS", async (t) => {

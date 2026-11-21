@@ -306,8 +306,14 @@ test("4.34 · on Windows a busy unit holds off the exit kill: the stuck file is 
 
 test("4.34 · on Windows a file whose exit was waited on past the grace because its unit was busy is reported spared with its seconds, in the result, the unit's row and the CI evidence", async (t) => {
   const { root, env, evidence, folder } = evidenceFixture(t, {
-    "nested/exit-slow.test.mjs": `import { test } from "node:test";
-process.on("exit", () => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 4_000));
+    "nested/exit-slow.test.mjs": `import { readFileSync } from "node:fs";
+import { test } from "node:test";
+const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const ended = () => readFileSync(process.env.STORYTREE_TEST_RUNNING, "utf8").split("\\n").some((line) => line.includes('"event":"end"') && line.includes('"name":"passes"'));
+process.on("exit", () => {
+  for (let waited = 0; waited < 20_000 && !ended(); waited += 20) pause(20);
+  pause(4_000);
+});
 test("passes", () => {});`,
     "quick.test.mjs": `import { test } from "node:test";\ntest("quick", () => {});`,
   });

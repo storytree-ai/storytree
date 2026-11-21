@@ -1,4 +1,4 @@
-// Capability 21 · Links
+// Capability 35 · The librarian
 import { referenceEdgesOf, type Library, type Note } from "../index.js";
 
 export class LibrarianRefusal extends Error {

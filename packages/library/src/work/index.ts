@@ -1,4 +1,4 @@
-// Capability 4 · Work model
+// Capability 32 · Questions and work
 export { LifecycleError, WorkInFlight } from "./work-in-flight.js";
 export { BOARD_INCREMENT_FIELDS } from "./work-in-flight.js";
 export { listedNotice, listedSaid } from "./work-in-flight.js";

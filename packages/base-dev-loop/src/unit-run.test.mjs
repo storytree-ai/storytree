@@ -374,7 +374,7 @@ test("4.35 · on Windows, before the exit watch kills, it saves a capture beside
   let runner;
   const rows = () => [
     { pid: runner.pid, ppid: process.pid, cpuMs: 300, commandLine: "node --test" },
-    { pid: runner.pid + 1, ppid: runner.pid, cpuMs: 80, commandLine: `node --import tsx ${path.join(root, "nested", "exit-hang.test.mjs")}` },
+    { pid: runner.pid + 1, ppid: runner.pid, cpuMs: 80, commandLine: "node --import tsx nested\\exit-hang.test.mjs" },
     { pid: runner.pid + 2, ppid: 4, cpuMs: 9_000, commandLine: "explorer.exe" },
   ];
   const listings = [];

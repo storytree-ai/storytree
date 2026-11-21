@@ -1039,7 +1039,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(titleOf(await work.editContract(plain.id, { edge: reads.id, title: "Payment applies the coupon" })), "2.4 · Payment applies the coupon", "a bare title on a contract with no number");
   });
 
-  contract("4.52", "a capability names a parent capability of its own story at any depth and keeps the story's next plain number; the tree carries its parent, a parent cleared makes it a top capability again, and a parent that is no live capability of its story, itself or one inside it is refused with nothing written", async ({ work, records, transactions }) => {
+  contract("4.52", "a capability names a parent capability of its own story at any depth and keeps the story's next plain number; the tree carries its parent, a parent cleared makes it a top capability again, and a parent that is no live capability of its story, itself or one inside it is refused, as is moving to another story a capability with a parent or with capabilities inside it, with nothing written", async ({ work, records, transactions }) => {
     const story = await work.addStory({ title: "Host keeps running" });
     const behind = { levels: ["packages/host/src/watch"] };
     const watch = await work.addCapability({ title: "Watching the host", story: story.id });
@@ -1050,7 +1050,7 @@ for (const backend of [memory, postgres]) {
     const logs = await work.addCapability({ title: "Reading the logs", story: story.id });
     assert.equal((await work.editCapability(logs.id, { parent: watch.id }, behind))?.fields.parent, watch.id, "an edit sets a parent");
 
-    const nodes = async () => (await work.projectTree()).stories[0]!.capabilities.map((node) => ({ id: node.id, title: node.title, ...("parent" in node ? { parent: node.parent } : {}) }));
+    const nodes = async () => (await work.projectTree()).stories[0]!.capabilities.map((node) => ({ id: node.id, title: node.title, ...("parent" in node ? { parent: node.parent } : {}) })).sort((a, b) => a.title.localeCompare(b.title));
     assert.deepEqual(await nodes(), [
       { id: watch.id, title: "1 · Watching the host" },
       { id: restart.id, title: "2 · Restarting it", parent: watch.id },
@@ -1076,6 +1076,8 @@ for (const backend of [memory, postgres]) {
       [() => work.editCapability(watch.id, { parent: watch.id }, behind), "itself"],
       [() => work.editCapability(watch.id, { parent: restart.id }, behind), "its child"],
       [() => work.editCapability(watch.id, { parent: backoff.id }, behind), "its grandchild"],
+      [() => work.editCapability(restart.id, { story: elsewhere.id }), "a capability with a parent moved to another story"],
+      [() => work.editCapability(watch.id, { story: elsewhere.id }), "a capability with capabilities inside it moved to another story"],
     ] as const) await assert.rejects(attempt(), schemaError("capability", ["parent"]), why);
     assert.deepEqual(await transactions.history(), before, "nothing was written");
   });

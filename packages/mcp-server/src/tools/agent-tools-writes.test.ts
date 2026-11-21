@@ -991,6 +991,36 @@ test("9.45 plan_capability and edit_plan take a parent whose code, read from the
   });
 });
 
+test("9.45 edit_plan's parent for a capability planned before the increment the session holds on a branch is applied at once to the live plan, not held as a pending change, and its reply says so", async () => {
+  await withProject(async ({ folder, library }) => {
+    git(folder, "init", "-b", "claude/cart-lines");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shop", ...FOUNDED }));
+      const arc = idOf(await agent.call("plan_arc", { title: "Launch the shop", intent: "Sell", end_state: "Shoppers buy", stories: [story] }));
+      const claims = idOf(await agent.call("plan_capability", { story, title: "Claims", ...FOUNDED }));
+      const receipts = idOf(await agent.call("plan_capability", { story, title: "Receipts", ...FOUNDED }));
+      const src = path.join(folder, "packages/shop/src");
+      mkdirSync(path.join(src, "cart"), { recursive: true });
+      writeFileSync(path.join(folder, "packages/shop/package.json"), JSON.stringify({ name: "@x/shop", type: "module" }));
+      writeFileSync(path.join(src, "cart/index.ts"), "export const add = () => 1;\n");
+      writeFileSync(path.join(src, "claims.test.ts"), 'import { add } from "./cart/index.js";\ntest("1.1 a claim holds", () => add());\n');
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Cart lines", objective: "Nest receipts", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "driving the cart lines" })).isError, false);
+      const held = await agent.call("edit_plan", { id: receipts, description: "What the shopper keeps" });
+      assert.match(held.text, new RegExp(`pending on increment ${increment}`), "an ordinary edit waits as a pending change");
+
+      const moved = await agent.call("edit_plan", { id: receipts, parent: claims });
+      assert.equal(moved.isError, false, moved.text);
+      assert.doesNotMatch(moved.text, /pending on increment/, moved.text);
+      assert.match(moved.text, /live plan/, `the reply says it went to the live plan: ${moved.text}`);
+      assert.match(moved.text, /code/, `and why, its levels read from the code: ${moved.text}`);
+      assert.equal(((await library.get(receipts))?.fields as { parent?: string }).parent, claims, "the live capability sits under its parent");
+      const pending = ((await library.get(increment))?.fields as { pending?: { record: string; after?: Record<string, unknown> }[] }).pending ?? [];
+      assert.deepEqual(pending.map(({ record, after }) => [record, after]), [[receipts, { description: "What the shopper keeps" }]], "no pending change carries the parent");
+    });
+  });
+});
+
 test("9.8 edit_plan sets and clears an arc's priority, refusing anything but a whole number of 1 or more or \"none\" with nothing written, and show_plan lists arcs by it, 1 first (ADR-0963)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

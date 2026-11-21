@@ -711,6 +711,31 @@ test("9.45 show_plan lists each capability right after its parent's block, its l
   });
 });
 
+test("9.45 show_plan given a story too large to give whole still lists each capability under its parent, one step deeper, each line ending in its contract count, and its data names each child's parent", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { story, capability: form } = await planned(agent);
+      await library.editCapability(form, { description: "A postcode form. ".repeat(3000) });
+      const reset = idOf(await agent.call("plan_capability", { story, title: "Password reset", ...FOUNDED }));
+      const confirm = (await library.addCapability({ title: "Confirmation link", story, parent: form }, { levels: ["packages/visitor-can-sign-up/src/email-form"] })).id;
+      const expiry = (await library.addCapability({ title: "Link expiry", story, parent: confirm }, { levels: ["packages/visitor-can-sign-up/src/email-form/confirm"] })).id;
+      await library.addContract({ title: "Expires after a day", capability: expiry });
+      await library.addContract({ title: "Expires once used", capability: expiry });
+      await library.addContract({ title: "Sends one link", capability: confirm });
+
+      const large = await agent.call("show_plan", { id: story });
+      assert.match(large.text, /The story runs past 40,000 characters whole/, large.text);
+      const shown = large.text.split("\n").flatMap((line) => {
+        const found = /^( *)Capability .*\((capability_[0-9a-f]{12})\):.*; (\d+ contracts?)$/.exec(line);
+        return found === null ? [] : [[found[1]!.length, found[2]!, found[3]!] as const];
+      });
+      assert.deepEqual(shown, [[2, form, "0 contracts"], [4, confirm, "1 contract"], [6, expiry, "2 contracts"], [2, reset, "0 contracts"]], large.text);
+      const capabilities = (large.data.stories as { capabilities: { id: string; parent?: string }[] }[])[0]!.capabilities;
+      assert.deepEqual(new Map(capabilities.map(({ id, parent }) => [id, parent])), new Map([[form, undefined], [confirm, form], [expiry, confirm], [reset, undefined]]));
+    });
+  });
+});
+
 test("9.36 show_plan gives each capability's description and the decisions on its shelf, founding first, by title and id, and says when it has neither", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

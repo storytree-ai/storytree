@@ -389,3 +389,21 @@ test(`8.34 · workflowEnvProblems passes the install-mac job once it sets STORYT
   }
   assertInstallMac(await problemsOf(t, { ...DESKTOP_FILES, ".github/workflows/release-package.yml": releasePackageYml() }));
 });
+
+test(`8.34 · workflowEnvProblems follows an extensionless relative import: the entry's import { releaseVersion } from "./packaged-app" reaches packaged-app.mjs, giving exactly one problem at ${PACKAGED_AT} (${ESCAPE})`, async (t) => {
+  assertInstallMac(await problemsOf(t, {
+    ...DESKTOP_FILES,
+    [INSTALL_ENTRY]: CHECK_INSTALL_MAC("./packaged-app"),
+    ".github/workflows/release-package.yml": releasePackageYml(),
+  }));
+});
+
+test(`8.34 · workflowEnvProblems lints an entry whose relative imports name a missing ./generated/build-info.mjs and a ./release.json data file without throwing, reporting only the one problem at ${PACKAGED_AT} (${ESCAPE})`, async (t) => {
+  const entry = `import "./generated/build-info.mjs";\nimport notes from "./release.json" with { type: "json" };\n${CHECK_INSTALL_MAC("./packaged-app.mjs")}console.log(notes);\n`;
+  assertInstallMac(await problemsOf(t, {
+    ...DESKTOP_FILES,
+    "apps/desktop/release.json": JSON.stringify({ notes: "first release" }, null, 2),
+    [INSTALL_ENTRY]: entry,
+    ".github/workflows/release-package.yml": releasePackageYml(),
+  }));
+});

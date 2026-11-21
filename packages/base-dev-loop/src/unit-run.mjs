@@ -309,7 +309,10 @@ async function captureExit({ child, root, runningFile, exitHung, listProcesses, 
     }
     const lastEnded = new Map();
     for (const entry of readJsonLines(runningFile)) if (entry.event === "end" && entry.fullName !== undefined) lastEnded.set(entry.file, entry.fullName);
-    const files = exitHung.map((file) => ({ file: path.relative(root, file).replaceAll("\\", "/"), lastEnded: lastEnded.get(file), alive: tree.some((row) => row.commandLine?.includes(file) === true) }));
+    const files = exitHung.map((file) => {
+      const relative = path.relative(root, file).replaceAll("\\", "/");
+      return { file: relative, lastEnded: lastEnded.get(file), alive: tree.some((row) => row.commandLine?.replaceAll("\\", "/").includes(relative) === true) };
+    });
     if (!cut) writeFileSync(to, JSON.stringify({ files, processes: tree, threads }));
   };
   let timer;

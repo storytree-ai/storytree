@@ -253,10 +253,9 @@ const links = verb({
   inputs: { artifact: { kind: "text", word: 0, optional: true, describe: "the artifact's id" } },
   async act({ artifact }, context: LibraryVerbContext) {
     const id = needed(artifact, "the artifact's id");
-    const notes = await context.library.relatedNotes(id);
-    if (notes.length === 0) return { text: `No artifact links to ${id}.` };
-    const lines = notes.map((note) => `  ${note.id}  [${note.type}]  ${labelOf(note.fields)}${justificationSaid(note.fields, id, "  ")}`);
-    return { text: [`${notes.length} artifact${notes.length === 1 ? "" : "s"} link${notes.length === 1 ? "s" : ""} to ${id}:`, ...lines].join("\n") };
+    const linking = await context.library.linkingIn(id);
+    if (linking.length === 0) return { text: `No artifact links to ${id}.` };
+    return { text: [`${linking.length} artifact${linking.length === 1 ? "" : "s"} link${linking.length === 1 ? "s" : ""} to ${id}:`, ...linkingLines(linking, id)].join("\n") };
   },
 });
 
@@ -354,6 +353,28 @@ async function decisionLinks(library: Library, record: Stored): Promise<string[]
   return lines.length === 0 ? [] : ["decision links:", ...lines];
 }
 
+function linkingLines(linking: readonly Stored[], id: string): string[] {
+  return linking.map((record) => `  ${record.id}  [${record.type}]  ${labelOf(record.fields)}${justificationSaid(record.fields, id, "  ")}`);
+}
+
+export async function supersededLines(library: Library, record: { readonly id: string; readonly type: string }): Promise<string[]> {
+  const view = record.type === "decision" ? await library.decision(record.id) : null;
+  if (view === null) return [];
+  const adrOf = async (id: string): Promise<string> => {
+    const number = ((await library.get(id))?.fields as { readonly number?: unknown } | undefined)?.number;
+    return typeof number === "number" ? `ADR-${String(number).padStart(4, "0")}` : id;
+  };
+  return Promise.all([
+    ...view.supersededBy.map(async (id) => `Superseded by ${await adrOf(id)}`),
+    ...view.supersededInPart.map(async ({ decision, clauses }) => `Superseded in part by ${await adrOf(decision)}${clauses === undefined || clauses.length === 0 ? "" : ` (${clauses.join(", ")})`}`),
+  ]);
+}
+
+async function linkedFromLines(library: Library, record: Stored): Promise<string[]> {
+  const linking = await library.linkingIn(record.id);
+  return [...(await supersededLines(library, record)), ...(linking.length === 0 ? [] : ["Linked from:", ...linkingLines(linking, record.id)])];
+}
+
 const RECORD_ID = /^[a-z]+_[0-9a-f]{12}$/;
 
 function idsNamedBy(record: Stored): string[] {
@@ -388,7 +409,7 @@ const read = verb({
     const missing = ids.filter((_, index) => records[index] === null);
     if (missing.length > 0) throw new VerbRefusal(missing.map((id) => `no record "${id}" in ${where}`).join("\n"));
     const named = await Promise.all((records as Stored[]).map((record) => withDependsOn(library, record)));
-    const parts = await Promise.all(named.map(async (record) => (record.type === "story" || record.type === "capability" ? (await attachedTo(library, record.id, record.type === "story")).lines : decisionLinks(library, record))));
+    const parts = await Promise.all(named.map(async (record) => [...(record.type === "story" || record.type === "capability" ? (await attachedTo(library, record.id, record.type === "story")).lines : await decisionLinks(library, record)), ...(await linkedFromLines(library, record))]));
     if (field !== undefined) {
       if (named.length > 1 || withLinked) throw new VerbRefusal("--field reads one record's field; give one id", { misuse: true });
       const record = named[0]!;

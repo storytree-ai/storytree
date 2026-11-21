@@ -128,6 +128,7 @@ const LIBRARY_API = [
   "related",
   "relatedEach",
   "naming",
+  "linkingIn",
   "frontCovers",
   "decision",
   "decisions",
@@ -680,6 +681,36 @@ test("7.29 · naming(id) returns every live record but health that names the id 
     assert.deepEqual(await lib.naming(form.id), expected, "its contract, its cover, the increment listing it and the edge on which another capability depends on it, whole, in id order");
     assert.deepEqual(await lib.naming(contract.id), [await lib.get(increment.id)], "the health record naming the contract is left out");
     assert.deepEqual(await lib.naming("capability_000000000000"), []);
+  });
+});
+
+test("7.30 · linkingIn(id) returns every live record whose stored links hold the id (an increment, a question, a note) and every friction whose dischargedBy is the id, whole and in id order, leaving out a record naming it only in its text or in another field, and none for an id nothing links to", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const queue = await lib.recordDecision({ status: "accepted", title: "Mail by queue", text: "Send mail from a queue." });
+    const arc = await lib.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+    const increment = await lib.addIncrement({ arc: arc.id, title: "Queue the mail", objective: "Build it", body: "Red then green", links: [queue.id] });
+    const question = await lib.raiseQuestion({ arc: arc.id, title: "Which queue?", stakes: "Mail needs one.", statement: "Which?", context: "Two.", options: "Redis or Postgres.", links: [queue.id] });
+    const principle = await lib.writeKnowledge("principle", {
+      title: "Never send inline", description: "Inline sends block the request.", statement: "Mail leaves through the queue.", why: "Requests stay fast.", howToApply: "Enqueue, never send.", links: [queue.id],
+    });
+    const friction = await lib.writeKnowledge("friction", {
+      title: "Mail sent inline", description: "A send blocked sign-up.", statement: "Sign-up waited on the mail server.", evidence: "Sign-up took 9 s.", impact: "Visitors left.",
+    });
+    await lib.editNote(friction.id, { route: "adr", routeReason: "Decided to queue.", dischargedBy: queue.id });
+    await lib.writeKnowledge("principle", {
+      title: "Mail is cheap", description: "Sending costs little.", statement: `As ${queue.id} says, mail is queued.`, why: "It is.", howToApply: "Send freely.",
+    });
+    await lib.recordDecision({ status: "accepted", title: "Mail by topic", text: "Topics replace the queue.", supersedes: [queue.id], justifications: { [queue.id]: "It replaces the queue rule." } } as never);
+    const elsewhere = await lib.writeKnowledge("friction", {
+      title: "Bounces unread", description: "Nobody reads bounces.", statement: "Bounces pile up.", evidence: "400 unread.", impact: "Bad addresses stay.",
+    });
+    await lib.editNote(elsewhere.id, { route: "process", routeReason: "Fixed already.", dischargedBy: "#12" });
+
+    const expected = await Promise.all([increment.id, question.id, principle.id, friction.id].sort().map((id) => lib.get(id)));
+    assert.deepEqual(await lib.linkingIn(queue.id), expected, "the increment, question and note linking it and the friction it discharged, whole, in id order; not the note citing it in its text nor the decision superseding it");
+    assert.deepEqual(await lib.linkingIn("decision_000000000000"), []);
   });
 });
 

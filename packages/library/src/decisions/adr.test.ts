@@ -279,3 +279,39 @@ test("13.23 · `adr prune` archives a decision link with who, when and why and i
   const back = (await library.get(old.id))?.fields as { links?: string[]; justifications?: Record<string, string> };
   assert.deepEqual([back.links, back.justifications], [[queue.id], { [queue.id]: "Follow it for how bounces would queue." }]);
 });
+
+test("13.24 · decision(id) carries supersededInPart, each accepted decision superseding it in named clauses with those clauses and an old-shape narrows with none, its status kept as stored; `adr pull` prints them and the records linking in as read-only superseded-in-part and linked-from lines, and `adr push` of the pulled file writes nothing", async (t) => {
+  const { library, records, context, verbOf } = await adrWorld(t);
+  const folder = mkdtempSync(path.join(tmpdir(), "library-adr-in-part-"));
+  t.after(() => removeTemp(folder));
+  const here = { ...context, folder };
+  const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "D1. Queue. D2. Retry. D3. Bounce." });
+  const log = await library.recordDecision({ status: "accepted", title: "Mail is logged", text: "D1. Log." });
+  const retries = await records.create("decision", { status: "accepted", title: "Retries are twice", text: "Retry twice.", supersedesClauses: [{ decision: queue.id, clauses: ["D2", "D3"] }] });
+  await records.create("decision", { status: "accepted", title: "Logs kept a year", text: "A year.", supersedesClauses: [{ decision: log.id, clauses: ["D1"] }] });
+  const bounces = await records.create("decision", { status: "accepted", title: "Bounces are dropped", text: "Drop them.", narrows: [queue.id] });
+  await records.create("decision", { status: "proposed", title: "Bounces are kept", text: "Keep them.", supersedesClauses: [{ decision: queue.id, clauses: ["D3"] }] });
+  const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Queue the mail", objective: "Build it", body: "Red then green", links: [queue.id] });
+  const friction = await library.writeKnowledge("friction", {
+    title: "Mail sent inline", description: "A send blocked sign-up.", statement: "Sign-up waited on the mail server.", evidence: "Sign-up took 9 s.", impact: "Visitors left.",
+  });
+  await library.editNote(friction.id, { route: "adr", routeReason: "Decided to queue.", dischargedBy: queue.id });
+
+  const view = await library.decision(queue.id);
+  const inPart = [{ decision: retries.id, clauses: ["D2", "D3"] }, { decision: bounces.id }];
+  assert.deepEqual((view as { supersededInPart?: unknown } | null)?.supersededInPart, inPart, "the accepted clause supersession with its clauses, then the old-shape narrows with none, in the order they were recorded; not the proposed one nor the one on another decision");
+  assert.deepEqual([view?.status, view?.supersededBy], ["accepted", []], "superseded only in part, it reads as stored");
+  assert.deepEqual((await library.decision(retries.id) as { supersededInPart?: unknown } | null)?.supersededInPart, [], "none supersedes the later one in part");
+
+  await verbOf("pull").act({ decision: queue.id, out: "queue.md" }, here, WORDS);
+  const file = readFileSync(path.join(folder, "queue.md"), "utf8");
+  const readOnly = file.slice(file.indexOf("# read only"), file.indexOf("\n---\n", 4)).split("\n");
+  assert.ok(readOnly.includes(`superseded-in-part: ${JSON.stringify(inPart)}`), `a read-only superseded-in-part line:\n${file}`);
+  assert.ok(readOnly.includes(`linked-from: ${JSON.stringify([increment.id, friction.id].sort())}`), `a read-only linked-from line, in id order:\n${file}`);
+
+  const { cursor } = await library.changesSince(0);
+  const pushed = await verbOf("push").act({ decision: queue.id, file: "queue.md" }, here, WORDS);
+  assert.match(pushed.text, /^No change/);
+  assert.deepEqual((await library.changesSince(cursor)).changes, []);
+});

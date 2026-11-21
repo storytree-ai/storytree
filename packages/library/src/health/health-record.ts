@@ -122,6 +122,7 @@ export interface CapabilityWhy {
   reason: HealthReason;
   mover: "agent" | "owner";
   contracts: string[];
+  inside?: { capability: string; title: string }[];
   since?: string;
 }
 
@@ -439,7 +440,8 @@ export class HealthRecord {
           const reportOnly = unverified && !capability.proposed;
           const explored = story.mapped !== undefined && contracts.length === 0;
           const failingOwn = own.includes("failing") ? { reason: "failing" as const, mover: "agent" as const, contracts: contracts.filter((contract) => contract.health.verified.state === "failing").map(({ id }) => id), ...(unclaimed?.at === undefined ? {} : { since: unclaimed.at }) } : undefined;
-          const why = reportOnly ? undefined : failingOwn ?? (explored ? undefined : capabilityWhy(proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified, ...(contract.proof === undefined ? {} : { proof: contract.proof.by }) }))));
+          const ownWhy = reportOnly ? undefined : failingOwn ?? (explored ? undefined : capabilityWhy(proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified, ...(contract.proof === undefined ? {} : { proof: contract.proof.by }) }))));
+          const why = reportOnly || ownWhy?.reason === "failing" ? ownWhy : (failingInside(story.capabilities, inside.get(capability.id) ?? [], contractsOf) ?? ownWhy);
           const parkedOn = status === "proposed" || status === "untested" ? parked.get(capability.id) : undefined;
           return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(unclaimed === undefined ? {} : { unclaimed }), ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}), ...(parkedOn === undefined ? {} : { parkedOn: [...parkedOn] }), ...(open.has(capability.id) ? { openWork: open.get(capability.id)!.map((one) => ({ ...one })) } : {}) };
         });
@@ -651,6 +653,17 @@ function nestedIn(capabilities: readonly { readonly id: string; readonly parent?
   return inside;
 }
 
+function failingInside(capabilities: readonly { readonly id: string; readonly title: string }[], nested: readonly string[], contractsOf: ReadonlyMap<string, readonly { id: string; health: NodeHealth }[]>): CapabilityWhy | undefined {
+  const failing = nested.flatMap((id) => {
+    const contracts = contractsOf.get(id)!.filter((contract) => contract.health.verified.state === "failing");
+    return contracts.length === 0 ? [] : [{ capability: id, title: capabilities.find((each) => each.id === id)!.title.replace(/^\d+ · /, ""), contracts }];
+  });
+  if (failing.length === 0) return undefined;
+  const carrying = failing.flatMap(({ contracts }) => contracts);
+  const since = carrying.flatMap(({ health }) => (health.verified.at === undefined ? [] : [health.verified.at])).sort()[0];
+  return { reason: "failing", mover: "agent", contracts: carrying.map(({ id }) => id), inside: failing.map(({ capability, title }) => ({ capability, title })), ...(since === undefined ? {} : { since }) };
+}
+
 function rolledUp(contracts: readonly NodeHealth[], own: readonly HealthState[] = []): NodeHealth {
   return {
     reported: rollUp(contracts.map((health) => health.reported.state)),
@@ -694,6 +707,7 @@ export function wordAndWhy(capability: Pick<AnnotatedCapability, "status" | "why
   const { status, why } = capability;
   if (capability.reportOnly) return `the agent ${REPORTS[capability.health.reported.state]}; ${NOT_VERIFIED}`;
   if (why === undefined) return status;
+  if (why.inside !== undefined) return `${status} — failing inside ${why.inside.map(({ title }) => title).join(", ")}, the agent's to move`;
   const titles = new Map(capability.contracts.map((contract) => [contract.id, contract.title]));
   const named = why.contracts.map((id) => /^(\d+\.\d+) · /.exec(titles.get(id) ?? "")?.[1] ?? id);
   return `${status} — ${why.reason}, the ${why.mover}'s to move${named.length === 0 ? "" : `: ${named.join(", ")}`}`;

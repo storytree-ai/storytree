@@ -1,4 +1,4 @@
-// Capability 1 · Project libraries
+// Capability 34 · Project storage
 export { connectionString, PASSWORD_KEY } from "./address.js";
 export { ConnectionError } from "./connection-error.js";
 export { InheritedRecords } from "./factory.js";

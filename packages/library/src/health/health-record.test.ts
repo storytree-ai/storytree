@@ -1284,6 +1284,39 @@ for (const backend of [memory, postgres]) {
       { reported: "passing", verified: "passing", status: "healthy" },
     ], "every contract passing, every capability healthy");
   });
+
+  contract("5.36", "a parent capability red only from a capability inside it gives its why as failing inside that capability, naming it and its failing contracts; a parent whose own contract fails keeps its own why", async ({ health, work }) => {
+    const story = await work.addStory({ title: "Host keeps running" });
+    const watch = await work.addCapability({ title: "Watching the host", story: story.id });
+    const restart = await work.addCapability({ title: "Restarting it", story: story.id });
+    const backoff = await work.addCapability({ title: "Backing off", story: story.id });
+    const sees = await work.addContract({ title: "Sees the host stop", capability: watch.id });
+    const restarts = await work.addContract({ title: "Restarts it", capability: restart.id });
+    const waits = await work.addContract({ title: "Waits longer each time", capability: backoff.id });
+    const caps = await work.addContract({ title: "Caps the wait", capability: backoff.id });
+    for (const built of [watch, restart, backoff]) await work.setProposed(built.id, false);
+    const record = async (contractId: string, state: "passing" | "failing") => {
+      await health.reportHealth(contractId, state);
+      await health.recordVerified(contractId, state);
+    };
+    const parents = new Map([[restart.id, watch.id], [backoff.id, restart.id]]);
+    const parentOf = async () => {
+      const flat = await work.projectTree();
+      const tree: ProjectTree = { ...flat, stories: flat.stories.map((each) => ({ ...each, capabilities: each.capabilities.map((node) => (parents.has(node.id) ? { ...node, parent: parents.get(node.id)! } : node)) })) };
+      return (await health.annotate(tree)).stories[0]!.capabilities.find((capability) => capability.id === watch.id)!;
+    };
+    const withoutSince = (why: object | undefined) => Object.fromEntries(Object.entries(why ?? {}).filter(([key]) => key !== "since"));
+
+    for (const one of [sees, restarts, caps]) await record(one.id, "passing");
+    await record(waits.id, "failing");
+    const insideOnly = await parentOf();
+    assert.deepEqual(withoutSince(insideOnly.why), { reason: "failing", mover: "agent", contracts: [waits.id], inside: [{ capability: backoff.id, title: "Backing off" }] }, "the why names the grandchild whose own contract fails and that contract, not the capability between them");
+    assert.equal(wordAndWhy(insideOnly), "unhealthy — failing inside Backing off, the agent's to move");
+
+    await record(sees.id, "failing");
+    const ownFailing = await parentOf();
+    assert.deepEqual(withoutSince(ownFailing.why), { reason: "failing", mover: "agent", contracts: [sees.id] }, "its own contract failing gives its own why, with nothing inside");
+  });
 }
 
 function onlyHealth(records: SchemaRecords): SchemaRecords {

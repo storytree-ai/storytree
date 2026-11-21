@@ -14,6 +14,8 @@ export function nextScene(shown: OnShow, scene: ForestScene, places: ReadonlyMap
     && JSON.stringify(scene.plumbing ?? []) === JSON.stringify(shown.scene.plumbing ?? [])
     && JSON.stringify([scene.edges ?? [], scene.contracts ?? []]) === JSON.stringify([shown.scene.edges ?? [], shown.scene.contracts ?? []])
     && JSON.stringify(scene.pins ?? []) === JSON.stringify(shown.scene.pins ?? [])
+    && JSON.stringify(scene.stores ?? []) === JSON.stringify(shown.scene.stores ?? [])
+    && JSON.stringify(scene.parts ?? []) === JSON.stringify(shown.scene.parts ?? [])
     && places.size === shown.places.size && [...places].every(([story, place]) => shown.places.get(story) === place);
   return same ? undefined : { ...scene, islands };
 }

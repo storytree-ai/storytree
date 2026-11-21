@@ -63,6 +63,7 @@
     "@storytree/shown-words": "workspace:*"
   },
   "devDependencies": {
+    "@storytree/property-checks": "workspace:*",
     "@storytree/test-waits": "workspace:*",
     "happy-dom": "catalog:",
     "@types/node": "^24.13.6",

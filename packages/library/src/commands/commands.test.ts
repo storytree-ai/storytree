@@ -1419,7 +1419,6 @@ test("17.35 · The open tool shows each decision a decision links to with its ju
 
 test("17.36 · library links, library read's \"Linked from:\" and the open tool's \"Linked from:\" list every record linking to a decision, an increment, a question and a friction it discharged beside a note, and not a note citing it only in its text; reading or opening a decision says \"Superseded by ADR-n\" when a later one supersedes it whole and \"Superseded in part by ADR-n (D2, D3)\" when one supersedes those clauses", async (t) => {
   const { library, verbOf, toolOf, context, tools } = await justifiedWorld(t);
-  const adrOf = (decision: { readonly fields: { readonly number?: number | undefined } }): string => `ADR-${String(decision.fields.number).padStart(4, "0")}`;
   const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "D1. Queue. D2. Retry. D3. Bounce." });
   const hand = await library.recordDecision({ status: "accepted", title: "Mail by hand", text: "By hand." });
   const topic = await library.recordDecision({ status: "accepted", title: "Mail by topic", text: "Topics replace sending by hand.", supersedes: [hand.id], justifications: { [hand.id]: "It replaces sending by hand." } } as never);
@@ -1451,9 +1450,9 @@ test("17.36 · library links, library read's \"Linked from:\" and the open tool'
   const readFrom = readLines.slice(readLines.indexOf("Linked from:") + 1);
   for (const record of linking) assert.ok(readFrom.some((line) => line.startsWith(`  ${record.id}  [${record.type}]  `)), `library read lists the ${record.type} under Linked from:\n${read}`);
   assert.ok(!read.includes(citing.id), `not the note citing it in its text:\n${read}`);
-  assert.ok(readLines.includes(`Superseded in part by ${adrOf(retries)} (D2, D3)`), `library read names the clause supersession:\n${read}`);
+  assert.ok(readLines.includes("Superseded in part by ADR-0004 (D2, D3)"), `library read names the clause supersession:\n${read}`);
   const readHand = (await verbOf("read").act({ ids: [hand.id], linked: false, field: undefined }, context, WORDS)).text;
-  assert.ok(readHand.split("\n").includes(`Superseded by ${adrOf(topic)}`), `library read names the whole supersession:\n${readHand}`);
+  assert.ok(readHand.split("\n").includes("Superseded by ADR-0003"), `library read names the whole supersession:\n${readHand}`);
 
   const opened = await toolOf("open").act({ id: queue.id }, tools, WORDS);
   const openLines = opened.text.split("\n");
@@ -1462,7 +1461,7 @@ test("17.36 · library links, library read's \"Linked from:\" and the open tool'
   for (const record of linking) assert.ok(openFrom.some((line) => line.includes(record.id)), `open lists the ${record.type} under Linked from:\n${opened.text}`);
   assert.deepEqual((opened.data as { linkedFrom: { id: string }[] }).linkedFrom.map(({ id }) => id).sort(), linking.map(({ id }) => id).sort());
   assert.ok(!opened.text.includes(citing.id), `not the note citing it in its text:\n${opened.text}`);
-  assert.ok(openLines.includes(`Superseded in part by ${adrOf(retries)} (D2, D3)`), `open names the clause supersession:\n${opened.text}`);
+  assert.ok(openLines.includes("Superseded in part by ADR-0004 (D2, D3)"), `open names the clause supersession:\n${opened.text}`);
   const openedHand = (await toolOf("open").act({ id: hand.id }, tools, WORDS)).text;
-  assert.ok(openedHand.split("\n").includes(`Superseded by ${adrOf(topic)}`), `open names the whole supersession:\n${openedHand}`);
+  assert.ok(openedHand.split("\n").includes("Superseded by ADR-0003"), `open names the whole supersession:\n${openedHand}`);
 });

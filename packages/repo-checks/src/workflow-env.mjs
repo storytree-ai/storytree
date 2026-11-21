@@ -5,14 +5,15 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import ts from "typescript";
+import { parseSync } from "oxc-parser";
+
+import { literal } from "./eslint-rules/nodes.mjs";
 
 const ESCAPE = "escape_1b3b0da5720a";
 const KEY = /^("[^"]*"|'[^']*'|[^\s"'#][^:]*?):(?:\s(.*))?$/;
 const ITEM = /^-(?:\s|$)/;
 const SCRIPT_FILE = /\.(?:[cm]?[jt]s|tsx|jsx)$/;
 const GITHUB_ENV_WRITE = /\b([A-Za-z_]\w*)=[^\n]*>>\s*"?\$\{?GITHUB_ENV\b/g;
-const FALLBACK = new Set([ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken]);
 
 async function gitFiles(root, ...patterns) {
   const { stdout } = await promisify(execFile)("git", ["ls-files", "-z", "--", ...patterns], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
@@ -121,40 +122,47 @@ function entries(root, run, dir, packages, seen = new Set()) {
   return found;
 }
 
+const FALLBACK = new Set(["??", "||"]);
+const SCOPES = new Set(["BlockStatement", "ForStatement", "ForInStatement", "ForOfStatement", "SwitchStatement", "CatchClause", "StaticBlock"]);
+const FUNCTIONS = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
+const POSITIONS = new Set(["parent", "start", "end", "range", "loc"]);
+
+const bare = (node) => node?.type === "ParenthesizedExpression" || node?.type === "ChainExpression" ? bare(node.expression) : node;
+
+const isMember = (node, object, property) => node?.type === "MemberExpression" && !node.computed && node.object.type === "Identifier" && node.object.name === object && node.property.name === property;
+
 function envRead(node) {
-  if (ts.isParenthesizedExpression(node)) return envRead(node.expression);
-  const host = ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node) ? node.expression : null;
-  if (host === null || !ts.isPropertyAccessExpression(host) || host.getText() !== "process.env") return null;
-  if (ts.isPropertyAccessExpression(node)) return node.name.text;
-  return ts.isStringLiteralLike(node.argumentExpression) ? node.argumentExpression.text : null;
+  const read = bare(node);
+  if (read?.type !== "MemberExpression" || !isMember(read.object, "process", "env")) return null;
+  return read.computed ? literal(read.property) ?? null : read.property.name;
 }
 
 function initializerReads(node) {
-  if (ts.isParenthesizedExpression(node)) return initializerReads(node.expression);
-  if (ts.isBinaryExpression(node) && FALLBACK.has(node.operatorToken.kind)) return [...initializerReads(node.left), ...initializerReads(node.right)];
-  if (ts.isConditionalExpression(node)) return [...initializerReads(node.whenTrue), ...initializerReads(node.whenFalse)];
-  const name = envRead(node);
+  const read = bare(node);
+  if (read.type === "LogicalExpression" && FALLBACK.has(read.operator)) return [...initializerReads(read.left), ...initializerReads(read.right)];
+  if (read.type === "ConditionalExpression") return [...initializerReads(read.consequent), ...initializerReads(read.alternate)];
+  const name = envRead(read);
   return name === null ? [] : [name];
 }
 
 function argvIndex(node) {
-  if (!ts.isElementAccessExpression(node) || node.expression.getText() !== "process.argv" || !ts.isNumericLiteral(node.argumentExpression)) return null;
-  return Number(node.argumentExpression.text);
+  if (node?.type !== "MemberExpression" || !node.computed || !isMember(node.object, "process", "argv") || node.property.type !== "Literal" || typeof node.property.value !== "number") return null;
+  return node.property.value;
 }
 
 function argvTest(condition) {
-  if (ts.isParenthesizedExpression(condition)) return argvTest(condition.expression);
-  if (ts.isBinaryExpression(condition) && [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken].includes(condition.operatorToken.kind)) {
-    for (const [side, other] of [[condition.left, condition.right], [condition.right, condition.left]]) {
+  const test = bare(condition);
+  if (test.type === "BinaryExpression" && ["===", "=="].includes(test.operator)) {
+    for (const [side, other] of [[test.left, test.right], [test.right, test.left]]) {
       const index = argvIndex(side);
-      if (index !== null && ts.isStringLiteralLike(other)) return { index, words: [other.text] };
+      if (index !== null && literal(other) !== undefined) return { index, words: [literal(other)] };
     }
   }
-  if (ts.isCallExpression(condition) && ts.isPropertyAccessExpression(condition.expression) && condition.expression.name.text === "includes" &&
-    ts.isArrayLiteralExpression(condition.expression.expression) && condition.arguments.length === 1) {
-    const index = argvIndex(condition.arguments[0]);
-    const elements = condition.expression.expression.elements;
-    if (index !== null && elements.every(ts.isStringLiteralLike)) return { index, words: elements.map((element) => element.text) };
+  if (test.type === "CallExpression" && test.callee.type === "MemberExpression" && !test.callee.computed && test.callee.property.name === "includes" &&
+    test.callee.object.type === "ArrayExpression" && test.arguments.length === 1) {
+    const index = argvIndex(test.arguments[0]);
+    const elements = test.callee.object.elements;
+    if (index !== null && elements.every((element) => literal(element) !== undefined)) return { index, words: elements.map(literal) };
   }
   return null;
 }
@@ -162,35 +170,69 @@ function argvTest(condition) {
 function reachedWith(node, args) {
   for (let child = node; child.parent; child = child.parent) {
     const parent = child.parent;
-    if (!ts.isIfStatement(parent) || parent.thenStatement !== child) continue;
-    const test = argvTest(parent.expression);
+    if (parent.type !== "IfStatement" || parent.consequent !== child) continue;
+    const test = argvTest(parent.test);
     const word = test === null ? undefined : args[test.index - 2];
     if (test !== null && !word?.startsWith("$") && !test.words.includes(word)) return false;
   }
   return true;
 }
 
-function fallbackReads(program, file) {
-  const source = program.getSourceFile(file);
-  const checker = program.getTypeChecker();
-  const bound = new Map();
-  const reads = [];
-  const visit = (node) => {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && (ts.getCombinedNodeFlags(node) & ts.NodeFlags.Const)) {
-      const names = initializerReads(node.initializer);
-      const symbol = checker.getSymbolAtLocation(node.name);
-      if (names.length > 0 && symbol) bound.set(symbol, names);
-    }
-    if (ts.isBinaryExpression(node) && FALLBACK.has(node.operatorToken.kind)) {
-      const direct = envRead(node.left);
-      const symbol = ts.isIdentifier(node.left) ? checker.getSymbolAtLocation(node.left) : undefined;
-      const names = direct !== null ? [direct] : (symbol && bound.get(symbol)) ?? [];
-      for (const name of names) reads.push({ name, line: source.getLineAndCharacterOfPosition(node.getStart()).line + 1, node });
-    }
-    ts.forEachChild(node, visit);
+function boundNames(pattern) {
+  if (pattern === null || pattern === undefined) return [];
+  switch (pattern.type) {
+    case "Identifier": return [pattern.name];
+    case "ObjectPattern": return pattern.properties.flatMap((property) => boundNames(property.type === "RestElement" ? property.argument : property.value));
+    case "ArrayPattern": return pattern.elements.flatMap(boundNames);
+    case "AssignmentPattern": return boundNames(pattern.left);
+    case "RestElement": return boundNames(pattern.argument);
+    case "TSParameterProperty": return boundNames(pattern.parameter);
+    default: return [];
+  }
+}
+
+function childNodes(node) {
+  return Object.entries(node).filter(([key]) => !POSITIONS.has(key)).flatMap(([, value]) => Array.isArray(value) ? value : [value])
+    .filter((child) => child !== null && typeof child === "object" && typeof child.type === "string");
+}
+
+function fallbackReads(file, text) {
+  const { program } = parseSync(file, text, { sourceType: "module" });
+  const fallbacks = [];
+  const declare = (scope, pattern, names = []) => {
+    for (const name of boundNames(pattern)) scope.names.set(name, names);
   };
-  visit(source);
-  return reads;
+  const functionScope = (scope) => scope.function ? scope : functionScope(scope.parent);
+  const visit = (node, parent, scope) => {
+    node.parent = parent;
+    let inner = scope;
+    if (FUNCTIONS.has(node.type)) {
+      if (node.type === "FunctionDeclaration" && node.id) declare(scope, node.id);
+      inner = { names: new Map(), parent: scope, function: true };
+      if (node.type === "FunctionExpression" && node.id) declare(inner, node.id);
+      for (const param of node.params) declare(inner, param);
+    } else if (SCOPES.has(node.type)) {
+      inner = { names: new Map(), parent: scope, function: false };
+      if (node.type === "CatchClause") declare(inner, node.param);
+    } else if (node.type === "VariableDeclaration") {
+      const target = node.kind === "var" ? functionScope(scope) : scope;
+      for (const { id, init } of node.declarations) declare(target, id, node.kind === "const" && id.type === "Identifier" && init ? initializerReads(init) : []);
+    } else if (node.type === "ClassDeclaration" && node.id) {
+      declare(scope, node.id);
+    } else if (node.type === "ImportDeclaration") {
+      for (const specifier of node.specifiers) declare(scope, specifier.local);
+    } else if (node.type === "LogicalExpression" && FALLBACK.has(node.operator)) {
+      fallbacks.push({ node, scope });
+    }
+    for (const child of childNodes(node)) visit(child, node, inner);
+  };
+  visit(program, null, { names: new Map(), parent: null, function: true });
+  const resolve = (scope, name) => scope === null ? [] : scope.names.get(name) ?? resolve(scope.parent, name);
+  return fallbacks.flatMap(({ node, scope }) => {
+    const direct = envRead(node.left);
+    const names = direct !== null ? [direct] : node.left.type === "Identifier" ? resolve(scope, node.left.name) : [];
+    return names.map((name) => ({ name, line: text.slice(0, node.start).split("\n").length, node }));
+  });
 }
 
 export async function workflowEnvProblems(root) {
@@ -216,8 +258,7 @@ export async function workflowEnvProblems(root) {
   }
   if (runs.length === 0) return [];
   const files = [...new Set(runs.map(({ entry }) => path.join(root, entry.file)))];
-  const program = ts.createProgram(files, { allowJs: true, noResolve: true, noLib: true, types: [], noEmit: true });
-  const readsOf = new Map(files.map((file) => [file, fallbackReads(program, file)]));
+  const readsOf = new Map(await Promise.all(files.map(async (file) => [file, fallbackReads(file, await readFile(file, "utf8"))])));
   const problems = new Set();
   for (const { workflow, job, entry, set, here } of runs) {
     for (const read of readsOf.get(path.join(root, entry.file))) {

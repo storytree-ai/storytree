@@ -1,6 +1,8 @@
 // Capability 8 · Storytree's own test and gate entries.
 import path from "node:path";
 
+import { repoFile } from "./nodes.mjs";
+
 export const MINIFIED_NAME = /[.-]min\.js$/;
 const SKETCH = /^docs\/design\/.*\.js$/;
 const LONG_LINE = 1000;
@@ -27,7 +29,7 @@ export default {
     },
   },
   create(context) {
-    const file = path.relative(context.cwd, context.filename).split(path.sep).join("/");
+    const file = repoFile(context);
     if (!SKETCH.test(file) || MINIFIED_NAME.test(file)) return {};
     return {
       Program(node) {

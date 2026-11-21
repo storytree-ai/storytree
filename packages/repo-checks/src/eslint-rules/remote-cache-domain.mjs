@@ -1,5 +1,5 @@
 // Capability 8 · Storytree's own test and gate entries.
-import path from "node:path";
+import { repoFile } from "./nodes.mjs";
 
 const SCOPE = /^(?:packages|apps)\//;
 const TEST_FILE = /\.test\.[^/]+$/;
@@ -49,7 +49,7 @@ export default {
     },
   },
   create(context) {
-    const file = path.relative(context.cwd, context.filename).split(path.sep).join("/");
+    const file = repoFile(context);
     if (!SCOPE.test(file) || TEST_FILE.test(file)) return {};
     const sources = new Set();
     const tables = [];

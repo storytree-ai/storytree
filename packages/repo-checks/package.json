@@ -13,11 +13,9 @@
     "@storytree/map": "workspace:*",
     "@storytree/plugin-loader": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
-    "eslint": "^10.15.0",
+    "oxc-parser": "^0.159.0",
     "pg": "^8.23.0",
-    "tsx": "^4.23.15",
-    "typescript": "~6.0.3",
-    "typescript-eslint": "^8.72.2"
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@storytree/test-waits": "workspace:*",

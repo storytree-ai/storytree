@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-import tseslint from "typescript-eslint";
+import { parseSync } from "oxc-parser";
 
 import { FUNCTIONS, importsOf, isAssertion, some, TEST_FILE } from "./assertions.mjs";
 import { literal } from "./nodes.mjs";
@@ -33,8 +33,8 @@ function readModule(file) {
   let module;
   try {
     const text = readFileSync(file, "utf8");
-    const { ast } = tseslint.parser.parseForESLint(text, { filePath: file, sourceType: "module", ecmaVersion: "latest", range: true, loc: true, ecmaFeatures: { jsx: /\.[jt]sx$/.test(file) } });
-    module = moduleOf(file, ast);
+    const { program, errors } = parseSync(file, text, { sourceType: "module" });
+    module = errors.length === 0 ? moduleOf(file, program) : undefined;
   } catch {
     module = undefined;
   }

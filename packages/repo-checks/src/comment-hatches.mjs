@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
-import { commentHatches } from "./eslint.mjs";
+import { commentHatches } from "./oxlint.mjs";
 
 const STEP = "fyi:comment-hatches";
 const TOLD = /^[ \t]+fyi_\w+/m;

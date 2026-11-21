@@ -60,3 +60,25 @@ test("8.25 · storytree/write-names-place refuses an argv array literal spelling
   assert.match(parked[0]?.message ?? "", /arc new/);
   assert.doesNotMatch(parked[0].message, /fyi new/);
 });
+
+test("8.25 · storytree/write-names-place reads past pnpm's own options before storytree: it refuses fyi new after \"--dir\" with a non-literal value and \"-s\" holding a spread of fields, arc new after \"-C\" with a non-literal value and \"--silent\", and arc new after \"exec\", each naming no place, the message naming fyi new and arc new for the first two; the same fyi new with \"--project\" and a library read after \"--dir\" and \"-s\" pass", () => {
+  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("write-names-place", rule, {
+    valid: [
+      String.raw`export const told = (run: (cmd: string, args: string[]) => string, repo: string, fields: string[], x: string) => run("pnpm", ["--dir", repo, "-s", "storytree", "fyi", "new", "--by", "watcher", "--project", x, ...fields]);`,
+      String.raw`export const read = (run: (cmd: string, args: string[]) => string, repo: string, id: string) => run("pnpm", ["--dir", repo, "-s", "storytree", "library", "read", id]);`,
+    ].map(code),
+    invalid: [
+      refused(String.raw`export const told = (run: (cmd: string, args: string[]) => string, repo: string, fields: string[]) => run("pnpm", ["--dir", repo, "-s", "storytree", "fyi", "new", "--by", "watcher", ...fields]);`),
+      refused(String.raw`export const parked = (run: (cmd: string, args: string[]) => string, repo: string, t: string) => run("pnpm", ["-C", repo, "--silent", "storytree", "arc", "new", "--title", t]);`),
+      refused(String.raw`export const parked = (run: (cmd: string, args: string[]) => string, t: string) => run("pnpm", ["exec", "storytree", "arc", "new", "--title", t]);`),
+    ],
+  });
+
+  const lint = (source) => new Linter().verify(source, [{ plugins: { storytree: plugin }, rules: { "storytree/write-names-place": "error" } }], { filename: "packages/b/src/b.mjs" });
+  const planted = lint(`export const told = (run, repo, fields) => run("pnpm", ["--dir", repo, "-s", "storytree", "fyi", "new", "--by", "watcher", ...fields]);`);
+  assert.deepEqual(planted.map(({ line, ruleId }) => [line, ruleId]), [[1, "storytree/write-names-place"]]);
+  assert.match(planted[0].message, /"storytree fyi new"/);
+  const silent = lint(`export const parked = (run, repo, t) => run("pnpm", ["-C", repo, "--silent", "storytree", "arc", "new", "--title", t]);`);
+  assert.deepEqual(silent.map(({ ruleId }) => ruleId), ["storytree/write-names-place"]);
+  assert.match(silent[0].message, /"storytree arc new"/);
+});

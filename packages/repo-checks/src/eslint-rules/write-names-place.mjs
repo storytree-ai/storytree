@@ -38,16 +38,25 @@ async function loadWrites() {
 
 const WRITES = await loadWrites();
 
+const PNPM_ALONE = new Set(["-s", "--silent", "exec"]);
+const PNPM_VALUED = new Set(["-C", "--dir"]);
+
 function writeOf(elements) {
+  let start = 0;
+  for (;;) {
+    const word = literal(elements[start]);
+    if (PNPM_VALUED.has(word)) start += 2;
+    else if (PNPM_ALONE.has(word) || word?.startsWith("--")) start++;
+    else break;
+  }
+  if (start > 0 && literal(elements[start]) !== "storytree") return undefined;
   const words = [];
-  for (const element of elements) {
+  for (const element of elements.slice(start)) {
     const word = literal(element);
     if (word === undefined) break;
     words.push(word);
   }
-  let at = 0;
-  if (words[at] === "-s") at++;
-  if (words[at] === "storytree") at++;
+  const at = words[0] === "storytree" ? 1 : 0;
   for (let end = words.length; end > at; end--) {
     const spelled = words.slice(at, end).join(" ");
     if (WRITES.has(spelled)) return spelled;

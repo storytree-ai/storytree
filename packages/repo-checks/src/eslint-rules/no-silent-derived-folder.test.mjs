@@ -44,7 +44,32 @@ const IN_CALLBACK = code(
   "}",
 );
 
-test("8.33 · storytree/no-silent-derived-folder refuses, in a non-test source file under packages/repo-checks, packages/map or packages/app-setup, a .filter whose callback calls existsSync or is existsSync over a list derived by packageOf or packagesOf, called in the filtered expression (factoryPlugins as it stood, a .filter(existsSync) on a packagesOf result) or in the callback; its message names escape_ea60149a4f42; an existsSync filter over a list no packageOf or packagesOf derives, a packageOf .map with no existsSync filter, a test file and a file under another package pass", () => {
+const MEMBER_CALLS = code(
+  "import fs from \"node:fs\";",
+  "import * as survey from \"./code-survey/code-survey.js\";",
+  "export function present(stories) {",
+  "  return stories.map((s) => survey.packageOf(s)).filter((f) => fs.existsSync(f));",
+  "}",
+);
+
+const MEMBER_EXISTS = code(
+  "import fs from \"node:fs\";",
+  "import path from \"node:path\";",
+  "import { packageOf } from \"./package-of.js\";",
+  "export function present(stories, root) {",
+  "  return stories.filter((story) => fs.existsSync(path.join(root, \"packages\", packageOf(story))));",
+  "}",
+);
+
+const MEMBER_DERIVES = code(
+  "import { existsSync } from \"node:fs\";",
+  "import * as survey from \"./code-survey/code-survey.js\";",
+  "export function present(story) {",
+  "  return survey.packagesOf(story).filter(existsSync);",
+  "}",
+);
+
+test("8.33 · storytree/no-silent-derived-folder refuses, in a non-test source file under packages/repo-checks, packages/map or packages/app-setup, a .filter whose callback calls existsSync or is existsSync over a list derived by packageOf or packagesOf, each called bare or as a member (fs.existsSync, survey.packageOf), called in the filtered expression (factoryPlugins as it stood, a .filter(existsSync) on a packagesOf result) or in the callback; its message names escape_ea60149a4f42; an existsSync filter over a list no packageOf or packagesOf derives, a packageOf .map with no existsSync filter, a test file and a file under another package pass", () => {
   assert.match(rule?.meta?.messages?.dropped ?? "", /escape_ea60149a4f42/);
 
   new RuleTester({ cwd: process.cwd(), languageOptions: { parserOptions: { lang: "ts" } } }).run("no-silent-derived-folder", rule, {
@@ -77,6 +102,9 @@ test("8.33 · storytree/no-silent-derived-folder refuses, in a non-test source f
       refused(IN_CALLBACK, at("packages/app-setup/src/stories.ts")),
       refused(IN_CALLBACK),
       refused(FACTORY_PLUGINS, at("packages/map/src/graph.ts")),
+      refused(MEMBER_CALLS, at("packages/map/src/affected.ts")),
+      refused(MEMBER_EXISTS),
+      refused(MEMBER_DERIVES, at("packages/app-setup/src/stories.ts")),
     ],
   });
 });

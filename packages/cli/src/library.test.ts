@@ -12,7 +12,7 @@ import { claim, openActivityLog } from "@storytree/session-management";
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
 import { family } from "./mount.js";
-import { BuiltCommand, inWorld, testServerUrl } from "./testing/cli.js";
+import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 
@@ -540,6 +540,76 @@ test("3.14 `library edit` and `retire`, run by a session holding an increment, h
       assert.match(read.stdout, new RegExp(`${form.id}.*\\n.*description: \\(none\\) -> Where they type it`));
       assert.match(read.stdout, new RegExp(`${promise.id}.*\\n.*retire: overtaken`));
       assert.match(read.stdout, new RegExp(`${edge.id}.*\\n.*retire: read some other way`));
+    } finally {
+      await log.close();
+    }
+  });
+});
+
+async function shopWithCart(world: World) {
+  const library = await world.library();
+  const story = await library.addStory({ title: "Shop" });
+  const claims = await library.addCapability({ story: story.id, title: "Claims" });
+  const pricing = await library.addCapability({ story: story.id, title: "Pricing" });
+  const receipts = await library.addCapability({ story: story.id, title: "Receipts" });
+  const src = path.join(world.folder, "packages/shop/src");
+  mkdirSync(path.join(src, "cart"), { recursive: true });
+  writeFileSync(path.join(world.folder, "packages/shop/package.json"), JSON.stringify({ name: "@x/shop", type: "module" }));
+  writeFileSync(path.join(src, "cart/index.ts"), "export const add = () => 1;\n");
+  writeFileSync(path.join(src, "price.ts"), "export const price = () => 2;\n");
+  writeFileSync(path.join(src, "claims.test.ts"), 'import { add } from "./cart/index.js";\ntest("1.1 a claim holds", () => add());\n');
+  writeFileSync(path.join(src, "pricing.test.ts"), 'import { price } from "./price.js";\ntest("2.1 a price holds", () => price());\n');
+  const parentOf = async (id: string) => ((await library.get(id))?.fields as { parent?: string } | undefined)?.parent;
+  return { library, story, claims, pricing, receipts, parentOf };
+}
+
+test("3.23 `library edit <capability> --parent <id>` nests it under a parent whose code, read from the project's code survey, has a folder with its own entry file, and refuses one whose code has none, naming the parent and the rule, with nothing written", async () => {
+  await inWorld(command, async (world) => {
+    const { library, claims, pricing, receipts, parentOf } = await shopWithCart(world);
+
+    const moved = await world.run(["library", "edit", receipts.id, "--parent", claims.id, "--project", world.project]);
+    assert.equal(moved.code, 0, `${moved.stderr}${moved.stdout}`);
+    assert.equal(await parentOf(receipts.id), claims.id, "nested under a parent whose code has src/cart with its own index.ts");
+
+    const history = await library.history({ id: receipts.id });
+    const refused = await world.run(["library", "edit", receipts.id, "--parent", pricing.id, "--project", world.project]);
+    const said = `${refused.stderr}${refused.stdout}`;
+    assert.notEqual(refused.code, 0, said);
+    assert.ok(said.includes(pricing.id), `the refusal names the parent: ${said}`);
+    assert.match(said, /entry file/, "and the rule: a folder with its own entry file");
+    assert.match(said, /nested package/, "or a nested package");
+    assert.equal(await parentOf(receipts.id), claims.id, "the capability still sits where it was");
+    assert.deepEqual(await library.history({ id: receipts.id }), history, "nothing was written");
+  });
+});
+
+test("3.23 `library edit <capability> --parent <id>` and `--parent none`, run by a session holding an increment on a branch, go to the live plan at once, not pending on the increment, and each answer says so; none makes it a top capability again", async () => {
+  await inWorld(command, async (world) => {
+    const { library, claims, receipts, parentOf } = await shopWithCart(world);
+    const arc = await library.createArc({ title: "Launch the shop", intent: "Sell", endState: "Shoppers buy" });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Cart lines", objective: "Nest receipts", body: "Red then green" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const as = { CLAUDE_CODE_SESSION_ID: "caller" };
+      assert.equal((await claim({ log, library, project: world.project, session: "caller", harness: "claude-code", branch: "claude/cart-lines" }, increment.id, "driving the cart lines")).ok, true);
+      const held = await world.run(["library", "edit", receipts.id, "--description", "What the shopper keeps", "--project", world.project], as);
+      assert.equal(held.code, 0, held.stderr);
+      assert.match(held.stdout, new RegExp(`pending on increment ${increment.id}`), "an ordinary edit waits as a pending change");
+
+      const moved = await world.run(["library", "edit", receipts.id, "--parent", claims.id, "--project", world.project], as);
+      assert.equal(moved.code, 0, `${moved.stderr}${moved.stdout}`);
+      assert.doesNotMatch(moved.stdout, /pending on increment/, moved.stdout);
+      assert.match(moved.stdout, /live plan/, `the answer says it went to the live plan: ${moved.stdout}`);
+      assert.equal(await parentOf(receipts.id), claims.id, "the live capability sits under its parent");
+
+      const cleared = await world.run(["library", "edit", receipts.id, "--parent", "none", "--project", world.project], as);
+      assert.equal(cleared.code, 0, `${cleared.stderr}${cleared.stdout}`);
+      assert.doesNotMatch(cleared.stdout, /pending on increment/, cleared.stdout);
+      assert.match(cleared.stdout, /live plan/, `the answer says it went to the live plan: ${cleared.stdout}`);
+      assert.equal(await parentOf(receipts.id), undefined, "the live capability is a top capability again");
+
+      const pending = ((await library.get(increment.id))?.fields as { pending?: { record: string; after?: Record<string, unknown> }[] }).pending ?? [];
+      assert.deepEqual(pending.map(({ record, after }) => [record, after]), [[receipts.id, { description: "What the shopper keeps" }]], "no pending change carries the parent");
     } finally {
       await log.close();
     }

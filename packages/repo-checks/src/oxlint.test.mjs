@@ -230,7 +230,7 @@ test("8.19 · the local plugin in packages/repo-checks/src/eslint-rules is a plu
   assert.match(logged[0], new RegExp(`\\b${ruleCount + 2} rules\\b`));
 });
 
-test("8.19 · storytree's lint carries no ESLint: packages/repo-checks depends on none of eslint, typescript-eslint and typescript, and no file under packages/repo-checks/src imports them", () => {
+test("8.19 · storytree's lint carries no ESLint: packages/repo-checks depends on none of eslint, typescript-eslint and typescript, no file under packages/repo-checks/src imports them, and the root pnpm-lock.yaml locks no eslint, typescript-eslint, @typescript-eslint/* or TypeScript but 7.x", () => {
   const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   const depended = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"].flatMap((field) => Object.keys(manifest[field] ?? {}));
   assert.deepEqual(depended.filter((name) => ["eslint", "typescript-eslint", "typescript"].includes(name) || name.startsWith("@typescript-eslint/")), []);
@@ -241,6 +241,10 @@ test("8.19 · storytree's lint carries no ESLint: packages/repo-checks depends o
   const IMPORTS = /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\(\s*)["'](eslint|typescript-eslint|typescript|@typescript-eslint\/[^"']+)["']/g;
   const importing = files.flatMap((file) => [...readFileSync(path.join(source, file), "utf8").matchAll(IMPORTS)].map((found) => `${file.split(path.sep).join("/")} imports ${found[1]}`));
   assert.deepEqual(importing, []);
+
+  const lock = readFileSync(new URL("../../../pnpm-lock.yaml", import.meta.url), "utf8");
+  const LOCKED = /^ {2}'?((?:eslint|typescript-eslint|@typescript-eslint\/[^@\s]+|typescript)@(?!7\.)[^:'\s]*)'?:/gm;
+  assert.deepEqual([...lock.matchAll(LOCKED)].map((found) => found[1]), []);
 });
 
 function branch(t, { base, main = {}, head = {}, uncommitted = {}, origin = true }) {

@@ -2,8 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
 import plugin from "./index.mjs";
 
@@ -15,7 +14,7 @@ test("8.11 · storytree/no-partial-escape refuses a replace or replaceAll by a b
   assert.match(rule?.meta?.messages?.partialEscape ?? "", /js\/incomplete-sanitization/);
   assert.ok(rule.meta.messages.partialEscape.includes(code(String.raw`/[.*+?^#{}()|[\]\\]/g, "\\#&"`)), rule.meta.messages.partialEscape);
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("no-partial-escape", rule, {
+  new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("no-partial-escape", rule, {
     valid: [
       String.raw`export const full = (text: string): string => text.replace(/[.*+?^#{}()|[\]\\]/g, "\\#&");`,
       String.raw`export const slashes = (text: string): string => text.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");`,

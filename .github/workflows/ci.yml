@@ -194,11 +194,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-      # Storytree's three code-structure rules (lint.mjs, ADR-1199 D2): a type-only import ends only at the library,
-      # each story keeps its code in its own package, and no story package's source file is left reached by no
-      # numbered test. It also runs ESLint with storytree's local rule plugin (eslint.mjs, ADR-1370), and Oxlint beside
-      # it with the same rules, printing its peak memory (oxlint.mjs, ADR-1378's trial). They read only the code; any
-      # break fails the pull request.
       - run: pnpm lint
       # A seed or snapshot file the branch adds or changes holds only what the forest's seed sanitiser keeps.
       - run: pnpm check:seed-records

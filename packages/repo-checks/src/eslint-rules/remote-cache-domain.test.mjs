@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 
-import { Linter, RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
+import * as oxlint from "../oxlint.mjs";
 import plugin from "./index.mjs";
 
 const rule = plugin.rules["remote-cache-domain"];
@@ -25,7 +25,7 @@ test("8.26 · storytree/remote-cache-domain refuses, in a non-test source file u
   assert.match(message, /\bdatabase\b/);
   assert.match(message, /\bproject\b/);
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("remote-cache-domain", rule, {
+  new RuleTester({ cwd: process.cwd(), languageOptions: { parserOptions: { lang: "ts" } } }).run("remote-cache-domain", rule, {
     valid: [
       passes(source(`export const open = (db: DatabaseSync, pool: pg.Pool) => db.exec("CREATE TABLE IF NOT EXISTS embedding_v2 (domain TEXT NOT NULL, model TEXT NOT NULL, key TEXT NOT NULL, vector BLOB NOT NULL, PRIMARY KEY (domain, model, key))");`)),
       passes(source(`export const cursor = (db: DatabaseSync, pool: pg.Pool) => db.exec("CREATE TABLE IF NOT EXISTS cursor_v1 (domain TEXT PRIMARY KEY, seq INTEGER NOT NULL)");`)),
@@ -69,12 +69,8 @@ test("8.26 · storytree/remote-cache-domain refuses, in a non-test source file u
     ],
   });
 
-  const hits = new Linter({ cwd: process.cwd() }).verify(
-    source(UNDOMAINED),
-    [{ files: ["**/*.ts"], languageOptions: { parser: tseslint.parser }, plugins: { storytree: plugin }, rules: { "storytree/remote-cache-domain": "error" } }],
-    { filename: SOURCE },
-  );
-  assert.deepEqual(hits.map(({ line, ruleId }) => [line, ruleId]), [[3, "storytree/remote-cache-domain"]]);
+  const [hits] = oxlint.ruleHits([{ file: "packages/library/src/knowledge/embeddings.ts", text: source(UNDOMAINED) }]);
+  assert.deepEqual(hits.map(({ line, rule: id }) => [line, id]), [[3, "storytree/remote-cache-domain"]]);
   assert.match(hits[0].message, /\bembedding_v1\b/);
   assert.match(hits[0].message, /escape_a1c726a22ef5/);
   assert.match(hits[0].message, /\bserver\b/);

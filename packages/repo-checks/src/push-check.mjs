@@ -6,8 +6,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { CODE_FILE } from "./coverage-map.mjs";
-import { ruleHits } from "./eslint.mjs";
 import { textsOf } from "./leak-scan.mjs";
+import { ruleHits } from "./oxlint.mjs";
 
 const SECRET_KEY = /token|secret|passw|key|credential|auth/i;
 const LINK_PASSWORD = /(?<![a-z0-9+.-])[0-9+.-]*[a-z][a-z0-9+.-]*:\/\/[^\s:/@"'\\]+:([^\s@"'\\/]+)@/gi;
@@ -67,8 +67,6 @@ export function machineSecrets({ home = homedir(), sources = MACHINE_CREDENTIALS
   return [...secrets].map(([value, what]) => ({ value, what }));
 }
 
-const patternHits = (file, text) => ruleHits(file, text).map(({ line, rule, message }) => ({ line, said: `${rule}: ${message}` }));
-
 const occurrences = (texts, value) => texts.reduce((n, text) => n + text.split(value).length - 1, 0);
 
 const ZERO = /^0+$/;
@@ -91,7 +89,7 @@ export function pushProblems({ root, remote, updates, secrets }) {
     return textCache.get(blob);
   };
   const problems = [];
-  const patterns = [];
+  const scans = [];
   const seen = new Set();
   const notPushed = git(["remote"]).split("\n").includes(remote) ? `--remotes=${remote}` : "--remotes";
   for (const { localSha, remoteSha } of updates) {
@@ -113,12 +111,20 @@ export function pushProblems({ root, remote, updates, secrets }) {
         const most = (count) => Math.max(...priors.map(count));
         const kinds = new Set(secrets.filter(({ value }) => occurrences(added, value) > most((prior) => occurrences(prior, value))).map(({ what }) => what));
         for (const what of kinds) problems.push(`${file} (commit ${commit.slice(0, 10)}) adds the value of ${what}`);
-        if (!CODE_FILE.test(file)) continue;
-        const hits = added.flatMap((text) => patternHits(file, text));
-        if (hits.length <= most((prior) => prior.flatMap((text) => patternHits(file, text)).length)) continue;
-        for (const { line, said } of hits) patterns.push(`${file}:${line} (commit ${commit.slice(0, 10)}) ${said}`);
+        if (CODE_FILE.test(file)) scans.push({ file, commit, added, priors });
       }
     }
+  }
+  const texts = scans.flatMap(({ file, added, priors }) => [added, ...priors].flat().map((text) => ({ file, text })));
+  const hits = ruleHits(texts);
+  let at = 0;
+  const take = (group) => group.flatMap(() => hits[at++]);
+  const patterns = [];
+  for (const { file, commit, added, priors } of scans) {
+    const found = take(added);
+    const most = Math.max(...priors.map((prior) => take(prior).length));
+    if (found.length <= most) continue;
+    for (const { line, rule, message } of found) patterns.push(`${file}:${line} (commit ${commit.slice(0, 10)}) ${rule}: ${message}`);
   }
   return { secrets: problems, patterns };
 }

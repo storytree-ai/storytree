@@ -2,7 +2,6 @@
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { allocationProblems } from "./allocation.mjs";
-import { eslintProblems } from "./eslint.mjs";
 import { oxlintProblems } from "./oxlint.mjs";
 import { boundaryProblems } from "./package-boundaries.mjs";
 import { processMatchProblems } from "./process-match.mjs";
@@ -15,7 +14,6 @@ export const RULES = [
   { name: "allocation", problems: allocationProblems },
   { name: "process-match", problems: processMatchProblems },
   { name: "workflow-env", problems: workflowEnvProblems },
-  { name: "eslint", problems: eslintProblems },
   { name: "oxlint", problems: oxlintProblems },
 ];
 

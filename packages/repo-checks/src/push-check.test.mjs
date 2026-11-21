@@ -251,3 +251,18 @@ test("1.12 · the push check refuses a push whose commits add PR #989's churn.ts
   assert.ok(!refusal.includes("disjoint.ts"), refusal);
   assert.ok(!refusal.includes("vendor/"), refusal);
 });
+
+test("1.12 · a minified bundle (*.min.js) the push adds is still read for storytree's pattern rules: a tag-removing replace in it is refused by storytree/no-tag-strip, naming file, line, commit and rule, while the slow regex beside it gives no regexp/ line", (t) => {
+  const { home, root, git } = machine(t);
+  git("checkout", "-q", "-b", "bundle");
+  mkdirSync(path.join(root, "vendor"));
+  writeFileSync(path.join(root, "vendor", "page.min.js"), String.raw`var s=function(h){return h.replace(/<[^>]+>/g,"")},r=function(p){return/^(.*)\{(.*) => (.*)\}(.*)$/.exec(p)};export{s,r};` + "\n");
+  git("add", ".");
+  git("commit", "-q", "-m", "bundle");
+  const head = git("rev-parse", "HEAD").trim();
+  const said = [];
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/bundle ${head} refs/heads/bundle ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 1, said.join("\n"));
+  const refusal = said.join("\n");
+  assert.match(refusal, new RegExp(`vendor/page\\.min\\.js:1 \\(commit ${head.slice(0, 10)}\\) storytree/no-tag-strip: `));
+  assert.doesNotMatch(refusal, /regexp\//);
+});

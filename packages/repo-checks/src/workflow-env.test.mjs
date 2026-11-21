@@ -187,6 +187,31 @@ test(`8.30 · workflowEnvProblems refuses a job running node <file> or pnpm run 
   assert.ok(problems.every((problem) => !/\bjob ship\b/.test(problem)), problems.join("\n"));
 });
 
+test(`8.30 · workflowEnvProblems follows a const bound from process.env.RELEASE_TAG by its own binding: the outer tag's tag ?? "dev" is the one problem, at its line, while a parameter tag and a block's let tag read with ?? or || in their own scopes are no read of RELEASE_TAG (${ESCAPE})`, async (t) => {
+  const stamp = [
+    `const tag = process.env.RELEASE_TAG;`,
+    `function label(tag) {`,
+    `  return tag ?? "none";`,
+    `}`,
+    `{`,
+    `  let tag = "local";`,
+    `  console.log(tag || "empty");`,
+    `}`,
+    `console.log(label("x"), tag ?? "dev");`,
+    ``,
+  ].join("\n");
+  const release = [
+    `name: Release\n`,
+    `on: [push]\n`,
+    `jobs:\n`,
+    `  direct:\n    runs-on: ubuntu-latest\n    steps:\n      - run: node scripts/stamp.mjs\n`,
+    `  ship:\n    runs-on: ubuntu-latest\n    env:\n      RELEASE_TAG: \${{ github.ref_name }}\n    steps:\n      - run: node scripts/stamp.mjs\n`,
+  ].join("");
+  const problems = await problemsOf(t, { ...ROOT_FILES, "scripts/stamp.mjs": stamp, ".github/workflows/release.yml": release });
+  assert.equal(problems.length, 1, problems.join("\n"));
+  assertNames(problems[0], { workflow: "release.yml", job: "direct", at: "scripts/stamp.mjs:9", variable: "RELEASE_TAG" });
+});
+
 test(`8.30 · workflowEnvProblems passes the build job once it has WEBSITE_SHA in its job env, its build step's env, the workflow's env, or a WEBSITE_SHA=… line appended to $GITHUB_ENV by an earlier step (${ESCAPE})`, async (t) => {
   const variants = {
     "job env": websiteYml({ buildEnv: "    env:\n      WEBSITE_SHA: ${{ github.sha }}\n" }),

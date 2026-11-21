@@ -5,8 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { Linter, RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
 import { removeTemp } from "@storytree/test-waits";
 
@@ -33,6 +32,8 @@ const HELPERS = {
   "packages/a/src/default-fn.mjs": "import assert from 'node:assert/strict';\nexport default function check(value) { assert.equal(value, 1); }\nexport function build(value) { return value; }\n",
   "packages/a/src/default-name.mjs": "import { ok } from 'node:assert';\nconst holds = (value) => ok(value);\nexport default holds;\n",
   "packages/a/src/default-none.mjs": "export default function quiet(value) { return value; }\n",
+  "packages/a/src/unparsed.mjs": "import assert from 'node:assert/strict';\nexport function holdsUnparsed(value) { assert.ok(value); }\nreturn 1;\n",
+  "packages/a/src/typed.ts": "import assert from 'node:assert/strict';\nexport function sameCount(actual: number, expected: number): void { assert.equal(actual, expected); }\nexport const sized = (items: readonly string[]): number => items.length;\n",
 };
 
 const THING = [
@@ -73,16 +74,31 @@ const DEFAULTS = [
   "",
 ].join("\n");
 
+const TYPED = [
+  `import { test } from "node:test";`,
+  `import { sameCount, sized } from "./typed.ts";`,
+  `test("1.19 TypeScript helper that asserts", () => sameCount(sized(["a"]), 1));`,
+  `test("1.20 TypeScript helper that asserts nothing", () => { sized(["a"]); });`,
+  "",
+].join("\n");
+
+const UNPARSED = [
+  `import { test } from "node:test";`,
+  `import { holdsUnparsed } from "./unparsed.mjs";`,
+  `test("1.21 helper that fails to parse", () => holdsUnparsed(1));`,
+  "",
+].join("\n");
+
 const BUILDS_ONLY = `import { test } from "node:test";\nconst make = () => 1;\ntest("1.1 builds only", () => { make(); });\n`;
 
-test("8.13 · storytree/numbered-test-asserts refuses, in a test file, a numbered test that calls no assertion (a test, an it with a story prefix, a t.test sub and the parent holding it; a throw in the code under test is none) at its line, its message naming the title and the fix (node:assert, t.assert, or a helper that asserts); one asserting directly, by a named import, t.assert or assert.rejects, through a local helper, an imported helper re-exported by name or by export *, a default-exported function or name that asserts, a testing/ helper that throws, or its own throw passes, as do skip, todo and unnumbered tests and the same code in a file that is not a test file", (t) => {
+test("8.13 · storytree/numbered-test-asserts refuses, in a test file, a numbered test that calls no assertion (a test, an it with a story prefix, a t.test sub and the parent holding it; a throw in the code under test is none, nor a call to an imported helper whose file fails to parse) at its line, its message naming the title and the fix (node:assert, t.assert, or a helper that asserts); one asserting directly, by a named import, t.assert or assert.rejects, through a local helper, an imported helper re-exported by name or by export *, an imported TypeScript (.ts) helper that asserts, a default-exported function or name that asserts, a testing/ helper that throws, or its own throw passes, as do skip, todo and unnumbered tests and the same code in a file that is not a test file", (t) => {
   assert.match(rule?.meta?.messages?.assertsNothing ?? "", /node:assert, t\.assert, or a helper that asserts/);
 
   const root = checkout(t, HELPERS);
   const at = (file) => path.join(root, file);
   const refused = (line, title) => ({ messageId: "assertsNothing", line, data: { title } });
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("numbered-test-asserts", rule, {
+  new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("numbered-test-asserts", rule, {
     valid: [
       { code: THING, filename: at("packages/a/src/thing.ts") },
       { code: BUILDS_ONLY, filename: at("packages/a/src/builds.mjs") },
@@ -104,10 +120,13 @@ test("8.13 · storytree/numbered-test-asserts refuses, in a test file, a numbere
         filename: at("packages/a/src/defaults.test.mjs"),
         errors: [refused(7, "1.17 named export beside an asserting default"), refused(8, "1.18 default export that asserts nothing")],
       },
+      { code: TYPED, filename: at("packages/a/src/typed.test.ts"), errors: [refused(4, "1.20 TypeScript helper that asserts nothing")] },
+      { code: UNPARSED, filename: at("packages/a/src/unparsed.test.mjs"), errors: [refused(3, "1.21 helper that fails to parse")] },
     ],
   });
 
-  const messages = new Linter().verify(BUILDS_ONLY, [{ plugins: { storytree: plugin }, rules: { "storytree/numbered-test-asserts": "error" } }], { filename: "packages/a/src/builds.test.mjs" });
-  assert.deepEqual(messages.map(({ line, ruleId }) => [line, ruleId]), [[3, "storytree/numbered-test-asserts"]]);
-  assert.match(messages[0].message, /"1\.1 builds only" calls no assertion.*node:assert, t\.assert, or a helper that asserts/);
+  new RuleTester().run("numbered-test-asserts", rule, {
+    valid: [],
+    invalid: [{ code: BUILDS_ONLY, filename: "packages/a/src/builds.test.mjs", errors: [{ line: 3, message: /"1\.1 builds only" calls no assertion.*node:assert, t\.assert, or a helper that asserts/ }] }],
+  });
 });

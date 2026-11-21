@@ -1,4 +1,12 @@
 // Capability 8 · Storytree's own test and gate entries.
+import path from "node:path";
+
+export function repoFile(context) {
+  const file = path.relative(context.cwd, context.filename).split(path.sep).join("/");
+  const batch = context.settings?.storytree?.batch;
+  return batch ? batch[file.slice(0, file.indexOf("/"))] : file;
+}
+
 export const unchained = (node) => node?.type === "ChainExpression" ? node.expression : node;
 
 export function children(node) {

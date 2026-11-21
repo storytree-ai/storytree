@@ -2,8 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { Linter, RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
 import plugin from "./index.mjs";
 
@@ -46,7 +45,7 @@ const swallowed = (line, callee) => ({ messageId: "swallowed", line, data: { cal
 test("8.14 · storytree/no-swallowed-assert refuses, in a test file, an assertion call (assert.match, t.assert.ok, a named node:assert import) in a catch block that does not rethrow, at the assertion's line, its message naming the call and assert.rejects or assert.throws; a catch that rethrows, an assertion in a function written inside the catch and the same code in a file that is not a test file pass", () => {
   assert.match(rule?.meta?.messages?.swallowed ?? "", /assert\.rejects or assert\.throws/);
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("no-swallowed-assert", rule, {
+  new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("no-swallowed-assert", rule, {
     valid: [
       { code: FAIL, filename: "packages/b/src/fail.mjs" },
       { code: OTHER_CALLEES, filename: "packages/b/src/other.ts" },
@@ -57,7 +56,8 @@ test("8.14 · storytree/no-swallowed-assert refuses, in a test file, an assertio
     ],
   });
 
-  const messages = new Linter().verify(FAIL, [{ plugins: { storytree: plugin }, rules: { "storytree/no-swallowed-assert": "error" } }], { filename: "packages/b/src/fail.test.mjs" });
-  assert.deepEqual(messages.map(({ line, ruleId }) => [line, ruleId]), [[6, "storytree/no-swallowed-assert"]]);
-  assert.match(messages[0].message, /^assert\.match sits in a catch block that does not rethrow.*use assert\.rejects or assert\.throws instead/);
+  new RuleTester().run("no-swallowed-assert", rule, {
+    valid: [],
+    invalid: [{ code: FAIL, filename: "packages/b/src/fail.test.mjs", errors: [{ line: 6, message: /^assert\.match sits in a catch block that does not rethrow.*use assert\.rejects or assert\.throws instead/ }] }],
+  });
 });

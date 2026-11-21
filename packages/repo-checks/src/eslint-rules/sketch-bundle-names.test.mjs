@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 
-import { RuleTester } from "eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
-import { ruleHits } from "../eslint.mjs";
+import * as oxlint from "../oxlint.mjs";
 import plugin from "./index.mjs";
 
 const rule = plugin.rules["sketch-bundle-names"];
@@ -24,7 +24,7 @@ const passes = (file, code) => ({ code, filename: at(file.includes("/") ? file :
 
 test("8.10 · storytree/sketch-bundle-names refuses a .js under docs/design with a line over 1,000 characters, wherever the line falls, named other than *.min.js or *-min.js (a name merely ending in min.js, like admin.js, is not), unless the whole file is one window.NAME = {…}; whose value parses as JSON: data followed by code, data whose value is not JSON, and data assigned to anything but window are refused, once per file", () => {
   assert.equal(lineOf(1001).length, 1002);
-  new RuleTester().run("sketch-bundle-names", rule, {
+  new RuleTester({ cwd: process.cwd() }).run("sketch-bundle-names", rule, {
     valid: [],
     invalid: [
       refused("page.js", LONG),
@@ -41,7 +41,7 @@ test("8.10 · storytree/sketch-bundle-names refuses a .js under docs/design with
 
 test("8.10 · storytree/sketch-bundle-names passes a *.min.js or *-min.js bundle, a hand-written .js whose lines are all 1,000 characters or fewer, one window.NAME = {…}; data assignment whose value is JSON, a long .js outside docs/design, and a long .mjs under docs/design", () => {
   assert.equal(lineOf(1000).length, 1001);
-  new RuleTester().run("sketch-bundle-names", rule, {
+  new RuleTester({ cwd: process.cwd() }).run("sketch-bundle-names", rule, {
     valid: [
       passes("page.min.js", LONG),
       passes("worker-min.js", LONG),
@@ -58,20 +58,24 @@ test("8.10 · storytree/sketch-bundle-names passes a *.min.js or *-min.js bundle
 });
 
 test("8.10 · through pnpm lint's config, a long page.js under docs/design is one storytree/sketch-bundle-names hit whose message names page.min.js, the build.mjs that writes it, its page's script tag and keeping it to one data assignment; worker.js's names worker.min.js; page.min.js and a JSON data.js leave none", () => {
-  const hits = ruleHits(`${SKETCH}/page.js`, LONG);
+  const [hits, worker, minified, data] = oxlint.ruleHits([
+    { file: `${SKETCH}/page.js`, text: LONG },
+    { file: `${SKETCH}/worker.js`, text: LONG },
+    { file: `${SKETCH}/page.min.js`, text: LONG },
+    { file: `${SKETCH}/data.js`, text: DATA },
+  ]);
   assert.deepEqual(hits.map(({ rule: id }) => id), ["storytree/sketch-bundle-names"]);
   assert.match(hits[0].message, /\bpage\.min\.js\b/);
   assert.match(hits[0].message, /\bbuild\.mjs\b/);
   assert.match(hits[0].message, /script tag/);
   assert.match(hits[0].message, /one data assignment/);
 
-  const worker = ruleHits(`${SKETCH}/worker.js`, LONG);
   assert.equal(worker.length, 1);
   assert.match(worker[0].message, /\bworker\.min\.js\b/);
   assert.doesNotMatch(worker[0].message, /\bpage\.min\.js\b/);
 
-  assert.deepEqual(ruleHits(`${SKETCH}/page.min.js`, LONG), []);
-  assert.deepEqual(ruleHits(`${SKETCH}/data.js`, DATA), []);
+  assert.deepEqual(minified, []);
+  assert.deepEqual(data, []);
 });
 
 test("8.10 · the rule module exports MINIFIED_NAME, the minified-bundle name test the push check also reads: it matches page.min.js and worker-min.js, and neither page.js nor admin.js", async () => {

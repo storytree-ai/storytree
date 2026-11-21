@@ -28,3 +28,13 @@ minimumReleaseAge: 4320
 
 overrides:
   brace-expansion@2: ^2.1.7
+
+packageExtensions:
+  eslint-plugin-regexp:
+    peerDependenciesMeta:
+      eslint:
+        optional: true
+  "@eslint-community/eslint-utils":
+    peerDependenciesMeta:
+      eslint:
+        optional: true

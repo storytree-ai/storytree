@@ -2,8 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
 import plugin from "./index.mjs";
 
@@ -15,7 +14,7 @@ test("8.31 · storytree/no-partial-regexp-escape refuses, as new RegExp(…) or 
   assert.match(rule?.meta?.messages?.partialRegexpEscape ?? "", /escape_159b701eadc6/);
   assert.ok(rule.meta.messages.partialRegexpEscape.includes(code(String.raw`/[.*+?^#{}()|[\]\\]/g, "\\#&"`)), rule.meta.messages.partialRegexpEscape);
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("no-partial-regexp-escape", rule, {
+  new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("no-partial-regexp-escape", rule, {
     valid: [
       String.raw`new RegExp(x.replace(/[.*+?^#{}()|[\]\\]/g, "\\#&"));`,
       String.raw`new RegExp(~a #{x.replace(/[.*+?^#{}()|[\]\\]/g, "\\#&")} b~);`,

@@ -3,10 +3,9 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 
-import { RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
-import { ruleHits } from "../eslint.mjs";
+import * as oxlint from "../oxlint.mjs";
 import plugin from "./index.mjs";
 
 const rule = plugin.rules["anchored-process-match"];
@@ -31,7 +30,7 @@ test("8.27 · storytree/anchored-process-match refuses, in a non-test source fil
   assert.match(message, /\bstart\b/, "says to anchor from the start of the line");
   assert.match(message, /\bexecutable\b/, "says to anchor to the executable");
 
-  new RuleTester().run("anchored-process-match", rule, {
+  new RuleTester({ cwd: process.cwd() }).run("anchored-process-match", rule, {
     valid: [
       passes(source(String.raw`export const loopRunning = (rows) => rows.some((row) => /^(?:\S*\/)?(?:ba)?sh\s+(?:\S*\/)?launch-pool\.sh\s+run\b/.test(row.args));`)),
       passes(source(String.raw`export const isLoop = (proc, pid) => /^(?:\S*\/)?(?:ba)?sh\s+(?:\S*\/)?launch-pool\.sh\s+run\b/.test(readFileSync(join(proc, pid, "cmdline"), "utf8").split("\0").join(" "));`)),
@@ -59,18 +58,18 @@ test("8.27 · storytree/anchored-process-match refuses, in a non-test source fil
     ],
   });
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("anchored-process-match", rule, {
+  new RuleTester({ cwd: process.cwd(), languageOptions: { parserOptions: { lang: "ts" } } }).run("anchored-process-match", rule, {
     valid: [passes(String.raw`export const loopRunning = (rows: { args: string }[]) => rows.some((row) => /^bash \S*launch-pool\.sh run\b/.test(row.args));`, at("apps/desktop/src/pool.ts"))],
     invalid: [refused(String.raw`export const loopRunning = (rows: { args: string }[]) => rows.some((row) => /launch-pool\.sh run\b/.test(row.args));`, 1, at("apps/desktop/src/pool.ts"))],
   });
 });
 
 test("8.27 · through pnpm lint's config, the escape's own ps-row match in a package's source is one storytree/anchored-process-match hit at its line naming escape_24ab852d292f, and the same text in a test file or outside packages/ and apps/ is none", () => {
-  const hits = ruleHits("packages/agent-pool/src/queue.mjs", source(ESCAPE)).filter(({ rule: id }) => id === "storytree/anchored-process-match");
+  const named = oxlint.ruleHits(["packages/agent-pool/src/queue.mjs", "packages/agent-pool/src/queue.test.mjs", "scripts/queue.mjs"].map((file) => ({ file, text: source(ESCAPE) })))
+    .map((hits) => hits.filter(({ rule: id }) => id === "storytree/anchored-process-match"));
+  const [hits, inTest, outside] = named;
   assert.deepEqual(hits.map(({ line }) => line), [5]);
   assert.match(hits[0].message, /escape_24ab852d292f/);
-
-  const named = (file) => ruleHits(file, source(ESCAPE)).filter(({ rule: id }) => id === "storytree/anchored-process-match");
-  assert.deepEqual(named("packages/agent-pool/src/queue.test.mjs"), []);
-  assert.deepEqual(named("scripts/queue.mjs"), []);
+  assert.deepEqual(inTest, []);
+  assert.deepEqual(outside, []);
 });

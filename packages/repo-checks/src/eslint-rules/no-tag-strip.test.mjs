@@ -2,8 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
 import plugin from "./index.mjs";
 
@@ -14,7 +13,7 @@ test("8.9 · storytree/no-tag-strip refuses a global replace or replaceAll by \"
   assert.match(rule?.meta?.messages?.tagStrip ?? "", /js\/incomplete-multi-character-sanitization/);
   assert.match(rule.meta.messages.tagStrip, /repeat/i, "names the fix: repeat the replace until nothing changes");
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("no-tag-strip", rule, {
+  new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("no-tag-strip", rule, {
     valid: [
       `export const spaced = (html: string): string => html.replace(/<[^>]+>/g, " ");`,
       String.raw`export const once = (html: string): string => html.replace(/<svg[\s\S]*<\/svg>/, "");`,

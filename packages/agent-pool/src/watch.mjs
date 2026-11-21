@@ -207,7 +207,7 @@ export function readFailures(runs, reach) {
   const units = new Set(), tests = new Set(), where = {};
   let outside = true;
   for (const job of runs.flatMap((one) => one.jobs).filter(redJob)) {
-    const failed = new Set(), unplaced = new Set();
+    const failed = new Set(), killed = new Map(), found = [];
     let heading;
     for (const line of (job.log ?? "").split("\n")) {
       heading = /\s=== ((?:packages|apps)\/[^/\s]+) ===\s*$/.exec(line)?.[1] ?? heading;
@@ -216,16 +216,25 @@ export function readFailures(runs, reach) {
         failed.add(unit);
         units.add(unit);
         if (!/^(?:packages|apps)\/[^/]+$/.test(unit) || reach.has(unit)) outside = false;
+        const files = line.split("; ").filter((part) => part.includes(": its last reported test ended"))
+          .map((part) => part.slice(0, part.indexOf(": its last reported test ended")).split(" ").pop());
+        if (files.length) killed.set(unit, files);
       }
       const test = failedTest(line);
-      if (test) {
-        tests.add(test);
-        if (heading) where[test] ??= heading;
-        else unplaced.add(test);
-      }
+      if (test) found.push([test, heading]);
     }
     if (!failed.size) outside = false;
-    if (failed.size === 1) for (const test of unplaced) where[test] ??= [...failed][0];
+    const only = failed.size === 1 ? [...failed][0] : undefined;
+    for (const [test, placed] of found) {
+      const unit = placed ?? only;
+      if (killed.has(unit) && !/\s/.test(test) && /[\\/]/.test(test)) continue;
+      tests.add(test);
+      if (unit) where[test] ??= unit;
+    }
+    for (const [unit, files] of killed) for (const file of files) {
+      tests.add(file);
+      where[file] ??= unit;
+    }
   }
   if (!units.size) outside = false;
   return { outside, units: [...units], tests: [...tests], where, runs: runs.map(({ id, attempt, repo }) => ({ id, attempt, repo })),

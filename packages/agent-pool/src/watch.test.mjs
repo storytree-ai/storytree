@@ -1145,6 +1145,34 @@ test("4.34 · a red's failing units and tests are read from its red jobs' logs, 
   assert.ok(performance.now() - started < 500);
 });
 
+test("4.65 · a unit killed for a hung file reads as that file's failure and its files' own failed subtests, and a file the kill cut short with no failed subtest of its own is no failing test", () => {
+  const reach = reachOf(["packages/agent-pool/src/watch.mjs"]);
+  const hung = "its last reported test ended, and its process sat idle without exiting (a handle left open or an exit that hangs, or a test waiting in a synchronous call that uses no CPU)";
+  const harness = ["[Error: test failed] {", "  code: 'ERR_TEST_FAILURE',", "  failureType: 'testCodeFailure',", "  cause: 'test failed',", "  exitCode: 1,", "  signal: null", "}"];
+  const windows = job("verify on Windows 1/2", logged("=== packages/cli ===",
+    "test harness: completed failure", "D:\\a\\storytree\\storytree\\packages\\cli\\src\\families\\drain.test.ts:1:1 › packages\\cli\\src\\families\\drain.test.ts (179518.6344 ms)", ...harness,
+    "test harness: completed failure", "D:\\a\\storytree\\storytree\\packages\\cli\\src\\front-door.test.ts:1:1 › packages\\cli\\src\\front-door.test.ts (95274.3623 ms)", ...harness,
+    "✔ 1.34 · the friction family's drain answers (1364.6649ms)",
+    "✖ packages\\cli\\src\\families\\drain.test.ts (179518.6344ms)",
+    "✔ 1.1 in a project folder, `library search` finds a note written through the library (7885.1023ms)",
+    "✔ 1.43 · a title holding a terminal escape prints without its escape byte (5450.1631ms)",
+    "✖ packages\\cli\\src\\front-door.test.ts (95274.3623ms)",
+    "✖ 15.3 the command line's status reads the plan (657ms)",
+    "✖ packages\\cli\\src\\journey.test.ts (900ms)",
+    `test harness: packages/cli failed after 282.9 s (limit 1270 s, learned), killed; packages/cli/src/families/drain.test.ts: ${hung}`,
+    "results:",
+    `  FAIL    packages/cli — failed after 282.9 s (limit 1270 s, learned), killed; packages/cli/src/families/drain.test.ts: ${hung}`));
+  const read = readFailures([ci([windows])], reach);
+  assert.deepEqual(read.units, ["packages/cli"]);
+  assert.ok(read.tests.includes("packages/cli/src/families/drain.test.ts"), `the killed file is read as the FAIL row names it: ${JSON.stringify(read.tests)}`);
+  assert.ok(read.tests.includes("15.3 the command line's status reads the plan"), `a file's own failed subtest is still read: ${JSON.stringify(read.tests)}`);
+  assert.deepEqual(read.tests.filter((name) => /front-door/.test(name)), [], "a file the kill cut short, with no failed subtest of its own, is no failing test");
+  assert.equal(read.where["packages/cli/src/families/drain.test.ts"], "packages/cli");
+  assert.equal(read.where["15.3 the command line's status reads the plan"], "packages/cli");
+  const plain = readFailures([ci([job("verify on Linux", logged("=== packages/library ===", "✖ packages/library/src/a.test.ts (12ms)", "  FAIL    packages/library — 3 s"))])], reach);
+  assert.deepEqual(plain.tests, ["packages/library/src/a.test.ts"], "a unit no kill ended still reads its file-level failure");
+});
+
 test("4.34 · a red whose failing tests all lie outside the pull request's reach is refreshed from main, or rerun when main has nothing new, and counts nothing against its fix limit", async (t) => {
   const b = await box(t);
   const refreshed = [], reruns = [];

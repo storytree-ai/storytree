@@ -30,7 +30,7 @@ export default {
           else if (directive.justification.trim() === "") context.report({ loc: directive.node.loc, messageId: "needsReason" });
           else hatchedLines.add(directive.node.loc.end.line + 1);
         }
-        const directives = new Set(sourceCode.getInlineConfigNodes());
+        const directives = new Set(sourceCode.getInlineConfigNodes?.() ?? sourceCode.getDisableDirectives().directives.map(({ node }) => node));
         const comments = sourceCode.getAllComments().filter((comment) => comment.type !== "Shebang" && !sourceCode.text.startsWith("#!", comment.range[0]));
         comments.forEach((comment, index) => {
           const text = comment.value.trim();

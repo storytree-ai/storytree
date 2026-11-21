@@ -42,8 +42,10 @@ function checkout(t, files, track = Object.keys(files)) {
   return root;
 }
 
-test("8.19 · pnpm lint's last rule is named eslint and runs eslintProblems", () => {
-  const rule = RULES.at(-1);
+test("8.19 · pnpm lint has one rule named eslint, and it runs eslintProblems", () => {
+  const named = RULES.filter(({ name }) => name === "eslint");
+  assert.equal(named.length, 1);
+  const [rule] = named;
   assert.equal(rule.name, "eslint");
   assert.equal(rule.problems, eslintProblems);
 });

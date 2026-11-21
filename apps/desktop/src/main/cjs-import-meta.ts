@@ -59,12 +59,17 @@ function mentionsImportMeta(node: unknown): boolean {
   return Object.entries(node).some(([key, value]) => key !== "loc" && typeof value === "object" && mentionsImportMeta(value));
 }
 
+function isBareMetaRead(node: Syntax): boolean {
+  const read = unwrap(node);
+  return read.type === "MemberExpression" && isImportMeta(read.object);
+}
+
 function guarded(node: Syntax, ancestors: Syntax[]): boolean {
   let inner = node;
   for (let at = ancestors.length - 1; at >= 0; at -= 1) {
     const outer = ancestors[at]!;
-    if ((outer.type === "ConditionalExpression" || outer.type === "IfStatement") && outer.test !== inner && mentionsImportMeta(outer.test)) return true;
-    if (outer.type === "LogicalExpression" && outer.right === inner && mentionsImportMeta(outer.left)) return true;
+    if ((outer.type === "ConditionalExpression" || outer.type === "IfStatement") && outer.test !== inner && mentionsImportMeta(outer.test) && !(outer.alternate === inner && isBareMetaRead(outer.test as Syntax))) return true;
+    if (outer.type === "LogicalExpression" && outer.operator !== "??" && outer.right === inner && mentionsImportMeta(outer.left) && !(outer.operator === "||" && isBareMetaRead(outer.left as Syntax))) return true;
     inner = outer;
   }
   return false;

@@ -170,3 +170,90 @@ test("8.29 · through pnpm lint's config, the pre-fix release check's catch in a
   assert.deepEqual(inTest, []);
   assert.deepEqual(outside, []);
 });
+
+const UNREADABLE = [
+  "const unreadable = (error: unknown): null => {",
+  "  console.error(\"ci-times: the CI reading could not be read\", error);",
+  "  return null;",
+  "};",
+];
+
+const NAMED_CATCH = code(
+  ...UNREADABLE,
+  "export function showCiTimes(read: () => Promise<string>, paint: (reading: string) => void, everyMs: number) {",
+  "  const draw = async (): Promise<void> => {",
+  "    const reading = await read().catch(unreadable);",
+  "    if (reading !== null) paint(reading);",
+  "  };",
+  "  void draw();",
+  "  setInterval(() => void draw(), everyMs);",
+  "}",
+);
+
+const NAMED_THEN = code(
+  "export function showCiTimes(read: () => Promise<string>, paint: (reading: string) => void, everyMs: number) {",
+  "  const draw = (): void => {",
+  "    read().then(paint, unreadable);",
+  "  };",
+  "  setInterval(draw, everyMs);",
+  "}",
+  "function unreadable(error: unknown): void {",
+  "  console.error(\"ci-times: the CI reading could not be read\", error);",
+  "}",
+);
+
+const ONCE_OUTSIDE_POLL = code(
+  ...UNREADABLE,
+  "export async function readCiTimesOnce(read: () => Promise<string>): Promise<string | null> {",
+  "  return await read().catch(unreadable);",
+  "}",
+  "export function keepTicking(tick: () => void) {",
+  "  setInterval(() => tick(), 1000);",
+  "}",
+);
+
+const CI_TIMES = "packages/ci-health/src/ci-times/view.ts";
+const pollHits = (...texts) => oxlint.ruleHits(texts.map((text) => ({ file: CI_TIMES, text })))
+  .map((each) => each.filter(({ rule: id }) => id === "storytree/poll-says-outage-once"));
+
+test("8.29 · storytree/poll-says-outage-once refuses a .catch rejection handler passed by the name of a function in the same file, at that function's console.error of its error, when a setInterval poll reaches the .catch, which through pnpm lint's config is one hit at that line naming escape_221a8ba4aaf6; the same named handler on a read outside any poll, none there too, and a named handler in a poll not passing its error, pass", () => {
+  new RuleTester({ cwd: process.cwd(), languageOptions: { parserOptions: { lang: "ts" } } }).run("poll-says-outage-once", rule, {
+    valid: [
+      passes(ONCE_OUTSIDE_POLL, at(CI_TIMES)),
+      passes(code(
+        "const unreadable = (error: unknown): null => {",
+        "  console.error(\"ci-times: the CI reading could not be read\");",
+        "  return null;",
+        "};",
+        "export function showCiTimes(read: () => Promise<string>, paint: (reading: string) => void, everyMs: number) {",
+        "  const draw = async (): Promise<void> => {",
+        "    const reading = await read().catch(unreadable);",
+        "    if (reading !== null) paint(reading);",
+        "  };",
+        "  setInterval(() => void draw(), everyMs);",
+        "}",
+      ), at(CI_TIMES)),
+    ],
+    invalid: [
+      refused(2, NAMED_CATCH, at(CI_TIMES)),
+    ],
+  });
+
+  const [inPoll, outsidePoll] = pollHits(NAMED_CATCH, ONCE_OUTSIDE_POLL);
+  assert.deepEqual(inPoll.map(({ line }) => line), [2]);
+  assert.match(inPoll[0].message, /escape_221a8ba4aaf6/);
+  assert.deepEqual(outsidePoll, []);
+});
+
+test("8.29 · storytree/poll-says-outage-once refuses a .then rejection handler passed by the name of a function declared in the same file, at that function's console.error of its error, when setInterval polls the function holding the .then by reference, which through pnpm lint's config is one hit at that line naming escape_221a8ba4aaf6", () => {
+  new RuleTester({ cwd: process.cwd(), languageOptions: { parserOptions: { lang: "ts" } } }).run("poll-says-outage-once", rule, {
+    valid: [],
+    invalid: [
+      refused(8, NAMED_THEN, at(CI_TIMES)),
+    ],
+  });
+
+  const [hits] = pollHits(NAMED_THEN);
+  assert.deepEqual(hits.map(({ line }) => line), [8]);
+  assert.match(hits[0].message, /escape_221a8ba4aaf6/);
+});

@@ -42,11 +42,12 @@ function errorCalls(body, name, report) {
 
 const handlerName = (handler) => FUNCTIONS.has(handler?.type) && handler.params[0]?.type === "Identifier" ? handler.params[0].name : undefined;
 
-function catches(node, report) {
+function catches(node, report, helpers) {
   if (node.type === "CatchClause" && node.param?.type === "Identifier") errorCalls(node.body, node.param.name, report);
   if (node.type !== "CallExpression") return;
   const handler = methodOf(node) === "catch" ? node.arguments[0] : methodOf(node) === "then" ? node.arguments[1] : undefined;
-  if (handlerName(handler) !== undefined) errorCalls(handler.body, handlerName(handler), report);
+  const handlers = handler?.type === "Identifier" ? helpers.get(handler.name) ?? [] : [handler];
+  for (const fn of handlers) if (handlerName(fn) !== undefined) errorCalls(fn.body, handlerName(fn), report);
 }
 
 export default {
@@ -99,7 +100,7 @@ export default {
           reported.add(call);
           context.report({ node: call, messageId: "everyTick" });
         };
-        for (const fn of reached) walk(fn, (inner) => catches(inner, report));
+        for (const fn of reached) walk(fn, (inner) => catches(inner, report, helpers));
       },
     };
   },

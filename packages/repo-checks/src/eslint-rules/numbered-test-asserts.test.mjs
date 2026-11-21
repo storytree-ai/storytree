@@ -32,6 +32,7 @@ const HELPERS = {
   "packages/a/src/default-fn.mjs": "import assert from 'node:assert/strict';\nexport default function check(value) { assert.equal(value, 1); }\nexport function build(value) { return value; }\n",
   "packages/a/src/default-name.mjs": "import { ok } from 'node:assert';\nconst holds = (value) => ok(value);\nexport default holds;\n",
   "packages/a/src/default-none.mjs": "export default function quiet(value) { return value; }\n",
+  "packages/a/src/unparsed.mjs": "import assert from 'node:assert/strict';\nexport function holdsUnparsed(value) { assert.ok(value); }\nreturn 1;\n",
   "packages/a/src/typed.ts": "import assert from 'node:assert/strict';\nexport function sameCount(actual: number, expected: number): void { assert.equal(actual, expected); }\nexport const sized = (items: readonly string[]): number => items.length;\n",
 };
 
@@ -81,9 +82,16 @@ const TYPED = [
   "",
 ].join("\n");
 
+const UNPARSED = [
+  `import { test } from "node:test";`,
+  `import { holdsUnparsed } from "./unparsed.mjs";`,
+  `test("1.21 helper that fails to parse", () => holdsUnparsed(1));`,
+  "",
+].join("\n");
+
 const BUILDS_ONLY = `import { test } from "node:test";\nconst make = () => 1;\ntest("1.1 builds only", () => { make(); });\n`;
 
-test("8.13 · storytree/numbered-test-asserts refuses, in a test file, a numbered test that calls no assertion (a test, an it with a story prefix, a t.test sub and the parent holding it; a throw in the code under test is none) at its line, its message naming the title and the fix (node:assert, t.assert, or a helper that asserts); one asserting directly, by a named import, t.assert or assert.rejects, through a local helper, an imported helper re-exported by name or by export *, an imported TypeScript (.ts) helper that asserts, a default-exported function or name that asserts, a testing/ helper that throws, or its own throw passes, as do skip, todo and unnumbered tests and the same code in a file that is not a test file", (t) => {
+test("8.13 · storytree/numbered-test-asserts refuses, in a test file, a numbered test that calls no assertion (a test, an it with a story prefix, a t.test sub and the parent holding it; a throw in the code under test is none, nor a call to an imported helper whose file fails to parse) at its line, its message naming the title and the fix (node:assert, t.assert, or a helper that asserts); one asserting directly, by a named import, t.assert or assert.rejects, through a local helper, an imported helper re-exported by name or by export *, an imported TypeScript (.ts) helper that asserts, a default-exported function or name that asserts, a testing/ helper that throws, or its own throw passes, as do skip, todo and unnumbered tests and the same code in a file that is not a test file", (t) => {
   assert.match(rule?.meta?.messages?.assertsNothing ?? "", /node:assert, t\.assert, or a helper that asserts/);
 
   const root = checkout(t, HELPERS);
@@ -113,6 +121,7 @@ test("8.13 · storytree/numbered-test-asserts refuses, in a test file, a numbere
         errors: [refused(7, "1.17 named export beside an asserting default"), refused(8, "1.18 default export that asserts nothing")],
       },
       { code: TYPED, filename: at("packages/a/src/typed.test.ts"), errors: [refused(4, "1.20 TypeScript helper that asserts nothing")] },
+      { code: UNPARSED, filename: at("packages/a/src/unparsed.test.mjs"), errors: [refused(3, "1.21 helper that fails to parse")] },
     ],
   });
 

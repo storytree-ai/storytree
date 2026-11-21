@@ -103,6 +103,33 @@ test("8.32 · when Oxlint does not finish its report, oxlintProblems fails with 
   assert.match(missing[0], /^Oxlint did not finish \(spawnSync .+ ENOENT\): no output$/);
 });
 
+async function withCrashingOxlint(root, run) {
+  const previous = process.env.NODE_OPTIONS;
+  process.env.NODE_OPTIONS = `${previous ?? ""} --require ${path.join(root, "crash.cjs")}`;
+  try {
+    return await run();
+  } finally {
+    if (previous === undefined) delete process.env.NODE_OPTIONS;
+    else process.env.NODE_OPTIONS = previous;
+  }
+}
+
+const CRASH = lines(`process.stderr.write("\\nOxlint cannot start here\\n");`, "process.exit(3);");
+const UNFINISHED = "Oxlint did not finish (exit status 3): Oxlint cannot start here";
+
+test("8.32 · when Oxlint does not finish its batch run, ruleHits throws saying so, how it ended and the last of Oxlint's own error output, rather than returning entries with no hits", async (t) => {
+  const root = checkout(t, { "crash.cjs": CRASH });
+  await assert.rejects(() => withCrashingOxlint(root, () => oxlint.ruleHits([{ file: "packages/a/src/view.ts", text: lines(`export const plain = (html: string): string => html.replace(/<[^>]+>/g, "");`) }])), { message: UNFINISHED });
+});
+
+test("8.21 · when Oxlint does not finish its run, commentHatches rejects saying so, how it ended and the last of Oxlint's own error output, rather than listing no hatch", async (t) => {
+  const root = checkout(t, {
+    "crash.cjs": CRASH,
+    "packages/a/src/kept.mjs": lines("export const a = 1;", "// eslint-disable-next-line storytree/no-comments -- a tool reads this line", "// keep: this line"),
+  });
+  await assert.rejects(withCrashingOxlint(root, () => oxlint.commentHatches(root)), { message: UNFINISHED });
+});
+
 test("8.32 · a tree with no source file gives no problem from oxlintProblems, and its one log line names 0 files and the peak memory in MB", async (t) => {
   const root = checkout(t, { "docs/notes.md": lines("# Notes") });
 

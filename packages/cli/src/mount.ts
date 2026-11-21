@@ -1,5 +1,5 @@
 // Capability 1 · Front door
-import type { Library, PluginRecordKind, Storytree } from "@storytree/library";
+import type { Library, PluginRecordKind, Storytree, SurveyedPart } from "@storytree/library";
 import type { Composition, PartsGraph } from "@storytree/plugin-loader";
 import type { ProvidingFamily } from "@storytree/plugin-loader/switch";
 import { consumersOf, mounted, VerbRefusal, WHERE_INPUTS, whereOf, writtenLibrary, type DoorWords, type Verb, type VerbContext, type VerbFamilies, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
@@ -29,6 +29,7 @@ export interface CommandPlace extends VerbPlace {
   testedNumbers(capability: string): Promise<{ tested: string[]; untested: string[] }>;
   placeFiles(paths: readonly string[]): Promise<readonly FilePlaceOf[]>;
   pluginInFactory(plugin: string): Promise<boolean>;
+  levelsBehind(story: string, parent: string): Promise<string[]>;
 }
 
 type FilePlaceOf = Awaited<ReturnType<typeof import("@storytree/map/code-survey").placeFiles>>[number];
@@ -96,6 +97,14 @@ async function placeFilesOf(cwd: string, library: Library, paths: readonly strin
   return placeFiles(cwd, paths, await library.projectTree());
 }
 
+async function levelsBehindOf(cwd: string, library: Library, story: string, parent: string): Promise<string[]> {
+  const { readCodeSurvey } = await import("@storytree/map/code-survey");
+  const tree = await library.projectTree();
+  const survey = await readCodeSurvey(cwd, { ...tree, stories: tree.stories.filter(({ id }) => id === story) });
+  const folders = (parts: readonly SurveyedPart[]): string[] => parts.flatMap((part) => [part.folder, ...folders(part.parts)]);
+  return folders(survey[story]?.parts?.capabilities[parent] ?? []);
+}
+
 async function pluginInFactory(plugin: string): Promise<boolean> {
   const [{ factoryFolder }, { pluginFor }] = await Promise.all([import("@storytree/project-and-caller"), import("@storytree/plugin-loader/factory")]);
   try {
@@ -129,7 +138,7 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
         const named = whereOf({ ...fieldsOf(declared, given), ...given });
         const input = Object.fromEntries(Object.entries(given).filter(([key]) => !(where as readonly string[]).includes(key)));
         if (declared.agentOnly !== undefined && commandSession() === undefined) throw new Refusal(`Run storytree ${face.family} ${face.name} from the agent's shell: ${declared.agentOnly}.`);
-        const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey(), out: (text) => context.out(text), surfaces, parts, hostVerbs, projectRecords: () => projectRecords(), claims: () => context.claims(), testedNumbers: async (capability) => testedNumbersOf(context.cwd, await context.library(), capability), placeFiles: async (paths) => placeFilesOf(context.cwd, await context.library(), paths), pluginInFactory };
+        const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey(), out: (text) => context.out(text), surfaces, parts, hostVerbs, projectRecords: () => projectRecords(), claims: () => context.claims(), testedNumbers: async (capability) => testedNumbersOf(context.cwd, await context.library(), capability), placeFiles: async (paths) => placeFilesOf(context.cwd, await context.library(), paths), pluginInFactory, levelsBehind: async (story, parent) => levelsBehindOf(context.cwd, await context.library(), story, parent) };
         const opened = declared.callerless ? { ...place, ...soleSession() } as CommandCaller & CommandPlace : { ...place, ...await context.activityContext() };
         const caller = !declared.writes || declared.callerless ? opened : { ...opened, library: await writtenLibrary(opened.library, named) };
         const answer = await declared.act(input, declared.writes ? writing(caller, context) : caller, WORDS);

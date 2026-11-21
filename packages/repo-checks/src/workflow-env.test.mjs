@@ -282,3 +282,128 @@ test(`8.30 · workflowEnvProblems finds no problem in this checkout's own .githu
   const root = fileURLToPath(new URL("../../..", import.meta.url));
   assert.deepEqual(await workflowEnvProblems(root), []);
 });
+
+const INSTALL_ENTRY = "apps/desktop/check-install-mac.mjs";
+
+const PACKAGED_APP = [
+  `import { readFileSync } from "node:fs";`,
+  `import path from "node:path";`,
+  ``,
+  `const packageFile = path.join(import.meta.dirname, "package.json");`,
+  ``,
+  `export function releaseVersion() {`,
+  `  return process.env.STORYTREE_RELEASE_VERSION || JSON.parse(readFileSync(packageFile, "utf8")).version;`,
+  `}`,
+  ``,
+].join("\n");
+
+const CHECK_INSTALL_MAC = (from) => [
+  `import { execFileSync } from "node:child_process";`,
+  `import { releaseVersion } from "${from}";`,
+  ``,
+  `const version = releaseVersion();`,
+  `execFileSync("hdiutil", ["attach", \`dist/Storytree-\${version}.dmg\`]);`,
+  ``,
+].join("\n");
+
+const DESKTOP_FILES = {
+  ...ROOT_FILES,
+  "apps/desktop/package.json": JSON.stringify({ name: "@storytree/desktop", private: true, version: "0.3.0" }, null, 2),
+  "apps/desktop/packaged-app.mjs": PACKAGED_APP,
+  "apps/desktop/package-app.mjs": `import { releaseVersion } from "./packaged-app.mjs";\n\nconsole.log("packaging", releaseVersion());\n`,
+  [INSTALL_ENTRY]: CHECK_INSTALL_MAC("./packaged-app.mjs"),
+};
+
+function releasePackageYml({ installEnv = "", installStepEnv = "" } = {}) {
+  return [
+    `name: Release package\n`,
+    `on: [workflow_dispatch]\n`,
+    `jobs:\n`,
+    `  package:\n    runs-on: macos-latest\n    env:\n      STORYTREE_RELEASE_VERSION: \${{ github.ref_name }}\n    steps:\n`,
+    `      - uses: actions/checkout@v6\n`,
+    `      - run: node --import tsx apps/desktop/package-app.mjs\n`,
+    `  install-mac:\n    needs: package\n    runs-on: macos-latest\n`,
+    installEnv,
+    `    steps:\n`,
+    `      - uses: actions/checkout@v6\n`,
+    `      - run: node --import tsx ${INSTALL_ENTRY}\n`,
+    installStepEnv,
+  ].join("");
+}
+
+const PACKAGED_AT = "apps/desktop/packaged-app.mjs:7";
+
+function assertInstallMac(problems, at = PACKAGED_AT) {
+  assert.equal(problems.length, 1, problems.join("\n"));
+  assertNames(problems[0], { workflow: "release-package.yml", job: "install-mac", at, variable: "STORYTREE_RELEASE_VERSION" });
+  assert.ok(problems[0].includes(INSTALL_ENTRY), `names the entry ${INSTALL_ENTRY}: ${problems[0]}`);
+}
+
+test(`8.34 · workflowEnvProblems follows ${INSTALL_ENTRY}'s import { releaseVersion } from "./packaged-app.mjs" to its process.env.STORYTREE_RELEASE_VERSION || read: with only the package job setting it, exactly one problem names release-package.yml, job install-mac, the entry, ${PACKAGED_AT}, STORYTREE_RELEASE_VERSION and ${ESCAPE}`, async (t) => {
+  assertInstallMac(await problemsOf(t, { ...DESKTOP_FILES, ".github/workflows/release-package.yml": releasePackageYml() }));
+});
+
+test(`8.34 · workflowEnvProblems follows relative imports transitively, each file once: the entry imports ./install-version.mjs, which reaches packaged-app.mjs by import … from "./packaged-app.mjs", by export { releaseVersion } from "./packaged-app.mjs" or by export * from "./packaged-app.mjs", while packaged-app.mjs imports ./install-version.mjs back; each gives exactly one problem at packaged-app.mjs's read (${ESCAPE})`, async (t) => {
+  const cyclic = `import "./install-version.mjs";\n${PACKAGED_APP}`;
+  const variants = {
+    "import then export": `import { releaseVersion } from "./packaged-app.mjs";\n\nexport { releaseVersion };\n`,
+    "export from": `export { releaseVersion } from "./packaged-app.mjs";\n`,
+    "export star": `export * from "./packaged-app.mjs";\n`,
+  };
+  for (const [variant, middle] of Object.entries(variants)) {
+    const problems = await problemsOf(t, {
+      ...DESKTOP_FILES,
+      "apps/desktop/packaged-app.mjs": cyclic,
+      "apps/desktop/install-version.mjs": middle,
+      [INSTALL_ENTRY]: CHECK_INSTALL_MAC("./install-version.mjs"),
+      ".github/workflows/release-package.yml": releasePackageYml(),
+    });
+    assert.equal(problems.length, 1, `${variant}:\n${problems.join("\n")}`);
+    assertInstallMac(problems, "apps/desktop/packaged-app.mjs:8");
+  }
+});
+
+test(`8.34 · workflowEnvProblems does not follow a bare package import: the entry's import { channel } from "@storytree/release-channel", whose packages/release-channel/index.mjs reads process.env.RELEASE_CHANNEL ?? "beta" that the package job sets, adds no problem beside the one at ${PACKAGED_AT} (${ESCAPE})`, async (t) => {
+  const entry = `import { channel } from "@storytree/release-channel";\n${CHECK_INSTALL_MAC("./packaged-app.mjs")}console.log(channel);\n`;
+  const workflow = releasePackageYml().replace("      STORYTREE_RELEASE_VERSION:", "      RELEASE_CHANNEL: stable\n      STORYTREE_RELEASE_VERSION:");
+  const problems = await problemsOf(t, {
+    ...DESKTOP_FILES,
+    "packages/release-channel/package.json": JSON.stringify({ name: "@storytree/release-channel", private: true, type: "module", main: "index.mjs" }, null, 2),
+    "packages/release-channel/index.mjs": `export const channel = process.env.RELEASE_CHANNEL ?? "beta";\n`,
+    "node_modules/@storytree/release-channel/package.json": JSON.stringify({ name: "@storytree/release-channel", private: true, type: "module", main: "index.mjs" }, null, 2),
+    "node_modules/@storytree/release-channel/index.mjs": `export const channel = process.env.RELEASE_CHANNEL ?? "beta";\n`,
+    [INSTALL_ENTRY]: entry,
+    ".github/workflows/release-package.yml": workflow,
+  });
+  assertInstallMac(problems);
+  assert.ok(problems.every((problem) => !/\bRELEASE_CHANNEL\b/.test(problem)), problems.join("\n"));
+});
+
+test(`8.34 · workflowEnvProblems passes the install-mac job once it sets STORYTREE_RELEASE_VERSION in its job env or its step's env, and refuses it at ${PACKAGED_AT} without (${ESCAPE})`, async (t) => {
+  const variants = {
+    "job env": releasePackageYml({ installEnv: "    env:\n      STORYTREE_RELEASE_VERSION: ${{ github.ref_name }}\n" }),
+    "step env": releasePackageYml({ installStepEnv: "        env:\n          STORYTREE_RELEASE_VERSION: ${{ github.ref_name }}\n" }),
+  };
+  for (const [variant, workflow] of Object.entries(variants)) {
+    assert.deepEqual(await problemsOf(t, { ...DESKTOP_FILES, ".github/workflows/release-package.yml": workflow }), [], variant);
+  }
+  assertInstallMac(await problemsOf(t, { ...DESKTOP_FILES, ".github/workflows/release-package.yml": releasePackageYml() }));
+});
+
+test(`8.34 · workflowEnvProblems follows an extensionless relative import: the entry's import { releaseVersion } from "./packaged-app" reaches packaged-app.mjs, giving exactly one problem at ${PACKAGED_AT} (${ESCAPE})`, async (t) => {
+  assertInstallMac(await problemsOf(t, {
+    ...DESKTOP_FILES,
+    [INSTALL_ENTRY]: CHECK_INSTALL_MAC("./packaged-app"),
+    ".github/workflows/release-package.yml": releasePackageYml(),
+  }));
+});
+
+test(`8.34 · workflowEnvProblems lints an entry whose relative imports name a missing ./generated/build-info.mjs and a ./release.json data file without throwing, reporting only the one problem at ${PACKAGED_AT} (${ESCAPE})`, async (t) => {
+  const entry = `import "./generated/build-info.mjs";\nimport notes from "./release.json" with { type: "json" };\n${CHECK_INSTALL_MAC("./packaged-app.mjs")}console.log(notes);\n`;
+  assertInstallMac(await problemsOf(t, {
+    ...DESKTOP_FILES,
+    "apps/desktop/release.json": JSON.stringify({ notes: "first release" }, null, 2),
+    [INSTALL_ENTRY]: entry,
+    ".github/workflows/release-package.yml": releasePackageYml(),
+  }));
+});

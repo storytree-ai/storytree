@@ -196,6 +196,22 @@ function childNodes(node) {
     .filter((child) => child !== null && typeof child === "object" && typeof child.type === "string");
 }
 
+const RELATIVE = /^\.\.?\//;
+const IMPORTS = new Set(["ImportDeclaration", "ExportNamedDeclaration", "ExportAllDeclaration"]);
+const EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".mjs", ".js", ".cjs", ".jsx"];
+
+function resolveImport(root, from, specifier) {
+  const written = path.posix.normalize(path.posix.join(path.posix.dirname(from), specifier));
+  const candidates = [written, ...(/\.js$/.test(written) ? [written.replace(/\.js$/, ".ts"), written.replace(/\.js$/, ".tsx")] : []),
+    ...(path.posix.extname(written) === "" ? EXTENSIONS.map((extension) => written + extension) : [])];
+  return candidates.find((file) => SCRIPT_FILE.test(file) && existsSync(path.join(root, file))) ?? null;
+}
+
+function relativeImports(program) {
+  return program.body.filter((node) => IMPORTS.has(node.type) && typeof node.source?.value === "string" && RELATIVE.test(node.source.value))
+    .map((node) => node.source.value);
+}
+
 function fallbackReads(file, text) {
   const { program } = parseSync(file, text, { sourceType: "module" });
   const fallbacks = [];
@@ -228,11 +244,30 @@ function fallbackReads(file, text) {
   };
   visit(program, null, { names: new Map(), parent: null, function: true });
   const resolve = (scope, name) => scope === null ? [] : scope.names.get(name) ?? resolve(scope.parent, name);
-  return fallbacks.flatMap(({ node, scope }) => {
+  const reads = fallbacks.flatMap(({ node, scope }) => {
     const direct = envRead(node.left);
     const names = direct !== null ? [direct] : node.left.type === "Identifier" ? resolve(scope, node.left.name) : [];
     return names.map((name) => ({ name, line: text.slice(0, node.start).split("\n").length, node }));
   });
+  return { reads, imports: relativeImports(program) };
+}
+
+async function moduleReads(root, entry, parsed) {
+  const reached = [];
+  const queue = [entry];
+  const seen = new Set(queue);
+  while (queue.length > 0) {
+    const file = queue.shift();
+    if (!parsed.has(file)) parsed.set(file, fallbackReads(file, await readFile(path.join(root, file), "utf8")));
+    const { reads, imports } = parsed.get(file);
+    reached.push(...reads.map((read) => ({ ...read, file })));
+    for (const next of imports.map((specifier) => resolveImport(root, file, specifier))) {
+      if (next === null || seen.has(next)) continue;
+      seen.add(next);
+      queue.push(next);
+    }
+  }
+  return reached;
 }
 
 export async function workflowEnvProblems(root) {
@@ -256,14 +291,15 @@ export async function workflowEnvProblems(root) {
       }
     }
   }
-  if (runs.length === 0) return [];
-  const files = [...new Set(runs.map(({ entry }) => path.join(root, entry.file)))];
-  const readsOf = new Map(await Promise.all(files.map(async (file) => [file, fallbackReads(file, await readFile(file, "utf8"))])));
+  const parsed = new Map();
+  const readsOf = new Map();
+  for (const file of new Set(runs.map(({ entry }) => entry.file))) readsOf.set(file, await moduleReads(root, file, parsed));
   const problems = new Set();
   for (const { workflow, job, entry, set, here } of runs) {
-    for (const read of readsOf.get(path.join(root, entry.file))) {
+    for (const read of readsOf.get(entry.file)) {
       if (!set.has(read.name) || here.has(read.name) || !reachedWith(read.node, entry.args)) continue;
-      problems.add(`${workflow} job ${job}: runs ${entry.file}, whose ${entry.file}:${read.line} reads ${read.name} with a fallback (?? or ||), ` +
+      const through = read.file === entry.file ? "" : `, which imports ${read.file}`;
+      problems.add(`${workflow} job ${job}: runs ${entry.file}${through}, whose ${read.file}:${read.line} reads ${read.name} with a fallback (?? or ||), ` +
         `but job ${job} never sets ${read.name} though another part of ${workflow} does, so it runs on the fallback in silence (${ESCAPE}): ` +
         `set ${read.name} in the job's env, the step's env, the workflow's env or an earlier step's $GITHUB_ENV`);
     }

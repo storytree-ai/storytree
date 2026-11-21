@@ -255,7 +255,7 @@ const links = verb({
     const id = needed(artifact, "the artifact's id");
     const notes = await context.library.relatedNotes(id);
     if (notes.length === 0) return { text: `No artifact links to ${id}.` };
-    const lines = notes.map((note) => `  ${note.id}  [${note.type}]  ${labelOf(note.fields)}`);
+    const lines = notes.map((note) => `  ${note.id}  [${note.type}]  ${labelOf(note.fields)}${justificationSaid(note.fields, id, "  ")}`);
     return { text: [`${notes.length} artifact${notes.length === 1 ? "" : "s"} link${notes.length === 1 ? "s" : ""} to ${id}:`, ...lines].join("\n") };
   },
 });
@@ -339,6 +339,21 @@ const moveToEdges = verb({
   },
 });
 
+export function justificationSaid(fields: object, target: string, before: string): string {
+  const justification = (fields as { justifications?: Readonly<Record<string, string>> }).justifications?.[target];
+  return justification === undefined ? "" : `${before}${justification.split("\n").join(" / ")}`;
+}
+
+async function decisionLinks(library: Library, record: Stored): Promise<string[]> {
+  if (record.type !== "decision") return [];
+  const fields = record.fields as Fields;
+  const edges = (["links", "supersedes", "supersedesClauses", "narrows"] as const).flatMap((field) =>
+    (Array.isArray(fields[field]) ? (fields[field] as unknown[]) : []).map((entry) => ({ field, to: field === "supersedesClauses" ? String((entry as { decision: unknown }).decision) : String(entry) })));
+  const kinds = await Promise.all(edges.map(async ({ to }) => (await library.get(to))?.type));
+  const lines = edges.filter((_, index) => kinds[index] === "decision").map(({ field, to }) => `  ${field} ${to}  ${justificationSaid(fields, to, "") || "(old shape: no justification)"}`);
+  return lines.length === 0 ? [] : ["decision links:", ...lines];
+}
+
 const RECORD_ID = /^[a-z]+_[0-9a-f]{12}$/;
 
 function idsNamedBy(record: Stored): string[] {
@@ -373,7 +388,7 @@ const read = verb({
     const missing = ids.filter((_, index) => records[index] === null);
     if (missing.length > 0) throw new VerbRefusal(missing.map((id) => `no record "${id}" in ${where}`).join("\n"));
     const named = await Promise.all((records as Stored[]).map((record) => withDependsOn(library, record)));
-    const parts = await Promise.all(named.map(async (record) => (record.type === "story" || record.type === "capability" ? (await attachedTo(library, record.id, record.type === "story")).lines : [])));
+    const parts = await Promise.all(named.map(async (record) => (record.type === "story" || record.type === "capability" ? (await attachedTo(library, record.id, record.type === "story")).lines : decisionLinks(library, record))));
     if (field !== undefined) {
       if (named.length > 1 || withLinked) throw new VerbRefusal("--field reads one record's field; give one id", { misuse: true });
       const record = named[0]!;

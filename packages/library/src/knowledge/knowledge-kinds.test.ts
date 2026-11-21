@@ -809,4 +809,55 @@ for (const backend of [memory, postgres]) {
       await cleanup();
     }
   });
+
+  test(`6.26 [${backend.label}] a decision edited to gain a link, supersedes or supersedesClauses entry to a decision with no justification for it is refused, naming justification, the target and the justifications to pass, with nothing written; justifications given on an edit join the stored ones by target, and one whose target is no longer linked is dropped`, async () => {
+    const { knowledge, transactions, cleanup } = await backend.open();
+    try {
+      const decide = (title: string) => knowledge.recordDecision({ title, text: `${title}.`, status: "accepted" });
+      const target = await decide("Mail by queue");
+      const second = await decide("Mail is logged");
+      const replaced = await decide("Mail by hand");
+      const editing = await decide("Retries are twice");
+      const naming = (id: string) => (error: unknown) => error instanceof Error && error.message.includes("justification") && error.message.includes(id) && error.message.includes("justifications");
+
+      const history = await transactions.history();
+      await assert.rejects(knowledge.editNote(editing.id, { links: [target.id] }), naming(target.id), "a link");
+      await assert.rejects(knowledge.editNote(editing.id, { supersedes: [replaced.id] }), naming(replaced.id), "a supersedes");
+      await assert.rejects(knowledge.editNote(editing.id, { supersedesClauses: [{ decision: target.id, clauses: ["D1"] }] }), naming(target.id), "a supersedesClauses entry");
+      assert.deepEqual(await transactions.history(), history, "nothing was written");
+
+      const stored = async (): Promise<Record<string, string> | undefined> => ((await knowledge.decision(editing.id))?.record.fields as { justifications?: Record<string, string> }).justifications;
+      await knowledge.editNote(editing.id, { links: [target.id], justifications: { [target.id]: "Follow it for where retries queue." } } as never);
+      assert.deepEqual(await stored(), { [target.id]: "Follow it for where retries queue." });
+      await knowledge.editNote(editing.id, { links: [target.id, second.id], justifications: { [second.id]: "Follow it for what a retry logs." } } as never);
+      assert.deepEqual(await stored(), { [target.id]: "Follow it for where retries queue.", [second.id]: "Follow it for what a retry logs." }, "the edit's justification joins the stored one");
+      await knowledge.editNote(editing.id, { links: [second.id] });
+      assert.deepEqual(await stored(), { [second.id]: "Follow it for what a retry logs." }, "the unlinked target's justification is dropped");
+      await assert.rejects(knowledge.editNote(editing.id, { links: [second.id, target.id] }), naming(target.id), "a target linked again needs its justification again");
+    } finally {
+      await cleanup();
+    }
+  });
+
+  test(`6.27 [${backend.label}] an old-shape decision link, stored with no justification, never refuses a later edit: the decision's text and title change, and a new justified link is added beside it`, async () => {
+    const { knowledge, transactions, cleanup } = await backend.open();
+    try {
+      const records = new SchemaRecords(transactions);
+      const target = await knowledge.recordDecision({ title: "Mail by queue", text: "Queue it.", status: "accepted" });
+      const replaced = await knowledge.recordDecision({ title: "Mail by hand", text: "By hand.", status: "accepted" });
+      const added = await knowledge.recordDecision({ title: "Mail is logged", text: "Log it.", status: "accepted" });
+      const old = await records.create("decision", { title: "Retries", text: "Retry thrice.", status: "accepted", links: [target.id], supersedes: [replaced.id] });
+
+      await knowledge.editNote(old.id, { text: "Retry twice." });
+      await knowledge.editNote(old.id, { title: "Retries are twice" });
+      await knowledge.editNote(old.id, { links: [target.id, added.id], justifications: { [added.id]: "Follow it for what a retry logs." } } as never);
+      const fields = (await knowledge.decision(old.id))?.record.fields as Record<string, unknown> | undefined;
+      assert.deepEqual(
+        [fields?.title, fields?.text, fields?.links, fields?.supersedes, fields?.justifications],
+        ["Retries are twice", "Retry twice.", [target.id, added.id], [replaced.id], { [added.id]: "Follow it for what a retry logs." }],
+      );
+    } finally {
+      await cleanup();
+    }
+  });
 }

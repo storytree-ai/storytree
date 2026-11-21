@@ -183,3 +183,37 @@ test("8.9 · A lane whose engine started with any tool server other than storytr
   assert.equal(await main([], clean.b), 1);
   assert.deepEqual(clean.lines.slice(1), [`concern: a stored claude.ai login is on this box (${clean.b.credentials}); lanes run only on the lane token, so sign the box out of claude.ai`]);
 });
+
+test("8.10 · each hand-off is read on its own project's repository, and one its repository cannot read is a concern, never another repository's pull request of that number", async (t) => {
+  const asked = [];
+  const { lanesDir, lines, b } = await box(t);
+  b.pull = async (pr, repo) => {
+    asked.push([pr, repo]);
+    if (repo !== "storytree-ai/storytree") throw new Error("Could not resolve to a PullRequest with the number of 31.\nmore");
+    return green({ state: "MERGED", mergeQueueEntry: null });
+  };
+  await hand(lanesDir, 11, "increment_a");
+  await hand(lanesDir, 31, "increment_r", { project: { repo: "storytree-ai/reward-access-website", folder: "/srv/reward" } });
+  assert.equal(await main(["--all"], b), 1);
+  assert.deepEqual(asked, [[11, "storytree-ai/storytree"], [31, "storytree-ai/reward-access-website"]]);
+  assert.ok(lines.includes("concern: PR #31 increment_r: could not read it on GitHub (Could not resolve to a PullRequest with the number of 31.)"), lines.join("\n"));
+  assert.ok(!lines.some((line) => line.startsWith("hand-off PR #31")), lines.join("\n"));
+});
+
+test("8.10 · a project's hand-off whose pull request reads on its own repository with its head there is judged against that repository, not read as a head off storytree's", async (t) => {
+  const { lanesDir, lines, b } = await box(t, { pulls: { 32: green({ headRepository: { nameWithOwner: "storytree-ai/reward-access-website" } }) } });
+  await hand(lanesDir, 32, "increment_w", { project: { repo: "storytree-ai/reward-access-website", folder: "/srv/reward" } });
+  assert.equal(await main(["--all"], b), 0, lines.join("\n"));
+  assert.deepEqual(lines.filter((line) => line.startsWith("concern")), []);
+  assert.ok(lines.includes("hand-off PR #32 increment_w: handed 30m ago, pending, 0 fix sessions"), lines.join("\n"));
+});
+
+test("8.5 · a hand-off's merge-queue removal is read from its last fix session, or from its hand-over when it has had none", async (t) => {
+  const ejected = (extra = {}) => green({ mergeQueueEntry: null, mergeStateStatus: "BLOCKED", timelineItems: { nodes: [{ createdAt: ago(20).toISOString(), reason: "FAILED_CHECKS" }] }, ...extra });
+  const { lanesDir, lines, b } = await box(t, { pulls: { 41: ejected(), 42: ejected() } });
+  await hand(lanesDir, 41, "increment_a");
+  await hand(lanesDir, 42, "increment_b", { fixes: [{ at: ago(5).toISOString() }] });
+  await main(["--all"], b);
+  assert.ok(lines.includes("hand-off PR #41 increment_a: handed 30m ago, red (the merge queue removed it (FAILED_CHECKS) and did not take it back), 0 fix sessions"), lines.join("\n"));
+  assert.ok(lines.includes("hand-off PR #42 increment_b: handed 30m ago, pending, 1 fix session"), lines.join("\n"));
+});

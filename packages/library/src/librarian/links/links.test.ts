@@ -24,9 +24,9 @@ test("21.1 link makes a note, or a question open or settled, rest on another not
     const { capability, cover } = await shelf(library);
     const tdd = await wholeProject(library, "Minimal viable TDD");
     const spec = await wholeProject(library, "The MVP spec");
-    await library.editNote(cover.id, { links: [tdd.id] });
+    await library.editNote(cover.id, { links: [tdd.id], justifications: { [tdd.id]: "Follow it for how the cover is tested." } });
 
-    await link(library, cover.id, spec.id);
+    await link(library, cover.id, spec.id, undefined, "Linked to follow the rule it rests on.");
     assert.deepEqual((await library.decision(cover.id))?.record.fields.links, [tdd.id, spec.id]);
 
     const { cursor } = await library.changesSince(0);
@@ -77,7 +77,7 @@ test("21.3 the worklist names each accepted decision on no shelf that no note re
 
     assert.deepEqual((await unrestedDecisions(library)).map((decision) => decision.id).sort(), [spec.id, license.id].sort());
 
-    await link(library, cover.id, spec.id);
+    await link(library, cover.id, spec.id, undefined, "Linked to follow the rule it rests on.");
     assert.deepEqual((await unrestedDecisions(library)).map((decision) => decision.id), [license.id]);
   });
 });
@@ -88,8 +88,8 @@ test("21.4 the worklist finds related but unlinked neighbours for live notes wri
     const outgoing = await wholeProject(library, "Mailgun confirmation delivery");
     const incoming = await wholeProject(library, "Mailgun confirmation retries");
     const neighbour = await wholeProject(library, "Mailgun confirmation bounces");
-    await link(library, source.id, outgoing.id);
-    await link(library, incoming.id, source.id);
+    await link(library, source.id, outgoing.id, undefined, "Linked to follow the rule it rests on.");
+    await link(library, incoming.id, source.id, undefined, "Linked to follow the rule it rests on.");
     const { cursor } = await library.changesSince(0);
 
     await library.editNote(source.id, { text: "Verify Mailgun domains before sending confirmation email." });
@@ -106,7 +106,7 @@ test("21.4 the worklist finds related but unlinked neighbours for live notes wri
     assert.equal(related?.linkedCount, 2);
     assert.deepEqual((await library.changesSince(beforeRead)).changes, [], "candidate discovery writes no links");
 
-    await link(library, source.id, neighbour.id);
+    await link(library, source.id, neighbour.id, undefined, "Linked to follow the rule it rests on.");
     const linked = await worklist(library, { since: cursor });
     assert.ok(!linked.rest?.related?.find((result) => result.source === source.id)?.hits.some(({ id }) => id === neighbour.id));
   });
@@ -117,7 +117,7 @@ test("21.5 the health report names each link or supersession pointing at a recor
     const { cover } = await shelf(library);
     const definition = await library.defineTerm({ term: "Verified domain", meaning: "Mailgun needs a verified domain.", links: [cover.id] });
     const old = await library.recordDecision({ title: "Send nothing", text: "No email yet.", status: "accepted" });
-    const successor = await library.recordDecision({ title: "Send email", text: "Email is sent.", status: "accepted", supersedes: [old.id] });
+    const successor = await library.recordDecision({ title: "Send email", text: "Email is sent.", status: "accepted", supersedes: [old.id], justifications: { [old.id]: "Sending replaces sending nothing." } });
     assert.deepEqual(await brokenEdges(library), []);
 
     await library.retire(cover.id, "wrongly recorded");

@@ -102,14 +102,14 @@ test("library 26.4 the shared server lists and calls every librarian verb, attri
     const work = listed.structuredContent!.worklist as { graduation: { file: string }[]; rest: { processes: { tools: string[] } } };
     assert.deepEqual(work.graduation.map((item) => item.file), [kept, durable]);
     assert.deepEqual(work.rest.processes.tools, names);
-    await write("link", { from: narrowing.id, to: first.id });
+    await write("link", { from: narrowing.id, to: first.id, why: "Follow it for where covers are kept." });
     assert.deepEqual((await fields(library, narrowing.id)).links, [first.id]);
     await write("correct", { id: first.id, fields: { text: "The library holds the single copy", loadBearing: false } });
     assert.equal((await fields(library, first.id)).loadBearing, false);
-    await write("annotate", { target: first.id, by: narrowing.id, note: "Shelf placement narrows this", date: "2026-09-27" });
+    await write("annotate", { target: first.id, by: narrowing.id, note: "Shelf placement narrows this", date: "2026-09-27", why: "Shelf placement narrows where the copy lives." });
     assert.match(String((await fields(library, first.id)).text), /Shelf placement narrows this/);
     await write("correct", { id: first.id, fields: { loadBearing: true } });
-    const successor = await write("supersede", { olds: [first.id], successor: { title: "One live copy", text: "The library is authoritative" } });
+    const successor = await write("supersede", { olds: [first.id], successor: { title: "One live copy", text: "The library is authoritative" }, justifications: { [first.id]: "One live copy replaces one copy." } });
     assert.equal((await library.decision(first.id))?.status, "superseded");
     assert.equal((await fields(library, successor.id as string)).loadBearing, true);
     assert.equal((await fields(library, first.id)).loadBearing, undefined);

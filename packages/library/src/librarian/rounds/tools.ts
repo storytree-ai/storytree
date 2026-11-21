@@ -37,14 +37,15 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
         });
         return { text: "The librarian's worklist. Review graduation at every landing; each other list shows its first few, with counts: read any note whole by its ID.", data: { worklist: worklistView(full) } };
       }, { consumers: ["agent"] });
-      define("link", "Make one note rest on another, preserving its existing links. A definition rests only on the decision that created its term. A question, open or settled, links the evidence it cites this way: a note, decision, research, increment or another question.", z.object({ from: text, to: text }), async ({ from, to }, { library, writer }) => {
-        const note = await link(library, from, to, writer);
+      define("link", "Make one note rest on another, preserving its existing links. A definition rests only on the decision that created its term. A question, open or settled, links the evidence it cites this way: a note, decision, research, increment or another question. A decision linking a decision gives why: at most two lines, why an agent would follow it and why it was linked.", z.object({ from: text, to: text, why: text.optional() }), async ({ from, to, why }, { library, writer }) => {
+        const note = await link(library, from, to, writer, why);
         return { text: `${from} rests on ${to}.`, data: { id: note.id } };
       }, { writes: true });
       define("supersede", "Record an accepted successor, or name an existing accepted decision by ID, when the decision changed; inherit the old shelf if it has none and the load-bearing mark. Use correct when only the wording changed.", z.object({
         olds: z.array(text).min(1), successor: z.union([text.describe("An existing accepted decision's ID"), z.object({ title: text, text, frontCoverOf: text.optional() })]),
-      }), async ({ olds, successor }, { library, writer }) => {
-        const note = await supersede(library, olds, typeof successor === "string" ? successor : defined(successor), writer);
+        justifications: z.record(z.string(), text).optional().describe("Each old decision's id, to why the successor supersedes it: at most two lines"),
+      }), async ({ olds, successor, justifications }, { library, writer }) => {
+        const note = await supersede(library, olds, typeof successor === "string" ? successor : defined(successor), writer, justifications);
         return { text: `${note.id} supersedes ${olds.join(", ")}.`, data: { id: note.id } };
       }, { writes: true });
       define("correct", "Correct a decision in place without changing what was decided, or mark/unmark it load-bearing. Only the owner can turn accepted back to proposed.", z.object({
@@ -53,7 +54,7 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
         const note = await correct(library, id, defined(fields), writer);
         return { text: `Corrected ${id} in place.`, data: { id: note.id } };
       }, { writes: true });
-      define("annotate", "Leave a dated annotation in the decision a newer decision supersedes in part, naming that newer decision and the clauses it supersedes (D2, D3); with no clauses named, the supersession is partial.", z.object({ target: text, by: text, note: text, date: text.optional(), clauses: z.array(text).optional() }), async ({ target, ...annotation }, { library, writer }) => {
+      define("annotate", "Leave a dated annotation in the decision a newer decision supersedes in part, naming that newer decision and the clauses it supersedes (D2, D3); with no clauses named, the supersession is partial.", z.object({ target: text, by: text, note: text, date: text.optional(), clauses: z.array(text).optional(), why: text.optional().describe("Why the newer decision supersedes these clauses: at most two lines") }), async ({ target, ...annotation }, { library, writer }) => {
         const note = await annotate(library, target, defined(annotation), writer);
         return { text: `Annotated ${target}.`, data: { id: note.id } };
       }, { writes: true });

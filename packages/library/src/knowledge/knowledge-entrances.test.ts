@@ -86,7 +86,7 @@ for (const backend of [memory, postgres]) {
 
     const storyCover = await knowledge.recordDecision({ status: "accepted", title: "Signup is one page", text: "Nothing to click through", frontCoverOf: story.id });
     const loginCover = await knowledge.recordDecision({ status: "accepted", title: "Magic links, no passwords", text: "Nothing to forget", frontCoverOf: login.id });
-    const shared = await knowledge.recordDecision({ status: "accepted", title: "Keep queues in Postgres", text: "One database to run", links: [at(shelf, 1).id, loginCover.id] });
+    const shared = await knowledge.recordDecision({ status: "accepted", title: "Keep queues in Postgres", text: "One database to run", links: [at(shelf, 1).id, loginCover.id], justifications: { [at(shelf, 1).id]: "Linked in this test.", [loginCover.id]: "Linked in this test too." } });
     const inside = await knowledge.defineTerm({ term: "Delivery", meaning: "The check rejects plus-addresses", links: [founding.id] });
 
     assert.deepEqual(await knowledge.frontCovers(form.id), shelf, "the email form's covers, founding first, as stored");
@@ -114,6 +114,7 @@ for (const backend of [memory, postgres]) {
       text: "Faster feedback",
       frontCoverOf: form.id,
       links: [founding.id],
+      justifications: { [founding.id]: "Linked in this test." },
     });
     const unshelved = await knowledge.editNote(founding.id, { frontCoverOf: undefined });
     assert.deepEqual(unshelved?.fields, { status: "accepted", number: founding.fields.number, title: titles[0], text: "Chosen for the email form" }, "the mark is gone, and nothing else changed");
@@ -203,8 +204,8 @@ for (const backend of [memory, postgres]) {
     const notes = [note.id, decision.id, definition.id];
     const linked = await knowledge.defineTerm({ term: "Delivery", meaning: "Links to every kind", links: notes });
     await assertCreated(transactions, linked, "definition", { term: "Delivery", meaning: "Links to every kind", links: notes });
-    const decided = await knowledge.recordDecision({ status: "accepted", title: "Keep it linked", text: "Behind the cover", frontCoverOf: story.id, links: notes });
-    await assertCreated(transactions, decided, "decision", { title: "Keep it linked", text: "Behind the cover", frontCoverOf: story.id, links: notes });
+    const decided = await knowledge.recordDecision({ status: "accepted", title: "Keep it linked", text: "Behind the cover", frontCoverOf: story.id, links: notes, justifications: { [decision.id]: "Linked in this test." } });
+    await assertCreated(transactions, decided, "decision", { title: "Keep it linked", text: "Behind the cover", frontCoverOf: story.id, links: notes, justifications: { [decision.id]: "Linked in this test." } });
     const defined = await knowledge.defineTerm({ term: "Everything", meaning: "All of it", links: notes });
     await assertCreated(transactions, defined, "definition", { term: "Everything", meaning: "All of it", links: notes });
     const relinked = await knowledge.editNote(note.id, { links: [decision.id, definition.id] });
@@ -220,7 +221,7 @@ for (const backend of [memory, postgres]) {
     const before = await transactions.history();
 
     const loops: [() => Promise<unknown>, string[]][] = [
-      [() => knowledge.editNote(cover.id, { links: [cover.id] }), [cover.id, cover.id]],
+      [() => knowledge.editNote(cover.id, { links: [cover.id], justifications: { [cover.id]: "A loop, refused." } }), [cover.id, cover.id]],
       [() => knowledge.editNote(cover.id, { text: "Reconsidered", links: [below.id] }), [cover.id, below.id, cover.id]],
       [() => knowledge.editNote(cover.id, { links: [deepest.id] }), [cover.id, deepest.id, below.id, cover.id]],
       [() => knowledge.editNote(below.id, { links: [cover.id, role.id] }), [below.id, role.id, deepest.id, below.id]],

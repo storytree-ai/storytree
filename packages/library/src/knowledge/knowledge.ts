@@ -4,7 +4,7 @@ import { checkReference, checkReferences, liveRecord, type Expected } from "../r
 import { judgedState, SchemaError, unstorable, type FieldsOf, type KnowledgeKind, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import { defaultEmbedder } from "./embedding-model.js";
 import { ARTIFACT_KINDS } from "./kinds.js";
-import { checkClauseSupersession, checkFrontCover, DecisionLog, partlySupersedes, type DecisionNumberPlan, type DecisionView, type NarrowsMove, type NewDecision, type SupersessionPairs } from "../decisions/index.js";
+import { checkClauseSupersession, checkFrontCover, DecisionLog, justifiedEdit, partlySupersedes, prunedEdit, restoredEdit, type ArchivedDecisionLink, type DecisionLinkBacklog, type DecisionNumberPlan, type DecisionView, type NarrowsMove, type NewDecision, type SupersessionPairs } from "../decisions/index.js";
 import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";
 import { artifactsOnly, frontCovers } from "./front-covers.js";
 import { relatedEach, relatedTo, type Related, type RelatedOptions, type SimilarityDoc } from "./similarity.js";
@@ -79,6 +79,8 @@ const REFERENCE_FIELDS: ReadonlySet<string> = new Set([
   "supersedes",
   "supersedesClauses",
   "narrows",
+  "justifications",
+  "archivedLinks",
   "fingerprint",
   "story",
   "capability",
@@ -195,6 +197,30 @@ export class Knowledge {
     return this.#log.supersessionPairs();
   }
 
+  decisionLinkBacklog(): Promise<DecisionLinkBacklog> {
+    return this.#log.decisionLinkBacklog();
+  }
+
+  archivedLinks(from?: string): Promise<ArchivedDecisionLink[]> {
+    return this.#log.archivedLinks(from);
+  }
+
+  async pruneLink(from: string, to: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
+    const decision = await this.#liveDecision(from);
+    return (await this.editNote(from, prunedEdit(decision, to, reason, options?.actor ?? "unknown"), options)) as SchemaRecord<"decision">;
+  }
+
+  async restoreLink(from: string, to: string, justification?: string, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
+    const decision = await this.#liveDecision(from);
+    return (await this.editNote(from, restoredEdit(decision, to, justification), options)) as SchemaRecord<"decision">;
+  }
+
+  async #liveDecision(id: string): Promise<SchemaRecord<"decision">> {
+    const decision = await liveRecord(this.#records, id, ["decision"]);
+    if (decision === null) throw new RangeError(`${id} is not a live decision`);
+    return decision;
+  }
+
   async writeKnowledge<K extends KnowledgeKind>(kind: K, fields: NewKnowledge<K>, options?: WriteOptions): Promise<SchemaRecord<K>> {
     if (!KNOWLEDGE_KINDS.includes(kind)) {
       throw new RangeError(`writeKnowledge writes ${KNOWLEDGE_KINDS.join(", ")}, not ${JSON.stringify(kind)}`);
@@ -250,6 +276,7 @@ export class Knowledge {
       if (Array.isArray(fields.supersedes)) await this.#refuseSupersessionLoop(id, fields.supersedes);
     }
     await checkClauseSupersession(this.#records, fields);
+    if (note.type === "decision") fields = await justifiedEdit(this.#records, id, note.fields, fields);
     const { checkCurrent, ...writer } = options ?? {};
     return (await this.#records.edit(id, fields, {
       ...writer,

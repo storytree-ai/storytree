@@ -32,9 +32,9 @@ test("27.6 · library find gives current state: other records, then decisions su
   const { library, run } = await world(t);
   const current = await library.defineTerm({ term: "Mapped colour", meaning: "Green, red or yellow once explored." });
   const replaced = await library.recordDecision({ status: "accepted", title: "Mapped colour is grey", text: "D1. Grey." });
-  await library.recordDecision({ status: "accepted", title: "Grey for parked", text: "D1. Grey is parked's.", supersedes: [replaced.id] });
+  await library.recordDecision({ status: "accepted", title: "Grey for parked", text: "D1. Grey is parked's.", supersedes: [replaced.id], justifications: { [replaced.id]: "It replaces the earlier rule." } });
   const narrowed = await library.recordDecision({ status: "accepted", title: "Mapped colour is brown", text: "D1. Brown. D2. Brown everywhere." });
-  await library.recordDecision({ status: "accepted", title: "Explored islands take their health", text: "D1. Explored is not brown.", supersedesClauses: [{ decision: narrowed.id, clauses: ["D2"] }] });
+  await library.recordDecision({ status: "accepted", title: "Explored islands take their health", text: "D1. Explored is not brown.", supersedesClauses: [{ decision: narrowed.id, clauses: ["D2"] }], justifications: { [narrowed.id]: "It replaces the earlier rule's D2." } });
   const ochre = await library.recordDecision({ status: "accepted", title: "Mapped colour is ochre", text: "D1. Ochre." });
   const lower = await connectProject({ url: testServerUrl() });
   try {

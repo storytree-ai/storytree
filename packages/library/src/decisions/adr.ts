@@ -4,7 +4,7 @@ import type { Library } from "../index.js";
 import type { DecisionView } from "./decision-log.js";
 import { editDecision, recordDecision } from "./supersede.js";
 
-const EDITABLE = ["status", "decided", "loadBearing", "supersedes", "links", "frontCoverOf"] as const;
+const EDITABLE = ["status", "decided", "loadBearing", "supersedes", "links", "justifications", "frontCoverOf"] as const;
 const READ_ONLY_MARK = "# read only";
 
 function adr(number: number | undefined): string {
@@ -73,6 +73,15 @@ function parseFile(text: string, file: string): { title: string; text: string; f
   return { title: body[heading]!.slice(2).trim(), text: rest, fields };
 }
 
+function justificationsOf(why: readonly string[]): Record<string, string> | undefined {
+  if (why.length === 0) return undefined;
+  return Object.fromEntries(why.map((given) => {
+    const equals = given.indexOf("=");
+    if (equals < 1) throw new VerbRefusal(`--why is <target>=<why it is linked>, not ${JSON.stringify(given)}`, { misuse: true });
+    return [given.slice(0, equals).trim(), given.slice(equals + 1)];
+  }));
+}
+
 function decisionNumber(value: string): number {
   const number = Number(value);
   if (!/^\d+$/.test(value) || !Number.isSafeInteger(number) || number < 1) {
@@ -97,7 +106,7 @@ const create = verb({
     family: "adr",
     name: "new",
     summary: "record a decision with a supplied or next number, its status, who decided it, and what it supersedes",
-    usage: "adr new --title <t> --text <text|@file> --status accepted [--number <n>] [--decided YYYY-MM-DD] [--basis <owner-directed|owner-ratified|agent-derived|agent-flipped> --owner-said <his words|@file> | --basis brought-across --brought-from <0.2 record> --brought-basis <0.2's basis>] [--supersedes a,b] [--links a,b] [--front-cover-of <node>] [--load-bearing]",
+    usage: "adr new --title <t> --text <text|@file> --status accepted [--number <n>] [--decided YYYY-MM-DD] [--basis <owner-directed|owner-ratified|agent-derived|agent-flipped> --owner-said <his words|@file> | --basis brought-across --brought-from <0.2 record> --brought-basis <0.2's basis>] [--supersedes a,b] [--links a,b] [--why <target>=<text>]… [--front-cover-of <node>] [--load-bearing]",
   },
   tool: { absent: NO_TOOL },
   inputs: {
@@ -112,6 +121,7 @@ const create = verb({
     "brought-basis": { kind: "text", optional: true, describe: "who decided it in 0.2, for a brought-across decision: one of the other four bases" },
     supersedes: { kind: "text", optional: true, describe: "the decisions it supersedes, comma-separated" },
     links: { kind: "text", optional: true, describe: "what it links to, comma-separated" },
+    why: { kind: "text", many: true, optional: true, describe: "each decision it links to or supersedes, as <target>=<why>: at most two lines, why an agent would follow it and why it was linked" },
     "front-cover-of": { kind: "text", optional: true, describe: "the node it is the front cover of" },
     "load-bearing": { kind: "switch", describe: "every session calibrates to it" },
   },
@@ -126,6 +136,7 @@ const create = verb({
       decided: input.decided,
       supersedes: idList(input.supersedes, "supersedes"),
       links: idList(input.links, "links"),
+      justifications: justificationsOf(input.why ?? []),
       frontCoverOf: input["front-cover-of"],
       loadBearing: input["load-bearing"] ? true : undefined,
       authority: basis === undefined ? undefined : { basis, scribedBy: await person(), at: new Date().toISOString(), ...(ownerSaid === undefined ? {} : { ownerSaid }), ...(broughtFrom === undefined ? {} : { broughtFrom }) },
@@ -260,10 +271,75 @@ const pairs = verb({
   },
 });
 
+const backlog = verb({
+  command: { family: "adr", name: "backlog", summary: "count the old-shape decision links, stored with no justification, and the decisions holding them (ADR-1379 D2)", usage: "adr backlog" },
+  tool: { absent: NO_TOOL },
+  inputs: {},
+  async act(_inputs, context: VerbContext) {
+    const { links, decisions } = await context.library.decisionLinkBacklog();
+    return { text: `${links} old-shape decision ${links === 1 ? "link" : "links"} (no justification) across ${decisions} ${decisions === 1 ? "decision" : "decisions"}` };
+  },
+});
+
+async function refused<T>(write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (error) {
+    if (error instanceof RangeError && / has no (?:archived )?link to /.test(error.message)) throw new VerbRefusal(error.message);
+    throw error;
+  }
+}
+
+const prune = verb({
+  command: { family: "adr", name: "prune", summary: "move a decision's link into its archive, with who, when and why, so nothing follows it; adr restore puts it back", usage: "adr prune <decision> <target> --reason <why>" },
+  tool: { absent: NO_TOOL },
+  inputs: {
+    decision: { kind: "text", word: 0, describe: "the decision's id or number" },
+    target: { kind: "text", word: 1, describe: "the id it links to" },
+    reason: { kind: "text", optional: true, describe: "why the link is pruned" },
+  },
+  writes: true,
+  async act({ decision, target, reason }, context: VerbContext) {
+    if (reason === undefined || reason.trim() === "") throw new VerbRefusal("adr prune keeps why a link was pruned: give --reason <why>", { misuse: true });
+    const id = (await viewOf(context.library, decision)).record.id;
+    await refused(() => context.library.pruneLink(id, target, reason, context.writer));
+    return { text: `Pruned ${id}'s link to ${target}: archived, with its reason.`, next: [{ command: `adr restore ${id} ${target}`, why: "put it back" }] };
+  },
+});
+
+const pruned = verb({
+  command: { family: "adr", name: "pruned", summary: "the archived decision links: from, to, field, by, at and reason", usage: "adr pruned [<decision>]" },
+  tool: { absent: NO_TOOL },
+  inputs: { decision: { kind: "text", word: 0, optional: true, describe: "only this decision's" } },
+  async act({ decision }, context: VerbContext) {
+    const from = decision === undefined ? undefined : (await viewOf(context.library, decision)).record.id;
+    const archived = await context.library.archivedLinks(from);
+    if (archived.length === 0) return { text: "No decision link is archived." };
+    const lines = archived.map((one) => `  ${one.from} → ${one.to}  ${one.field}${one.clauses === undefined ? "" : ` ${one.clauses.join(", ")}`}  by ${one.by} at ${one.at}: ${one.reason}`);
+    return { text: [`${archived.length} archived decision ${archived.length === 1 ? "link" : "links"}:`, ...lines].join("\n") };
+  },
+});
+
+const restore = verb({
+  command: { family: "adr", name: "restore", summary: "put an archived decision link back, with its justification or --why", usage: "adr restore <decision> <target> [--why <text>]" },
+  tool: { absent: NO_TOOL },
+  inputs: {
+    decision: { kind: "text", word: 0, describe: "the decision's id or number" },
+    target: { kind: "text", word: 1, describe: "the id it linked to" },
+    why: { kind: "text", optional: true, describe: "its justification, when it was archived with none" },
+  },
+  writes: true,
+  async act({ decision, target, why }, context: VerbContext) {
+    const id = (await viewOf(context.library, decision)).record.id;
+    await refused(() => context.library.restoreLink(id, target, why, context.writer));
+    return { text: `Restored ${id}'s link to ${target}.` };
+  },
+});
+
 export const ADR_FAMILY: VerbFamily = {
   name: "adr",
-  summary: "the decision log: new, pull, push, compose, list, move-narrows, pairs",
+  summary: "the decision log: new, pull, push, compose, list, move-narrows, pairs, backlog, prune, pruned, restore",
   order: 4,
   guesses: { read: "adr pull <decision>", get: "adr pull <decision>", open: "adr pull <decision>" },
-  verbs: [list, create, pull, push, compose, moveNarrows, pairs],
+  verbs: [list, create, pull, push, compose, moveNarrows, pairs, backlog, prune, pruned, restore],
 };

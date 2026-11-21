@@ -12,7 +12,7 @@ export class DecisionRefusal extends Error {
 
 export type Successor = Omit<NewDecision, "status" | "supersedes">;
 
-export function supersede(library: Library, olds: readonly string[], successor: Successor | string, writer?: WriteOptions): Promise<SchemaRecord<"decision">> {
+export function supersede(library: Library, olds: readonly string[], successor: Successor | string, writer?: WriteOptions, justifications?: Readonly<Record<string, string>>): Promise<SchemaRecord<"decision">> {
   return library.inOneWrite(async () => {
     const existing = typeof successor === "string" ? await library.decision(successor) : undefined;
     if (existing === null) throw new DecisionRefusal(`${successor} is not a live decision`);
@@ -23,8 +23,10 @@ export function supersede(library: Library, olds: readonly string[], successor: 
     const own = typeof successor === "string" ? existing?.record.fields : successor;
     const frontCoverOf = own?.frontCoverOf ?? replaced[0]?.fields.frontCoverOf;
     const loadBearing = own?.loadBearing === true || replaced.some((old) => old?.fields.loadBearing === true);
+    const why = { ...(typeof successor === "string" ? {} : successor.justifications), ...justifications };
     const fields = {
       supersedes: [...new Set([...(existing?.record.fields.supersedes ?? []), ...olds])],
+      ...(Object.keys(why).length === 0 ? {} : { justifications: why }),
       ...(frontCoverOf === undefined ? {} : { frontCoverOf }),
       ...(loadBearing ? { loadBearing } : {}),
     };

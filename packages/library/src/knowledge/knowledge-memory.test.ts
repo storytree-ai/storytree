@@ -268,8 +268,8 @@ for (const backend of [memory, postgres]) {
     const notes = [memory, decision, definition].map((record) => record.id);
     const linked = await knowledge.defineTerm({ term: "Delivery", meaning: "Links to every kind", links: notes });
     await assertCreated(transactions, linked, "definition", { term: "Delivery", meaning: "Links to every kind", links: notes });
-    const decided = await knowledge.recordDecision({ status: "accepted", title: "Keep it all", text: "Linked", links: notes });
-    await assertCreated(transactions, decided, "decision", { title: "Keep it all", text: "Linked", links: notes });
+    const decided = await knowledge.recordDecision({ status: "accepted", title: "Keep it all", text: "Linked", links: notes, justifications: { [decision.id]: "Linked in this test." } });
+    await assertCreated(transactions, decided, "decision", { title: "Keep it all", text: "Linked", links: notes, justifications: { [decision.id]: "Linked in this test." } });
     const defined = await knowledge.defineTerm({ term: "Everything", meaning: "All of it", links: notes });
     await assertCreated(transactions, defined, "definition", { term: "Everything", meaning: "All of it", links: notes });
     const relinked = await knowledge.editNote(memory.id, { links: [decision.id, definition.id] });

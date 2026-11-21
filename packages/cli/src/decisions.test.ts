@@ -15,7 +15,7 @@ test("6.3 a superseded decision drops out of `--current`; filters use the librar
   await inWorld(command, async (world) => {
     const library = await world.library();
     const old = await library.recordDecision({ title: "Mailgun", text: "Simple API", status: "accepted", loadBearing: true });
-    const replacement = await library.recordDecision({ title: "SES", text: "Lower cost", status: "accepted", supersedes: [old.id], loadBearing: true });
+    const replacement = await library.recordDecision({ title: "SES", text: "Lower cost", status: "accepted", supersedes: [old.id], justifications: { [old.id]: "SES replaces Mailgun." }, loadBearing: true });
     const proposal = await library.recordDecision({ title: "SMTP", text: "Run our own", status: "proposed" });
     const ordinary = await library.recordDecision({ title: "TLS", text: "Encrypt mail", status: "accepted" });
     for (const [flags, included, excluded] of [

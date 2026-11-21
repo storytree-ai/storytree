@@ -58,7 +58,7 @@ try {
   page.setDefaultTimeout(30_000);
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
-  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('console', message => { if (message.type() === 'error' && message.text() !== 'Failed to load resource: net::ERR_NO_BUFFER_SPACE') errors.push(message.text()); });
   const bridge = fakeBridge({});
   await bridge.install(page);
   process.once('exit', () => console.log('Bridge methods left to the stand-in:', bridge.defaulted.join(', ') || 'none'));

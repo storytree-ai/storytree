@@ -528,10 +528,10 @@ async function showPlan({ library, log, project, quietMs }: PlanReading, closed:
       if (story.id === id) {
         const whole: Answer = { text: storyLines(story).join("\n"), data: { stories: [shelved(story)] } };
         if (sizeOf(whole) <= budget) return whole;
-        const counted = story.capabilities.map((capability) => `${capabilityLine(capability)}; ${countSaid(capability.contracts.length, "contract")}`);
+        const counted = nestedOrder(story.capabilities).map(([capability, depth]) => `${capabilityLine(capability, depth)}; ${countSaid(capability.contracts.length, "contract")}`);
         return {
           text: [storyLine(story), ...counted, `The story runs past ${budget.toLocaleString("en")} characters whole: give show_plan a capability's id to read that capability whole.`].join("\n"),
-          data: { stories: [{ id: story.id, title: story.title, health: story.health, capabilities: story.capabilities.map((capability) => ({ id: capability.id, title: capability.title, health: capability.health, contracts: capability.contracts.length })) }] },
+          data: { stories: [{ id: story.id, title: story.title, health: story.health, capabilities: story.capabilities.map((capability) => ({ id: capability.id, title: capability.title, health: capability.health, contracts: capability.contracts.length, ...(capability.parent === undefined ? {} : { parent: capability.parent }) })) }] },
         };
       }
       const capability = story.capabilities.find((one) => one.id === id);

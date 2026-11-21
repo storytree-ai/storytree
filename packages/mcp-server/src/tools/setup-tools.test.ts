@@ -321,10 +321,13 @@ test("7.7 set_up_project's answer and check_setup's in a project carry the whole
     const folder = path.join(dir, name);
     mkdirSync(folder);
     try {
+      await ownFactory(factory);
       await withAgent(folder, claudeCode(`claude-${name}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } }), async (agent) => {
         const setUp = await agent.call("set_up_project", { name });
+        assert.equal(setUp.isError, false, setUp.text);
         assert.ok(setUp.text.includes(habitsCard()), "set_up_project's answer lacks the card");
         const checked = await agent.call("check_setup");
+        assert.equal(checked.isError, false, checked.text);
         assert.ok(checked.text.includes(habitsCard()), "check_setup's answer lacks the card");
       });
     } finally {

@@ -47,7 +47,7 @@ const IN_CALLBACK = code(
 test("8.33 · storytree/no-silent-derived-folder refuses, in a non-test source file under packages/repo-checks, packages/map or packages/app-setup, a .filter whose callback calls existsSync or is existsSync over a list derived by packageOf or packagesOf, called in the filtered expression (factoryPlugins as it stood, a .filter(existsSync) on a packagesOf result) or in the callback; its message names escape_ea60149a4f42; an existsSync filter over a list no packageOf or packagesOf derives, a packageOf .map with no existsSync filter, a test file and a file under another package pass", () => {
   assert.match(rule?.meta?.messages?.dropped ?? "", /escape_ea60149a4f42/);
 
-  new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("no-silent-derived-folder", rule, {
+  new RuleTester({ cwd: process.cwd(), languageOptions: { parserOptions: { lang: "ts" } } }).run("no-silent-derived-folder", rule, {
     valid: [
       passes(code(
         "import { existsSync } from \"node:fs\";",

@@ -231,7 +231,7 @@ export function registerPlanTools(define: Define): void {
       capability: z.string().min(1).optional().describe("A contract's capability, to move it: with no title given, a contract whose number is another capability's takes this one's next free number"),
       edge: z.string().min(1).optional().describe("A contract's edge, to move it onto that link inside its story"),
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
-      parent,
+      parent: parent.describe("A capability's parent: the id of the capability of its story it sits inside, whose code holds a folder with its own entry file or a nested package for it, or \"none\" to clear it, making it a top capability of its story"),
       covers: covers.describe("The folders and files of a capability you mapped on code storytree cannot read, replacing them"),
       store_links: storeLinks,
       proved_by: provedBy.describe("A contract's existing tests that prove it, replacing them"),
@@ -370,19 +370,20 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
     const drawn = await drawnBy(call, story);
     if (drawn !== undefined) return { text: `Not corrected: storytree draws ${drawn.said} capabilities and links from its code's imports, so only a capability's title and description, and the store links you judged, are corrected here; importing the folder again redraws the rest from the code as it stands.`, refused: true };
   }
-  const { depends_on: dependsOn, end_state: endState, proved_by: provedBy, store_links: storeLinks, priority, capabilities, machine, escape, ...rest } = changes;
+  const { depends_on: dependsOn, end_state: endState, proved_by: provedBy, store_links: storeLinks, priority, capabilities, machine, escape, parent, ...rest } = changes;
   const own = kind === "increment" ? await incrementFields(target, { capabilities, machine, escape }, call) : { fields: {} };
   if ("refused" in own) return own.refused;
   const fields = {
     ...optional({ ...rest, dependsOn, endState, provedBy, storeLinks }),
     ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }),
+    ...(parent === undefined ? {} : { parent: parent === "none" ? undefined : parent }),
     ...own.fields,
   };
   const listing = (fields as { capabilities?: string[] }).capabilities;
   const had = kind !== "increment" || listing === undefined ? [] : ((await library.get(target))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
   const move = kind === "contract" && changes.capability !== undefined && changes.title === undefined ? await movedNumber(target, changes.capability, call) : undefined;
   const story = kind === "capability" && changes.parent !== undefined ? (changes.story ?? ((await library.get(target))?.fields as { story?: string } | undefined)?.story) : undefined;
-  const levels = story === undefined ? {} : { levels: await levelsBehind(call, story, changes.parent!) };
+  const levels = story === undefined || parent === "none" ? {} : { levels: await levelsBehind(call, story, parent!) };
   const options = move === undefined ? { ...writer, ...levels } : { ...writer, testedNumbers: move.tested };
   const leaves = kind === "contract" && changes.edge !== undefined ? ((await library.get(target))?.fields as { capability?: string } | undefined)?.capability : undefined;
   const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live: live || story !== undefined }, options);
@@ -398,7 +399,7 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   const placed = kind === "contract" && to !== undefined && (changes.capability !== undefined || changes.edge !== undefined) ? placedSaid(await library.projectTree(), target, to) : "";
   const bare = await bareSaid(library, leaves, "plan_contract");
   const judged = storeLinks === undefined ? "" : ` It carries ${storeLinks.length} store ${storeLinks.length === 1 ? "link" : "links"}, drawn as judged on its stores' panels.`;
-  const nested = story === undefined ? "" : " Its parent went to the live plan at once, since the levels behind it were read from the code as it stands now.";
+  const nested = story === undefined ? "" : parent === "none" ? " Its parent was cleared in the live plan at once." : " Its parent went to the live plan at once, since the levels behind it were read from the code as it stands now.";
   return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}${bare}${judged}${nested}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
 }
 

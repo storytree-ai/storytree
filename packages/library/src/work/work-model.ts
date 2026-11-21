@@ -71,6 +71,7 @@ export interface ContractWriteOptions extends WriteOptions {
 type PendingPlanChange = NonNullable<FieldsOf<"increment">["pending"]>[number];
 export interface CapabilityWriteOptions extends WriteOptions {
   readonly pending?: readonly PendingPlanChange[];
+  readonly levels?: readonly string[];
 }
 export type Anchor = FieldsOf<"anchor">;
 export type AnchorEdit = { [F in keyof Anchor]?: Anchor[F] | undefined };
@@ -119,6 +120,7 @@ export interface CapabilityNode {
   description?: string;
   dependsOn: string[];
   proposed: boolean;
+  parent?: string;
   covers?: string[];
   storeLinks?: StoreLink[];
   guardrails?: Guardrail[];
@@ -310,7 +312,8 @@ export class WorkModel {
       await checkReference(this.#records, "story", capability.story, "story");
       await checkReferences(this.#records, "dependsOn", capability.dependsOn, "capability");
       const covers = await this.#covered(capability.story, capability.covers);
-      const { pending = [], ...write } = options ?? {};
+      if (capability.parent !== undefined) await this.#refuseParent(capability.parent, capability.story, undefined, options?.levels);
+      const { pending = [], levels: _levels, ...write } = options ?? {};
       const title = await this.#capabilityNumbered(capability.title, capability.story, pending);
       const links = !Array.isArray(capability.dependsOn) ? undefined : await this.#split(capability.story, capability.dependsOn);
       const fields = { ...capability, title, proposed: capability.proposed ?? true, ...(covers === undefined ? {} : { covers }), ...(links === undefined ? {} : { dependsOn: links.cross }) };
@@ -321,7 +324,7 @@ export class WorkModel {
     });
   }
 
-  editCapability(id: string, fields: CapabilityEdit, options?: WriteOptions): Promise<SchemaRecord<"capability"> | null> {
+  editCapability(id: string, fields: CapabilityEdit, options?: CapabilityWriteOptions): Promise<SchemaRecord<"capability"> | null> {
     return this.#serially(async () => {
       const stored = (await liveRecord(this.#records, id, ["capability"])) as SchemaRecord<"capability"> | null;
       if (stored === null) return null;
@@ -330,6 +333,7 @@ export class WorkModel {
       await checkReferences(this.#records, "dependsOn", fields.dependsOn, "capability");
       if (Array.isArray(fields.dependsOn)) await this.#refuseLoop(id, fields.dependsOn);
       if (fields.title !== undefined || fields.story !== undefined) await this.#refuseTakenCapabilityNumber(fields.title ?? stored.fields.title, fields.story ?? stored.fields.story, id);
+      if (fields.parent !== undefined) await this.#refuseParent(fields.parent, fields.story ?? stored.fields.story, id, options?.levels);
       let edit: CapabilityEdit = fields;
       if ("story" in fields || "covers" in fields) {
         const covers = await this.#covered(fields.story ?? stored.fields.story, "covers" in fields ? fields.covers : stored.fields.covers, id);
@@ -493,6 +497,7 @@ export class WorkModel {
           ...nodeOf(capability),
           dependsOn: faces.get(capability.id) ?? [],
           proposed: capability.fields.proposed,
+          ...(capability.fields.parent === undefined ? {} : { parent: capability.fields.parent }),
           ...(capability.fields.covers === undefined ? {} : { covers: [...capability.fields.covers] }),
           ...(capability.fields.storeLinks === undefined ? {} : { storeLinks: structuredClone(capability.fields.storeLinks) }),
           ...guardrailsOf(capability),
@@ -573,6 +578,18 @@ export class WorkModel {
       return title;
     }
     return `${nextFree(await this.#capabilitiesOf(story, pending))} · ${title}`;
+  }
+
+  async #refuseParent(parent: unknown, story: unknown, self: string | undefined, levels: readonly string[] | undefined): Promise<void> {
+    const refuse = (problem: string): never => { throw new SchemaError("capability", [{ field: "parent", problem }]); };
+    const named = (await liveRecord(this.#records, parent, ["capability"])) as SchemaRecord<"capability"> | null;
+    if (named === null) refuse(`${String(parent)} is no live capability`);
+    if (named!.fields.story !== story) refuse(`${named!.id} is a capability of another story: a capability sits inside one of its own story's`);
+    const capabilities = new Map((await this.#records.list("capability")).map((capability) => [capability.id, capability]));
+    for (let at: string | undefined = named!.id; at !== undefined; at = capabilities.get(at)?.fields.parent) {
+      if (at === self) refuse(`${named!.id} is ${self} itself or a capability inside it: a capability cannot sit inside itself`);
+    }
+    if (levels === undefined || levels.length === 0) refuse(`${named!.id} has no folder with its own entry file (index.ts, index.js or __init__.py) or nested package behind it: a capability sits inside another only where its code has such a level`);
   }
 
   async #refuseTakenCapabilityNumber(title: unknown, story: unknown, self?: string, pending: readonly PendingPlanChange[] = []): Promise<void> {

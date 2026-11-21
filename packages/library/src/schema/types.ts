@@ -227,6 +227,7 @@ export const RECORD_SCHEMAS = {
       text: z.string().optional(),
       dependsOn: ids.optional(),
       proposed: z.boolean(),
+      parent: nonEmpty.optional(),
       covers: z.array(nonEmpty).min(1).optional(),
       storeLinks: z.array(storeLink).min(1).optional(),
       guardrails,

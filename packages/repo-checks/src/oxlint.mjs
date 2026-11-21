@@ -41,7 +41,7 @@ function peakMegabytes(stderr) {
 
 function report(stdout) {
   try {
-    return JSON.parse(stdout);
+    return JSON.parse(stdout.slice(stdout.indexOf("{")));
   } catch {
     return null;
   }
@@ -63,7 +63,7 @@ export async function oxlintProblems(root, { log = () => {} } = {}) {
       return [`Oxlint did not finish (${how}): ${tail || "no output"}`];
     }
     log(`oxlint ${version}: ${result.number_of_files} files, ${result.number_of_rules} rules, peak memory ${peakMegabytes(stderr) ?? "unknown"} MB, ${seconds} s`);
-    return result.diagnostics.map(({ message, code, filename, labels }) => `${filename.replaceAll("\\", "/")}:${labels?.[0]?.span?.line ?? 0} ${ruleName(code)}: ${message}`);
+    return result.diagnostics.map(({ message, code, filename, labels }) => filename === undefined ? message : `${filename.replaceAll("\\", "/")}:${labels?.[0]?.span?.line ?? 0} ${ruleName(code)}: ${message}`);
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }

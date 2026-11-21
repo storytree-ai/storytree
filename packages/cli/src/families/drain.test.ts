@@ -6,6 +6,7 @@ import { FRICTION_FAMILIES } from "@storytree/session-management/friction/verbs"
 
 import { parseArgs } from "../args.js";
 import type { Context, Family } from "../door.js";
+import "../usage/learner.js";
 import { learner } from "./doors.js";
 import { learning, twinsOf } from "./drain.js";
 

@@ -35,8 +35,20 @@ function callsByName(node, name) {
 
 function errorCalls(body, name, report) {
   if (name === undefined) return;
+  const names = new Set([name]);
+  const declared = [];
   walk(body, (inner) => {
-    if (inner.type === "CallExpression" && methodOf(inner) === "error" && inner.arguments.some((argument) => uses(argument, name))) report(inner);
+    if (inner.type === "VariableDeclarator" && inner.id.type === "Identifier" && inner.init && ["const", "let"].includes(inner.parent?.kind)) declared.push(inner);
+  });
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const { id, init } of declared) if (!names.has(id.name) && [...names].some((each) => uses(init, each))) {
+      names.add(id.name);
+      grew = true;
+    }
+  }
+  walk(body, (inner) => {
+    if (inner.type === "CallExpression" && methodOf(inner) === "error" && inner.arguments.some((argument) => [...names].some((each) => uses(argument, each)))) report(inner);
   });
 }
 

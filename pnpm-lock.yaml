@@ -558,6 +558,9 @@ importers:
         specifier: ^0.185.1
         version: 0.185.1
     devDependencies:
+      '@storytree/property-checks':
+        specifier: workspace:*
+        version: link:../property-checks
       '@storytree/test-waits':
         specifier: workspace:*
         version: link:../test-waits

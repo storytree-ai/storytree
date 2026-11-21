@@ -42,7 +42,7 @@ function labelOf(fields: Readonly<Fields>): string {
 }
 
 function fieldsOf(given: Readonly<Record<string, string>>): Fields {
-  return Object.fromEntries(Object.entries(given).map(([name, text]) => [name, fieldValue(text)]));
+  return Object.fromEntries(Object.entries(given).map(([name, text]) => [name, fieldValue(name === "title" || name === "term" ? text.replace(/\r?\n$/, "") : text)]));
 }
 
 function commaSeparatedIds(value: string, name: string): string[] {

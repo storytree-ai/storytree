@@ -1465,3 +1465,37 @@ test("17.36 · library links, library read's \"Linked from:\" and the open tool'
   const openedHand = (await toolOf("open").act({ id: hand.id }, tools, WORDS)).text;
   assert.ok(openedHand.split("\n").includes("Superseded by ADR-0003"), `open names the whole supersession:\n${openedHand}`);
 });
+
+test("17.37 · library new and library edit store a one-line field (title, term) without one final line break (\\n or \\r\\n), as a file given with @file ends; a multi-line field such as text keeps it, byte for byte", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family.verbs.find((one) => mounted(one.command) && one.command.name === name)!;
+  const context: LibraryVerbContext = { library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const fieldsOf = async (id: string) => (await library.get(id))?.fields as { title?: string; term?: string; text?: string };
+  const authority = JSON.stringify({ basis: "agent-derived", scribedBy: "lane", at: "2026-11-04T12:00:00.000Z" });
+
+  await verbOf("new").act({ "<kind>": "decision", "<fields>": { title: "Ship nightly\n", text: "We ship every night.\n", status: "accepted", decided: "2026-11-04", authority } } as never, context, WORDS);
+  const [decision] = await library.list("decision");
+  assert.deepEqual([decision!.fields.title, (decision!.fields as { text?: string }).text], ["Ship nightly", "We ship every night.\n"], "new drops the title's final \\n and keeps the text's");
+
+  await verbOf("edit").act({ "<id>": decision!.id, "<fields>": { title: "Ship weekly\r\n", text: "We ship every week.\r\n" } }, context, WORDS);
+  assert.deepEqual(await fieldsOf(decision!.id).then(({ title, text }) => [title, text]), ["Ship weekly", "We ship every week.\r\n"], "edit drops the title's final \\r\\n and keeps the text's");
+
+  await verbOf("edit").act({ "<id>": decision!.id, "<fields>": { title: "Ship daily\n\n" } }, context, WORDS);
+  assert.equal((await fieldsOf(decision!.id)).title, "Ship daily\n", "only one final line break is dropped");
+
+  await verbOf("new").act({ "<kind>": "definition", "<fields>": { term: "Postcode\r\n", meaning: "Where the post goes." } } as never, context, WORDS);
+  const [definition] = await library.list("definition");
+  assert.equal((definition!.fields as { term?: string }).term, "Postcode", "new drops the term's final \\r\\n");
+  await verbOf("edit").act({ "<id>": definition!.id, "<fields>": { term: "Zip code\n" } }, context, WORDS);
+  assert.equal((await fieldsOf(definition!.id)).term, "Zip code", "edit drops the term's final \\n");
+});

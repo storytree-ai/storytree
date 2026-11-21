@@ -53,7 +53,7 @@ export async function oxlintProblems(root, { log = () => {} } = {}) {
     const configFile = path.join(folder, "oxlintrc.json");
     writeFileSync(configFile, JSON.stringify(config()));
     const started = performance.now();
-    const run = spawnSync(process.execPath, ["--import", PRELOAD, OXLINT_BIN, "-c", configFile, "-f", "json", "."], { cwd: root, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+    const run = spawnSync(process.execPath, ["--import", import.meta.resolve("tsx"), "--import", PRELOAD, OXLINT_BIN, "-c", configFile, "-f", "json", "."], { cwd: root, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
     const seconds = ((performance.now() - started) / 1000).toFixed(1);
     const stderr = run.stderr ?? "";
     const result = report(run.stdout ?? "");

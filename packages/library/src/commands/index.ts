@@ -31,6 +31,7 @@ export interface LibraryVerbContext extends VerbContext {
   claims(): Promise<readonly HeldClaim[]>;
   testedNumbers(capability: string): Promise<{ readonly tested: readonly string[]; readonly untested: readonly string[] }>;
   pluginInFactory?(plugin: string): Promise<boolean>;
+  levelsBehind?(story: string, parent: string): Promise<string[]>;
 }
 
 type Fields = Record<string, unknown>;
@@ -474,8 +475,12 @@ const edit = verb({
     if (Object.keys(fields).length === 0) return { text: `No fields given: ${id} is unchanged.` };
     const writer = context.writer!;
     if (!isPlanRecordType(record.type)) await refuseStaleEdit(library, id, writer, readGiven);
+    const nesting = record.type === "capability" && typeof fields.parent === "string";
+    if (nesting && fields.parent === "none") fields.parent = undefined;
+    const story = typeof fields.story === "string" ? fields.story : String((record.fields as { story?: string }).story);
+    const levels = nesting && fields.parent !== undefined ? { levels: (await context.levelsBehind?.(story, fields.parent as string)) ?? [] } : {};
     const done = await withIdLists(fields, async (fields): Promise<PlanEdit | null> => {
-      if (isPlanRecordType(record.type)) return editPlanRecord(library, await context.claims(), context.session, { type: record.type, id, fields, live }, writer);
+      if (isPlanRecordType(record.type)) return editPlanRecord(library, await context.claims(), context.session, { type: record.type, id, fields, live: live || nesting }, { ...writer, ...levels });
       const edited =
         record.type === "question"
           ? await library.editQuestion(id, fields as never, writer)
@@ -496,7 +501,8 @@ const edit = verb({
     const removed = remove.length === 0 ? "" : `${changed === "" ? "" : ", "}removed ${remove.join(", ")}`;
     const from = record.type === "contract" && Object.hasOwn(values, "edge") ? (record.fields as { capability?: string }).capability : undefined;
     const bare = await bareSaid(library, from, `library new contract --capability ${from} --title <title>`);
-    return { text: `Edited ${record.type} ${id}: ${changed}${removed}.${bare}`, next: [{ command: `library read ${id}`, why: "read it back" }] };
+    const nested = !nesting ? "" : fields.parent === undefined ? " Its parent was cleared on the live plan at once: it is a top capability again." : " Its parent went to the live plan at once, since the levels behind it were read from the code as it stands now.";
+    return { text: `Edited ${record.type} ${id}: ${changed}${removed}.${bare}${nested}`, next: [{ command: `library read ${id}`, why: "read it back" }] };
   },
 });
 

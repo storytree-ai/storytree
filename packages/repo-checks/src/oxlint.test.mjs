@@ -79,6 +79,27 @@ test("8.32 · under oxlintProblems storytree/write-names-place reads storytree's
   ]);
 });
 
+test("8.32 · when Oxlint does not finish its report, oxlintProblems fails with one problem saying so, how it ended and the last of Oxlint's own error output: a process that writes an error and exits 3 names exit status 3 and that error, and a root that does not exist names the spawn error and no output", async (t) => {
+  const root = checkout(t, {
+    "crash.cjs": lines(`process.stderr.write("\\nOxlint cannot start here\\n");`, "process.exit(3);"),
+    "packages/a/src/clean.mjs": lines("export const fine = 1;"),
+  });
+  const previous = process.env.NODE_OPTIONS;
+  process.env.NODE_OPTIONS = `${previous ?? ""} --require ./crash.cjs`;
+  let crashed;
+  try {
+    crashed = await oxlintProblems(root);
+  } finally {
+    if (previous === undefined) delete process.env.NODE_OPTIONS;
+    else process.env.NODE_OPTIONS = previous;
+  }
+  assert.deepEqual(crashed, ["Oxlint did not finish (exit status 3): Oxlint cannot start here"]);
+
+  const missing = await oxlintProblems(path.join(root, "missing"));
+  assert.equal(missing.length, 1, missing.join("\n"));
+  assert.match(missing[0], /^Oxlint did not finish \(spawnSync .+ ENOENT\): no output$/);
+});
+
 test("8.32 · pnpm lint's last rule is named oxlint and runs oxlintProblems; on a tree no rule breaks it gives no problem, lint exits 0, and its summary line naming 2 files and the peak memory in MB reaches lint's log", async (t) => {
   const rule = RULES.at(-1);
   assert.equal(rule.name, "oxlint");

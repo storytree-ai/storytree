@@ -58,7 +58,7 @@ test('pull-offline encrypts the newest backup by creation time whose manifest ch
   assert.equal(seen.recipient, 'owner@example.com');
   assert.equal(target, path.join(out, 'storytree-library-b-older-name.tar.gpg'));
   assert.deepEqual(await readdir(out), ['storytree-library-b-older-name.tar.gpg']);
-  assert.match(lines.join('\n'), new RegExp(`Wrote ${target.replaceAll('\\', '\\\\')} \\(10 bytes, sha256 ${sha('ciphertext')}\\)`));
+  assert.match(lines.join('\n'), new RegExp(`Wrote ${target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\(10 bytes, sha256 ${sha('ciphertext')}\\)`));
   assert.ok(!bucket.downloads.some(name => name.startsWith('backups/z-oldest-name/')), 'an older backup is never fetched');
   await assert.rejects(readdir(seen.folder), /ENOENT/, 'the unencrypted staging folder is removed');
 

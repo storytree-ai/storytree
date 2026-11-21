@@ -2,8 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
 import plugin from "./index.mjs";
 
@@ -14,7 +13,7 @@ const refused = (line, ...lines) => ({ code: code(...lines), errors: [{ messageI
 test("8.24 · storytree/no-unguarded-batch-fetch refuses an await of a job-log or artifacts fetch inside Promise.all(list.map(async ...)) that no try around it or .catch on it handles, called directly (read-ci's and harvest's pre-fix shapes, an artifacts list) or through a same-file function or const arrow whose own body awaits one unguarded (watch.mjs's jobLog), and a try in the callback that does not enclose the await; its message names escape_9d756d18be61; a try/catch around it, a .catch on it, a for loop, a helper that catches and a runs/<id>/jobs fetch pass", () => {
   assert.match(rule?.meta?.messages?.unguarded ?? "", /escape_9d756d18be61/);
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("no-unguarded-batch-fetch", rule, {
+  new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("no-unguarded-batch-fetch", rule, {
     valid: [
       code(
         "export const read = (github: GitHub, repository: string, jobs: { id: number }[]) => Promise.all(jobs.map(async (job) => {",

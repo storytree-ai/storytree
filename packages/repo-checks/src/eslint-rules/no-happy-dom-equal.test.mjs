@@ -2,8 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
 import plugin from "./index.mjs";
 
@@ -126,7 +125,7 @@ const PLAIN = 'import assert from "node:assert/strict";\nassert.equal(document.q
 test("8.6 · storytree/no-happy-dom-equal refuses, in a test file importing happy-dom, an assert.equal-family call whose operand may be a happy-dom node (a DOM query, a node-only property, a new Window, a name, destructured name, loop variable, callback or default parameter bound to one, a branch holding one, or a node-returning helper destructured from, or read as a member of, the object a local function returns; node's own assert only), its message naming assert.ok(a === b, message), the call and the operand (whitespace collapsed, cut to 57 characters and ... past 60); primitive comparisons there, an identity assert.ok, a block-bodied local function returning a string, a file importing no happy-dom and a file that is not a test pass", () => {
   assert.match(rule?.meta?.messages?.nodeEqual ?? "", /assert\.ok\(a === b, message\)/);
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("no-happy-dom-equal", rule, {
+  new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("no-happy-dom-equal", rule, {
     valid: [
       { code: PLAIN, filename: "packages/view/src/plain.test.ts" },
       { code: PAGE, filename: "packages/view/src/page.ts" },

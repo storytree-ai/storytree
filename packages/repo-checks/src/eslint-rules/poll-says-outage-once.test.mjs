@@ -3,10 +3,9 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 
-import { RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
-import { ruleHits } from "../eslint.mjs";
+import * as oxlint from "../oxlint.mjs";
 import plugin from "./index.mjs";
 
 const rule = plugin.rules["poll-says-outage-once"];
@@ -88,7 +87,7 @@ test("8.29 · storytree/poll-says-outage-once refuses, in a non-test source file
   assert.match(message, /escape_221a8ba4aaf6/);
   assert.match(message, /outageSaidOnce/);
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("poll-says-outage-once", rule, {
+  new RuleTester({ cwd: process.cwd(), languageOptions: { parserOptions: { lang: "ts" } } }).run("poll-says-outage-once", rule, {
     valid: [
       passes(code(
         "export async function checkOnce(updater: { check(): Promise<string> }, log: { error(error: unknown): void }) {",
@@ -163,11 +162,11 @@ test("8.29 · storytree/poll-says-outage-once refuses, in a non-test source file
 });
 
 test("8.29 · through pnpm lint's config, the pre-fix release check's catch in a package's source is one storytree/poll-says-outage-once hit at its line naming escape_221a8ba4aaf6, and the same text in a test file or outside packages/ and apps/ is none", () => {
-  const named = (file) => ruleHits(file, UPDATER).filter(({ rule: id }) => id === "storytree/poll-says-outage-once");
-  const hits = named("packages/app/src/updates/follow-releases.ts");
+  const [hits, inTest, outside] = oxlint.ruleHits(["packages/app/src/updates/follow-releases.ts", "packages/app/src/updates/follow-releases.test.ts", "scripts/follow-releases.ts"].map((file) => ({ file, text: UPDATER })))
+    .map((each) => each.filter(({ rule: id }) => id === "storytree/poll-says-outage-once"));
   assert.deepEqual(hits.map(({ line }) => line), [5]);
   assert.match(hits[0].message, /escape_221a8ba4aaf6/);
 
-  assert.deepEqual(named("packages/app/src/updates/follow-releases.test.ts"), []);
-  assert.deepEqual(named("scripts/follow-releases.ts"), []);
+  assert.deepEqual(inTest, []);
+  assert.deepEqual(outside, []);
 });

@@ -3,10 +3,9 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 
-import { RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
-import { ruleHits } from "../eslint.mjs";
+import * as oxlint from "../oxlint.mjs";
 import plugin from "./index.mjs";
 
 const rule = plugin.rules["posix-commands"];
@@ -28,7 +27,7 @@ test("8.16 · storytree/posix-commands refuses ps, lsof, pgrep or pkill as a cal
   assert.match(message, /process\.platform/);
   assert.match(message, /\/\/ eslint-disable-next-line storytree\/posix-commands -- /);
 
-  new RuleTester().run("posix-commands", rule, {
+  new RuleTester({ cwd: process.cwd() }).run("posix-commands", rule, {
     valid: [],
     invalid: [
       refused("ps", 5, source(`export const scan = async () => {`, `  const { stdout } = await run("ps", ["-eo", "pid=,args="], { maxBuffer: 64 * 1024 * 1024 });`, `  return stdout;`, `};`)),
@@ -55,7 +54,7 @@ test("8.16 · storytree/posix-commands refuses ps, lsof, pgrep or pkill as a cal
     ],
   });
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("posix-commands", rule, {
+  new RuleTester({ cwd: process.cwd(), languageOptions: { parserOptions: { lang: "ts" } } }).run("posix-commands", rule, {
     valid: [],
     invalid: [
       refused("ps", 2, `import { spawnSync } from "node:child_process";\nexport const all = (): Buffer => spawnSync("ps", ["-A"]).stdout;`, at("apps/desk/src/main.ts")),
@@ -65,12 +64,11 @@ test("8.16 · storytree/posix-commands refuses ps, lsof, pgrep or pkill as a cal
 
 test("8.16 · storytree/posix-commands passes a command under a platform test (ternary, if, else if, logical, or an earlier if in its block whose test reads platform, win32 or windows and can be true on Windows, such as === \"win32\", !== \"linux\", \"win32\" || any, \"linux\" || an unknown test or its negation, or !! of an unknown test), git and psql, a command named only in a comment, a longer string or a later word of a shell string or segment, a sh -c script with none first in a segment, another program's -c, and any call in a test file or outside packages/ and apps/", () => {
   const unbranched = source(`export const scan = () => run("ps", ["-A"]);`);
-  const hitsAt = (file) => ruleHits(file, unbranched).map(({ line, rule: id }) => `${line} ${id}`);
-  assert.deepEqual(hitsAt("packages/procs/src/scan.mjs"), ["4 storytree/posix-commands"]);
-  assert.deepEqual(hitsAt("packages/procs/src/scan.test.mjs"), []);
-  assert.deepEqual(hitsAt("scripts/scan.mjs"), []);
+  const hitsAt = oxlint.ruleHits(["packages/procs/src/scan.mjs", "packages/procs/src/scan.test.mjs", "scripts/scan.mjs"].map((file) => ({ file, text: unbranched })))
+    .map((hits) => hits.map(({ line, rule: id }) => `${line} ${id}`));
+  assert.deepEqual(hitsAt, [["4 storytree/posix-commands"], [], []]);
 
-  new RuleTester().run("posix-commands", rule, {
+  new RuleTester({ cwd: process.cwd() }).run("posix-commands", rule, {
     valid: [
       passes(source(`export const list = (platform) => (platform === "win32" ? run("tasklist", []) : run("ps", ["-A"]));`)),
       passes(source(
@@ -115,7 +113,7 @@ test("8.16 · storytree/posix-commands passes a command under a platform test (t
     invalid: [refused("ps", 4, unbranched, at("packages/procs/src/scan.mjs"))],
   });
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("posix-commands", rule, {
+  new RuleTester({ cwd: process.cwd(), languageOptions: { parserOptions: { lang: "ts" } } }).run("posix-commands", rule, {
     valid: [passes(`import { spawnSync } from "node:child_process";\nspawnSync("lsof", []);`, at("apps/desk/src/main.test.ts"))],
     invalid: [],
   });
@@ -124,12 +122,13 @@ test("8.16 · storytree/posix-commands passes a command under a platform test (t
 test("8.16 · through pnpm lint's config, an unbranched lsof in a package's source is one storytree/posix-commands hit at its line naming lsof, escape_3d876fe9f3df, process.platform and the line disable, and // eslint-disable-next-line storytree/posix-commands -- <why> on the line before it leaves none", () => {
   const call = `export const holders = (port) => execFileSync("lsof", ["-i", ":" + port]);`;
 
-  const hits = ruleHits("packages/procs/src/scan.mjs", source(call));
+  const [hits] = oxlint.ruleHits([{ file: "packages/procs/src/scan.mjs", text: source(call) }]);
+  const [hatched] = oxlint.ruleHits([{ file: "packages/procs/src/scan.mjs", text: source(`// eslint-disable-next-line storytree/posix-commands -- only the Mint box runs it`, call) }]);
   assert.deepEqual(hits.map(({ line, rule: id }) => `${line} ${id}`), ["4 storytree/posix-commands"]);
   assert.match(hits[0].message, /\blsof\b/);
   assert.match(hits[0].message, /escape_3d876fe9f3df/);
   assert.match(hits[0].message, /process\.platform/);
   assert.match(hits[0].message, /\/\/ eslint-disable-next-line storytree\/posix-commands -- /);
 
-  assert.deepEqual(ruleHits("packages/procs/src/scan.mjs", source(`// eslint-disable-next-line storytree/posix-commands -- only the Mint box runs it`, call)), []);
+  assert.deepEqual(hatched, []);
 });

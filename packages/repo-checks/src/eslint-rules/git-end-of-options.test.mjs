@@ -2,8 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
 import plugin from "./index.mjs";
 
@@ -16,7 +15,7 @@ test("8.17 · storytree/git-end-of-options refuses a git call passing an input-b
   assert.match(rule?.meta?.messages?.unended ?? "", /js\/second-order-command-line-injection/);
   assert.match(rule.meta.messages.unended, /put ["'`]?--["'`]? before/, "names the fix: put -- before the argument");
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("git-end-of-options", rule, {
+  new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("git-end-of-options", rule, {
     valid: [
       String.raw`export const cloned = (url: string, dir: string) => execFileSync("git", ["clone", "--depth", "1", "--", url, dir]);`,
       String.raw`export const fetched = (remote: string) => spawn("git", ["fetch", "--end-of-options", remote]);`,

@@ -2,9 +2,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { Linter, RuleTester } from "eslint";
-import tseslint from "typescript-eslint";
+import { RuleTester } from "oxlint/plugins-dev";
 
+import * as oxlint from "../oxlint.mjs";
 import plugin from "./index.mjs";
 
 const rule = plugin.rules["write-names-place"];
@@ -15,7 +15,7 @@ test("8.25 · storytree/write-names-place refuses an argv array literal spelling
   assert.match(rule?.meta?.messages?.unplaced ?? "", /escape_d6cd4011df60/);
   assert.match(rule.meta.messages.unplaced, /ADR-1348 D3/);
 
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("write-names-place", rule, {
+  new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("write-names-place", rule, {
     valid: [
       String.raw`export const told = (storytree: (args: string[]) => string, fyi: Record<string, string>, x: string) => storytree(["fyi", "new", "--by", "watcher", "--project", x, ...Object.entries(fyi).flatMap(([f, t]) => ['--#{f}', t])]);`,
       String.raw`export const told = (run: (cmd: string, args: string[]) => string, t: string, a: string) => run("pnpm", ["-s", "storytree", "fyi", "new", "--title", t, "--arc", a]);`,
@@ -50,9 +50,9 @@ test("8.25 · storytree/write-names-place refuses an argv array literal spelling
     invalid: [refused(`export const parked = (t) => ["arc", "new", "--title", t];`)],
   });
 
-  const lint = (source) => new Linter().verify(source, [{ plugins: { storytree: plugin }, rules: { "storytree/write-names-place": "error" } }], { filename: "packages/b/src/b.mjs" });
+  const lint = (source) => oxlint.ruleHits([{ file: "packages/b/src/b.mjs", text: source }])[0].filter(({ rule: id }) => id === "storytree/write-names-place");
   const told = lint(code(String.raw`export const told = (t) => ["-s", "storytree", "fyi", "new", "--title", t];`));
-  assert.deepEqual(told.map(({ line, ruleId }) => [line, ruleId]), [[1, "storytree/write-names-place"]]);
+  assert.deepEqual(told.map(({ line, rule: id }) => [line, id]), [[1, "storytree/write-names-place"]]);
   assert.match(told[0].message, /fyi new/);
   assert.match(told[0].message, /escape_d6cd4011df60/);
   assert.match(told[0].message, /ADR-1348 D3/);
@@ -62,7 +62,7 @@ test("8.25 · storytree/write-names-place refuses an argv array literal spelling
 });
 
 test("8.25 · storytree/write-names-place reads past pnpm's own options before storytree: it refuses fyi new after \"--dir\" with a non-literal value and \"-s\" holding a spread of fields, arc new after \"-C\" with a non-literal value and \"--silent\", and arc new after \"exec\", each naming no place, the message naming fyi new and arc new for the first two; the same fyi new with \"--project\" and a library read after \"--dir\" and \"-s\" pass", () => {
-  new RuleTester({ languageOptions: { parser: tseslint.parser } }).run("write-names-place", rule, {
+  new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("write-names-place", rule, {
     valid: [
       String.raw`export const told = (run: (cmd: string, args: string[]) => string, repo: string, fields: string[], x: string) => run("pnpm", ["--dir", repo, "-s", "storytree", "fyi", "new", "--by", "watcher", "--project", x, ...fields]);`,
       String.raw`export const read = (run: (cmd: string, args: string[]) => string, repo: string, id: string) => run("pnpm", ["--dir", repo, "-s", "storytree", "library", "read", id]);`,
@@ -74,11 +74,11 @@ test("8.25 · storytree/write-names-place reads past pnpm's own options before s
     ],
   });
 
-  const lint = (source) => new Linter().verify(source, [{ plugins: { storytree: plugin }, rules: { "storytree/write-names-place": "error" } }], { filename: "packages/b/src/b.mjs" });
+  const lint = (source) => oxlint.ruleHits([{ file: "packages/b/src/b.mjs", text: source }])[0].filter(({ rule: id }) => id === "storytree/write-names-place");
   const planted = lint(`export const told = (run, repo, fields) => run("pnpm", ["--dir", repo, "-s", "storytree", "fyi", "new", "--by", "watcher", ...fields]);`);
-  assert.deepEqual(planted.map(({ line, ruleId }) => [line, ruleId]), [[1, "storytree/write-names-place"]]);
+  assert.deepEqual(planted.map(({ line, rule: id }) => [line, id]), [[1, "storytree/write-names-place"]]);
   assert.match(planted[0].message, /"storytree fyi new"/);
   const silent = lint(`export const parked = (run, repo, t) => run("pnpm", ["-C", repo, "--silent", "storytree", "arc", "new", "--title", t]);`);
-  assert.deepEqual(silent.map(({ ruleId }) => ruleId), ["storytree/write-names-place"]);
+  assert.deepEqual(silent.map(({ rule: id }) => id), ["storytree/write-names-place"]);
   assert.match(silent[0].message, /"storytree arc new"/);
 });

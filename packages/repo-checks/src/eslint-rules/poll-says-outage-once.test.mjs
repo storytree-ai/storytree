@@ -257,3 +257,81 @@ test("8.29 · storytree/poll-says-outage-once refuses a .then rejection handler 
   assert.deepEqual(hits.map(({ line }) => line), [8]);
   assert.match(hits[0].message, /escape_221a8ba4aaf6/);
 });
+
+const JOURNEY = "packages/app-setup/src/journey-events/runtime.ts";
+
+const journeyFlush = (...caught) => code(
+  "export function startJourney(journey: { flush(transport: unknown): Promise<void> } | undefined, options: { transport: unknown }) {",
+  "  async function flush(): Promise<void> {",
+  "    try {",
+  "      await journey?.flush(options.transport);",
+  "    } catch (error) {",
+  ...caught.map((line) => `      ${line}`),
+  "    }",
+  "  }",
+  "  const timer = setInterval(() => { void flush(); }, 30_000);",
+  "  return () => clearInterval(timer);",
+  "}",
+);
+
+const DERIVED = journeyFlush(
+  "const why = error instanceof Error ? error.message : String(error);",
+  "console.error(`journey: the queued events could not be sent: #{why}`);",
+);
+
+const CHAINED = journeyFlush(
+  "const a = error;",
+  "const b = (a as Error).message;",
+  "console.error(b);",
+);
+
+const UNRELATED = journeyFlush(
+  "const when = new Date().toISOString();",
+  "console.error(`journey: the queued events could not be sent at #{when}`);",
+);
+
+const DERIVED_ONCE = code(
+  "export async function flushOnce(journey: { flush(transport: unknown): Promise<void> } | undefined, options: { transport: unknown }): Promise<void> {",
+  "  try {",
+  "    await journey?.flush(options.transport);",
+  "  } catch (error) {",
+  "    const why = error instanceof Error ? error.message : String(error);",
+  "    console.error(`journey: the queued events could not be sent: #{why}`);",
+  "  }",
+  "}",
+  "export function keepTicking(tick: () => void) {",
+  "  setInterval(() => tick(), 1000);",
+  "}",
+);
+
+const DERIVED_HANDLER = code(
+  "export function watch(read: () => Promise<void>, log: { error(line: string): void }) {",
+  "  const poll = (): void => {",
+  "    read().catch((error: unknown) => {",
+  "      let why = String(error);",
+  "      log.error(`the reading failed: #{why}`);",
+  "    });",
+  "  };",
+  "  return setInterval(poll, 5000);",
+  "}",
+);
+
+test("8.29 · storytree/poll-says-outage-once refuses a console.error or <name>.error call in a setInterval poll whose argument uses a const or let derived from the caught error in the catch or rejection handler body (the drill_5b9807a7bc5a flush, a two-step chain, a let in a .catch handler), one report each at that call's line, which through pnpm lint's config is one hit at the drill's console.error line naming escape_221a8ba4aaf6; a const in the catch body not derived from the error, and the same derived log outside a poll, pass, none there too", () => {
+  new RuleTester({ cwd: process.cwd(), languageOptions: { parserOptions: { lang: "ts" } } }).run("poll-says-outage-once", rule, {
+    valid: [
+      passes(UNRELATED, at(JOURNEY)),
+      passes(DERIVED_ONCE, at(JOURNEY)),
+    ],
+    invalid: [
+      refused(7, DERIVED, at(JOURNEY)),
+      refused(8, CHAINED, at(JOURNEY)),
+      refused(5, DERIVED_HANDLER, at(JOURNEY)),
+    ],
+  });
+
+  const [inPoll, outsidePoll] = oxlint.ruleHits([DERIVED, DERIVED_ONCE].map((text) => ({ file: JOURNEY, text })))
+    .map((each) => each.filter(({ rule: id }) => id === "storytree/poll-says-outage-once"));
+  assert.deepEqual(inPoll.map(({ line }) => line), [7]);
+  assert.match(inPoll[0].message, /escape_221a8ba4aaf6/);
+  assert.deepEqual(outsidePoll, []);
+});

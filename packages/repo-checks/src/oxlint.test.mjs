@@ -1,7 +1,7 @@
 // Capability 8 · Storytree's own test and gate entries.
 import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -98,6 +98,31 @@ test("8.32 · when Oxlint does not finish its report, oxlintProblems fails with 
   const missing = await oxlintProblems(path.join(root, "missing"));
   assert.equal(missing.length, 1, missing.join("\n"));
   assert.match(missing[0], /^Oxlint did not finish \(spawnSync .+ ENOENT\): no output$/);
+});
+
+test("8.32 · a tree with no source file gives no problem from oxlintProblems, as from eslintProblems, and its one log line names 0 files and the peak memory in MB", async (t) => {
+  const root = checkout(t, { "docs/notes.md": lines("# Notes") });
+
+  const logged = [];
+  assert.deepEqual(await oxlintProblems(root, { log: (line) => logged.push(line) }), []);
+  assert.equal(logged.length, 1, logged.join("\n"));
+  assert.match(logged[0], /^oxlint /);
+  assert.match(logged[0], /\b0 files\b/);
+  assert.match(logged[0], PEAK);
+});
+
+const UNREADABLE_SKIP = process.platform === "win32" ? "posix-only: chmod cannot deny reading a file on Windows" : process.getuid?.() === 0 ? "posix-only: root reads a mode-000 file" : false;
+
+test("8.32 · a source file Oxlint cannot open, a diagnostic with no file name and no labels, is one problem holding Oxlint's own message, and oxlintProblems does not throw", { skip: UNREADABLE_SKIP }, async (t) => {
+  const root = checkout(t, { "packages/a/src/locked.mjs": lines("export const locked = 1;") });
+  const locked = path.join(root, "packages", "a", "src", "locked.mjs");
+  chmodSync(locked, 0o000);
+  t.after(() => chmodSync(locked, 0o600));
+
+  const problems = await oxlintProblems(root);
+  assert.equal(problems.length, 1, problems.join("\n"));
+  assert.match(problems[0], /Failed to open file .*locked\.mjs/);
+  assert.match(problems[0], /Permission denied/);
 });
 
 test("8.32 · pnpm lint's last rule is named oxlint and runs oxlintProblems; on a tree no rule breaks it gives no problem, lint exits 0, and its summary line naming 2 files and the peak memory in MB reaches lint's log", async (t) => {

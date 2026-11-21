@@ -423,12 +423,17 @@ export class HealthRecord {
       ...(unverified ? { unverified } : {}),
       ...(plan.anchor === undefined ? {} : { anchor: { ...plan.anchor } }),
       stories: plan.stories.map(({ edges: links, ...story }) => {
+        const contractsOf = new Map(story.capabilities.map((capability) => [capability.id, capability.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries, contract.proof, now) }))]));
+        const inside = nestedIn(story.capabilities);
         const capabilities = story.capabilities.map((capability) => {
-          const contracts = capability.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries, contract.proof, now) }));
+          const contracts = contractsOf.get(capability.id)!;
           const unclaimed = unclaimedOf(capability.id, entries);
           const own = counted(unclaimed);
-          const health = rolledUp(contracts.map((contract) => contract.health), own);
-          const verified = [...contracts.map((contract) => contract.health.verified.state), ...own];
+          const nested = [capability.id, ...(inside.get(capability.id) ?? [])];
+          const rolled = nested.flatMap((id) => contractsOf.get(id)!.map((contract) => contract.health));
+          const rolledOwn = nested.flatMap((id) => counted(unclaimedOf(id, entries)));
+          const health = rolledUp(rolled, rolledOwn);
+          const verified = [...rolled.map((contractHealth) => contractHealth.verified.state), ...rolledOwn];
           const proposed = capability.proposed && !(story.mapped !== undefined && verified.some((state) => state !== "not-checked"));
           const status = capabilityStatus(proposed, verified);
           const reportOnly = unverified && !capability.proposed;
@@ -631,6 +636,19 @@ function columnOf(record: SchemaRecord<"health"> | undefined): HealthColumn {
   if (record === undefined) return { state: "not-checked" };
   const { column: _column, ...entry } = entryOf(record.fields, record.updatedAt);
   return entry;
+}
+
+function nestedIn(capabilities: readonly { readonly id: string; readonly parent?: string }[]): Map<string, string[]> {
+  const parents = new Map(capabilities.flatMap(({ id, parent }) => (parent === undefined ? [] : [[id, parent] as const])));
+  const inside = new Map<string, string[]>();
+  for (const { id } of capabilities) {
+    const seen = new Set([id]);
+    for (let at = parents.get(id); at !== undefined && !seen.has(at); at = parents.get(at)) {
+      seen.add(at);
+      inside.set(at, [...(inside.get(at) ?? []), id]);
+    }
+  }
+  return inside;
 }
 
 function rolledUp(contracts: readonly NodeHealth[], own: readonly HealthState[] = []): NodeHealth {

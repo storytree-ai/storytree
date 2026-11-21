@@ -690,6 +690,27 @@ test("9.4 show_plan gives each capability's word, and for one not healthy its re
   });
 });
 
+test("9.45 show_plan lists each capability right after its parent's block, its line one step deeper than its parent's, a grandchild's deeper again", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { story, capability: form } = await planned(agent);
+      const reset = idOf(await agent.call("plan_capability", { story, title: "Password reset", ...FOUNDED }));
+      const confirm = (await library.addCapability({ title: "Confirmation link", story, parent: form }, { levels: ["packages/visitor-can-sign-up/src/email-form"] })).id;
+      const expiry = (await library.addCapability({ title: "Link expiry", story, parent: confirm }, { levels: ["packages/visitor-can-sign-up/src/email-form/confirm"] })).id;
+
+      const plan = await agent.call("show_plan");
+      const lines = plan.text.split("\n");
+      const shown = lines.flatMap((line) => {
+        const found = /^( *)Capability .*\((capability_[0-9a-f]{12})\):/.exec(line);
+        return found === null ? [] : [[found[1]!.length, found[2]!] as const];
+      });
+      assert.deepEqual(shown, [[2, form], [4, confirm], [6, expiry], [2, reset]], plan.text);
+      const at = (id: string) => lines.findIndex((line) => /^ *Capability /.test(line) && line.includes(`(${id})`));
+      assert.deepEqual([at(confirm), at(expiry)], [at(form) + 3, at(confirm) + 3], "each right after its parent's block: its line, its description and its shelf");
+    });
+  });
+});
+
 test("9.36 show_plan gives each capability's description and the decisions on its shelf, founding first, by title and id, and says when it has neither", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

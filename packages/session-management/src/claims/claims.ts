@@ -154,12 +154,27 @@ export async function claimRefusal(context: ClaimContext, id: string, reason?: s
 
 async function listingOf(context: ClaimContext, standing: Iterable<Claim>, part: Part): Promise<Claim | undefined> {
   if (part.capability === undefined) return undefined;
+  const nested = await nestedWith(context.library, part.capability);
   for (const claim of standing) {
-    if (claim.increment === undefined || claim.session === context.session || claim.holder !== "live" || takesOver(claim, context)) continue;
+    if (claim.session === context.session || claim.holder !== "live" || takesOver(claim, context)) continue;
+    if (claim.increment === undefined) {
+      if (claim.capability !== undefined && claim.capability !== part.capability && nested.has(claim.capability)) return claim;
+      continue;
+    }
     const listed = ((await context.library.get(claim.increment))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
-    if (listed.includes(part.capability)) return claim;
+    if (listed.some((id) => nested.has(id))) return claim;
   }
   return undefined;
+}
+
+async function nestedWith(library: Library, capability: string): Promise<Set<string>> {
+  const parents = new Map((await library.list("capability")).flatMap(({ id, fields }) => (fields.parent === undefined ? [] : [[id, fields.parent] as const])));
+  const above = (id: string): string[] => {
+    const chain: string[] = [];
+    for (let at = parents.get(id); at !== undefined && at !== id && !chain.includes(at); at = parents.get(at)) chain.push(at);
+    return chain;
+  };
+  return new Set([capability, ...above(capability), ...[...parents.keys()].filter((id) => above(id).includes(capability))]);
 }
 
 function takesOver(current: Claim, context: ClaimContext): boolean {

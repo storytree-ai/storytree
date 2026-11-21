@@ -442,3 +442,20 @@ test("4.54 a capability with no contracts of its own says how many sit on each o
   assert.match(said(gearless), /3 on its link from HTTP API \(5\.14, 5\.15, 5\.16\), 2 not run yet and 1 passed acceptance testing\./, "the agent's report says nothing; acceptance testing speaks where no gear does");
   assert.match(renderStoryPanel(story([{ ...inbound, contracts: [] }]), "caller"), /No contracts yet\./, "a link with no contracts leaves the part saying it has none");
 });
+
+test("4.56 the story panel lists only its top capabilities, and a capability's card lists by name the capabilities inside it, each opening that capability", () => {
+  const nested: StoryPanel = {
+    ...panel,
+    capabilities: [
+      { ...line("base", "passing", "healthy"), inside: ["next", "side"] },
+      { ...line("next", "failing"), parent: "base", inside: ["deep"] },
+      { ...line("side", "passing"), parent: "base" },
+      { ...line("deep", "passing"), parent: "next" },
+      line("other", "passing"),
+    ],
+  };
+  assert.deepEqual(names(renderStoryPanel(nested, undefined)), [["base", "The base"], ["other", "The other"]], "the story lists the capabilities with no parent");
+  assert.deepEqual(names(renderStoryPanel(nested, "base")), [["next", "The next"], ["side", "The side"]], "a parent's card lists those inside it");
+  assert.deepEqual(names(renderStoryPanel(nested, "next")), [["deep", "The deep"]], "a child's card lists its own");
+  assert.deepEqual(names(renderStoryPanel(nested, "deep")), [], "a capability with none inside lists none");
+});

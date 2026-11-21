@@ -594,6 +594,41 @@ test("5.75 · after A's claim is held for its pull request, the session still on
   });
 });
 
+test("5.76 a capability claim is refused, naming the holder, while another session holds its parent or any capability inside it, at any depth, directly or through a claimed increment that lists it; siblings under one parent do not block each other", async () => {
+  await withWorld(async ({ library, emailForm, as }) => {
+    const [story] = (await library.projectTree()).stories;
+    const behind = { levels: ["packages/signup/src/email-form"] };
+    const confirm = (await library.addCapability({ title: "Confirmation link", story: story!.id, parent: emailForm }, behind)).id;
+    const expiry = (await library.addCapability({ title: "Link expiry", story: story!.id, parent: confirm }, { levels: ["packages/signup/src/email-form/confirm"] })).id;
+    const hints = (await library.addCapability({ title: "Typo hints", story: story!.id, parent: emailForm }, behind)).id;
+    const holderSeen = async (id: string): Promise<string | undefined> => {
+      const answer = await claim(as("B"), id, "I need it");
+      return answer.ok ? undefined : answer.refused === "held" ? answer.holder.session : answer.refused;
+    };
+
+    assert.ok((await claim(as("A"), expiry, "expiring the link")).ok);
+    assert.deepEqual([await holderSeen(confirm), await holderSeen(emailForm)], ["A", "A"], "a grandchild held refuses its parent and its grandparent");
+    assert.equal(await holderSeen(hints), undefined, "a sibling of its parent is claimed");
+    await release(as("B"), hints);
+    await release(as("A"), expiry);
+
+    assert.ok((await claim(as("A"), emailForm, "the whole form")).ok);
+    assert.deepEqual([await holderSeen(expiry), await holderSeen(confirm), await holderSeen(hints)], ["A", "A", "A"], "a parent held refuses every capability inside it");
+    await release(as("A"), emailForm);
+
+    assert.ok((await claim(as("A"), confirm, "the confirmation link")).ok);
+    assert.equal(await holderSeen(hints), undefined, "siblings under one parent do not block each other");
+    await release(as("B"), hints);
+    await release(as("A"), confirm);
+
+    const { park } = await arcOf(library);
+    const driving = await park("confirmation link", [confirm]);
+    assert.ok((await claim(as("A"), driving, "driving the confirmation link")).ok);
+    assert.deepEqual([await holderSeen(emailForm), await holderSeen(expiry)], ["A", "A"], "held through a claimed increment that lists it, its parent and what is inside it are refused");
+    assert.equal(await holderSeen(hints), undefined, "and its sibling is claimed");
+  });
+});
+
 test("5.37 when a claim on an increment ends because its branch's pull request merged, that increment's pending plan changes are applied first, marked with the pull request and written by the session that saw the merge", async () => {
   await withWorld(async ({ log, library, project, emailForm, as }) => {
     const arc = await library.createArc({ title: "Sign-up", intent: "Ship sign-up", endState: "Visitors can sign up" });

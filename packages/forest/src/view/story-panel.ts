@@ -6,13 +6,13 @@ import { scopeSection } from "./microscope.js";
 export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { details = true, gate, open }: { details?: boolean; gate?: readonly [string, string] | undefined; open?: readonly string[] | undefined } = {}): string {
   if (gate !== undefined) return `${head(panel.title)}${gateLinks(panel, gate, open)}`;
   const shown = details ? panel.capabilities.find(({ id }) => id === selected) : undefined;
-  if (shown !== undefined) return `${head(shown.title, panel.title)}${panel.microscope === undefined ? "" : scopeSection(panel.microscope, shown.id, shown.id, "bare")}${capability(shown, panel.edges ?? [])}`;
+  if (shown !== undefined) return `${head(shown.title, panel.title)}${panel.microscope === undefined ? "" : scopeSection(panel.microscope, shown.id, shown.id, "bare")}${capability(shown, panel.edges ?? [], panel.capabilities)}`;
   return `${head(panel.title)}
     ${panel.microscope === undefined || !details ? "" : scopeSection(panel.microscope, panel.story, panel.story, "bare")}
     ${description(panel.description, "panel-sentences")}
     ${panel.mapped === undefined ? "" : mapped(panel.mapped, panel.capabilities)}
     ${needsYou(panel.capabilities)}
-    ${details ? names(panel.capabilities) : ""}
+    ${details ? names(panel.capabilities.filter(({ parent }) => parent === undefined)) : ""}
     ${panel.checks === undefined || panel.checks.length === 0 ? "" : extraChecks(panel.checks)}`;
 }
 
@@ -144,13 +144,14 @@ function run({ state, source, at }: CheckReading): string {
   return `storytree's run: ${state === "passing" ? "passes" : "fails"}${source === undefined ? "" : `, ${FROM[source]}`}${at === undefined ? "" : `, ${day(at)}`}`;
 }
 
-function capability(line: CapabilityLine, edges: readonly EdgeLine[]): string {
+function capability(line: CapabilityLine, edges: readonly EdgeLine[], all: readonly CapabilityLine[]): string {
   return `
     <section class="panel-detail" data-capability-id="${attribute(line.id)}">
       ${line.reportOnly ? "" : lead(line)}
       ${line.reportOnly ? `<p class="panel-why report-only">${text(NOT_VERIFIED)}.</p>` : ""}
       ${line.parkedOn === undefined ? "" : parked(line.parkedOn)}
       ${description(line.description, "panel-lead")}
+      ${names(all.filter(({ parent }) => parent === line.id))}
       ${line.openWork === undefined || line.openWork.length === 0 ? "" : openWork(line.openWork)}
       ${contracts(line, edges)}
     </section>`;

@@ -1,5 +1,5 @@
 // Capability 9 · Plan tools
-import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, STORE_LINK_DIRECTIONS, wordAndWhy, type AnnotatedTree, type StoreLink, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, STORE_LINK_DIRECTIONS, wordAndWhy, type AnnotatedTree, type StoreLink, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth, type SurveyedPart } from "@storytree/library";
 import { z } from "zod";
 
 import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange, libraryNamed } from "@storytree/library/commands";
@@ -8,7 +8,7 @@ import { oversizedSaid } from "@storytree/arc-surface/verbs";
 import { unimportedPackages, unimportedSentence } from "@storytree/app-setup/project";
 import { elsewhereSaid, type MapNode } from "@storytree/map";
 import { readMap } from "@storytree/map/read";
-import { drawsItself, storyTests, SURVEYED_LANGUAGES, testedNumbers as testedNumbersIn, untestedContracts } from "@storytree/map/code-survey";
+import { drawsItself, readCodeSurvey, storyTests, SURVEYED_LANGUAGES, testedNumbers as testedNumbersIn, untestedContracts } from "@storytree/map/code-survey";
 import { importsOf, machineOf, storytreeHome } from "@storytree/project-and-caller";
 import { readClaims } from "@storytree/session-management";
 import { readSessions } from "@storytree/session-management";
@@ -25,6 +25,7 @@ const audience = z
   .describe("The anchor's audience: who the project is for, named as a group they would recognise themselves in (ADR-1085 D1); only the project names one (ADR-1096)");
 const intent = z.string().min(1).describe("What the arc exists to deliver, in a sentence");
 const endState = z.string().min(1).describe("What closed looks like: the condition under which it is delivered");
+const parent = z.string().min(1).optional().describe("A capability's parent: the id of the capability of its story it sits inside, whose code holds a folder with its own entry file or a nested package for it");
 const id = (what: string) => z.string().min(1).describe(`The id of the ${what}, as the plan shows it`);
 const covers = z
   .array(z.string().min(1))
@@ -119,14 +120,16 @@ export function registerPlanTools(define: Define): void {
       title,
       description,
       depends_on: z.array(z.string().min(1)).optional().describe("The ids of capabilities it needs first"),
+      parent,
       covers,
       founding,
     }),
-    async ({ story, title: name, description: about, depends_on: dependsOn, covers: paths, founding: decision }, call) => {
+    async ({ story, title: name, description: about, depends_on: dependsOn, parent: inside, covers: paths, founding: decision }, call) => {
       const { library, writer } = call;
       const drawn = await drawnBy(call, story);
       if (drawn !== undefined) return { text: `Not planned: storytree draws ${drawn.said} capabilities from its code's imports, and the agent does not add, merge, split or redraw them. ${holdingSaid(drawn, paths ?? [])}`, refused: true };
-      const capability = await library.addCapability({ title: name, story, ...optional({ description: about, dependsOn, covers: paths }) }, { ...writer, pending: await heldPending(library, await claimsOf(call), call.caller.session) });
+      const levels = inside === undefined ? {} : { levels: await levelsBehind(call, story, inside) };
+      const capability = await library.addCapability({ title: name, story, ...optional({ description: about, dependsOn, parent: inside, covers: paths }) }, { ...writer, ...levels, pending: await heldPending(library, await claimsOf(call), call.caller.session) });
       const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: capability.id }, writer);
       return {
         text: `Planned capability ${quoted(name)} (${capability.id}), founded on ${quoted(decision.title)} (${book.id}). Plan its contracts, then claim it before you build it.`,
@@ -228,6 +231,7 @@ export function registerPlanTools(define: Define): void {
       capability: z.string().min(1).optional().describe("A contract's capability, to move it: with no title given, a contract whose number is another capability's takes this one's next free number"),
       edge: z.string().min(1).optional().describe("A contract's edge, to move it onto that link inside its story"),
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
+      parent,
       covers: covers.describe("The folders and files of a capability you mapped on code storytree cannot read, replacing them"),
       store_links: storeLinks,
       proved_by: provedBy.describe("A contract's existing tests that prove it, replacing them"),
@@ -318,6 +322,7 @@ interface Changes {
   capability?: string | undefined;
   edge?: string | undefined;
   depends_on?: string[] | undefined;
+  parent?: string | undefined;
   covers?: string[] | undefined;
   store_links?: StoreLink[] | undefined;
   proved_by?: string[] | undefined;
@@ -339,7 +344,7 @@ interface Changes {
 
 const EDITABLE = {
   story: ["title", "description"],
-  capability: ["title", "description", "story", "depends_on", "covers", "store_links"],
+  capability: ["title", "description", "story", "depends_on", "parent", "covers", "store_links"],
   contract: ["title", "description", "capability", "edge", "proved_by", "proof"],
   edge: ["description"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
@@ -376,9 +381,11 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   const listing = (fields as { capabilities?: string[] }).capabilities;
   const had = kind !== "increment" || listing === undefined ? [] : ((await library.get(target))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
   const move = kind === "contract" && changes.capability !== undefined && changes.title === undefined ? await movedNumber(target, changes.capability, call) : undefined;
-  const options = move === undefined ? writer : { ...writer, testedNumbers: move.tested };
+  const story = kind === "capability" && changes.parent !== undefined ? (changes.story ?? ((await library.get(target))?.fields as { story?: string } | undefined)?.story) : undefined;
+  const levels = story === undefined ? {} : { levels: await levelsBehind(call, story, changes.parent!) };
+  const options = move === undefined ? { ...writer, ...levels } : { ...writer, testedNumbers: move.tested };
   const leaves = kind === "contract" && changes.edge !== undefined ? ((await library.get(target))?.fields as { capability?: string } | undefined)?.capability : undefined;
-  const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live }, options);
+  const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live: live || story !== undefined }, options);
   if (done === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
   if ("held" in done) {
     const renumbers = move?.renumbers === true ? ` Its number ${move.from} is not its new capability's, so it takes that capability's next free number when the change applies: rename its tests' titles to that number then.` : "";
@@ -391,7 +398,15 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   const placed = kind === "contract" && to !== undefined && (changes.capability !== undefined || changes.edge !== undefined) ? placedSaid(await library.projectTree(), target, to) : "";
   const bare = await bareSaid(library, leaves, "plan_contract");
   const judged = storeLinks === undefined ? "" : ` It carries ${storeLinks.length} store ${storeLinks.length === 1 ? "link" : "links"}, drawn as judged on its stores' panels.`;
-  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}${bare}${judged}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
+  const nested = story === undefined ? "" : " Its parent went to the live plan at once, since the levels behind it were read from the code as it stands now.";
+  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}${bare}${judged}${nested}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
+}
+
+async function levelsBehind({ library, folder }: Call, story: string, parent: string): Promise<string[]> {
+  const tree = await library.projectTree();
+  const survey = await readCodeSurvey(folder, { ...tree, stories: tree.stories.filter(({ id }) => id === story) });
+  const folders = (parts: readonly SurveyedPart[]): string[] => parts.flatMap((part) => [part.folder, ...folders(part.parts)]);
+  return folders(survey[story]?.parts?.capabilities[parent] ?? []);
 }
 
 async function movedNumber(id: string, capability: string, call: Call): Promise<{ from?: string; renumbers: boolean; tested: string[] }> {
@@ -478,12 +493,14 @@ async function showPlan({ library, log, project, quietMs }: PlanReading, closed:
   type Story = AnnotatedTree["stories"][number];
   type Capability = Story["capabilities"][number];
   const storyLine = (story: Story) => `Story ${quoted(story.title)} (${story.id}): ${story.mapped === undefined ? healthOf(story.health) : "imported: here before storytree, and assumed to be working"}`;
-  const capabilityLine = (capability: Capability) => `  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${wordAndWhy(capability)}; ${heldBy(capability.id)}`;
-  const capabilityLines = (capability: Capability) => [
-    capabilityLine(capability),
-    capability.description === undefined ? "    No description yet: say what it is for with edit_plan." : `    About: ${capability.description.replace(/\s+/g, " ").trim()}`,
-    `    ${shelfSaid(capability.id, shelfOf.get(capability.id) ?? [])}`,
-    ...capability.contracts.map((contract) => `    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}; ${proofSaid(contract)}`),
+  const capabilityLine = (capability: Capability, depth = 0) => `${"  ".repeat(depth)}  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${wordAndWhy(capability)}; ${heldBy(capability.id)}`;
+  const capabilityLines = (capability: Capability, depth = 0) => [
+    capabilityLine(capability, depth),
+    ...[
+      capability.description === undefined ? "    No description yet: say what it is for with edit_plan." : `    About: ${capability.description.replace(/\s+/g, " ").trim()}`,
+      `    ${shelfSaid(capability.id, shelfOf.get(capability.id) ?? [])}`,
+      ...capability.contracts.map((contract) => `    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}; ${proofSaid(contract)}`),
+    ].map((line) => `${"  ".repeat(depth)}${line}`),
   ];
   const edgeLines = (story: Story, edges: Story["edges"]) => {
     const titleOf = new Map(story.capabilities.map((capability) => [capability.id, capability.title]));
@@ -492,7 +509,7 @@ async function showPlan({ library, log, project, quietMs }: PlanReading, closed:
       ...edge.contracts.map((contract) => `    Contract ${quoted(contract.title)} (${contract.id}): ${proofSaid(contract)}`),
     ]);
   };
-  const storyLines = (story: Story) => [storyLine(story), ...story.capabilities.flatMap(capabilityLines), ...edgeLines(story, story.edges)];
+  const storyLines = (story: Story) => [storyLine(story), ...nestedOrder(story.capabilities).flatMap(([capability, depth]) => capabilityLines(capability, depth)), ...edgeLines(story, story.edges)];
   const shelved = (story: Story, capabilities = story.capabilities) => ({ ...story, capabilities: capabilities.map((capability) => ({ ...capability, decisions: shelfOf.get(capability.id) ?? [] })) });
   const priorityOf = new Map(views.map((view) => [view.arc.id, view.arc.fields.priority]));
   const arcLine = (arc: (typeof tree.arcs)[number]) => {
@@ -661,6 +678,19 @@ async function testsElsewhere({ library, folder }: Call, capability: string, unt
   const graph = await readMap(library, folder);
   const ids = new Set(graph.edges.filter((edge) => edge.kind === "belongs-to" && edge.to === capability).map((edge) => edge.from));
   return Object.fromEntries(graph.nodes.filter((node) => ids.has(node.id) && untested.includes(node.title) && node.elsewhere !== undefined).map((node) => [node.title, node.elsewhere!]));
+}
+
+function nestedOrder<C extends { readonly id: string; readonly parent?: string }>(capabilities: readonly C[]): [C, number][] {
+  const ids = new Set(capabilities.map(({ id }) => id));
+  const placed = new Set<string>();
+  const below = (capability: C, depth: number): [C, number][] => {
+    if (placed.has(capability.id)) return [];
+    placed.add(capability.id);
+    return [[capability, depth], ...capabilities.filter((child) => child.parent === capability.id).flatMap((child) => below(child, depth + 1))];
+  };
+  const tops = capabilities.filter(({ parent }) => parent === undefined || !ids.has(parent));
+  const ordered = tops.flatMap((capability) => below(capability, 0));
+  return [...ordered, ...capabilities.filter(({ id }) => !placed.has(id)).map((capability): [C, number] => [capability, 0])];
 }
 
 function optional<T extends Record<string, unknown>>(fields: T): { [K in keyof T]: Exclude<T[K], undefined> } {

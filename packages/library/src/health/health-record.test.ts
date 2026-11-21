@@ -1235,6 +1235,55 @@ for (const backend of [memory, postgres]) {
     assert.ok(body.includes(third), "its evidence is the flake after the close");
     assert.ok(!body.includes(first) && !body.includes(second), "and no flake that predates the close");
   });
+
+  contract("5.35", "a parent capability's health in the annotated tree is the worst of its own contracts and every capability inside it, at any depth; a child's own health is not changed by its parent", async ({ health, work }) => {
+    const story = await work.addStory({ title: "Host keeps running" });
+    const watch = await work.addCapability({ title: "Watching the host", story: story.id });
+    const restart = await work.addCapability({ title: "Restarting it", story: story.id });
+    const backoff = await work.addCapability({ title: "Backing off", story: story.id });
+    const sees = await work.addContract({ title: "Sees the host stop", capability: watch.id });
+    const restarts = await work.addContract({ title: "Restarts it", capability: restart.id });
+    const waits = await work.addContract({ title: "Waits longer each time", capability: backoff.id });
+    for (const built of [watch, restart, backoff]) await work.setProposed(built.id, false);
+    const record = async (contractId: string, state: "passing" | "failing") => {
+      await health.reportHealth(contractId, state);
+      await health.recordVerified(contractId, state);
+    };
+    const parents = new Map([[restart.id, watch.id], [backoff.id, restart.id]]);
+    const read = async () => {
+      const flat = await work.projectTree();
+      const tree: ProjectTree = { ...flat, stories: flat.stories.map((each) => ({ ...each, capabilities: each.capabilities.map((node) => (parents.has(node.id) ? { ...node, parent: parents.get(node.id)! } : node)) })) };
+      const capabilities = (await health.annotate(tree)).stories[0]!.capabilities;
+      return [watch, restart, backoff].map(({ id }) => {
+        const found = capabilities.find((capability) => capability.id === id)!;
+        return { reported: found.health.reported.state, verified: found.health.verified.state, status: found.status };
+      });
+    };
+
+    await record(sees.id, "passing");
+    await record(restarts.id, "passing");
+    await record(waits.id, "failing");
+    assert.deepEqual(await read(), [
+      { reported: "failing", verified: "failing", status: "unhealthy" },
+      { reported: "failing", verified: "failing", status: "unhealthy" },
+      { reported: "failing", verified: "failing", status: "unhealthy" },
+    ], "a grandchild failing fails its parent and its grandparent, whose own contracts pass");
+
+    await record(waits.id, "passing");
+    await record(sees.id, "failing");
+    assert.deepEqual(await read(), [
+      { reported: "failing", verified: "failing", status: "unhealthy" },
+      { reported: "passing", verified: "passing", status: "healthy" },
+      { reported: "passing", verified: "passing", status: "healthy" },
+    ], "a parent's own contract failing leaves the capabilities inside it as their own contracts read");
+
+    await record(sees.id, "passing");
+    assert.deepEqual(await read(), [
+      { reported: "passing", verified: "passing", status: "healthy" },
+      { reported: "passing", verified: "passing", status: "healthy" },
+      { reported: "passing", verified: "passing", status: "healthy" },
+    ], "every contract passing, every capability healthy");
+  });
 }
 
 function onlyHealth(records: SchemaRecords): SchemaRecords {

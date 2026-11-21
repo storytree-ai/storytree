@@ -226,19 +226,52 @@ test("13.22 · decisionLinkBacklog and `adr backlog` count the old-shape decisio
   const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
   const log = await library.recordDecision({ status: "accepted", title: "Mail is logged", text: "Log it." });
   const hand = await library.recordDecision({ status: "accepted", title: "Mail by hand", text: "By hand." });
-  assert.deepEqual(await library.decisionLinkBacklog(), { links: 0, decisions: 0 }, "none before any old-shape link");
+  assert.deepEqual(await library.decisionLinkBacklog(), { links: 0, decisions: 0, targets: [] }, "none before any old-shape link");
 
   const old = await records.create("decision", { status: "accepted", title: "Retries", text: "Retry thrice.", links: [queue.id, log.id, story.id] });
   await records.create("decision", { status: "accepted", title: "Bounces", text: "Drop them.", supersedesClauses: [{ decision: hand.id, clauses: ["D1"] }] });
   await library.recordDecision({ status: "accepted", title: "Receipts", text: "Send them.", links: [queue.id], justifications: { [queue.id]: "Follow it for where receipts wait." } } as never);
 
-  assert.deepEqual(await library.decisionLinkBacklog(), { links: 3, decisions: 2 });
+  const targets = [
+    { number: queue.fields.number, title: "Mail by queue", links: 1 },
+    { number: log.fields.number, title: "Mail is logged", links: 1 },
+    { number: hand.fields.number, title: "Mail by hand", links: 1 },
+  ];
+  assert.deepEqual(await library.decisionLinkBacklog(), { links: 3, decisions: 2, targets });
   const answer = await verbOf("backlog").act({} as never, context, WORDS);
   assert.equal(answer.text, "3 old-shape decision links (no justification) across 2 decisions");
 
   await library.editNote(old.id, { text: "Retry twice." });
   assert.equal((await library.decision(old.id))?.record.fields.text, "Retry twice.", "the old shape is tolerated by a later edit");
-  assert.deepEqual(await library.decisionLinkBacklog(), { links: 3, decisions: 2 }, "and still counted");
+  assert.deepEqual(await library.decisionLinkBacklog(), { links: 3, decisions: 2, targets }, "and still counted");
+});
+
+test("13.25 · decisionLinkBacklog's targets and `adr backlog --by-target` list each decision old-shape links point at with its number, title and count, most links in first and ties by number, counting no justified link and no link to a story; the plain `adr backlog` keeps its two counts", async (t) => {
+  const { library, records, context, verbOf } = await adrWorld(t);
+  const story = await library.addStory({ title: "Mail" });
+  const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
+  const log = await library.recordDecision({ status: "accepted", title: "Mail is logged", text: "Log it." });
+  const hand = await library.recordDecision({ status: "accepted", title: "Mail by hand", text: "By hand." });
+  assert.deepEqual((await library.decisionLinkBacklog()).targets, [], "no targets before any old-shape link");
+
+  await records.create("decision", { status: "accepted", title: "Retries", text: "Retry thrice.", links: [queue.id, log.id, story.id] });
+  await records.create("decision", { status: "accepted", title: "Resends", text: "Resend once.", links: [log.id, hand.id] });
+  await library.recordDecision({ status: "accepted", title: "Receipts", text: "Send them.", links: [hand.id], justifications: { [hand.id]: "Follow it for who sends receipts." } } as never);
+
+  assert.deepEqual(await library.decisionLinkBacklog(), {
+    links: 4,
+    decisions: 2,
+    targets: [
+      { number: log.fields.number, title: "Mail is logged", links: 2 },
+      { number: queue.fields.number, title: "Mail by queue", links: 1 },
+      { number: hand.fields.number, title: "Mail by hand", links: 1 },
+    ],
+  });
+  assert.equal((await verbOf("backlog").act({ "by-target": false } as never, context, WORDS)).text, "4 old-shape decision links (no justification) across 2 decisions");
+  assert.equal(
+    (await verbOf("backlog").act({ "by-target": true } as never, context, WORDS)).text,
+    [`${adrOf(log)}  Mail is logged  2 old-shape links in`, `${adrOf(queue)}  Mail by queue  1 old-shape link in`, `${adrOf(hand)}  Mail by hand  1 old-shape link in`].join("\n"),
+  );
 });
 
 test("13.23 · `adr prune` archives a decision link with who, when and why and its justification, so links, `library links` and the backlog no longer show it, `adr pruned` lists it, and `adr restore` puts it back with its justification, or --why for one that had none; a prune with no reason or no such link is refused", async (t) => {
@@ -247,7 +280,7 @@ test("13.23 · `adr prune` archives a decision link with who, when and why and i
   const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
   const linking = await library.recordDecision({ status: "accepted", title: "Retries are twice", text: "Retry twice.", links: [queue.id], justifications: { [queue.id]: "Follow it for where a retry waits." } } as never);
   const old = await records.create("decision", { status: "accepted", title: "Bounces", text: "Drop them.", links: [queue.id] });
-  assert.deepEqual(await library.decisionLinkBacklog(), { links: 1, decisions: 1 });
+  assert.deepEqual(await library.decisionLinkBacklog(), { links: 1, decisions: 1, targets: [{ number: queue.fields.number, title: "Mail by queue", links: 1 }] });
 
   const { cursor } = await library.changesSince(0);
   await assert.rejects(verbOf("prune").act({ decision: linking.id, target: queue.id, reason: undefined } as never, context, WORDS), VerbRefusal, "no reason");
@@ -263,7 +296,7 @@ test("13.23 · `adr prune` archives a decision link with who, when and why and i
   const at = Date.parse(pruned.archivedLinks![0]!.at);
   assert.ok(at >= before - 1000 && at <= Date.now() + 1000, `archived at the time of the prune: ${pruned.archivedLinks![0]!.at}`);
   assert.equal((await links.act({ artifact: queue.id }, context as never, WORDS)).text, `No artifact links to ${queue.id}.`, "an archived link is not followed");
-  assert.deepEqual(await library.decisionLinkBacklog(), { links: 0, decisions: 0 }, "nor counted as an old-shape link");
+  assert.deepEqual(await library.decisionLinkBacklog(), { links: 0, decisions: 0, targets: [] }, "nor counted as an old-shape link");
 
   const listed = (await verbOf("pruned").act({ decision: undefined } as never, context, WORDS)).text;
   for (const [from, reason] of [[linking.id, "The queue rule moved."], [old.id, "Bounces never queue."]] as const) {

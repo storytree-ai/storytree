@@ -385,7 +385,7 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   const levels = story === undefined ? {} : { levels: await levelsBehind(call, story, changes.parent!) };
   const options = move === undefined ? { ...writer, ...levels } : { ...writer, testedNumbers: move.tested };
   const leaves = kind === "contract" && changes.edge !== undefined ? ((await library.get(target))?.fields as { capability?: string } | undefined)?.capability : undefined;
-  const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live }, options);
+  const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live: live || story !== undefined }, options);
   if (done === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
   if ("held" in done) {
     const renumbers = move?.renumbers === true ? ` Its number ${move.from} is not its new capability's, so it takes that capability's next free number when the change applies: rename its tests' titles to that number then.` : "";
@@ -398,7 +398,8 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   const placed = kind === "contract" && to !== undefined && (changes.capability !== undefined || changes.edge !== undefined) ? placedSaid(await library.projectTree(), target, to) : "";
   const bare = await bareSaid(library, leaves, "plan_contract");
   const judged = storeLinks === undefined ? "" : ` It carries ${storeLinks.length} store ${storeLinks.length === 1 ? "link" : "links"}, drawn as judged on its stores' panels.`;
-  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}${bare}${judged}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
+  const nested = story === undefined ? "" : " Its parent went to the live plan at once, since the levels behind it were read from the code as it stands now.";
+  return { text: [`Corrected ${kind} ${quoted(title)} (${target})${placed === "" ? "." : `: ${placed}`}${renumbered}${bare}${judged}${nested}`, ...shared.map((other) => `${listedNotice(other)}.`)].join("\n"), data: { id: target } };
 }
 
 async function levelsBehind({ library, folder }: Call, story: string, parent: string): Promise<string[]> {

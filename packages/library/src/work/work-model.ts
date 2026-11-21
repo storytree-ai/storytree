@@ -332,6 +332,7 @@ export class WorkModel {
       await checkReference(this.#records, "story", fields.story, "story");
       await checkReferences(this.#records, "dependsOn", fields.dependsOn, "capability");
       if (Array.isArray(fields.dependsOn)) await this.#refuseLoop(id, fields.dependsOn);
+      if (fields.story !== undefined && fields.story !== stored.fields.story) await this.#refuseNestedMove(stored, "parent" in fields);
       if (fields.title !== undefined || fields.story !== undefined) await this.#refuseTakenCapabilityNumber(fields.title ?? stored.fields.title, fields.story ?? stored.fields.story, id);
       if (fields.parent !== undefined) await this.#refuseParent(fields.parent, fields.story ?? stored.fields.story, id, options?.levels);
       let edit: CapabilityEdit = fields;
@@ -590,6 +591,13 @@ export class WorkModel {
       if (at === self) refuse(`${named!.id} is ${self} itself or a capability inside it: a capability cannot sit inside itself`);
     }
     if (levels === undefined || levels.length === 0) refuse(`${named!.id} has no folder with its own entry file (index.ts, index.js or __init__.py) or nested package behind it: a capability sits inside another only where its code has such a level`);
+  }
+
+  async #refuseNestedMove(stored: SchemaRecord<"capability">, parentGiven: boolean): Promise<void> {
+    const refuse = (problem: string): never => { throw new SchemaError("capability", [{ field: "parent", problem }]); };
+    if (!parentGiven && stored.fields.parent !== undefined) refuse(`${stored.id} sits inside ${stored.fields.parent} of its story: clear its parent before moving it to another story`);
+    const inside = (await this.#records.list("capability")).filter((capability) => capability.fields.parent === stored.id).map(({ id }) => id);
+    if (inside.length > 0) refuse(`${inside.join(", ")} ${inside.length === 1 ? "sits" : "sit"} inside ${stored.id}: move or clear ${inside.length === 1 ? "it" : "them"} before moving it to another story`);
   }
 
   async #refuseTakenCapabilityNumber(title: unknown, story: unknown, self?: string, pending: readonly PendingPlanChange[] = []): Promise<void> {

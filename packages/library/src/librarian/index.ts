@@ -1,4 +1,4 @@
-// Capability 26 · Rounds. @storytree/library/librarian: The library's curation tooling, the worklist and the operations the
+// Capability 35 · The librarian. @storytree/library/librarian: The library's curation tooling, the worklist and the operations the
 export { brokenEdges, link, relatedUnlinked, unrestedDecisions } from "./links/index.js";
 export type { BrokenEdge } from "./links/index.js";
 export { annotate, correct, supersede } from "../decisions/index.js";

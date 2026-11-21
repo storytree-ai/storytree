@@ -1,4 +1,4 @@
-// Capability 13 · Decision log
+// Capability 31 · Decisions
 export { checkClauseSupersession, checkFrontCover, decisionEdgeTargets, DecisionLog, justifiedEdit, partlySupersedes, prunedEdit, restoredEdit, withClauses } from "./decision-log.js";
 export type { ArchivedDecisionLink, ArchivedLink, ClauseSupersession, DecisionLinkBacklog, DecisionNumberPlan, DecisionStatus, DecisionView, NarrowsMove, NewDecision, SupersessionPair, SupersessionPairs } from "./decision-log.js";
 export { annotate, correct } from "./corrections.js";

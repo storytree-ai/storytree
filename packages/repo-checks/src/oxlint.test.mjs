@@ -117,9 +117,12 @@ test("8.32 · a source file Oxlint cannot open, a diagnostic with no file name a
   const root = checkout(t, { "packages/a/src/locked.mjs": lines("export const locked = 1;") });
   const locked = path.join(root, "packages", "a", "src", "locked.mjs");
   chmodSync(locked, 0o000);
-  t.after(() => chmodSync(locked, 0o600));
-
-  const problems = await oxlintProblems(root);
+  let problems;
+  try {
+    problems = await oxlintProblems(root);
+  } finally {
+    chmodSync(locked, 0o600);
+  }
   assert.equal(problems.length, 1, problems.join("\n"));
   assert.match(problems[0], /Failed to open file .*locked\.mjs/);
   assert.match(problems[0], /Permission denied/);

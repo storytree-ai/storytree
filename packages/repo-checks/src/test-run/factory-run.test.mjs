@@ -180,6 +180,49 @@ test("7.10 · a factory run that finds no story whose plugin folder is in the fa
   });
 });
 
+test("7.20 · a factory run names each story whose own plugin field names a plugin the factory has no plugins/<plugin>/package.json for, and records the rest without failing for it; a story with no plugin field whose package is no plugin folder is not named", async (t) => {
+  const factory = mkdtempSync(path.join(tmpdir(), "factory-gone-"));
+  t.after(() => removeTemp(factory));
+  const write = (file, lines) => {
+    mkdirSync(path.dirname(path.join(factory, file)), { recursive: true });
+    writeFileSync(path.join(factory, file), lines.join("\n"));
+  };
+  mkdirSync(path.join(factory, "node_modules"));
+  symlinkSync(tsx, path.join(factory, "node_modules", "tsx"), "junction");
+  write("scripts/test.mjs", [
+    'import { spawnSync } from "node:child_process";',
+    'import { readdirSync } from "node:fs";',
+    'import path from "node:path";',
+    "const files = process.argv.slice(2).flatMap((dir) => readdirSync(dir, { recursive: true }).map(String).filter((f) => f.endsWith('.test.mjs')).map((f) => path.join(dir, f)));",
+    "process.exitCode = spawnSync(process.execPath, ['--test', ...files], { stdio: 'inherit' }).status ?? 1;",
+  ]);
+  write("plugins/a/package.json", ['{ "name": "a" }']);
+  write("plugins/a/src/pour.test.mjs", ['import { test } from "node:test";', 'test("1.1 it pours", () => {});']);
+  execFileSync("git", ["init", "-q"], { cwd: factory });
+  execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "factory"], { cwd: factory });
+
+  await withLibrary(async (lib) => {
+    await lib.importPluginPlan("a", { story: { title: "Pour the tea" }, capabilities: [{ title: "1 · Pouring", contracts: [{ title: "1.1 · It pours" }] }] });
+    await lib.importPluginPlan("gone", { story: { title: "Ring the bell" }, capabilities: [] });
+    await lib.addStory({ title: "The teacup" });
+    const { stories } = await lib.projectTree();
+    const lines = [];
+    const runs = [];
+    const code = await recordFactory(lib, stories, factory, {
+      log: (line) => lines.push(line),
+      error: (line) => lines.push(line),
+      runTests: (folder) => (runs.push(folder), runFactoryTests(factory, folder, process.env)),
+    });
+
+    assert.equal(code, 0, "the recorded plugin passed, so the missing one fails nothing");
+    assert.deepEqual(runs, ["plugins/a"], "only the plugin the factory holds is run");
+    const { contractIds } = contractsOf(stories.find(({ title }) => title === "Pour the tea"));
+    assert.equal((await lib.health(contractIds.get("1.1"))).verified.state, "passing", "the rest is recorded");
+    assert.ok(lines.some((line) => line.includes("Ring the bell") && line.includes("plugins/gone")), `a line names the story and its missing folder: ${JSON.stringify(lines)}`);
+    assert.deepEqual(lines.filter((line) => /teacup/i.test(line)), [], "a story with no plugin field is named by no line");
+  });
+});
+
 async function withLibrary(body) {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run these tests through `pnpm test`, which starts a local Postgres");

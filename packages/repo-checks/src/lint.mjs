@@ -3,24 +3,26 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { allocationProblems } from "./allocation.mjs";
 import { eslintProblems } from "./eslint.mjs";
+import { oxlintProblems } from "./oxlint.mjs";
 import { boundaryProblems } from "./package-boundaries.mjs";
 import { processMatchProblems } from "./process-match.mjs";
 import { typeImportProblems } from "./type-imports.mjs";
 import { workflowEnvProblems } from "./workflow-env.mjs";
 
 export const RULES = [
-  { name: "type-imports", problems: typeImportProblems },
+  { name: "type-imports", problems: (root) => typeImportProblems(root) },
   { name: "package-boundaries", problems: boundaryProblems },
   { name: "allocation", problems: allocationProblems },
   { name: "process-match", problems: processMatchProblems },
   { name: "workflow-env", problems: workflowEnvProblems },
   { name: "eslint", problems: eslintProblems },
+  { name: "oxlint", problems: oxlintProblems },
 ];
 
 export async function lint({ root, rules = RULES, log = console.log }) {
   let count = 0;
   for (const rule of rules) {
-    for (const problem of await rule.problems(root)) {
+    for (const problem of await rule.problems(root, { log })) {
       log(`${rule.name}: ${problem}`);
       count += 1;
     }

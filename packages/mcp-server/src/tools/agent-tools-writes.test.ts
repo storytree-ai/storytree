@@ -1021,6 +1021,39 @@ test("9.45 edit_plan's parent for a capability planned before the increment the 
   });
 });
 
+test("9.46 edit_plan clears a capability's parent with parent \"none\" in the live plan while the session holds an increment on a branch, and show_plan lists it unindented as a top capability", async () => {
+  await withProject(async ({ folder, library }) => {
+    git(folder, "init", "-b", "claude/cart-lines");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shop", ...FOUNDED }));
+      const arc = idOf(await agent.call("plan_arc", { title: "Launch the shop", intent: "Sell", end_state: "Shoppers buy", stories: [story] }));
+      const claims = idOf(await agent.call("plan_capability", { story, title: "Claims", ...FOUNDED }));
+      const receipts = idOf(await agent.call("plan_capability", { story, title: "Receipts", ...FOUNDED }));
+      const src = path.join(folder, "packages/shop/src");
+      mkdirSync(path.join(src, "cart"), { recursive: true });
+      writeFileSync(path.join(folder, "packages/shop/package.json"), JSON.stringify({ name: "@x/shop", type: "module" }));
+      writeFileSync(path.join(src, "cart/index.ts"), "export const add = () => 1;\n");
+      writeFileSync(path.join(src, "claims.test.ts"), 'import { add } from "./cart/index.js";\ntest("1.1 a claim holds", () => add());\n');
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Cart lines", objective: "Unnest receipts", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "driving the cart lines" })).isError, false);
+      assert.equal((await agent.call("edit_plan", { id: receipts, parent: claims })).isError, false);
+      const node = async () => (await library.projectTree()).stories[0]!.capabilities.find(({ id }) => id === receipts)!;
+      assert.equal((await node()).parent, claims, "nested first");
+
+      const cleared = await agent.call("edit_plan", { id: receipts, parent: "none" });
+      assert.equal(cleared.isError, false, cleared.text);
+      assert.equal("parent" in (await node()), false, "the live plan's capability has no parent");
+      assert.equal("parent" in (((await library.get(receipts))?.fields ?? {}) as object), false, "its stored parent is gone");
+
+      const shown = (await agent.call("show_plan")).text.split("\n").flatMap((line) => {
+        const found = /^( *)Capability .*\((capability_[0-9a-f]{12})\):/.exec(line);
+        return found === null ? [] : [[found[1]!.length, found[2]!] as const];
+      });
+      assert.deepEqual(shown, [[2, claims], [2, receipts]], "both listed as top capabilities of the story");
+    });
+  });
+});
+
 test("9.8 edit_plan sets and clears an arc's priority, refusing anything but a whole number of 1 or more or \"none\" with nothing written, and show_plan lists arcs by it, 1 first (ADR-0963)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

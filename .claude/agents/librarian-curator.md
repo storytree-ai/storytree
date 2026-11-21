@@ -42,6 +42,5 @@ It does not author stories, capabilities or contracts (story-author does), and i
 
 **Stands on:** notes in the library; find one by its title with the MCP server's `search_notes`.
 - **Required reading:** Pre-merge librarian pass · Pull-based context architecture · Signal and noise · Friction adjudication · Prune and regrow a batch of decision links
-
 - **Rules:** Accepted decisions carry no stale prose · A compliance gate turns a judgment ceremony into theatre · A decision that blinds an instrument escalates inline · Edit-first curation · Two-consumer extraction · Reference, don't restate · When a term is in question, the definition note wins · Implementation outranks the doc · The authoritative source beats the derived one · Guidance quality: structure over emphasis · Pair the fence with the affordance · An example carries its discriminator · Citing a document is not reading it · An awaited notification is never a turn-ending state · Friction earns durable guidance by supporting evidence, not by being reported
 - **Refuse:** The library is the edit surface · Escalate up when blocked or out of scope

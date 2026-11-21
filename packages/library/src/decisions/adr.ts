@@ -275,11 +275,14 @@ const pairs = verb({
 });
 
 const backlog = verb({
-  command: { family: "adr", name: "backlog", summary: "count the old-shape decision links, stored with no justification, and the decisions holding them (ADR-1379 D2)", usage: "adr backlog" },
+  command: { family: "adr", name: "backlog", summary: "count the old-shape decision links, stored with no justification, and the decisions holding them (ADR-1379 D2)", usage: "adr backlog [--by-target]" },
   tool: { absent: NO_TOOL },
-  inputs: {},
-  async act(_inputs, context: VerbContext) {
-    const { links, decisions } = await context.library.decisionLinkBacklog();
+  inputs: {
+    "by-target": { kind: "switch", describe: "list each decision old-shape links point at, most links in first" },
+  },
+  async act(input, context: VerbContext) {
+    const { links, decisions, targets } = await context.library.decisionLinkBacklog();
+    if (input["by-target"]) return { text: targets.map((target) => `${adr(target.number)}  ${target.title}  ${target.links} old-shape ${target.links === 1 ? "link" : "links"} in`).join("\n") };
     return { text: `${links} old-shape decision ${links === 1 ? "link" : "links"} (no justification) across ${decisions} ${decisions === 1 ? "decision" : "decisions"}` };
   },
 });

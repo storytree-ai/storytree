@@ -65,9 +65,16 @@ export interface ArchivedDecisionLink extends ArchivedLink {
   readonly from: string;
 }
 
+export interface DecisionLinkTarget {
+  readonly number: number | undefined;
+  readonly title: string;
+  readonly links: number;
+}
+
 export interface DecisionLinkBacklog {
   readonly links: number;
   readonly decisions: number;
+  readonly targets: readonly DecisionLinkTarget[];
 }
 
 const EDGE_FIELDS = ["links", "supersedes", "supersedesClauses", "narrows", "justifications"];
@@ -405,13 +412,19 @@ export class DecisionLog {
     const live = new Set(all.map((record) => record.id));
     let links = 0;
     let decisions = 0;
+    const into = new Map<string, number>();
     for (const record of all) {
       const justified = record.fields.justifications ?? {};
-      const old = decisionEdgeTargets(record.fields).filter((target) => live.has(target) && justified[target] === undefined).length;
-      links += old;
-      if (old > 0) decisions += 1;
+      const old = decisionEdgeTargets(record.fields).filter((target) => live.has(target) && justified[target] === undefined);
+      links += old.length;
+      if (old.length > 0) decisions += 1;
+      for (const target of old) into.set(target, (into.get(target) ?? 0) + 1);
     }
-    return { links, decisions };
+    const targets = all
+      .filter((record) => into.has(record.id))
+      .map((record) => ({ number: record.fields.number, title: record.fields.title, links: into.get(record.id) ?? 0 }))
+      .sort((a, b) => b.links - a.links || (a.number ?? Infinity) - (b.number ?? Infinity));
+    return { links, decisions, targets };
   }
 
   async archivedLinks(from?: string): Promise<ArchivedDecisionLink[]> {

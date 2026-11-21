@@ -950,6 +950,47 @@ test("9.44 edit_plan takes an increment's remedies, replacing those it had, and 
   });
 });
 
+test("9.45 plan_capability and edit_plan take a parent whose code, read from the project's code survey, has a folder with its own entry file, and refuse one whose code has none, naming the rule, with nothing written", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shop", ...FOUNDED }));
+      const claims = idOf(await agent.call("plan_capability", { story, title: "Claims", ...FOUNDED }));
+      const pricing = idOf(await agent.call("plan_capability", { story, title: "Pricing", ...FOUNDED }));
+      const receipts = idOf(await agent.call("plan_capability", { story, title: "Receipts", ...FOUNDED }));
+      const src = path.join(folder, "packages/shop/src");
+      mkdirSync(path.join(src, "cart"), { recursive: true });
+      writeFileSync(path.join(folder, "packages/shop/package.json"), JSON.stringify({ name: "@x/shop", type: "module" }));
+      writeFileSync(path.join(src, "cart/index.ts"), "export const add = () => 1;\n");
+      writeFileSync(path.join(src, "price.ts"), "export const price = () => 2;\n");
+      writeFileSync(path.join(src, "claims.test.ts"), 'import { add } from "./cart/index.js";\ntest("1.1 a claim holds", () => add());\n');
+      writeFileSync(path.join(src, "pricing.test.ts"), 'import { price } from "./price.js";\ntest("2.1 a price holds", () => price());\n');
+      const parentOf = async (id: string) => ((await library.get(id))?.fields as { parent?: string } | undefined)?.parent;
+      const count = async () => (await library.projectTree()).stories[0]!.capabilities.length;
+
+      const child = await agent.call("plan_capability", { story, title: "Cart lines", parent: claims, ...FOUNDED });
+      assert.equal(child.isError, false, child.text);
+      assert.equal(await parentOf(idOf(child)), claims, "planned under a parent whose code has src/cart with its own index.ts");
+      const moved = await agent.call("edit_plan", { id: receipts, parent: claims });
+      assert.equal(moved.isError, false, moved.text);
+      assert.equal(await parentOf(receipts), claims, "corrected to sit under it");
+
+      const planned = await count();
+      const history = await library.history({ id: receipts });
+      for (const refused of [
+        await agent.call("plan_capability", { story, title: "Discounts", parent: pricing, ...FOUNDED }),
+        await agent.call("edit_plan", { id: receipts, parent: pricing }),
+      ]) {
+        assert.equal(refused.isError, true, refused.text);
+        assert.ok(refused.text.includes(pricing), `the refusal names the parent: ${refused.text}`);
+        assert.match(refused.text, /entry file/, "and the rule: a folder with its own entry file");
+        assert.match(refused.text, /nested package/, "or a nested package");
+      }
+      assert.equal(await count(), planned, "no capability was planned");
+      assert.deepEqual(await library.history({ id: receipts }), history, "nor the correction written");
+    });
+  });
+});
+
 test("9.8 edit_plan sets and clears an arc's priority, refusing anything but a whole number of 1 or more or \"none\" with nothing written, and show_plan lists arcs by it, 1 first (ADR-0963)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

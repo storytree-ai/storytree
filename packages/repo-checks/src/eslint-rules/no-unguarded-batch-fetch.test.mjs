@@ -10,7 +10,7 @@ const rule = plugin.rules["no-unguarded-batch-fetch"];
 const code = (...lines) => lines.join("\n").replaceAll("#", "$").replaceAll("'", "`");
 const refused = (line, ...lines) => ({ code: code(...lines), errors: [{ messageId: "unguarded", line }] });
 
-test("8.24 · storytree/no-unguarded-batch-fetch refuses an await of a job-log, artifacts or single pull request (pulls/<n> or a subroute) fetch that no try around it or .catch on it handles, inside Promise.all(list.map(async ...)) or the body of a for-of loop, called directly (read-ci's and harvest's pre-fix shapes, an artifacts list, drill_be1101ed1ad4's unjudgedPulls plant) or through a same-file function or const arrow whose own body awaits one unguarded (watch.mjs's jobLog), a try in the callback that does not enclose the await, and a try around the whole for-of loop; its message names escape_9d756d18be61; a try/catch around it, a .catch on it, a try inside the for-of body, a helper that catches, a runs/<id>/jobs fetch, a pulls?state=open list and a counted for (let page ...) paging loop over pulls/<n>/files pass", () => {
+test("8.24 · storytree/no-unguarded-batch-fetch refuses an await of a job-log, artifacts or single pull request (pulls/<n> or a subroute) fetch that no try around it or .catch on it handles, inside Promise.all(list.map(async ...)) or the body of a for-of loop, called directly (read-ci's and harvest's pre-fix shapes, an artifacts list, drill_be1101ed1ad4's unjudgedPulls plant) or through a same-file function or const arrow whose own body awaits one unguarded (watch.mjs's jobLog), a try in the callback that does not enclose the await, and a try around the whole for-of loop, reported once when that loop is nested in another for-of; its message names escape_9d756d18be61; a try/catch around it, a .catch on it, a try inside the for-of body, a helper that catches, a runs/<id>/jobs fetch, a pulls?state=open list and a counted for (let page ...) paging loop over pulls/<n>/files pass", () => {
   assert.match(rule?.meta?.messages?.unguarded ?? "", /escape_9d756d18be61/);
 
   new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("no-unguarded-batch-fetch", rule, {
@@ -179,6 +179,18 @@ test("8.24 · storytree/no-unguarded-batch-fetch refuses an await of a job-log, 
         "  const titles: string[] = [];",
         "  for (const pr of prs) {",
         "    titles.push((await pullOf(github, repository, pr)).title);",
+        "  }",
+        "  return titles;",
+        "}",
+      ),
+      refused(5,
+        "export async function titles(github: GitHub, repositories: { name: string; prs: number[] }[]) {",
+        "  const titles: string[] = [];",
+        "  for (const { name, prs } of repositories) {",
+        "    for (const pr of prs) {",
+        "      const { title } = (await github.json('repos/#{name}/pulls/#{pr}')) as { title: string };",
+        "      titles.push(title);",
+        "    }",
         "  }",
         "  return titles;",
         "}",

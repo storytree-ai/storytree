@@ -3,7 +3,7 @@ import type { KnowledgeKind, Library, NewLine, Note, NoteEdit, PhraseKind, Schem
 import { isPluginKind } from "../schema/index.js";
 import { ARTIFACT_KINDS, KNOWLEDGE_KINDS, WRITTEN_KINDS } from "../knowledge/index.js";
 import { verb, VerbRefusal, type VerbAnswer, type VerbContext, type Verb, type VerbInputs } from "../verbs/verb.js";
-import { everyHolding, holdingLines, justificationSaid, wholeRecord, type HeldClaim } from "./index.js";
+import { everyHolding, holdingLines, justificationSaid, supersededLines, wholeRecord, type HeldClaim } from "./index.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
 import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
@@ -30,6 +30,8 @@ export interface NoteToolContext extends VerbContext {
 }
 
 type Findable = Note | SchemaRecord<"story" | "capability" | "contract" | "arc" | "increment">;
+type Linking = Findable | SchemaRecord<"question">;
+const NOTE_KINDS: readonly string[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
 type CapabilityNode = Awaited<ReturnType<Library["projectTree"]>>["stories"][number]["capabilities"][number];
 type ContractNode = CapabilityNode["contracts"][number];
 type EdgeNode = NonNullable<Awaited<ReturnType<Library["projectTree"]>>["stories"][number]["edges"]>[number];
@@ -206,12 +208,12 @@ async function openRecord(id: string, context: NoteToolContext): Promise<VerbAns
   }
   const found = await howFound(context, id);
   const linksTo = (note.fields.links ?? []).flatMap((target) => notes.filter((candidate) => candidate.id === target));
-  const linkedFrom = await library.relatedNotes(id);
+  const linkedFrom = (await library.linkingIn(id)) as Linking[];
   await context.recordReads([
     { note: id, found, read: "whole" },
-    ...[...linksTo, ...linkedFrom].map((shown) => ({ note: shown.id, found: "link" as const, read: "peek" as const })),
+    ...[...linksTo, ...linkedFrom.filter((shown) => NOTE_KINDS.includes(shown.type))].map((shown) => ({ note: shown.id, found: "link" as const, read: "peek" as const })),
   ]);
-  const out = [wholeOf(note)];
+  const out = [wholeOf(note), ...(await supersededLines(library, note))];
   const justified = (target: Findable): string => (note.type === "decision" ? justificationSaid(note.fields, target.id, " — ") : "");
   if (linksTo.length > 0) out.push("It links to:", ...linksTo.map((target) => `${spineLine(target)}${justified(target)}`));
   if (linkedFrom.length > 0) out.push("Linked from:", ...linkedFrom.map(spineLine));
@@ -449,12 +451,12 @@ function quoted(title: string): string {
   return `"${title}"`;
 }
 
-function spineOf(note: Findable): string {
+function spineOf(note: Linking): string {
   return note.type === "definition" ? note.fields.term : note.fields.title;
 }
 
-function firstLineOf(note: Findable): string {
-  const text = note.type === "decision" ? note.fields.text : note.type === "definition" ? note.fields.meaning : note.type === "arc" ? note.fields.intent : note.type === "increment" ? note.fields.objective : note.fields.description ?? "";
+function firstLineOf(note: Linking): string {
+  const text = note.type === "decision" ? note.fields.text : note.type === "definition" ? note.fields.meaning : note.type === "arc" ? note.fields.intent : note.type === "increment" ? note.fields.objective : note.type === "question" ? note.fields.statement : note.fields.description ?? "";
   const line = text.split(/\r?\n/, 1)[0] ?? "";
   return line.length > 120 ? `${line.slice(0, 117)}...` : line;
 }
@@ -473,12 +475,12 @@ function wholeOf(note: Note): string {
   }
 }
 
-function spineLine(note: Findable): string {
+function spineLine(note: Linking): string {
   const first = firstLineOf(note);
   const state = note.type === "friction" ? `, ${note.fields.state}` : "";
   return `- ${quoted(spineOf(note))} (${note.id}${state})${first === "" ? "" : `: ${first}`}`;
 }
 
-function spineData(note: Findable): { id: string; kind: string; spine: string; firstLine: string; state?: string } {
+function spineData(note: Linking): { id: string; kind: string; spine: string; firstLine: string; state?: string } {
   return { id: note.id, kind: note.type, spine: spineOf(note), firstLine: firstLineOf(note), ...(note.type === "friction" ? { state: note.fields.state } : {}) };
 }

@@ -54,6 +54,7 @@ export interface Library
   list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]>;
   inherited(): Promise<SchemaRecord[]>;
   naming(id: string): Promise<SchemaRecord[]>;
+  linkingIn(id: string): Promise<SchemaRecord[]>;
   factoryLibrary(): Library | undefined;
   reach(name: string): Promise<Library>;
   reachAll(): Promise<Reached<Library>[]>;
@@ -240,6 +241,10 @@ function libraryOf(project: Project): Library {
       return project.records.list(kind);
     },
     naming: (id) => project.records.list((Object.keys(SCHEMA_VERSIONS) as RecordType[]).filter((kind) => kind !== "health"), { names: id }),
+    linkingIn: async (id) => (await library.naming(id)).filter((record) => {
+      const fields = record.fields as { readonly links?: unknown; readonly dischargedBy?: unknown };
+      return (Array.isArray(fields.links) && fields.links.includes(id)) || (record.type === "friction" && fields.dischargedBy === id);
+    }),
     inherited: async () => (project.records instanceof InheritedRecords ? project.records.inherited() : []),
     factoryLibrary: () => (project.factory === undefined ? undefined : (factory ??= { ...libraryOf(project.factory), close: async () => undefined })),
     reach: async (name) => other(await project.reach(name)),

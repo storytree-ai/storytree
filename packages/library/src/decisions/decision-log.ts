@@ -18,6 +18,7 @@ export interface DecisionView {
   readonly record: SchemaRecord<"decision">;
   readonly status: DecisionStatus;
   readonly supersededBy: string[];
+  readonly supersededInPart: ClauseSupersession[];
   readonly composed?: { readonly statement: string; readonly composedAt: string; readonly stale: boolean };
 }
 
@@ -475,11 +476,18 @@ function decisionView(record: SchemaRecord<"decision">, all: readonly SchemaReco
     .filter((other) => other.fields.status === "accepted" && other.fields.supersedes?.includes(record.id) === true)
     .sort(byCreation)
     .map((other) => other.id);
+  const supersededInPart = all
+    .filter((other) => other.fields.status === "accepted")
+    .sort(byCreation)
+    .flatMap((other) => partlySupersedes(other.fields)
+      .filter((entry) => entry.decision === record.id)
+      .map((entry) => ({ decision: other.id, ...(entry.clauses === undefined ? {} : { clauses: entry.clauses }) })));
   const composed = record.fields.composed;
   return {
     record,
     status: supersededBy.length > 0 ? "superseded" : record.fields.status,
     supersededBy,
+    supersededInPart,
     ...(composed === undefined
       ? {}
       : {

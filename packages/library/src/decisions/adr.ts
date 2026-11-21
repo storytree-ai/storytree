@@ -32,7 +32,7 @@ async function viewOf(library: Library, name: string): Promise<DecisionView> {
   return view;
 }
 
-function fileOf(view: DecisionView): string {
+function fileOf(view: DecisionView, linkedFrom: readonly string[]): string {
   const fields = view.record.fields;
   const lines = ["---"];
   for (const key of EDITABLE) if (fields[key] !== undefined) lines.push(`${key}: ${JSON.stringify(fields[key])}`);
@@ -40,6 +40,8 @@ function fileOf(view: DecisionView): string {
   if (fields.number !== undefined) lines.push(`number: ${fields.number}`);
   lines.push(`reads-as: ${JSON.stringify(view.status)}`);
   if (view.supersededBy.length > 0) lines.push(`superseded-by: ${JSON.stringify(view.supersededBy)}`);
+  if (view.supersededInPart.length > 0) lines.push(`superseded-in-part: ${JSON.stringify(view.supersededInPart)}`);
+  if (linkedFrom.length > 0) lines.push(`linked-from: ${JSON.stringify(linkedFrom)}`);
   if (fields.authority !== undefined) lines.push(`authority: ${JSON.stringify(fields.authority)}`);
   if (view.composed !== undefined) {
     lines.push(`composed: ${JSON.stringify(view.composed.statement)}`);
@@ -158,7 +160,8 @@ const pull = verb({
     out: { kind: "text", optional: true, describe: "the file to write it to" },
   },
   async act({ decision, out }, context: VerbContext) {
-    const file = fileOf(await viewOf(context.library, decision));
+    const view = await viewOf(context.library, decision);
+    const file = fileOf(view, (await context.library.linkingIn(view.record.id)).map((record) => record.id));
     if (out === undefined) return { text: file };
     const { writeFileSync } = await import("node:fs");
     const path = await import("node:path");

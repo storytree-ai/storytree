@@ -1,4 +1,4 @@
-// Capability 4 · Work model
+// Capability 7 · Library API
 export function byCreation(
   a: { readonly createdAt: string; readonly id: string },
   b: { readonly createdAt: string; readonly id: string },

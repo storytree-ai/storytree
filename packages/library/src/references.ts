@@ -1,4 +1,4 @@
-// Capability 4 · Work model
+// Capability 7 · Library API
 import { unstorable, type RecordType, type SchemaRecord, type SchemaRecords } from "./schema/index.js";
 
 export class MissingReferenceError extends Error {

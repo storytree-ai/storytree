@@ -83,3 +83,31 @@ test("3.63 with --test-guard by-agent only the test-writer agent edits test code
   assert.equal(await runHook({ argv: ["codex", TEST_GUARD, "by-agent"], input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s1", cwd: folder, agent_type: "builder", tool_name: "Bash", tool_input: { command: "ls" } }) }), undefined);
   assert.equal(await runHook({ argv: ["claude-code", TEST_GUARD, "by-agent"], input: "not json" }), undefined);
 });
+
+function shell(harness: "claude-code" | "codex", agent: string | undefined, command: string): Promise<string | undefined> {
+  const who = agent === undefined ? {} : { agent_id: "a1", agent_type: agent };
+  return runHook({ argv: [harness, TEST_GUARD, "by-agent"], input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s1", cwd: folder, ...who, tool_name: "Bash", tool_input: { command } }) });
+}
+
+test("3.64 with --test-guard by-agent a test-writer's shell command writing a code path is refused naming the path and the builder; one writing only test code or no file goes through, and other agents' shell commands are not judged", async () => {
+  for (const harness of ["claude-code", "codex"] as const) {
+    for (const [command, written] of [
+      ["echo x > src/cart.ts", /src[\\/]cart\.ts/],
+      ["cat <<'EOF' > src/stub.ts\nexport {};\nEOF", /src[\\/]stub\.ts/],
+      ["printf a | tee src/cart.ts", /src[\\/]cart\.ts/],
+      ["sed -i s/a/b/ src/cart.ts", /src[\\/]cart\.ts/],
+      ["cp src/cart.test.ts src/cart.ts", /src[\\/]cart\.ts/],
+      ["mv a.test.ts src/cart.ts", /src[\\/]cart\.ts/],
+    ] as const) {
+      const reason = refused(await shell(harness, "test-writer", command));
+      assert.match(reason, written, `${harness}: ${command}`);
+      assert.match(reason, /\bbuilder\b/, `${harness}: ${command}`);
+    }
+    for (const command of ["echo x > src/cart.test.ts", "cp a src/fixtures/cart.json", "cat src/cart.ts", "pnpm test src/cart.test.ts 2>&1 > /dev/null", 'git commit -m "x > y"']) {
+      assert.equal(await shell(harness, "test-writer", command), undefined, `${harness}: ${command} goes through`);
+    }
+    for (const agent of ["builder", undefined]) {
+      assert.equal(await shell(harness, agent, "echo x > src/cart.test.ts"), undefined, `${harness}: ${agent ?? "the session"} is not judged`);
+    }
+  }
+});

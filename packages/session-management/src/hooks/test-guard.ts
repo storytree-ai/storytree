@@ -2,6 +2,7 @@
 import path from "node:path";
 
 import { editIn, refusalAnswer } from "./edit-gate.js";
+import { shellWrites } from "./shell-writes.js";
 
 export const TEST_GUARD = "--test-guard";
 
@@ -29,7 +30,7 @@ export function isTestCode(file: string, folder?: string): boolean {
 export function testGuard(harness: string, input: unknown, flags: readonly string[]): string | undefined {
   const mode = flags[flags.indexOf(TEST_GUARD) + 1];
   if (mode !== "red" && mode !== "green" && mode !== "by-agent") return undefined;
-  const edit = editIn(harness, input);
+  const edit = editIn(harness, input) ?? (mode === "by-agent" ? shellEditIn(harness, input) : undefined);
   if (edit === undefined) return undefined;
   if (mode === "by-agent") return byAgent(harness, input as Record<string, unknown>, edit);
   const forbidden = edit.files.find((file) => isTestFile(file.path, edit.folder) !== (mode === "red"));
@@ -42,7 +43,16 @@ export function testGuard(harness: string, input: unknown, flags: readonly strin
   );
 }
 
-function byAgent(harness: string, input: Record<string, unknown>, edit: NonNullable<ReturnType<typeof editIn>>): string | undefined {
+function shellEditIn(harness: string, input: unknown): { folder: string; files: { path: string }[] } | undefined {
+  if ((harness !== "claude-code" && harness !== "codex") || typeof input !== "object" || input === null) return undefined;
+  const { hook_event_name: event, agent_type: agent, cwd: folder, tool_name: tool, tool_input: toolInput } = input as Record<string, unknown>;
+  if (event !== "PreToolUse" || agent !== TEST_WRITER || tool !== "Bash" || typeof folder !== "string" || folder === "" || typeof toolInput !== "object" || toolInput === null) return undefined;
+  const { command } = toolInput as Record<string, unknown>;
+  const files = typeof command === "string" ? shellWrites(command, folder).map((file) => ({ path: file })) : [];
+  return files.length === 0 ? undefined : { folder, files };
+}
+
+function byAgent(harness: string, input: Record<string, unknown>, edit: { folder: string; files: { path: string }[] }): string | undefined {
   const agent = typeof input.agent_type === "string" && input.agent_type !== "" ? input.agent_type : undefined;
   const writer = agent === TEST_WRITER;
   const forbidden = edit.files.find((file) => isTestCode(file.path, edit.folder) !== writer);

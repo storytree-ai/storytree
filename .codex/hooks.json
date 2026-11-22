@@ -1,5 +1,5 @@
 {
-  "description": "0.3's own development: install a fresh or stale worktree's dependencies at session start, and let only the test-writer agent edit test code (ADR-1355 D2).",
+  "description": "0.3's own development: install a fresh or stale worktree's dependencies at session start, and let only the test-writer agent edit test code, judging its shell commands' file writes by the same path rule (ADR-1355 D2).",
   "hooks": {
     "SessionStart": [
       {
@@ -14,7 +14,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "^apply_patch$",
+        "matcher": "^(apply_patch|Bash)$",
         "hooks": [
           {
             "type": "command",

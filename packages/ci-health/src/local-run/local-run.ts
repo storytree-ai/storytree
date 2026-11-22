@@ -1,11 +1,10 @@
 // Capability 5 · A project's own tests, run locally.
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import type { Library } from "@storytree/library";
+import type { AnnotatedTree, Library } from "@storytree/library";
 
 import { commitOf, filesIn, runTests, type RunTests } from "../plugin-run/plugin-run.js";
-import { gitIn, repositoryOf } from "../read-ci/read-ci.js";
 import { recordHealth, recordUnclaimed } from "../read-ci/record.js";
 import { parseTestLog } from "../run-results/run-results.js";
 import { judgeRun, proofsAt, unclaimedVerdicts, type Verdict } from "../verdicts/verdicts.js";
@@ -21,10 +20,10 @@ export interface RedCapability {
   title: string;
 }
 
-async function ciOf(folder: string): Promise<string | undefined> {
-  const workflows = path.join(folder, ".github", "workflows");
-  if (!existsSync(workflows) || !readdirSync(workflows).some((file) => /\.ya?ml$/.test(file))) return undefined;
-  return repositoryOf(await gitIn(folder)(["remote", "get-url", "origin"]).catch(() => ""));
+function readByCi(tree: AnnotatedTree): boolean {
+  return tree.stories.some(({ capabilities, edges }) =>
+    capabilities.some(({ contracts, unclaimed }) => unclaimed?.source === "ci" || contracts.some(({ health }) => health.ci !== undefined)) ||
+    (edges ?? []).some(({ contracts }) => contracts.some(({ health }) => health.ci !== undefined)));
 }
 
 const PYTHON_MANIFESTS = ["pyproject.toml", "setup.cfg", "setup.py"];
@@ -60,10 +59,9 @@ export async function recordLocalTests({ library, folder, run = runTests }: { li
   const tests = testCommandOf(folder);
   if ("why" in tests) return { written: false, why: tests.why };
   const { command, reads } = tests;
-  const repository = await ciOf(folder);
-  if (repository !== undefined) return { written: false, why: `This project's tests run in ${repository}'s CI, so its verified health is read from there: run storytree health ci. A local run writes nothing over it.` };
-
   const tree = await library.projectTree();
+  if (readByCi(tree)) return { written: false, why: "This project's tests run in its CI, and storytree holds CI's reading of them, so its verified health is read from there: run storytree health ci. A local run writes nothing over it." };
+
   const files = filesIn(folder);
   const proofs = proofsAt(tree, files);
   const { output, code } = await run(command, folder);

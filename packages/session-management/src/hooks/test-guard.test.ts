@@ -111,3 +111,35 @@ test("3.64 with --test-guard by-agent a test-writer's shell command writing a co
     }
   }
 });
+
+test("3.65 with --test-guard by-agent a test-writer's shell write is resolved against an earlier cd (ended by a closing parenthesis) and read inside sh -c or bash -c, and an interpreter one-liner that writes a file is refused naming the interpreter, Edit or Write and the builder, while one that only reads or prints goes through", async () => {
+  for (const harness of ["claude-code", "codex"] as const) {
+    for (const command of [
+      "cd src && echo x > cart.ts",
+      "bash -c 'echo x > src/cart.ts'",
+      'sh -lc "tee src/cart.ts < /dev/null"',
+      "sh -c \"bash -c 'touch src/cart.ts'\"",
+      "cd src && sh -c 'echo x > cart.ts'",
+    ]) {
+      const reason = refused(await shell(harness, "test-writer", command));
+      assert.match(reason, /src[\\/]cart\.ts/, `${harness}: ${command}`);
+      assert.match(reason, /\bbuilder\b/, `${harness}: ${command}`);
+    }
+    const leftTests = refused(await shell(harness, "test-writer", "(cd tests && true) && echo x > helper.ts"));
+    assert.match(leftTests, /helper\.ts/, `${harness}: parentheses end the cd`);
+    assert.doesNotMatch(leftTests, /tests[\\/]helper\.ts/, `${harness}: parentheses end the cd`);
+    for (const command of ["cd src && echo x > cart.test.ts", "cd tests && echo x > helper.ts", "bash -c 'cat src/cart.ts'", 'node -e "console.log(1)"', "python3 -c \"print(open('src/a.ts').read())\""]) {
+      assert.equal(await shell(harness, "test-writer", command), undefined, `${harness}: ${command} goes through`);
+    }
+    for (const [command, interpreter] of [
+      ["node -e \"require('fs').writeFileSync('src/a.test.ts','')\"", /\bnode\b/],
+      ["python3 -c \"open('x.py','w').write('')\"", /\bpython3\b/],
+    ] as const) {
+      const reason = refused(await shell(harness, "test-writer", command));
+      assert.match(reason, interpreter, `${harness}: ${command}`);
+      assert.match(reason, /\bEdit\b/, `${harness}: ${command}`);
+      assert.match(reason, /\bWrite\b/, `${harness}: ${command}`);
+      assert.match(reason, /\bbuilder\b/, `${harness}: ${command}`);
+    }
+  }
+});

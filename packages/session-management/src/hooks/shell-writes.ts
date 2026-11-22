@@ -107,22 +107,48 @@ function copied(args: readonly string[], folder: string, valued: readonly string
   return folderTarget ? sources.map((source) => path.join(into, path.basename(source))) : [into];
 }
 
-function written(argv: readonly string[], folder: string): string[] {
-  const start = argv.findIndex((word) => !/^[A-Za-z_]\w*=/.test(word));
-  if (start < 0) return [];
-  const name = path.basename(argv[start]!);
-  const args = argv.slice(start + 1);
-  if (name === "tee") return operands(args, []);
-  if (name === "touch") return operands(args, ["-d", "-r", "-t"]);
-  if (name === "sed") return inPlace(args, ["-e", "-f"]);
-  if (name === "perl") return inPlace(args, ["-e", "-E"]);
-  if (name === "cp" || name === "mv") return copied(args, folder, ["-S"]);
-  if (name === "install") return copied(args, folder, ["-m", "-o", "-g", "-S"]);
-  return [];
+const SCRIPTS: [RegExp, string[], RegExp][] = [
+  [/^node$/, ["-e", "--eval", "-p", "--print"], /\b(writeFile|appendFile|createWriteStream|copyFile|cp|rename|truncate)(Sync)?\s*\(/],
+  [/^python(\d+(\.\d+)*)?$/, ["-c"], /\bopen\s*\([^)]*,\s*(mode\s*=\s*)?['"][^'"]*[wax+]|\.write_(text|bytes)\s*\(|\bshutil\.(copy\w*|move)\s*\(|\bos\.(rename|replace)\s*\(/],
+  [/^ruby$/, ["-e"], /\b(File|IO)\.(write|binwrite|rename)\b|\bFile\.open[ (][^)]*,\s*['"][^'"]*[wa+]|\bFileUtils\./],
+  [/^perl$/, ["-e"], /\bopen[ (][^;]*['"](\+?>|>>|\+<)|\brename\s*\(/],
+];
+
+function oneLiner(name: string, args: readonly string[]): boolean {
+  const [, flags, writes] = SCRIPTS.find(([pattern]) => pattern.test(name)) ?? [];
+  if (flags === undefined || writes === undefined) return false;
+  return args.some((arg, i) => flags.includes(arg) && writes.test(args[i + 1] ?? ""));
 }
 
-export function shellWrites(command: string, folder: string): string[] {
-  const files: string[] = [];
+function script(args: readonly string[]): string | undefined {
+  const flag = args.findIndex((arg) => /^-[A-Za-z]+$/.test(arg) && arg.includes("c"));
+  return flag < 0 ? undefined : args.slice(flag + 1).find((arg) => !arg.startsWith("-"));
+}
+
+function written(argv: readonly string[], folder: string): ShellWrites {
+  const none = { files: [], interpreters: [] };
+  const start = argv.findIndex((word) => !/^[A-Za-z_]\w*=/.test(word));
+  if (start < 0) return none;
+  const name = path.basename(argv[start]!);
+  const args = argv.slice(start + 1);
+  const files = (found: string[]) => ({ files: found.map((file) => path.resolve(folder, file)), interpreters: [] });
+  if (oneLiner(name, args)) return { files: [], interpreters: [name] };
+  if ((name === "sh" || name === "bash") && script(args) !== undefined) return shellWrites(script(args)!, folder);
+  if (name === "tee") return files(operands(args, []));
+  if (name === "touch") return files(operands(args, ["-d", "-r", "-t"]));
+  if (name === "sed") return files(inPlace(args, ["-e", "-f"]));
+  if (name === "perl") return files(inPlace(args, ["-e", "-E"]));
+  if (name === "cp" || name === "mv") return files(copied(args, folder, ["-S"]));
+  if (name === "install") return files(copied(args, folder, ["-m", "-o", "-g", "-S"]));
+  return none;
+}
+
+export type ShellWrites = { files: string[]; interpreters: string[] };
+
+export function shellWrites(command: string, folder: string): ShellWrites {
+  const found: ShellWrites = { files: [], interpreters: [] };
+  const outer: string[] = [];
+  let here = folder;
   let argv: string[] = [];
   const all = [...tokens(command), { op: ";" }];
   for (let i = 0; i < all.length; i += 1) {
@@ -133,11 +159,17 @@ export function shellWrites(command: string, folder: string): string[] {
       const target = next !== undefined && "word" in next ? next.word : undefined;
       if (target === undefined) continue;
       i += 1;
-      if (WRITES.has(token.op) && !(token.op === ">&" && /^(\d+|-)$/.test(target)) && !target.startsWith("/dev/")) files.push(target);
+      if (WRITES.has(token.op) && !(token.op === ">&" && /^(\d+|-)$/.test(target)) && !target.startsWith("/dev/")) found.files.push(path.resolve(here, target));
     } else {
-      files.push(...written(argv, folder));
+      const { files, interpreters } = written(argv, here);
+      found.files.push(...files);
+      found.interpreters.push(...interpreters);
+      const into = argv[0] === "cd" || argv[0] === "pushd" ? operands(argv.slice(1), [])[0] : undefined;
+      if (into !== undefined && into !== "-") here = path.resolve(here, into);
+      if (token.op === "(") outer.push(here);
+      if (token.op === ")") here = outer.pop() ?? here;
       argv = [];
     }
   }
-  return files.map((file) => path.resolve(folder, file));
+  return found;
 }

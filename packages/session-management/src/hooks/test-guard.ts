@@ -32,6 +32,8 @@ export function testGuard(harness: string, input: unknown, flags: readonly strin
   if (mode !== "red" && mode !== "green" && mode !== "by-agent") return undefined;
   const edit = editIn(harness, input) ?? (mode === "by-agent" ? shellEditIn(harness, input) : undefined);
   if (edit === undefined) return undefined;
+  const interpreter = "interpreters" in edit ? edit.interpreters[0] : undefined;
+  if (interpreter !== undefined) return refusalAnswer(harness, `The test writer writes files only with Edit or Write: this ${interpreter} one-liner writes a file. Write test code with Edit or Write, and hand code to the ${BUILDER} agent.`);
   if (mode === "by-agent") return byAgent(harness, input as Record<string, unknown>, edit);
   const forbidden = edit.files.find((file) => isTestFile(file.path, edit.folder) !== (mode === "red"));
   if (forbidden === undefined) return undefined;
@@ -43,13 +45,13 @@ export function testGuard(harness: string, input: unknown, flags: readonly strin
   );
 }
 
-function shellEditIn(harness: string, input: unknown): { folder: string; files: { path: string }[] } | undefined {
+function shellEditIn(harness: string, input: unknown): { folder: string; files: { path: string }[]; interpreters: string[] } | undefined {
   if ((harness !== "claude-code" && harness !== "codex") || typeof input !== "object" || input === null) return undefined;
   const { hook_event_name: event, agent_type: agent, cwd: folder, tool_name: tool, tool_input: toolInput } = input as Record<string, unknown>;
   if (event !== "PreToolUse" || agent !== TEST_WRITER || tool !== "Bash" || typeof folder !== "string" || folder === "" || typeof toolInput !== "object" || toolInput === null) return undefined;
   const { command } = toolInput as Record<string, unknown>;
-  const files = typeof command === "string" ? shellWrites(command, folder).map((file) => ({ path: file })) : [];
-  return files.length === 0 ? undefined : { folder, files };
+  const { files, interpreters } = typeof command === "string" ? shellWrites(command, folder) : { files: [], interpreters: [] };
+  return files.length === 0 && interpreters.length === 0 ? undefined : { folder, files: files.map((file) => ({ path: file })), interpreters };
 }
 
 function byAgent(harness: string, input: Record<string, unknown>, edit: { folder: string; files: { path: string }[] }): string | undefined {

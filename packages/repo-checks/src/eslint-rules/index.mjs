@@ -12,6 +12,7 @@ import noSwallowedAssert from "./no-swallowed-assert.mjs";
 import noTagStrip from "./no-tag-strip.mjs";
 import noUnguardedBatchFetch from "./no-unguarded-batch-fetch.mjs";
 import numberedTestAsserts from "./numbered-test-asserts.mjs";
+import oneFormCommandLine from "./one-form-command-line.mjs";
 import pollSaysOutageOnce from "./poll-says-outage-once.mjs";
 import posixCommands from "./posix-commands.mjs";
 import remoteCacheDomain from "./remote-cache-domain.mjs";
@@ -39,5 +40,6 @@ export default {
     "poll-says-outage-once": pollSaysOutageOnce,
     "no-silent-derived-folder": noSilentDerivedFolder,
     "host-platform-under-given": hostPlatformUnderGiven,
+    "one-form-command-line": oneFormCommandLine,
   },
 };

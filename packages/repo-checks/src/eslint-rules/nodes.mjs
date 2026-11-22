@@ -20,6 +20,12 @@ export function children(node) {
   return out;
 }
 
+export function readsCmdline(node) {
+  if (node.type === "Literal" && typeof node.value === "string" && node.value.includes("cmdline")) return true;
+  if (node.type === "TemplateElement" && node.value.cooked?.includes("cmdline")) return true;
+  return children(node).some(readsCmdline);
+}
+
 export function literal(node) {
   if (node?.type === "Literal" && typeof node.value === "string") return node.value;
   if (node?.type === "TemplateLiteral" && node.expressions.length === 0) return node.quasis[0].value.cooked;

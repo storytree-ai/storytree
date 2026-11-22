@@ -225,6 +225,7 @@ export async function openUninstaller(choice?: string, helperDir = path.dirname(
     return said;
   }
   const uninstaller = path.join(installDir, "Uninstall storytree-0.3.exe");
+  // eslint-disable-next-line storytree/host-platform-under-given -- the Windows uninstaller .exe can be spawned only on a real Windows host, whatever platform the uninstall acts for.
   if (process.platform !== "win32" || !existsSync(uninstaller)) {
     throw new Error(`This storytree has no Windows uninstaller at ${uninstaller}; only the installed Windows app has one. Your projects are not affected either way.`);
   }

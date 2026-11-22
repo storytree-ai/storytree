@@ -57,7 +57,7 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
     provenance = {
       unit: evidence.unit,
       commit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
-      platform: process.platform,
+      platform,
       run: `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}/attempts/${env.GITHUB_RUN_ATTEMPT}`,
     };
     guard.push("--test-reporter=junit", `--test-reporter-destination=${report}`);
@@ -129,7 +129,7 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
         cpu = undefined;
         return;
       }
-      if (platform !== "win32") settle(treeCpu(child.pid), now);
+      if (platform !== "win32") settle(treeCpu(child.pid, platform), now);
       else if (endedNotExited(runningFile, now - listEvery).length > 0) readWindows(now);
       if (now - quietSince < exitGraceMs) return;
       exitHung = endedNotExited(runningFile, now - exitGraceMs);
@@ -175,6 +175,7 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
 export function killTree(child, signal = "SIGKILL") {
   if (!child.pid || child.exitCode !== null) return;
   try {
+    // eslint-disable-next-line storytree/host-platform-under-given -- killTree kills a real child process, which only the host's own way can kill, whatever platform the run acts for.
     if (process.platform === "win32") {
       execFileSync("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore" });
       return;
@@ -232,10 +233,10 @@ function endedNotExited(runningFile, since) {
     .map((entry) => entry.file);
 }
 
-function treeCpu(pid) {
+function treeCpu(pid, platform) {
   const table = [];
   try {
-    if (process.platform === "linux") {
+    if (platform === "linux") {
       for (const name of readdirSync("/proc")) {
         if (!/^\d+$/.test(name)) continue;
         try {
@@ -244,7 +245,7 @@ function treeCpu(pid) {
           table.push({ pid: Number(name), ppid: Number(fields[1]), used: (Number(fields[11]) + Number(fields[12])) * 10 });
         } catch {}
       }
-    } else if (process.platform === "darwin") {
+    } else if (platform === "darwin") {
       for (const line of execFileSync("ps", ["-A", "-o", "pid=,ppid=,pcpu="], { encoding: "utf8" }).split("\n")) {
         const [child, parent, share] = line.trim().split(/\s+/);
         if (!share) continue;

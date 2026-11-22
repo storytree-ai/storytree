@@ -953,7 +953,7 @@ test("app-setup 8.24 the check tells a session the hook failures this machine tr
   });
 });
 
-test("12.3 set_up_project in a folder in no git repository makes one whose first commit holds the .storytree folder, and says so, or with no git identity makes it with that folder staged and asks the user for a name and email; a folder already in one is left as it is, and joining makes none", async () => {
+test("12.3 set_up_project in a folder in no git repository makes one whose first commit holds the .storytree folder, and says so, naming storytree health local for its verified health with no remote rather than calling that health unavailable, or with no git identity makes it with that folder staged and asks the user for a name and email; a folder already in one is left as it is, and joining makes none", async () => {
   const [fresh, inRepo, nameless, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   const identity = { GIT_AUTHOR_NAME: "A User", GIT_AUTHOR_EMAIL: "user@example.invalid", GIT_COMMITTER_NAME: "A User", GIT_COMMITTER_EMAIL: "user@example.invalid" };
   const before = Object.fromEntries([...Object.keys(identity), "GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM"].map((key) => [key, process.env[key]]));
@@ -972,6 +972,8 @@ test("12.3 set_up_project in a folder in no git repository makes one whose first
         assert.deepEqual(setUp.data.repository, { state: "made" });
         assert.match(setUp.text, /git diff.*local commit/s, "the local route is named");
         assert.doesNotMatch(setUp.text, /git push|gh repo create/, "a remote is never proposed");
+        assert.match(setUp.text, /storytree health local/);
+        assert.doesNotMatch(setUp.text, /verified health[^.]*unavailable/);
       });
       assert.equal(path.resolve(git(empty, "rev-parse", "--show-toplevel")), empty, "git prints / on Windows too");
       assert.deepEqual(git(empty, "show", "--name-only", "--format=", "HEAD").split("\n"), [".storytree/.gitignore", PROJECT_FILE]);

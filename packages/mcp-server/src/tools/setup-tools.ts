@@ -198,7 +198,7 @@ function connectedSentence(caller: Caller): string {
 }
 
 function repositorySentence(made: Exclude<RepositoryMade, { state: "already" }>): string {
-  const remote = "It needs no remote: a review reads a change against the local main branch and land needs none; only verified health, which reads a remote's CI, is unavailable. Work locally: review each change on git diff, land it as a local commit, and close the increment with a note giving the commit's sha.";
+  const remote = "It needs no remote: a review reads a change against the local main branch and land needs none, and verified health, which a remote's CI would give, comes from a local run of this project's own tests instead: `storytree health local` in this folder runs its test command (pytest -rA for a Python project) and credits each numbered test to its contract, so the map shows its verified health. Work locally: review each change on git diff, land it as a local commit, run `storytree health local`, and close the increment with a note giving the commit's sha.";
   if (made.state === "made") return `The folder was in no git repository, so storytree made it a git repository, with a first commit holding its .storytree folder. ${remote}`;
   if (made.state === "no identity") return `The folder was in no git repository, so storytree made it one with its .storytree folder staged, but git has no identity to make its first commit with (user.name and user.email), so its work cannot be reviewed or landed yet: ${IDENTITY_FIX}. ${remote}`;
   return `The folder is in no git repository, and storytree could not make one (${made.reason}), so its work cannot be reviewed or landed yet: tell the user, and once git can commit here, make it one (git init, then commit the .storytree folder). ${remote}`;

@@ -1,6 +1,7 @@
 // Capability 8 · Storytree's own test and gate entries.
 import anchoredProcessMatch from "./anchored-process-match.mjs";
 import gitEndOfOptions from "./git-end-of-options.mjs";
+import hostPlatformUnderGiven from "./host-platform-under-given.mjs";
 import noComments from "./no-comments.mjs";
 import noHappyDomEqual from "./no-happy-dom-equal.mjs";
 import noOneCharacterEscape from "./no-one-character-escape.mjs";
@@ -37,5 +38,6 @@ export default {
     "anchored-process-match": anchoredProcessMatch,
     "poll-says-outage-once": pollSaysOutageOnce,
     "no-silent-derived-folder": noSilentDerivedFolder,
+    "host-platform-under-given": hostPlatformUnderGiven,
   },
 };

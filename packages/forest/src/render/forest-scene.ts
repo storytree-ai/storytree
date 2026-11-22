@@ -41,7 +41,7 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
       ...(status === undefined ? {} : { status }),
       contracts: capability === undefined ? 0 : (contractsOf.get(capability) ?? 0),
     }));
-    const land = story.mapped === undefined ? landOf(story.capabilities, survey[story.id], tree.unverified !== true) : mappedLand(story.capabilities, survey[story.id], tops.get(story.id) ?? []);
+    const land = story.mapped === undefined ? landOf(story.capabilities, survey[story.id]) : mappedLand(story.capabilities, survey[story.id], tops.get(story.id) ?? []);
     const area = story.mapped !== undefined ? mappedArea(land!.territories.reduce((sum, { lines }) => sum + lines, 0)) : land === undefined || land.files.length === 0 ? unsurveyedArea(story.capabilities.length) : islandArea(land.files.reduce((sum, { lines }) => sum + lines, 0));
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, status, contracts }) => [capability, form, status, contracts]), land?.territories, area]);
     return { story: story.id, title: story.title, x, z, trees: placed, ...(land === undefined ? {} : { land }), area, key };
@@ -173,10 +173,10 @@ function mappedLand(capabilities: readonly { id: string; title: string; descript
   return { territories: territories.length > 0 ? territories : [{ mapped: true, lines: 1 }], files: [] };
 }
 
-function landOf(capabilities: readonly { id: string; title: string; description?: string; status: CapabilityWord; parkedOn?: readonly unknown[] }[], survey: StorySurvey | undefined, verified: boolean): Island["land"] {
+function landOf(capabilities: readonly { id: string; title: string; description?: string; status: CapabilityWord; parkedOn?: readonly unknown[] }[], survey: StorySurvey | undefined): Island["land"] {
   const territory = ({ id, title, description, status, parkedOn }: (typeof capabilities)[number], lines: number) =>
     ({ capability: id, title, ...(description === undefined ? {} : { description }), status, ...(parkedOn === undefined ? {} : { parked: true as const }), lines });
-  if (survey === undefined || survey.files.length === 0) return !verified || capabilities.length === 0 ? undefined : {
+  if (survey === undefined || survey.files.length === 0) return capabilities.length === 0 ? undefined : {
     territories: capabilities.map((capability) => territory(capability, 1)),
     files: [],
   };

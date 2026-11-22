@@ -1,6 +1,6 @@
 // Capability 8 · Storytree's own test and gate entries.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { RuleTester } from "oxlint/plugins-dev";
@@ -77,7 +77,7 @@ test("8.35 · storytree/host-platform-under-given refuses, in a non-test source 
 
 test("8.35 · through pnpm lint's config, the escape's own cpuShare in packages/base-dev-loop/src/unit-run.mjs at PR #1060's merge f43ea20f is one storytree/host-platform-under-given hit naming runUnit and escape_23c591a68875", () => {
   const file = "packages/base-dev-loop/src/unit-run.mjs";
-  const text = execFileSync("git", ["show", `f43ea20f:${file}`], { cwd: process.cwd(), encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const text = readFileSync(new URL("./fixtures/unit-run-f43ea20f.txt", import.meta.url), "utf8");
   assert.match(text.split("\n")[324], /^\s*if \(process\.platform === "darwin"\)/, "line 325 is cpuShare's read");
   const [hits] = oxlint.ruleHits([{ file, text }]).map((found) => found.filter(({ rule: id }) => id === "storytree/host-platform-under-given"));
   const atShare = hits.filter(({ line }) => line === 325);

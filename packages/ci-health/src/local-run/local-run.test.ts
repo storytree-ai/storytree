@@ -16,7 +16,7 @@ import { localReadingText, recordLocalTests } from "./local-run.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("5.1, 3.17 · `health local`, on the command line only (no tool), runs a project's own numbered tests by its test command in a folder with no git repository and records them on its story's promises as a local test run: passing, then failing once a test fails; a project with no test command, or whose CI storytree reads, writes nothing and says why", async (t) => {
+test("5.1, 3.17 · `health local`, on the command line only (no tool), runs a project's own numbered tests by its test command in a folder with no git repository and records them on its story's promises as a local test run: passing, then failing once a test fails; a project with no test command writes nothing and says why", async (t) => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
   const storytree = await connect({ url });
@@ -57,12 +57,6 @@ test("5.1, 3.17 · `health local`, on the command line only (no tool), runs a pr
   const failing = await local.act({} as never, place as never, WORDS);
   assert.match(failing.text, /0 contracts verified passing, 1 failing/);
   assert.equal((await library.health(contract.id)).verified.state, "failing");
-
-  execFileSync("git", ["init", "--quiet", folder]);
-  execFileSync("git", ["-C", folder, "remote", "add", "origin", "https://github.com/someone/scratch.git"]);
-  mkdirSync(path.join(folder, ".github", "workflows"), { recursive: true });
-  writeFileSync(path.join(folder, ".github", "workflows", "test.yml"), "on: push\n");
-  assert.match((await local.act({} as never, place as never, WORDS)).text, /health ci/);
 
   assert.match((await local.act({} as never, { ...place, folder: path.join(folder, "packages") } as never, WORDS)).text, /no package\.json/);
   const bare = mkdtempSync(path.join(tmpdir(), "storytree-local-"));
@@ -329,4 +323,55 @@ test("5.8 · storytree health local records a local test titled with an edge con
   const verified = (await library.health(contract.id)).verified;
   assert.equal(verified.state, "passing");
   assert.equal(verified.source, "local");
+});
+
+test("5.9 · `health local` runs and records a project's tests as local while storytree holds no CI reading of it, even with a GitHub origin and a workflow; once a CI reading is recorded on any of its contracts, it writes nothing, so neither contract's reading or history changes, and points to health ci", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(name);
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-local-"));
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+      await removeTemp(folder);
+    }
+  });
+  const story = await library.addStory({ title: "Greeting" });
+  const capability = await library.addCapability({ story: story.id, title: "1 · Hello" });
+  const contract = await library.addContract({ capability: capability.id, title: "1.1 · hello greets the world" });
+  const other = await library.addContract({ capability: capability.id, title: "1.2 · hello greets by name" });
+  writeFileSync(path.join(folder, "package.json"), JSON.stringify({ name: "scratch", type: "module", scripts: { test: "node --test" } }));
+  mkdirSync(path.join(folder, "packages", "greeting"), { recursive: true });
+  const tests = path.join(folder, "packages", "greeting", "hello.test.js");
+  writeFileSync(tests, `import assert from "node:assert/strict";\nimport { test } from "node:test";\ntest("1.1 · hello greets the world", () => {\n  assert.equal("hello, world", "hello, world");\n});\n` +
+    `test("1.2 · hello greets by name", { skip: "not yet" }, () => {});\n`);
+  execFileSync("git", ["init", "--quiet", folder]);
+  execFileSync("git", ["-C", folder, "remote", "add", "origin", "https://github.com/someone/scratch.git"]);
+  mkdirSync(path.join(folder, ".github", "workflows"), { recursive: true });
+  writeFileSync(path.join(folder, ".github", "workflows", "test.yml"), "on: push\n");
+
+  const local = HEALTH_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "local")!;
+  const place = { library, project: name, session: "test", folder };
+  const first = await local.act({} as never, place as never, WORDS);
+  assert.match(first.text, /1 contracts verified passing, 0 failing, 1 not checked\./, first.text);
+  const verified = (await library.health(contract.id)).verified;
+  assert.equal(verified.state, "passing");
+  assert.equal(verified.by, "a local test run");
+  assert.equal(verified.source, "local");
+
+  await library.recordVerified(other.id, "passing", { by: "the project's CI", source: "ci" });
+  const histories = [(await library.healthHistory(contract.id)).length, (await library.healthHistory(other.id)).length];
+  writeFileSync(tests, readFileSync(tests, "utf8").replace(`"hello, world");`, `"goodbye");`));
+  const second = await local.act({} as never, place as never, WORDS);
+  assert.match(second.text, /health ci/, second.text);
+  assert.doesNotMatch(second.text, /verified passing/, second.text);
+  assert.equal((await library.health(contract.id)).verified.state, "passing", "the failing local run wrote nothing over 1.1");
+  const ci = (await library.health(other.id)).verified;
+  assert.equal(ci.state, "passing");
+  assert.equal(ci.source, "ci", "the local run never overrides CI's reading");
+  assert.deepEqual([(await library.healthHistory(contract.id)).length, (await library.healthHistory(other.id)).length], histories, "nothing more was written");
 });

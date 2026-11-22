@@ -67,8 +67,7 @@ test("3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed
     assert.match(state?.error ?? "", /read unavailable/);
     fail = false;
     await waitUntil(() => ticks.has(2_000), 10_000, "the page reading to start asking");
-    ticks.get(2_000)!();
-    await waitUntil(() => state?.status === "ready", 10_000, "the board to be ready");
+    await waitUntil(() => { ticks.get(2_000)?.(); return state?.status === "ready"; }, 10_000, "the board to be ready");
     const history = await library.history();
     await log.append(project, { kind: "session-started", source: "hook", harness: "codex", session: "s" });
     await log.append(project, { kind: "claimed", source: "tool", harness: "codex", session: "s", increment: increment.id, reason: "draw the lanes" });

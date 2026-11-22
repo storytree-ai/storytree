@@ -1,5 +1,5 @@
 // Capability 8 · Storytree's own test and gate entries.
-import { methodOf, readsCmdline, repoFile, unchained } from "./nodes.mjs";
+import { escapedBy, isReplace, literal, methodOf, readsCmdline, repoFile, unchained } from "./nodes.mjs";
 
 const SCOPE = /^(?:packages|apps)\//;
 const TEST_FILE = /\.test\.[^/]+$/;
@@ -7,11 +7,23 @@ const COMPARES = new Set(["includes", "endsWith", "startsWith", "indexOf"]);
 const NAMES = new Set(["commandLine", "CommandLine"]);
 const EQUALS = new Set(["===", "!=="]);
 
+const objectOf = (call) => unchained(call.callee).object;
+
+function forwardSlashes(call) {
+  const method = methodOf(call);
+  if (isReplace(call)) return escapedBy(call.arguments[0])?.backslash === "matches" && literal(call.arguments[1]) === "/";
+  const split = unchained(objectOf(call));
+  return method === "join" && literal(call.arguments[0]) === "/" && split?.type === "CallExpression" && methodOf(split) === "split" && literal(split.arguments[0]) === "\\";
+}
+
 function commandLine(subject) {
   let node = unchained(subject);
   if (node?.type === "AwaitExpression") node = unchained(node.argument);
   if (node?.type === "MemberExpression") return !node.computed && NAMES.has(node.property.name);
-  return node?.type === "CallExpression" && node.arguments.some(readsCmdline);
+  if (node?.type !== "CallExpression") return false;
+  if (node.arguments.some(readsCmdline)) return true;
+  if (methodOf(node) === undefined || COMPARES.has(methodOf(node)) || forwardSlashes(node)) return false;
+  return commandLine(objectOf(node));
 }
 
 export default {
@@ -29,7 +41,7 @@ export default {
     if (!SCOPE.test(file) || TEST_FILE.test(file)) return {};
     return {
       CallExpression(node) {
-        if (COMPARES.has(methodOf(node)) && commandLine(unchained(node.callee).object)) context.report({ node, messageId: "unmatched" });
+        if (COMPARES.has(methodOf(node)) && commandLine(objectOf(node))) context.report({ node, messageId: "unmatched" });
       },
       BinaryExpression(node) {
         if (EQUALS.has(node.operator) && (commandLine(node.left) || commandLine(node.right))) context.report({ node, messageId: "unmatched" });

@@ -1,5 +1,5 @@
 // Capability 8 · Storytree's own test and gate entries.
-import { children, literal, methodOf, regexOf, repoFile, unchained } from "./nodes.mjs";
+import { literal, methodOf, readsCmdline, regexOf, repoFile, unchained } from "./nodes.mjs";
 
 const SCOPE = /^(?:packages|apps)\//;
 const TEST_FILE = /\.test\.[^/]+$/;
@@ -9,12 +9,6 @@ const MATCHERS = new Set(["pgrep", "pkill"]);
 const FULL_MATCH = /^-[A-Za-eg-z]*f[A-Za-z]*$/;
 
 const head = (node) => literal(node) ?? (node?.type === "TemplateLiteral" ? node.quasis[0].value.cooked : undefined);
-
-function readsCmdline(node) {
-  if (node.type === "Literal" && typeof node.value === "string" && node.value.includes("cmdline")) return true;
-  if (node.type === "TemplateElement" && node.value.cooked?.includes("cmdline")) return true;
-  return children(node).some(readsCmdline);
-}
 
 function commandLine(subject) {
   const node = unchained(subject);

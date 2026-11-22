@@ -220,7 +220,7 @@ test("3.18 a capability the selected session opened fills its territory in the s
   assert.deepEqual([a!.getObjectByName("territory-lit:cap-a"), b!.getObjectByName("territory-lit:cap-b"), a!.userData.window], [undefined, undefined, undefined]);
 });
 
-test("3.14, 3.20 an unsurveyed user project's land shows verified health, updates with it, and gains code when surveyed", () => {
+test("3.14, 3.20 an unsurveyed user project's land draws a territory per capability in its word's colour before any verification, shows verified health, updates with it, and gains code when surveyed", () => {
   const words = ["healthy", "unhealthy", "untested"] as const;
   const health = { reported: { state: "passing" as const }, verified: { state: "not-checked" as const } };
   const tree: AnnotatedTree = { arcs: [], stories: [{ id: "shop", title: "Browsing", health, capabilities: words.map((status, at) =>

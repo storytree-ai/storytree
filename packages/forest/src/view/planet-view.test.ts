@@ -242,12 +242,11 @@ test("3.14, 3.20 an unsurveyed user project's land draws a territory per capabil
     { capability: "cap-tick", title: "2 · tick", status: "proposed", lines: 1 },
     { capability: "cap-export", title: "3 · export", status: "proposed", parked: true, lines: 1 },
   ], files: [] }, "three proposed capabilities, nothing verified and no survey: three plan-only territories, the parked one marked");
-  const monoDrawn = territoryLand(territories(monoLand!.territories, 20), p => new Vector3(p.x, 0, p.z));
-  assert.deepEqual(["list", "tick", "export"].map(id => {
-    const mesh = monoDrawn.getObjectByName(`territory:cap-${id}`) as Mesh;
-    assert.ok(mesh.geometry.attributes.position!.count > 0, `${id} has visible land`);
-    return (mesh.material as MeshBasicMaterial).color.getHexString();
-  }), ["f2d16b", "f2d16b", "86939d"], "proposed yellow, and parked slate grey");
+  const monoMap = territories(monoLand!.territories, 20);
+  assert.deepEqual([0, 1, 2].map(at => monoMap.cells.filter(cell => cell.territory === at).length), [40, 40, 40], "the three share the island's land equally");
+  const monoDrawn = territoryLand(monoMap, p => new Vector3(p.x, 0, p.z));
+  assert.deepEqual(["list", "tick", "export"].map(id => ((monoDrawn.getObjectByName(`territory:cap-${id}`) as Mesh).material as MeshBasicMaterial).color.getHexString()),
+    ["f2d16b", "f2d16b", "86939d"], "proposed yellow, and parked slate grey");
   const read = (survey = {}) => forestScene(tree, [], workStates([]), survey).islands[0]!;
   const island = read();
   assert.ok(island.land, "health has land to colour before a code survey is available");

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { mkdtemp, mkdir, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdtemp, mkdir, readdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { setTimeout as latency } from "node:timers/promises";
@@ -895,4 +895,21 @@ test("1.31 · a scope's reading keeps its five largest processes by resident and
 
   await writeFile(join(scope, "memory.events"), "low 0\nhigh 0\nmax 3\noom 1\noom_kill 1\n");
   assert.equal(await readHolders(scope, proc), undefined, "a kill has already taken what held the memory");
+});
+
+test("1.32 · a lane started by hand through the repository's run-lane shim runs the runner beside it in the caller's folder, with the run arguments, no parent lane's mark, and storytree's TypeScript loader", { skip: process.platform !== "linux" && "platform:linux: the shim is a bash script for the box" }, async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "run-lane-shim-"));
+  t.after(() => removeTemp(root));
+  const src = join(root, "src"), caller = join(root, "caller");
+  await mkdir(src); await mkdir(caller);
+  const here = dirname(fileURLToPath(import.meta.url));
+  await copyFile(join(here, "run-lane.sh"), join(src, "run-lane.sh"));
+  await symlink(join(here, "..", "node_modules"), join(src, "node_modules"), "dir");
+  await writeFile(join(src, "runner.mjs"), `const { openActivityLog } = await import(${JSON.stringify(import.meta.resolve("@storytree/session-management"))});\n`
+    + `console.log(JSON.stringify({ argv: process.argv.slice(2), mark: process.env.STORYTREE_LANE_RUN ?? null, loaded: typeof openActivityLog, cwd: process.cwd() }));\n`);
+  const { NODE_OPTIONS: _options, ...env } = process.env;
+  const { stdout } = await exec("bash", [join(src, "run-lane.sh"), "brief.md", "log", "err", "extra"], { cwd: caller, env: { ...env, STORYTREE_LANE_RUN: "parent-mark" } });
+  const seen = JSON.parse(stdout.trim());
+  assert.deepEqual({ ...seen, cwd: await realpath(seen.cwd) },
+    { argv: ["run", "brief.md", "log", "err", "extra"], mark: null, loaded: "function", cwd: await realpath(caller) });
 });

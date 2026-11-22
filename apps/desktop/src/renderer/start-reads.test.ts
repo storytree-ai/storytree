@@ -1,6 +1,6 @@
 // Capability 2 · Storytree projects
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -18,6 +18,15 @@ const READ_BESIDE_THE_DRAW: readonly string[] = ["factoryFolder", "readInstallCh
 const START_NAMES: readonly string[] = [...FIRST_DRAW_READS, ...READ_BESIDE_THE_DRAW];
 const WARM_FIRST_DRAW_READS: readonly string[] = [...FIRST_DRAW_READS, "linesSince"];
 const WARM_START_NAMES: readonly string[] = [...WARM_FIRST_DRAW_READS, ...READ_BESIDE_THE_DRAW];
+const FOREST_READS: readonly string[] = ["projectTree", "changesSince", "linesStart", "codeSurvey"];
+const START_MARK = "startMark";
+const PLUGIN_VIEW_FILE = "start-reads-plugin-view.js";
+const PLUGIN_VIEW_SURFACE = "start-reads-plugin-view";
+
+const withPluginView = `(() => {
+  const bridge = window.storytree;
+  window.storytree = new Proxy(bridge, { get: (target, method) => method === "pluginViews" ? [{ surface: ${JSON.stringify(PLUGIN_VIEW_SURFACE)}, url: location.origin + "/${PLUGIN_VIEW_FILE}" }] : target[method] });
+})();`;
 
 const answeringOnly = (answered: readonly string[]): string => `(() => {
   const answered = ${JSON.stringify(answered)};
@@ -38,6 +47,7 @@ let dist: string;
 before(async () => {
   dist = mkdtempSync(path.join(tmpdir(), "storytree-start-reads-"));
   await buildCapture({ dist, entryPoints: [new URL("./renderer.ts", import.meta.url)] });
+  writeFileSync(path.join(dist, PLUGIN_VIEW_FILE), "export function mount() { window.storytreePluginViewMounted = true; return () => {}; }\n");
   process.env.CAPTURE_CHANNEL ??= "chrome";
 }, { timeout: 600_000 });
 
@@ -118,5 +128,30 @@ test("2.67 · opening the app again after a start kept its tree, drawing, page r
     await startAsksOnlyItsNames(again, origin!, WARM_FIRST_DRAW_READS, WARM_START_NAMES);
     await again.close();
     await context.close();
+  });
+});
+
+test("2.67 · opening the app with a plugin view asks the library, before its start settles, only the reads the start names, and no read twice before the forest's first read", { timeout: 600_000 }, async () => {
+  const { bridge } = forestBridge();
+  await withCapture({ folder: dist, dist }, async ({ browser, origin }) => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: "dark" });
+    const errors: string[] = [];
+    page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+    await bridge.install(page);
+    await page.addInitScript(withPluginView);
+    await page.addInitScript(answeringOnly(FIRST_DRAW_READS));
+    await page.goto(`${origin}/index.html`, { waitUntil: "domcontentloaded", timeout: 180_000 });
+    const settled = await page.waitForFunction(() => document.body.dataset.start === "settled", undefined, { timeout: 120_000 }).then(() => true, () => false);
+    const asked = await page.evaluate(() => (window as unknown as { storytreeStartAsks: string[] }).storytreeStartAsks.slice());
+    assert.ok(settled, `the start settles with only its first draw's reads answered; it stayed unsettled holding ${[...new Set(asked)].filter((method) => !FIRST_DRAW_READS.includes(method)).join(", ")} unanswered`);
+    assert.equal(await page.evaluate(() => document.body.dataset.state), "ready", "the forest is drawn when the start settles");
+    assert.equal(await page.evaluate(() => (window as unknown as { storytreePluginViewMounted?: boolean }).storytreePluginViewMounted), true, `the start mounted its plugin view; the page said: ${errors.filter((error) => error.includes(PLUGIN_VIEW_SURFACE)).join(" | ") || "nothing"}`);
+    const outside = [...new Set(asked.filter((method) => !START_NAMES.includes(method)))];
+    assert.deepEqual(outside, [], `the start asked the library for reads it does not name before it settled: ${outside.join(", ")}`);
+    const forest = asked.findIndex((method) => FOREST_READS.includes(method));
+    const beforeForest = (forest === -1 ? asked : asked.slice(0, forest)).filter((method) => method !== START_MARK);
+    const repeated = [...new Set(beforeForest.filter((method, at) => beforeForest.indexOf(method) !== at))];
+    assert.deepEqual(repeated, [], `before the forest's reading asked its first read, the start asked ${repeated.join(", ")} more than once: ${beforeForest.join(", ")}`);
+    await page.close();
   });
 });

@@ -38,6 +38,7 @@ test("8.36 · storytree/one-form-command-line refuses, in a non-test source file
       passes(source(`export const hooked = (hook, x) => hook.args.includes(x);`)),
       passes(source(`export const named = (row, x) => row.name.includes(x);`)),
       passes(source(`export const same = (row, x) => row.name === x;`)),
+      passes(source(String.raw`export const lowered = (row, x) => row.commandLine.replaceAll("\\", "/").toLowerCase().includes(x);`)),
       passes(source(`export const sandboxOff = (app) => app.commandLine.hasSwitch("no-sandbox");`)),
       passes(source(ESCAPE), at("packages/x/src/a.test.mjs")),
       passes(source(ESCAPE), at("scripts/x.mjs")),
@@ -54,6 +55,10 @@ test("8.36 · storytree/one-form-command-line refuses, in a non-test source file
       refused(source(`export const isOurs = async (pid, x) => (await readFile('/proc/#{pid}/cmdline', "utf8")).endsWith(x);`)),
       refused(source(`export const scan = (tree, file) => {`, `  const found = tree.filter((row) => row.commandLine.includes(file));`, `  return found;`, `};`), 5),
       refused(source(ESCAPE), 4, at("apps/desktop/src/main/runs.mjs")),
+      refused(source(`export const lowered = (row, x) => row.commandLine.toLowerCase().includes(x);`)),
+      refused(source(`export const trimmed = (row, x) => row.commandLine.trim().endsWith(x);`)),
+      refused(source(`export const same = (row, x) => row.CommandLine.toLowerCase() === x;`)),
+      refused(source(`export const isOurs = (pid, x) => readFileSync('/proc/#{pid}/cmdline', "utf8").trim().includes(x);`)),
     ],
   });
 

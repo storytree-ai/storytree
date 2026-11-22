@@ -228,11 +228,30 @@ test("3.14, 3.20 an unsurveyed user project's land shows verified health, update
   const unverified: AnnotatedTree = { ...tree, unverified: true, stories: tree.stories.map(story => ({ ...story,
     capabilities: story.capabilities.map(capability => ({ ...capability, status: "untested", reportOnly: true })) })) };
   const beforeCI = forestScene(unverified, [], workStates([])).islands[0]!;
-  assert.equal(beforeCI.land, undefined, "before any verification or code survey, the existing bare land remains");
+  assert.deepEqual(beforeCI.land, { territories: words.map((word, at) => ({ capability: `cap-${at}`, title: `${at + 1} · ${word}`, description: `Browse ${at}`, status: "untested", lines: 1 })), files: [] },
+    "before any verification or code survey, each capability holds a plan-only territory carrying its word, and no files are invented");
+  assert.deepEqual(forestScene(unverified, [], workStates([]), { shop: { files: [], imports: [] } }).islands[0]!.land, beforeCI.land, "an empty survey draws the same territories");
+  const unverifiedDrawn = territoryLand(territories(beforeCI.land!.territories, 20), p => new Vector3(p.x, 0, p.z));
+  assert.deepEqual(words.map((_, at) => ((unverifiedDrawn.getObjectByName(`territory:cap-${at}`) as Mesh).material as MeshBasicMaterial).color.getHexString()), ["f2d16b", "f2d16b", "f2d16b"], "each is drawn untested yellow, never bare ground");
+  const quiet = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
+  const mono: AnnotatedTree = { arcs: [], unverified: true, stories: [{ id: "audit", title: "Audit checklist prototype", health: quiet, capabilities: ["list", "tick", "export"].map((id, at) =>
+    ({ id: `cap-${id}`, title: `${at + 1} · ${id}`, dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health: quiet, ...(id === "export" ? { parkedOn: [{ arc: "arc-1", title: "Sharing" }] } : {}) })) }] };
+  const monoLand = forestScene(mono, [], workStates([])).islands[0]!.land;
+  assert.deepEqual(monoLand, { territories: [
+    { capability: "cap-list", title: "1 · list", status: "proposed", lines: 1 },
+    { capability: "cap-tick", title: "2 · tick", status: "proposed", lines: 1 },
+    { capability: "cap-export", title: "3 · export", status: "proposed", parked: true, lines: 1 },
+  ], files: [] }, "three proposed capabilities, nothing verified and no survey: three plan-only territories, the parked one marked");
+  const monoDrawn = territoryLand(territories(monoLand!.territories, 20), p => new Vector3(p.x, 0, p.z));
+  assert.deepEqual(["list", "tick", "export"].map(id => {
+    const mesh = monoDrawn.getObjectByName(`territory:cap-${id}`) as Mesh;
+    assert.ok(mesh.geometry.attributes.position!.count > 0, `${id} has visible land`);
+    return (mesh.material as MeshBasicMaterial).color.getHexString();
+  }), ["f2d16b", "f2d16b", "86939d"], "proposed yellow, and parked slate grey");
   const read = (survey = {}) => forestScene(tree, [], workStates([]), survey).islands[0]!;
   const island = read();
   assert.ok(island.land, "health has land to colour before a code survey is available");
-  assert.notEqual(island.key, beforeCI.key, "the first CI health creates the territories without a reload");
+  assert.notEqual(island.key, beforeCI.key, "the first CI health redraws the territories without a reload");
   assert.deepEqual(island.land.files, [], "no files are invented");
   assert.deepEqual(read({ shop: { files: [], imports: [] } }).land, island.land, "an empty survey still draws health");
   const map = territories(island.land.territories, 20);

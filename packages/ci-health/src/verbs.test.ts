@@ -103,7 +103,7 @@ test("3.26 · `health ci` prints, after its summary line, each contract-numbered
     process.env.PATH = was;
   }
   const lines = answer.text.split("\n");
-  assert.match(lines[0]!, /^Read 2 test results from https:\/\/github\.com\/acme\/shop\/actions\/runs\/7 /, "the summary line comes first");
+  assert.match(lines[0]!, /^Read 2 test results from https:\/\/github\.com\/acme\/shop\/actions\/runs\/7 .*: 1 contracts verified passing, 0 failing, 0 not checked by a skip; 1 results named no contract of one story\.$/, "the summary line comes first, counting the one result no contract claimed");
   const named = lines.filter((line) => line.includes("tests/test_api.py::test_1_2_answers"));
   assert.equal(named.length, 1, answer.text);
   assert.ok(named[0]!.includes("no story's folder holds its file"), named[0]);

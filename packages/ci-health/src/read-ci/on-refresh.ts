@@ -6,7 +6,7 @@ export const LOOK_EVERY_MS = 5 * 60 * 1000;
 
 export type CiLook = (project: string, folder: string) => Promise<void>;
 
-export function readCiOnRefresh({ open, github = ghApi(), git = gitIn, now = () => new Date() }: { open: (project: string) => Promise<Library>; github?: GitHub; git?: (folder: string) => Git; now?: () => Date }): CiLook {
+export function readCiOnRefresh({ open, github = ghApi(), git = gitIn, now = () => new Date() }: { open: (project: string) => Promise<Library>; github?: GitHub | undefined; git?: (folder: string) => Git; now?: () => Date }): CiLook {
   const lookedAt = new Map<string, number>();
   const lastRun = new Map<string, number>();
   const looking = new Map<string, Promise<void>>();
@@ -20,8 +20,7 @@ export function readCiOnRefresh({ open, github = ghApi(), git = gitIn, now = () 
     try {
       runs = (await github.json(`repos/${repository}/actions/workflows/storytree.yml/runs?${query}`)).workflow_runs ?? [];
     } catch (error) {
-      const said = `${error instanceof Error ? error.message : String(error)}\n${String((error as { stderr?: string })?.stderr ?? "")}`;
-      if (/\bHTTP 404\b/.test(said)) return;
+      if (/\bHTTP 404\b/.test(error instanceof Error ? error.message : String(error))) return;
       throw error;
     }
     const newest = runs[0];

@@ -2,6 +2,7 @@
 import type { Library, Storytree } from "@storytree/library";
 
 import { readCiOnRefresh, type CiLook } from "../read-ci/on-refresh.js";
+import type { GitHub } from "../read-ci/read-ci.js";
 import { CI_TIMES_CHANNELS, type CiTimesBridge } from "./bridge.js";
 import { ciTimesReading, type CiTimesReading } from "./reading.js";
 import type { ActionsReader } from "./record.js";
@@ -16,7 +17,7 @@ export interface CiTimesPageFrame {
 
 export type CiTimesRecorder = (db: CiTimesDb, project: string, folder: string) => Promise<void>;
 
-export function ciTimesAnswers(frame: CiTimesPageFrame, { record = (db, project, folder) => recordFromFolder(db, project, folder), now = () => new Date(), readCi = readCiOnRefresh({ open: (name) => openOnce(frame.server()!, name) }) }: { record?: CiTimesRecorder; now?: () => Date; readCi?: CiLook } = {}): CiTimesBridge {
+export function ciTimesAnswers(frame: CiTimesPageFrame, { record = (db, project, folder) => recordFromFolder(db, project, folder), now = () => new Date(), github, readCi = readCiOnRefresh({ open: (name) => openOnce(frame.server()!, name), github }) }: { record?: CiTimesRecorder; now?: () => Date; github?: GitHub; readCi?: CiLook } = {}): CiTimesBridge {
   const recording = new Map<string, Promise<void>>();
   return {
     async ciTimes(project: unknown): Promise<CiTimesReading | undefined> {
@@ -57,7 +58,7 @@ function openOnce(server: Opener, name: string): Promise<Library> {
   }
   let open = libraries.get(name);
   if (open === undefined) {
-    open = server.openProject(name, { create: false });
+    open = server.openProject(name);
     libraries.set(name, open);
     open.catch(() => libraries.delete(name));
   }

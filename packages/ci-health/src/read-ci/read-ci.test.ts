@@ -514,6 +514,28 @@ test("4.2 a CI reading writes a skip as a test run does: a verdict the newest ru
   assert.equal((await library.healthHistory(contracts[1]!)).filter(({ column }) => column === "verified").length, 2, "an entry already saying the same is not written again");
 });
 
+test("3.28 · reading a project's CI reads the run's commit's files under a planned story's folders, the project's top included, so a numbered pytest test in tests/ credits that story's contract", async (t) => {
+  const { library } = await shopLibrary(t);
+  const api = await library.addStory({ title: "Api", folders: ["."] });
+  const capability = await library.addCapability({ title: "2 · Api", story: api.id, proposed: false });
+  const contract = await library.addContract({ title: "2.1 · it answers", capability: capability.id });
+  const { folder } = projectFolder(t);
+  const git = (...args: string[]) => execFileSync("git", ["-C", folder, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
+  mkdirSync(path.join(folder, "tests"));
+  writeFileSync(path.join(folder, "tests/test_2_1_api.py"), "def test_2_1_answers():\n    pass\n");
+  git("add", ".");
+  git("commit", "-q", "-m", "api tests");
+  const commit = git("rev-parse", "HEAD");
+  const log = [tap("ok"), "2026-11-23T10:00:01.3000000Z PASSED tests/test_2_1_api.py::test_2_1_answers"].join("\n");
+
+  const read = await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), log) });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.deepEqual(read.written && read.uncredited, []);
+  const health = await library.health(contract.id);
+  assert.equal(health!.verified.state, "passing");
+  assert.match(health!.verified.note ?? "", new RegExp(`1/1 tests passed, at commit ${commit.slice(0, 12)}`));
+});
+
 test("3.26 · reading a project's CI returns every contract-numbered test of the newest run it credited to no story, with its reason and the one story its number would have matched: a numbered pytest test in a file outside every story's folder is named", async (t) => {
   const { library } = await shopLibrary(t);
   const story = (await library.projectTree()).stories[0]!.id;

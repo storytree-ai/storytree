@@ -950,6 +950,26 @@ test("9.44 edit_plan takes an increment's remedies, replacing those it had, and 
   });
 });
 
+test("9.47 · plan_story takes the folders a story's code lives in and the story carries them; edit_plan replaces a story's folders; a blank folder is refused with no story planned", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const fields = async (id: string) => (await library.get(id))?.fields as { title?: string; folders?: string[] } | undefined;
+      const planned = await agent.call("plan_story", { title: "Checkout", folders: ["src/checkout", "."], ...FOUNDED });
+      assert.equal(planned.isError, false, planned.text);
+      const story = idOf(planned);
+      assert.deepEqual((await fields(story))?.folders, ["src/checkout", "."]);
+
+      const edited = await agent.call("edit_plan", { id: story, folders: ["tests"] });
+      assert.equal(edited.isError, false, edited.text);
+      assert.deepEqual(await fields(story).then((one) => [one?.title, one?.folders]), ["Checkout", ["tests"]]);
+
+      const blank = await agent.call("plan_story", { title: "Blank", folders: [""], ...FOUNDED });
+      assert.equal(blank.isError, true, blank.text);
+      assert.deepEqual((await library.projectTree()).stories.map(({ title }) => title), ["Checkout"]);
+    });
+  });
+});
+
 test("9.45 plan_capability and edit_plan take a parent whose code, read from the project's code survey, has a folder with its own entry file, and refuse one whose code has none, naming the rule, with nothing written", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

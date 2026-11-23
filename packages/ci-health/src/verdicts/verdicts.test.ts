@@ -243,6 +243,34 @@ test("2.8 · an imported story's pytest files are those under the folders its co
   assert.deepEqual(unmatched, []);
 });
 
+test("2.14 · a planned story's folders credit it the pytest files under them: ./ is the top, the deepest folder holding a file wins, two stories at one depth credit neither, and its packages/<name>/ tests stay its own", () => {
+  const story = (id: string, title: string, contract: string, folders: string[]): PlanTree["stories"][number] =>
+    ({ id, title, folders, capabilities: [{ id: `cap_${id}`, title: "1 · Api", contracts: [{ id: contract, title: "1.1 · it answers" }] }] });
+  const tree: PlanTree = {
+    stories: [
+      story("story_top", "checkbox", "c_top_11", ["./"]),
+      story("story_sdk", "checkbox-sdk", "c_sdk_11", ["libs/sdk"]),
+      story("story_one", "one", "c_one_11", ["shared"]),
+      story("story_two", "two", "c_two_11", ["shared/"]),
+      story("story_web", "web", "c_web_11", ["apps/web"]),
+    ],
+  };
+  const test = "def test_1_1_answers():\n    pass\n";
+  const paths = ["tests/test_api.py", "libs/sdk/tests/test_client.py", "shared/tests/test_shared.py", "apps/web/tests/test_app.py", "packages/web/tests/test_web.py"];
+  const { verdicts, unmatched } = judgeRun(proofsAt(tree, paths.map((path) => ({ path, text: test }))), [
+    ran("tests/test_api.py", "test_1_1_answers"),
+    ran("libs/sdk/tests/test_client.py", "test_1_1_answers", [], "failed"),
+    ran("shared/tests/test_shared.py", "test_1_1_answers"),
+    ran("apps/web/tests/test_app.py", "test_1_1_answers", [], "failed"),
+    ran("packages/web/tests/test_web.py", "test_1_1_answers"),
+  ]);
+  assert.deepEqual(
+    Object.fromEntries([...verdicts].map(([id, verdict]) => [id, [verdict.state, verdict.total]])),
+    { c_top_11: ["passing", 1], c_sdk_11: ["failing", 1], c_one_11: ["not-checked", 0], c_two_11: ["not-checked", 0], c_web_11: ["failing", 2] },
+  );
+  assert.deepEqual(unmatched, [ran("shared/tests/test_shared.py", "test_1_1_answers")]);
+});
+
 test("2.9 · a result counts for each contract whose provedBy names its test: a pytest result by its node id's file, then any classes and test, its parameters included, a file or class naming all it holds; any other result by its own title or a suite's", () => {
   const contract = (id: string, number: string, provedBy: string[]) => ({ id, title: `1.${number} · it holds`, provedBy });
   const tree: PlanTree = {

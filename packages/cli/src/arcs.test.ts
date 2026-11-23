@@ -304,11 +304,11 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
   });
 });
 
-test("4.27 `arc waits --audit` lists the owner actions that need attention, oldest read first, each with every reason: a note saying not yet while nothing holds it, a note naming a closed increment, no why, no rank, a parked arc, or not read again in seven days", async () => {
+test("4.27 `arc waits --audit` lists the owner actions that need attention, oldest read first, each with every reason: a note saying not yet while nothing holds it, a note naming an increment closed since it was last read again, no why, no rank, a parked arc, or not read again in seven days", async () => {
   const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
   const increment = (id: string, title: string, status = "proposal") => ({ id, fields: { title, status } });
   const owner = (note: string, more: Record<string, unknown> = { why: "it closes a live exposure", rank: 1, reviewed: day(0) }) => [{ releaser: "owner", note, holds: true, ...more }];
-  const closed = increment("increment_aaaaaaaaaaaa", "Keep the push URL", "closed");
+  const closed = { id: "increment_aaaaaaaaaaaa", fields: { title: "Keep the push URL", status: "closed", outcome: { date: day(-1), disposition: "landed", pr: "#3" } } };
   const views = [
     { arc: { id: "arc_security", fields: { title: "Security hygiene" } }, state: "active", questions: [], increments: [
       increment("increment_000000000001", "Revoke the old token"),
@@ -342,7 +342,7 @@ test("4.27 `arc waits --audit` lists the owner actions that need attention, olde
       "4 actions of yours need attention, oldest read first:",
       "  - increment_000000000004  Drop the old org, on arc_security  Security hygiene: it has no why; it has no rank; it has never been read again",
       "      Drop the old organisation",
-      `  - increment_000000000005  Re-read the push URL, on arc_security  Security hygiene: its note names ${closed.id}, which has closed; it was last read again on ${day(-8)}`,
+      `  - increment_000000000005  Re-read the push URL, on arc_security  Security hygiene: its note names ${closed.id}, which has closed since it was last read; it was last read again on ${day(-8)}`,
       `      #2  Set the push URL once ${closed.id} lands (why: pushes reach the right remote)`,
       "  - increment_000000000002  Rotate the box key, on arc_security  Security hygiene: its note says \"not yet\", but nothing holds it",
       "      #1  Not yet: this opens once the push URL lands (why: it closes a live exposure)",
@@ -354,6 +354,64 @@ test("4.27 `arc waits --audit` lists the owner actions that need attention, olde
     const tidy = { arcViews: async () => views.slice(0, 1).map((view) => ({ ...view, increments: view.increments.slice(0, 1) })), holds: async () => holds };
     const none = await verb.act(parseArgs(["--audit"], ["audit"], world.folder), { cwd: world.folder, activityContext: async () => ({ library: tidy }) } as unknown as Context);
     assert.equal(none.text, "No action of yours needs attention.");
+  });
+});
+
+test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose increment waits on, an increment closed on or after the day the wait was last read again (any closing when never read again), or which an increment landed since then, with or without a pull request, names in its body or outcome note; a closing before that day, or a withdrawn increment naming it, lists nothing", async () => {
+  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+  const open = (id: string, title: string, more: Record<string, unknown> = {}) => ({ id, fields: { title, status: "active", body: "…", ...more } });
+  const shut = (id: string, title: string, body: string, outcome: Record<string, unknown>) => ({ id, fields: { title, status: "closed", body, outcome } });
+  const owner = (note: string, more: Record<string, unknown> = { reviewed: day(-3) }) => [{ releaser: "owner", note, why: "it unblocks the release", rank: 1, holds: true, ...more }];
+  const views = [
+    { arc: { id: "arc_release", fields: { title: "Release" } }, state: "active", questions: [], increments: [
+      open("increment_000000000011", "Set the push URL"),
+      open("increment_000000000012", "Turn on the mirror", { waits: [{ on: "increment_0000000000a3", reason: "after the mirror host" }] }),
+      open("increment_000000000013", "Approve the release", { waits: [{ on: "increment_0000000000a4", reason: "after the build" }] }),
+      open("increment_000000000014", "Rotate the box key"),
+      open("increment_000000000015", "Check the token"),
+      open("increment_000000000016", "Drop the old org"),
+      open("increment_000000000017", "Name the mirror"),
+      shut("increment_0000000000a1", "Pick the remote", "…", { date: day(-1), disposition: "landed", pr: "#10" }),
+      shut("increment_0000000000a2", "Move the remote", "…", { date: day(-3), disposition: "withdrawn", note: "Not needed" }),
+      shut("increment_0000000000a3", "Stand up the mirror host", "Does what increment_000000000012 waits for", { date: day(-4), disposition: "landed", pr: "#9", note: "increment_000000000012 can go ahead" }),
+      shut("increment_0000000000a4", "Build the release", "…", { date: day(-2), disposition: "landed", pr: "#11" }),
+    ] },
+    { arc: { id: "arc_keys", fields: { title: "Keys" } }, state: "active", questions: [], increments: [
+      shut("increment_0000000000a6", "Rotate keys by hand", "Does the steps of increment_000000000014", { date: day(-1), disposition: "landed", note: "Landed on main with no pull request" }),
+      shut("increment_0000000000a7", "Revoke the token", "…", { date: day(0), disposition: "landed", pr: "#12", note: "This also does increment_000000000015" }),
+      shut("increment_0000000000a8", "Retire the org", "Does the steps of increment_000000000016", { date: day(0), disposition: "withdrawn", note: "Folded into increment_000000000016" }),
+    ] },
+  ];
+  const holds = {
+    waits: {},
+    heldOn: {},
+    waitsFor: {
+      increment_000000000011: owner("Set the push URL once increment_0000000000a1 and increment_0000000000a2 land"),
+      increment_000000000012: owner("Turn the mirror on once increment_0000000000a3 lands"),
+      increment_000000000013: owner("Approve the release"),
+      increment_000000000014: owner("Rotate the box key"),
+      increment_000000000015: owner("Check the token still works"),
+      increment_000000000016: owner("Drop the old organisation"),
+      increment_000000000017: owner("Name the mirror once increment_0000000000a3 lands", {}),
+    },
+  };
+  const library = { arcViews: async () => views, holds: async () => holds };
+  await inWorld(command, async (world) => {
+    const verb = arcs.verbs.find((one) => one.name === "waits")!;
+    const answer = await verb.act(parseArgs(["--audit"], ["audit"], world.folder), { cwd: world.folder, activityContext: async () => ({ library }) } as unknown as Context);
+    assert.deepEqual(answer.text.split("\n"), [
+      "5 actions of yours need attention, oldest read first:",
+      "  - increment_000000000017  Name the mirror, on arc_release  Release: its note names increment_0000000000a3, which has closed since it was last read; it has never been read again",
+      "      #1  Name the mirror once increment_0000000000a3 lands (why: it unblocks the release)",
+      "  - increment_000000000011  Set the push URL, on arc_release  Release: its note names increment_0000000000a1, increment_0000000000a2, which have closed since it was last read",
+      "      #1  Set the push URL once increment_0000000000a1 and increment_0000000000a2 land (why: it unblocks the release)",
+      "  - increment_000000000013  Approve the release, on arc_release  Release: it waits on increment_0000000000a4, which has closed since it was last read",
+      "      #1  Approve the release (why: it unblocks the release)",
+      "  - increment_000000000014  Rotate the box key, on arc_release  Release: increment_0000000000a6, which names it, has landed since it was last read",
+      "      #1  Rotate the box key (why: it unblocks the release)",
+      "  - increment_000000000015  Check the token, on arc_release  Release: increment_0000000000a7, which names it, has landed since it was last read",
+      "      #1  Check the token still works (why: it unblocks the release)",
+    ]);
   });
 });
 

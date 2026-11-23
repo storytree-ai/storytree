@@ -90,6 +90,12 @@ const declared = declaredIn();
 
 export const FAMILIES: readonly Family[] = familiesOf(declared);
 
+const FROM_PLUGINS = new Set(declared.parts.flatMap((family, at) => pluginAt(declared, at) === undefined ? [] : [family.name]));
+
+export function fromFactoryPlugin(family: string): boolean {
+  return FROM_PLUGINS.has(family);
+}
+
 const WAY_BACK = "settings";
 
 export function familiesOff(off: readonly string[]): ReadonlyMap<string, SwitchedOff> {

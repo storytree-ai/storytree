@@ -8,7 +8,7 @@ import { printable } from "@storytree/library/printable";
 
 import { Refusal, render, UnknownCommand, type Answer, type Next } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
-import { FAMILIES, familiesOff, GUESSES, NO_SUCH_JOB, POINTERS } from "./families/index.js";
+import { FAMILIES, familiesOff, fromFactoryPlugin, GUESSES, NO_SUCH_JOB, POINTERS } from "./families/index.js";
 import { recordKindsMounted } from "./mount.js";
 import { commandSession, commandWriter, person } from "./writer.js";
 
@@ -99,6 +99,7 @@ export async function run(argv: readonly string[], given: Io): Promise<number> {
       journey: () => (journey ??= import("@storytree/app-setup/journey-events/runtime").then(({ createJourneyRuntime }) =>
         createJourneyRuntime({ appVersion: sourceVersion()?.version ?? "0.3.0" }))),
     };
+    await warnStaleFactory(argv[0], io);
     const answer = await dispatch(argv, heard, context).catch(async (thrown: unknown) => {
       const to = thrown instanceof Unheard ? await opened.pointer(thrown.where, thrown.word) : undefined;
       if (to === undefined) throw thrown;
@@ -128,6 +129,17 @@ export async function run(argv: readonly string[], given: Io): Promise<number> {
 
 interface Heard {
   verb: string;
+}
+
+async function warnStaleFactory(word: string | undefined, io: Io): Promise<void> {
+  const family = word === undefined ? undefined : FAMILIES.find((candidate) => candidate.name === word || candidate.aliases?.includes(word));
+  if (family === undefined || !fromFactoryPlugin(family.name)) return;
+  try {
+    const [{ factoryFolder }, { factoryStale }] = await Promise.all([import("@storytree/project-and-caller"), import("@storytree/plugin-loader/factory")]);
+    const line = await factoryStale(factoryFolder().folder);
+    if (line !== undefined) io.err(`${line}\n`);
+  } catch {
+  }
 }
 
 class DeniedByArm extends Refusal {}

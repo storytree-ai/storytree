@@ -409,3 +409,57 @@ test("2.12 · a contract on an edge inside a story counts a test's result as a c
   );
   assert.deepEqual(unmatched, []);
 });
+
+test("2.13 · judging a run lists each contract-numbered result it credited to no contract, with why (no story holds it, two do, its named package is no story's, or its story has no such number) and the one story with a contract of that number; a credited or unnumbered result is not listed", () => {
+  const tree: PlanTree = {
+    stories: [
+      { id: "story_cart", title: "Review the cart", capabilities: [{ id: "cap_cart", title: "1 · Cart page", contracts: [{ id: "c_cart_11", title: "1.1 · Cart page shows its shell" }, { id: "c_cart_12", title: "1.2 · Cart lists its contents" }] }] },
+      {
+        id: "story_out",
+        title: "Check out",
+        capabilities: [
+          { id: "cap_out", title: "1 · Checkout pages", contracts: [{ id: "c_out_11", title: "1.1 · Your information page shows the form" }] },
+          { id: "cap_total", title: "2 · Totals", contracts: [{ id: "c_out_21", title: "2.1 · Totals are shown" }, { id: "c_out_proved", title: "Totals hold", provedBy: ["2.9 a proved total"] }] },
+        ],
+      },
+    ],
+  };
+  const files = [
+    { path: "packages/review-the-cart/src/cart.test.js", text: [
+      `import { test } from "node:test";`,
+      `test("1.1 cart page shows its shell", () => {});`,
+      `test("1.1 the header is shared", () => {});`,
+      `test("2.1 cart totals add up", () => {});`,
+    ].join("\n") },
+    { path: "packages/check-out/src/checkout.test.js", text: [
+      `import { test } from "node:test";`,
+      `test("1.1 the header is shared", () => {});`,
+      `test("2.9 a proved total", () => {});`,
+    ].join("\n") },
+    { path: "packages/review-the-cart/tests/test_total.py", text: ["def test_1_1_shell():", "    pass", "def test_pay_desk_2_1_charges():", "    pass", "def test_check_out_1_2_handoff():", "    pass"].join("\n") },
+    { path: "packages/check-out/tests/test_total.py", text: ["def test_1_1_shell():", "    pass"].join("\n") },
+  ];
+  const cart = "packages/review-the-cart/tests/test_total.py";
+  const { verdicts, uncredited } = judgeRun(proofsAt(tree, files), [
+    pass("1.1 cart page shows its shell"),
+    pass("sums the cart"),
+    pass("2.9 a proved total"),
+    ran("tests/test_api.py", "test_2_1_answers"),
+    ran("tests/test_total.py", "test_1_1_shell"),
+    pass("one row", ["2.1 nobody's suite"]),
+    pass("1.1 the header is shared"),
+    ran(cart, "test_pay_desk_2_1_charges"),
+    pass("2.1 cart totals add up"),
+    ran(cart, "test_check_out_1_2_handoff"),
+  ]);
+  assert.deepEqual([verdicts.get("c_cart_11")!.total, verdicts.get("c_out_proved")!.total], [1, 1], "control: the first title by its number, the proved one by its provedBy");
+  assert.deepEqual(uncredited, [
+    { test: "tests/test_api.py::test_2_1_answers", number: "2.1", reason: "no story's folder holds its file", story: "story_out" },
+    { test: "tests/test_total.py::test_1_1_shell", number: "1.1", reason: "more than one story's folder holds its file" },
+    { test: "2.1 nobody's suite › one row", number: "2.1", reason: "no story's tests hold its title", story: "story_out" },
+    { test: "1.1 the header is shared", number: "1.1", reason: "more than one story's tests hold its title" },
+    { test: `${cart}::test_pay_desk_2_1_charges`, number: "2.1", reason: "its name names package pay_desk, which is no story's" },
+    { test: "2.1 cart totals add up", number: "2.1", reason: "its story story_cart has no contract 2.1", story: "story_out" },
+    { test: `${cart}::test_check_out_1_2_handoff`, number: "1.2", reason: "its story story_out has no contract 1.2" },
+  ], "1.1 is two stories' number, so names no story; check-out's name narrows 1.2 to check-out, which has none, though the cart has a 1.2");
+});

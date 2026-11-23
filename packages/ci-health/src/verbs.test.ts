@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -40,6 +40,75 @@ test("3.14 CI health declares the `health` verbs the command line mounts: `healt
   const answer = await ci.act({}, { library, project: name, session: "test", folder }, WORDS);
   assert.match(answer.text, /no GitHub origin/);
   assert.equal((await library.projectTree()).unverified, true, "nothing was written");
+});
+
+test("3.26 · `health ci` prints, after its summary line, each contract-numbered test of the newest run it credited to no story, with its reason and the one story its number would have matched", { skip: process.platform === "win32" && "platform:posix: a stand-in gh on PATH must be an .exe on Windows" }, async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const name = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(name);
+  t.after(async () => {
+    try {
+      await storytree.dropProject(name);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const story = await library.addStory({ title: "Check out" });
+  const capability = await library.addCapability({ title: "1 · Checkout pages", story: story.id, proposed: false });
+  await library.addContract({ title: "1.2 · Missing details show the error", capability: capability.id });
+
+  const folder = mkdtempSync(path.join(tmpdir(), "ci-health-verbs-"));
+  t.after(() => removeTemp(folder));
+  const git = (...args: string[]) => execFileSync("git", ["-C", folder, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
+  git("init", "-q");
+  mkdirSync(path.join(folder, "packages/check-out/src"), { recursive: true });
+  writeFileSync(path.join(folder, "packages/check-out/src/checkout.test.js"), `import { test } from "node:test";\ntest("1.2 missing details show the error", () => {});\n`);
+  mkdirSync(path.join(folder, "tests"));
+  writeFileSync(path.join(folder, "tests/test_api.py"), "def test_1_2_answers():\n    pass\n");
+  git("add", ".");
+  git("commit", "-q", "-m", "checkout");
+  git("remote", "add", "origin", "https://github.com/acme/shop.git");
+
+  const routes = {
+    "repos/acme/shop": JSON.stringify({ default_branch: "trunk" }),
+    "repos/acme/shop/actions/runs/7/jobs": JSON.stringify({ jobs: [{ id: 70, conclusion: "success" }] }),
+    "repos/acme/shop/actions/jobs/70/logs": [
+      "2026-11-23T10:00:00.0000000Z TAP version 13",
+      "2026-11-23T10:00:00.1000000Z ok 1 - 1.2 missing details show the error",
+      "2026-11-23T10:00:01.3000000Z PASSED tests/test_api.py::test_1_2_answers",
+    ].join("\n"),
+  };
+  const runs = [{ id: 7, conclusion: "success", head_sha: git("rev-parse", "HEAD"), html_url: "https://github.com/acme/shop/actions/runs/7" }];
+  const bin = path.join(folder, "bin");
+  mkdirSync(bin);
+  writeFileSync(path.join(bin, "gh"), [
+    `#!${process.execPath}`,
+    `const route = process.argv[3];`,
+    `const [where, query = ""] = route.split("?");`,
+    `const routes = ${JSON.stringify(routes)};`,
+    `if (where === "repos/acme/shop/actions/runs") process.stdout.write(JSON.stringify({ workflow_runs: new URLSearchParams(query).get("event") === "push" ? ${JSON.stringify(runs)} : [] }));`,
+    `else if (where in routes) process.stdout.write(routes[where]);`,
+    `else { process.stderr.write("no such route: " + route); process.exit(1); }`,
+  ].join("\n"), { mode: 0o755 });
+
+  const ci = HEALTH_FAMILIES[0]!.verbs.find((one) => "name" in one.command && one.command.name === "ci")!;
+  const was = process.env.PATH;
+  process.env.PATH = `${bin}${path.delimiter}${was ?? ""}`;
+  let answer;
+  try {
+    answer = await ci.act({}, { library, project: name, session: "test", folder }, WORDS);
+  } finally {
+    process.env.PATH = was;
+  }
+  const lines = answer.text.split("\n");
+  assert.match(lines[0]!, /^Read 2 test results from https:\/\/github\.com\/acme\/shop\/actions\/runs\/7 .*: 1 contracts verified passing, 0 failing, 0 not checked by a skip; 1 results named no contract of one story\.$/, "the summary line comes first, counting the one result no contract claimed");
+  const named = lines.filter((line) => line.includes("tests/test_api.py::test_1_2_answers"));
+  assert.equal(named.length, 1, answer.text);
+  assert.ok(named[0]!.includes("no story's folder holds its file"), named[0]);
+  assert.ok(named[0]!.includes(story.id), named[0]);
+  assert.equal(answer.text.includes("missing details show the error"), false, "the credited test is not listed");
 });
 
 test("6.5 `health times` records the project's CI times and prints the reading; a project with no GitHub origin says why and records nothing", async (t) => {

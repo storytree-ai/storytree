@@ -199,6 +199,7 @@ export const RECORD_SCHEMAS = {
       description: z.string().optional(),
       text: z.string().optional(),
       mapped: z.object({ from: nonEmpty, package: nonEmpty, folders: z.array(nonEmpty) }).strict().optional(),
+      folders: z.array(nonEmpty).optional(),
       plugin: nonEmpty.optional(),
       risk: z
         .object({

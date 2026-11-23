@@ -53,7 +53,7 @@ export function platformOfJob(job: { name?: string; labels?: readonly string[] }
 }
 
 function mappedFolders(tree: PlanTree): string[] {
-  return tree.stories.flatMap(({ mapped }) => (mapped?.folders ?? []).map((folder) => folder.replace(/^\.\/?|\/$/g, "")));
+  return tree.stories.flatMap(({ mapped, folders }) => [...(mapped?.folders ?? []), ...(folders ?? [])].map((folder) => folder.replace(/^\.\/?|\/$/g, "")));
 }
 
 async function filesAt(git: Git, commit: string, mapped: readonly string[]): Promise<{ path: string; text: string }[]> {

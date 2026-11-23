@@ -64,6 +64,11 @@ const proof = z
   .optional()
   .describe("How the contract is proved, with a one-line reason (ADR-1294)");
 
+const folders = z
+  .array(z.string().min(1))
+  .optional()
+  .describe("The folders a story's code lives in when it is not in packages/<story>/, each from the project's top (. for the top itself), so its numbered tests there are credited to it");
+
 const founding = z
   .object({
     title: z.string().min(1).describe("The one choice that shapes it, as a short title"),
@@ -92,8 +97,8 @@ export function registerPlanTools(define: Define): void {
   define(
     "plan_story",
     "Plan a story: something a user of the project can do, one package of its own, with its founding decision: what it is for, and the one choice that shapes it. Plan its capabilities next. A story is never a task: a task or ticket is an increment, with contracts on the capabilities it changes. On an existing codebase, call import_project first: each package it declares becomes an imported story, and this refuses while the project's folder declares packages none of which has a story; after it, plan a story only for a new package built on them. Never move or restructure a user's code to fit storytree: a flat repository imports as it stands, as one imported story.",
-    z.object({ title, description, founding }),
-    async ({ title: name, description: about, founding: decision }, { library, writer, folder }) => {
+    z.object({ title, description, folders, founding }),
+    async ({ title: name, description: about, folders: held, founding: decision }, { library, writer, folder }) => {
       const unimported = await unimportedPackages(folder, library);
       if (unimported.length > 0) {
         return {
@@ -102,7 +107,7 @@ export function registerPlanTools(define: Define): void {
           data: { unimported: unimported.map((one) => one.title) },
         };
       }
-      const story = await library.addStory({ title: name, ...optional({ description: about }) }, writer);
+      const story = await library.addStory({ title: name, ...optional({ description: about, folders: held }) }, writer);
       const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: story.id }, writer);
       return {
         text: `Planned story ${quoted(name)} (${story.id}), founded on ${quoted(decision.title)} (${book.id}). Plan its capabilities next.`,
@@ -233,6 +238,7 @@ export function registerPlanTools(define: Define): void {
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
       parent: parent.describe("A capability's parent: the id of the capability of its story it sits inside, whose code holds a folder with its own entry file or a nested package for it, or \"none\" to clear it, making it a top capability of its story"),
       covers: covers.describe("The folders and files of a capability you mapped on code storytree cannot read, replacing them"),
+      folders: folders.describe("The folders a story's code lives in when it is not in packages/<story>/, replacing them"),
       store_links: storeLinks,
       proved_by: provedBy.describe("A contract's existing tests that prove it, replacing them"),
       proof: proof.describe("How a contract is proved, with a one-line reason (ADR-1294), replacing it"),
@@ -324,6 +330,7 @@ interface Changes {
   depends_on?: string[] | undefined;
   parent?: string | undefined;
   covers?: string[] | undefined;
+  folders?: string[] | undefined;
   store_links?: StoreLink[] | undefined;
   proved_by?: string[] | undefined;
   proof?: Proof | undefined;
@@ -343,7 +350,7 @@ interface Changes {
 }
 
 const EDITABLE = {
-  story: ["title", "description"],
+  story: ["title", "description", "folders"],
   capability: ["title", "description", "story", "depends_on", "parent", "covers", "store_links"],
   contract: ["title", "description", "capability", "edge", "proved_by", "proof"],
   edge: ["description"],

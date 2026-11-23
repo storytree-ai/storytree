@@ -7,7 +7,7 @@ import type { TestResult } from "../run-results/run-results.js";
 type PlannedContract = { readonly id: string; readonly title: string; readonly provedBy?: readonly string[] };
 
 export type PlanTree = {
-  readonly stories: readonly { readonly id: string; readonly title: string; readonly plugin?: string; readonly mapped?: { readonly folders: readonly string[] }; readonly capabilities: readonly { readonly id: string; readonly title: string; readonly covers?: readonly string[]; readonly contracts: readonly PlannedContract[] }[]; readonly edges?: readonly { readonly contracts: readonly PlannedContract[] }[] }[];
+  readonly stories: readonly { readonly id: string; readonly title: string; readonly plugin?: string; readonly mapped?: { readonly folders: readonly string[] }; readonly folders?: readonly string[]; readonly capabilities: readonly { readonly id: string; readonly title: string; readonly covers?: readonly string[]; readonly contracts: readonly PlannedContract[] }[]; readonly edges?: readonly { readonly contracts: readonly PlannedContract[] }[] }[];
 };
 
 export type StoryProofs = {
@@ -80,7 +80,7 @@ export function proofsAt(tree: PlanTree, files: readonly SourceFile[]): StoryPro
 
 function importedPytest(tree: PlanTree, files: readonly SourceFile[]): Map<string, string> {
   const built = tree.stories.filter(({ mapped }) => mapped === undefined).flatMap((story) => packagesOf(story));
-  const folders = tree.stories.flatMap(({ id, mapped }) => (mapped?.folders ?? []).map((folder) => ({ id, folder: folder.replace(/^\.\/?|\/$/g, "") })));
+  const folders = tree.stories.flatMap(({ id, mapped, folders }) => [...(mapped?.folders ?? []), ...(folders ?? [])].map((folder) => ({ id, folder: folder.replace(/^\.\/?|\/$/g, "") })));
   const owners = new Map<string, string>();
   for (const { path } of files) {
     if (!PYTEST_FILE.test(path) || built.some((name) => path.startsWith(`packages/${name}/`))) continue;

@@ -1,5 +1,5 @@
 // Capability 6 · CI times.
-import type { Storytree } from "@storytree/library";
+import type { Library, Storytree } from "@storytree/library";
 
 import { readCiOnRefresh, type CiLook } from "../read-ci/on-refresh.js";
 import { CI_TIMES_CHANNELS, type CiTimesBridge } from "./bridge.js";
@@ -16,7 +16,7 @@ export interface CiTimesPageFrame {
 
 export type CiTimesRecorder = (db: CiTimesDb, project: string, folder: string) => Promise<void>;
 
-export function ciTimesAnswers(frame: CiTimesPageFrame, { record = (db, project, folder) => recordFromFolder(db, project, folder), now = () => new Date(), readCi = readCiOnRefresh({ open: (name) => frame.server()!.openProject(name, { create: false }) }) }: { record?: CiTimesRecorder; now?: () => Date; readCi?: CiLook } = {}): CiTimesBridge {
+export function ciTimesAnswers(frame: CiTimesPageFrame, { record = (db, project, folder) => recordFromFolder(db, project, folder), now = () => new Date(), readCi = readCiOnRefresh({ open: (name) => openOnce(frame.server()!, name) }) }: { record?: CiTimesRecorder; now?: () => Date; readCi?: CiLook } = {}): CiTimesBridge {
   const recording = new Map<string, Promise<void>>();
   return {
     async ciTimes(project: unknown): Promise<CiTimesReading | undefined> {
@@ -43,6 +43,25 @@ export function ciTimesAnswers(frame: CiTimesPageFrame, { record = (db, project,
       return reading;
     },
   };
+}
+
+type Opener = Pick<Storytree, "openProject">;
+
+const opened = new WeakMap<Opener, Map<string, Promise<Library>>>();
+
+function openOnce(server: Opener, name: string): Promise<Library> {
+  let libraries = opened.get(server);
+  if (libraries === undefined) {
+    libraries = new Map();
+    opened.set(server, libraries);
+  }
+  let open = libraries.get(name);
+  if (open === undefined) {
+    open = server.openProject(name, { create: false });
+    libraries.set(name, open);
+    open.catch(() => libraries.delete(name));
+  }
+  return open;
 }
 
 class LibraryClosed extends Error {}

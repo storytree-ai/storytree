@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect, type Library } from "@storytree/library";
 
-import { PRINCIPLES, PROCESSES } from "./starter-notes.js";
+import { GUARDRAILS, PRINCIPLES, PROCESSES } from "./starter-notes.js";
 import { ROLES } from "./starter-roles.js";
 import { seedStarterPack, STARTER_PACK_VERSION, starterPackStatus, takeStarterPack } from "./starter-pack.js";
 
@@ -116,4 +116,17 @@ test("6.17 the starter pack's Merge ceremony and orchestrator land green, review
   assert.match(ceremony.steps, /diff[^.]*only (when|if) the user asks/i, "its landing step shows a diff only when asked");
   const orchestrator = ROLES.find((role) => role.workflow.includes("Merge ceremony"))!;
   assert.doesNotMatch(orchestrator.workflow, diffStop, "the orchestrator's land step");
+});
+
+test("6.19 a new starter pack's imported-code note asks only about code in a language the code survey knows, leaves README, docs and config to the agent, and names the edit gate and shell guard as its enforcement (ADR-1392)", () => {
+  const note = GUARDRAILS.find((guardrail) => guardrail.title === "Ask the user before changing the imported code")!;
+  const asks = `${note.statement}\n${note.rule}`;
+  assert.doesNotMatch(note.statement, /anything in the imported (project|folder)/i, "it no longer asks about everything imported");
+  assert.match(asks, /language[^.]*code survey|code survey[^.]*language/i, "imported code is a file in a language the code survey knows");
+  assert.match(asks, /README[^.]*docs[^.]*config/i, "it names README, docs and config");
+  assert.match(asks, /(agent's|agent is free|agent may)[^.]*change|change[^.]*(without asking|no yes|not asked)/i, "those are the agent's to change without asking");
+  assert.match(note.enforcedBy, /edit gate/i, "its enforcedBy names the edit gate");
+  assert.match(note.enforcedBy, /shell guard/i, "its enforcedBy names the shell guard");
+  assert.doesNotMatch(note.enforcedBy, /nothing mechanical/i, "it no longer says nothing mechanical stops an edit");
+  assert.ok(STARTER_PACK_VERSION > 17, `the change offers a newer pack than 17, got ${STARTER_PACK_VERSION}`);
 });

@@ -721,16 +721,24 @@ const waits = verb({
 });
 
 function auditOf(views: readonly ArcView[], holds: Holds, at: Date): { text: string; next?: { command: string; why: string }[] } {
-  const closed = new Set(views.flatMap(({ increments }) => increments.flatMap((one) => (one.fields.status === "closed" ? [one.id] : []))));
+  const shut = views.flatMap(({ increments }) => increments.filter((one) => one.fields.status === "closed"));
+  const closedOn = new Map(shut.map((one) => [one.id, (one.fields.outcome?.date ?? "").slice(0, 10)]));
   const due = new Date(at.getTime() - REVIEW_DAYS * 86_400_000).toISOString().slice(0, 10);
   const found = views.flatMap((view) => view.increments.flatMap((increment) => (holds.waitsFor?.[increment.id] ?? [])
     .filter((wait) => wait.releaser === "owner")
     .map((wait) => {
       const held = (holds.waits[increment.id] ?? []).length > 0 || (holds.heldOn[increment.id] ?? []).length > 0;
-      const named = [...new Set(wait.note.match(/increment_[0-9a-f]{12}/g) ?? [])].filter((id) => closed.has(id));
+      const since = (id: string): boolean => closedOn.has(id) && (wait.reviewed === undefined || (closedOn.get(id) ?? "") >= wait.reviewed);
+      const named = [...new Set(wait.note.match(/increment_[0-9a-f]{12}/g) ?? [])].filter(since);
+      const awaited = [...new Set((increment.fields.waits ?? []).map((one) => one.on))].filter(since);
+      const naming = shut.filter((one) => one.fields.outcome?.disposition === "landed" && since(one.id)
+        && `${one.fields.body ?? ""}\n${one.fields.outcome.note ?? ""}`.includes(increment.id)).map((one) => one.id);
+      const which = (ids: readonly string[]): string => `${ids.join(", ")}, which ${ids.length === 1 ? "has" : "have"} closed since it was last read`;
       const reasons = [
         ...(/\bnot yet\b/i.test(wait.note) && !held ? ["its note says \"not yet\", but nothing holds it"] : []),
-        ...(named.length === 0 ? [] : [`its note names ${named.join(", ")}, which ${named.length === 1 ? "has" : "have"} closed`]),
+        ...(named.length === 0 ? [] : [`its note names ${which(named)}`]),
+        ...(awaited.length === 0 ? [] : [`it waits on ${which(awaited)}`]),
+        ...(naming.length === 0 ? [] : [`${naming.join(", ")}, which ${naming.length === 1 ? "names" : "name"} it, ${naming.length === 1 ? "has" : "have"} landed since it was last read`]),
         ...(wait.why === undefined ? ["it has no why"] : []),
         ...(wait.rank === undefined ? ["it has no rank"] : []),
         ...(view.state === "parked" || view.state === "closed" ? [`its arc is ${view.state}`] : []),

@@ -228,7 +228,7 @@ function registerClaimTools(define: Define, merges: MergeWatch): void {
       if (claims.length === 0) return { text: ["No claimed increment is stale.", ...unread].join("\n"), data: { claims, ...(pullsUnread ? { pullsUnread } : {}) } };
       const rows = await Promise.all(claims.map(async (stale) =>
         `- ${await titleOf(call.library, stale.increment)}: ${stale.label} session ${stale.holder} (${stale.reason}), last seen ${stale.lastSeenAt}${stale.branch === undefined ? "" : `, on ${stale.branch}`}. ${
-          stale.route === "release" ? `${stale.closed ? "Closed: its increment is closed" : stale.ended ? "Ended: its process stopped and it stayed quiet since" : "Gone"}: release it for its holder (--holder ${stale.holder}).` : "Quiet: ask its holder, and release it only once it stays quiet."}`));
+          stale.route === "release" ? `${stale.closed ? "Closed: its increment is closed" : stale.ended ? "Ended: its process stopped and it stayed quiet since" : "Gone"}: release it for its holder (--holder ${stale.holder}${project === undefined ? "" : ` --project ${call.project}`}).` : "Quiet: ask its holder, and release it only once it stays quiet."}`));
       return { text: [`${claims.length} claimed increment${claims.length === 1 ? " is" : "s are"} stale:`, ...rows, ...unread].join("\n"), data: { claims, ...(pullsUnread ? { pullsUnread } : {}) } };
     },
   );

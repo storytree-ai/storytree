@@ -1,8 +1,10 @@
 // Capability 5 · Claims
+import type { Library } from "@storytree/library";
+
 import type { ActivityLog } from "../activity/index.js";
 import { holdersOf, isMainBranch, LogFold, type Claim, type Restart } from "../readings.js";
 import { idleAfterMs } from "@storytree/project-and-caller";
-import { COMMANDS_MS, thisRestart } from "./claims.js";
+import { COMMANDS_MS, isClosed, thisRestart } from "./claims.js";
 import { ghAllOpenPulls, type AllOpenPulls, type OpenPull } from "./merges.js";
 
 export interface StaleClaim {
@@ -15,6 +17,7 @@ export interface StaleClaim {
   readonly lastSeenAt: string;
   readonly route: "release" | "ask";
   readonly ended?: true;
+  readonly closed?: true;
 }
 
 export interface StaleWorklist {
@@ -29,7 +32,7 @@ export interface StaleOptions {
   readonly allOpenPulls?: AllOpenPulls;
 }
 
-export async function staleClaims(context: { readonly log: ActivityLog; readonly project: string; readonly folder: string }, options: StaleOptions = {}): Promise<StaleWorklist> {
+export async function staleClaims(context: { readonly log: ActivityLog; readonly project: string; readonly folder: string; readonly library?: Library }, options: StaleOptions = {}): Promise<StaleWorklist> {
   const { log, project } = context;
   const now = options.now ?? new Date();
   const quietMs = options.quietMs ?? idleAfterMs();
@@ -39,9 +42,13 @@ export async function staleClaims(context: { readonly log: ActivityLog; readonly
   const [lines, beats] = await Promise.all([log.foldLines(project, holders, new Date(now.getTime() - COMMANDS_MS).toISOString()), log.beats.of(project, holders)]);
   const fold = LogFold.fromBounded(lines, claimLines);
   const restarted = options.restarted ?? thisRestart();
-  const quiet = fold.claims({ now, quietMs, beats, ...(restarted === undefined ? {} : { restarted }) })
-    .filter((claim): claim is Claim & { increment: string } => claim.increment !== undefined && claim.holder === "idle");
-  if (quiet.length === 0) return { claims: [] };
+  const onIncrements = fold.claims({ now, quietMs, beats, ...(restarted === undefined ? {} : { restarted }) })
+    .filter((claim): claim is Claim & { increment: string } => claim.increment !== undefined);
+  const { library } = context;
+  const closedOn = new Set(library === undefined ? [] : (await Promise.all(onIncrements.map(async (claim) => ((await isClosed(library, claim.increment)) ? [claim.increment] : [])))).flat());
+  const onClosed = onIncrements.filter((claim) => closedOn.has(claim.increment));
+  const quiet = onIncrements.filter((claim) => !closedOn.has(claim.increment) && claim.holder === "idle");
+  if (quiet.length === 0 && onClosed.length === 0) return { claims: [] };
   const sessions = new Map(fold.sessions({ now }).map((session) => [session.session, session]));
   const branchesOf = (claim: Claim): readonly string[] =>
     claim.branch !== undefined && !isMainBranch(claim.branch) ? [claim.branch] : sessions.get(claim.session)?.branches ?? [];
@@ -66,6 +73,17 @@ export async function staleClaims(context: { readonly log: ActivityLog; readonly
         ...(ended ? { ended: true as const } : {}),
       };
     })
+    .concat(onClosed.map((claim): StaleClaim => ({
+      increment: claim.increment,
+      holder: claim.session,
+      label: claim.label,
+      reason: claim.reason,
+      since: claim.since,
+      ...(claim.branch === undefined ? {} : { branch: claim.branch }),
+      lastSeenAt: sessions.get(claim.session)?.lastSeenAt ?? claim.since,
+      route: "release",
+      closed: true,
+    })))
     .sort((a, b) => a.since.localeCompare(b.since));
   return pulls === undefined ? { claims, pullsUnread: true } : { claims };
 }

@@ -31,22 +31,23 @@ export type EditRefusal = (
   | { readonly refused: "held"; readonly capability: string; readonly title: string; readonly file: string; readonly holder: Claim; readonly on?: string }
 ) & { readonly lapsed?: readonly Lapse[] };
 
-export async function editRefusal(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[] = [], readsCode?: ReadsCode): Promise<EditRefusal | undefined> {
-  return refusalOf(context, checkout, files, declared, imports, true, readsCode);
+export async function editRefusal(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[] = [], readsCode?: ReadsCode, isCode?: ReadsCode): Promise<EditRefusal | undefined> {
+  return refusalOf(context, checkout, files, declared, imports, true, readsCode, isCode);
 }
 
 export type GateContext = Pick<ClaimContext, "log" | "library" | "project" | "session" | "harness" | "folder" | "quietMs" | "restarted">;
 
-async function refusalOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean, readsCode?: ReadsCode): Promise<EditRefusal | undefined> {
-  return (await refusalsOf(context, checkout, files, declared, imports, noting, false, readsCode))[0];
+async function refusalOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean, readsCode?: ReadsCode, isCode?: ReadsCode): Promise<EditRefusal | undefined> {
+  return (await refusalsOf(context, checkout, files, declared, imports, noting, false, readsCode, isCode))[0];
 }
 
-async function refusalsOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean, every: boolean, readsCode?: ReadsCode): Promise<EditRefusal[]> {
-  const inImports = files.flatMap((file) => {
+async function refusalsOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean, every: boolean, readsCode?: ReadsCode, isCode?: ReadsCode): Promise<EditRefusal[]> {
+  const located = files.flatMap((file) => {
     const absolute = path.resolve(checkout, file.path);
     const imported = imports.find(({ folder }) => isWithin(absolute, folder));
     return imported === undefined ? [] : [{ imported, relative: path.relative(imported.folder, absolute).split(path.sep).join("/") }];
   });
+  const inImports = isCode === undefined ? located : (await Promise.all(located.map(async (one) => ((await isCode(one.relative)) ? [one] : [])))).flat();
   const placed = files.map((file) => ({ ...file, relative: path.relative(checkout, path.resolve(checkout, file.path)).split(path.sep).join("/") }))
     .filter(({ relative }) => relative.startsWith("packages/") || relative.startsWith("apps/desktop/"));
   if (placed.length === 0 && inImports.length === 0) return [];
@@ -150,10 +151,10 @@ async function allowedNow(library: Library, increment: string): Promise<AllowedC
   return listed.map((capability) => ({ capability, covers: [...(covers.get(capability) ?? [])] }));
 }
 
-export async function recordPromptYes(context: GateContext, checkout: string, files: readonly EditedFile[], imports: readonly ImportedFolderPlace[]): Promise<string | undefined> {
+export async function recordPromptYes(context: GateContext, checkout: string, files: readonly EditedFile[], imports: readonly ImportedFolderPlace[], isCode?: ReadsCode): Promise<string | undefined> {
   const imported = files.filter((file) => imports.some(({ folder }) => isWithin(path.resolve(checkout, file.path), folder)));
   if (imported.length === 0) return undefined;
-  const refusal = await refusalOf(context, checkout, imported, async () => new Map(), imports, false);
+  const refusal = await refusalOf(context, checkout, imported, async () => new Map(), imports, false, undefined, isCode);
   if (refusal?.refused !== "ask") return undefined;
   await context.log.append(context.project, {
     session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: "hook", ...(context.folder === undefined ? {} : { folder: context.folder }),
@@ -162,8 +163,8 @@ export async function recordPromptYes(context: GateContext, checkout: string, fi
   return refusal.increment;
 }
 
-export async function unallowedImportEdits(context: GateContext, checkout: string, files: readonly EditedFile[], imports: readonly ImportedFolderPlace[]): Promise<EditedFile[]> {
-  const unallowed = async (some: readonly EditedFile[]) => (await refusalOf(context, checkout, some, async () => new Map(), imports, false)) !== undefined;
+export async function unallowedImportEdits(context: GateContext, checkout: string, files: readonly EditedFile[], imports: readonly ImportedFolderPlace[], isCode?: ReadsCode): Promise<EditedFile[]> {
+  const unallowed = async (some: readonly EditedFile[]) => (await refusalOf(context, checkout, some, async () => new Map(), imports, false, undefined, isCode)) !== undefined;
   if (!(await unallowed(files))) return [];
   const found: EditedFile[] = [];
   for (const file of files) if (await unallowed([file])) found.push(file);

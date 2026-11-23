@@ -6,7 +6,7 @@ import type { NewLine, Storytree } from "@storytree/library";
 
 import { worktreeRoot } from "../activity/branch.js";
 import { filtersOff, runGit, type Git } from "../activity/git.js";
-import type { DeclaredCapabilities, ImportedFolderPlace } from "../claims/edit-gate.js";
+import type { DeclaredCapabilities, ImportedFolderPlace, ReadsCode } from "../claims/edit-gate.js";
 import { approvedHere, importsOf, machineOf, route, type LocateOptions } from "@storytree/project-and-caller";
 import { gated, refusalAnswer } from "./edit-gate.js";
 import type { HookFailure } from "./failures.js";
@@ -65,7 +65,7 @@ export async function watchImports(storytree: Storytree, project: string, machin
   }
 }
 
-export async function shellGuard(harness: string, input: unknown, made: HookLines | undefined, locate: LocateOptions | undefined, machineHome: string, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, declared?: DeclaredCapabilities, guardMs?: number, git: Git = runGit): Promise<string | undefined> {
+export async function shellGuard(harness: string, input: unknown, made: HookLines | undefined, locate: LocateOptions | undefined, machineHome: string, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, declared?: DeclaredCapabilities, guardMs?: number, git: Git = runGit, isCode?: ReadsCode): Promise<string | undefined> {
   try {
     if (typeof input === "object" && input !== null && (input as Record<string, unknown>).hook_event_name === "PreToolUse") return beforeCommand(harness, input, made, locate);
     const limit = guardMs ?? limitOf(home, SHELL_GUARD_STEP);
@@ -83,7 +83,7 @@ export async function shellGuard(harness: string, input: unknown, made: HookLine
     const changed = edits.flatMap((edit) => (edit.kind === "file-edited" ? edit.files.map((file) => ({ folder: edit.folder!, file })) : []));
     const result = await withinLimit(SHELL_GUARD_STEP, limit, guardMs === undefined ? home : undefined, (limitMs) => gated(harness, { session: line.session, folder: made.folder, files: [] }, locate, machineHome, async (context, checkout, known) => {
       const { shellEditRefusals, unallowedImportEdits } = await import("../claims/edit-gate.js");
-      const unallowed = new Set(changed.length === 0 ? [] : (await unallowedImportEdits(context, checkout, changed.map(({ folder, file }) => ({ path: path.join(folder, file) })), known)).map(({ path: file }) => file));
+      const unallowed = new Set(changed.length === 0 ? [] : (await unallowedImportEdits(context, checkout, changed.map(({ folder, file }) => ({ path: path.join(folder, file) })), known, isCode)).map(({ path: file }) => file));
       const refused = own.length === 0 ? [] : await shellEditRefusals(context, checkout, own.map((file) => ({ path: file })), declared!);
       return { told: changed.filter(({ folder, file }) => unallowed.has(path.join(folder, file))), refused };
     }, limitMs).catch((error: unknown) => {

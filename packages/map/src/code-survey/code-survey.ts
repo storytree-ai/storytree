@@ -679,7 +679,7 @@ const CODE_LAYOUT_GUIDANCE = [
 export const MAPPED_CODE_GUIDANCE = [
   "Build beside imported code.",
   "- An imported story's code predates storytree: assume it works.",
-  "- Before changing or deleting anything in the imported project, stop and ask the user, even when an increment names the change. Say what would change there and its cost, offering the ways on: change it there, bring that part into this project, retire it, or leave it and build on top. Do what the user says.",
+  "- Before changing or deleting imported code (a file in a language storytree's code survey knows), stop and ask the user, even when an increment names the change. Say what would change there and its cost, offering the ways on: change it there, bring that part into this project, retire it, or leave it and build on top. Do what the user says. A README, docs or config file in the imported folder is yours to change with no yes asked.",
   "- After the import the projects are separate: do not watch the old project for changes, and import it again only when the user asks.",
   "- Build new stories on top in their own packages, each depending on the imported package by a link: to its folder under its own name (file: under npm, which has no link:). It declares no exports: import its files by path, match its module type and path aliases, and link its one copy of its framework and type packages.",
   "- Old code never imports new code. Wiring the old project to import a package here is the user's business: storytree does not draw or watch it, so say so before doing it on their yes.",

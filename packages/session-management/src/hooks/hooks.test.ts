@@ -1429,6 +1429,10 @@ test("3.34 after Claude Code runs an edit to imported code that the gate had it 
       assert.equal(refused?.decision, "block", "a harness that cannot ask is refused");
       assert.ok(refused?.reason?.includes(`storytree workspace allow ${increment}`), "naming the command the user types to say yes");
       assert.equal(answer(await runHook("claude-code", write("PreToolUse", "chart.tsx"), home, [EDIT_GATE]))?.hookSpecificOutput?.permissionDecision, "ask", "asking alone records no yes");
+      const seamed = { STORYTREE_TEST_CODE: "\\.(py|ts|tsx)$", STORYTREE_TEST_GUARD_MS: String(DEADLINE_MS) };
+      assert.equal(answer(await runHook("claude-code", write("PreToolUse", "README.md"), home, [EDIT_GATE], seamed)), undefined, "given the code seam, a README under the listed capability is not asked");
+      await runHook("claude-code", write("PostToolUse", "README.md"), home, [], seamed);
+      assert.deepEqual(await log.lines(project, { kinds: ["user-allowed"] }), [], "so the hook after it records no yes the user never gave");
       await runHook("claude-code", write("PostToolUse", "page.tsx"), home);
       assert.equal(answer(await runHook("claude-code", write("PreToolUse", "chart.tsx"), home, [EDIT_GATE])), undefined, "the increment's next edit goes through unasked");
       assert.equal(answer(await runHook("codex", patch, home, [EDIT_GATE])), undefined, "the yes is on the increment, whichever harness edits for it");
@@ -1548,6 +1552,56 @@ test("3.35 a shell command that changes or deletes files in an imported folder w
       assert.equal(codex?.hookEventName, "PostToolUse");
       assert.match(codex?.additionalContext ?? "", /package\.json/);
       assert.doesNotMatch(codex?.additionalContext ?? "", /chart\.tsx/);
+    } finally {
+      await log.close();
+      await storytree.close();
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("3.35 given the code seam, a shell command whose changes in an imported folder are only files in no language the code survey knows (README.md, package.json) says nothing, and one changing code there too tells only its code files; every change is still recorded as an edit there (ADR-1392)", async () => {
+  await withTempDir(async (dir) => {
+    const project = uniqueProjectName();
+    const home = storytreeHome(dir, true);
+    const folder = await projectFolder(dir, project);
+    const viewer = path.join(dir, "viewer");
+    mkdirSync(path.join(viewer, "app"), { recursive: true });
+    mkdirSync(path.join(viewer, "docs"), { recursive: true });
+    writeFileSync(path.join(viewer, "app", "page.tsx"), "export default 1;\n");
+    writeFileSync(path.join(viewer, "README.md"), "# viewer\n");
+    git(viewer, "init", "-q");
+    git(viewer, "add", ".");
+    git(viewer, "commit", "-q", "-m", "viewer");
+    const storytree = await connect({ url: testServerUrl() });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const machine = machineOf(home);
+      await recordImport(storytree, { project, machine: machine.id, machineName: machine.name, folder: viewer, repository: "https://github.com/someone/viewer.git" });
+      const library = await storytree.openProject(project);
+      const { added: [mapped] } = await library.mapStories("https://github.com/someone/viewer.git", [{ package: ".", title: "viewer", folders: ["."] }]);
+      await library.addCapability({ title: "Whole viewer", story: mapped!.id, covers: ["."] });
+      const as = (name: string) => JSON.stringify({ ...JSON.parse(recorded("claude-code", name, folder)) as object, session_id: "shell" });
+      const told = (ran: Ran) => {
+        assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
+        return ran.stdout === "" ? undefined : (JSON.parse(ran.stdout) as { hookSpecificOutput?: { additionalContext?: string } }).hookSpecificOutput;
+      };
+      const guard = () => runHook("claude-code", as("post-tool-use-bash"), home, [SHELL_GUARD], { STORYTREE_TEST_GUARD_MS: String(DEADLINE_MS), STORYTREE_TEST_CODE: "\\.(py|ts|tsx)$" });
+
+      await runHook("claude-code", as("session-start-startup"), home);
+      writeFileSync(path.join(viewer, "README.md"), "# viewer, changed\n");
+      writeFileSync(path.join(viewer, "package.json"), "{}\n");
+      assert.equal(told(await guard()), undefined, "a README and a package.json alone say nothing");
+
+      writeFileSync(path.join(viewer, "app", "page.tsx"), "export default 2;\n");
+      writeFileSync(path.join(viewer, "docs", "x.md"), "# x\n");
+      const code = told(await guard());
+      assert.match(code?.additionalContext ?? "", /Your last shell command changed app\/page\.tsx in /, "the code file is told, alone");
+      assert.doesNotMatch(code?.additionalContext ?? "", /docs\/x\.md/, "not the doc changed beside it");
+
+      await runHook("claude-code", as("user-prompt-submit"), home);
+      const edits = (await linesOf(project)).filter((line) => line.kind === "file-edited" && line.folder === viewer);
+      assert.deepEqual(edits.map((line) => line.kind === "file-edited" && line.files), [["README.md", "package.json"], ["app/page.tsx", "docs/x.md"]], "every change is recorded where the user sees it");
     } finally {
       await log.close();
       await storytree.close();

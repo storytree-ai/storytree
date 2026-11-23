@@ -8,7 +8,7 @@ import { after, before, test } from "node:test";
 
 import pg from "pg";
 
-import { connect, type Line } from "@storytree/library";
+import { connect, type Library, type Line } from "@storytree/library";
 import { nameThisMachine } from "@storytree/session-management/machines";
 import { recordFriction } from "@storytree/session-management/friction";
 import { claim, openActivityLog, readClaims, release, type ActivityLog } from "@storytree/session-management";
@@ -18,7 +18,7 @@ import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
 import { ARC_FAMILIES } from "@storytree/arc-surface/verbs";
 import { family } from "./mount.js";
-import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
+import { BuiltCommand, dropTestProjects, inWorld, testServerUrl, uniqueProjectName, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 const arcs = family(ARC_FAMILIES.find((declared) => declared.name === "arc")!);
@@ -471,6 +471,23 @@ async function anArc(world: World): Promise<string> {
   return arc.id;
 }
 
+async function withABuiltProject(world: World, body: (built: Library) => Promise<void>): Promise<void> {
+  const name = uniqueProjectName();
+  const server = await connect({ url: testServerUrl() });
+  try {
+    await (await world.library()).markFactory();
+    const built = await server.openProject(name);
+    await built.recordFactory(world.project);
+    await body(built);
+  } finally {
+    try {
+      await server.close();
+    } finally {
+      await dropTestProjects([name]);
+    }
+  }
+}
+
 function idIn(text: string, type: string): string {
   const id = new RegExp(`\\b${type}_[0-9a-f]+\\b`).exec(text)?.[0];
   assert.ok(id !== undefined, `no ${type} id in:\n${text}`);
@@ -686,6 +703,29 @@ test("4.12 `arc increment unstart` returns an active increment nobody holds to p
     } finally {
       await log.close();
     }
+  });
+});
+
+test("4.12 `arc increment unstart --project <another>` refuses an active increment a session holds in that project's library, naming its holder, with nothing written, run from a folder whose project is not that one", async () => {
+  await inWorld(command, async (world) => {
+    await withABuiltProject(world, async (built) => {
+      const arc = (await built.createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up" })).id;
+      const log = await openActivityLog(testServerUrl());
+      try {
+        const held = await built.addIncrement({ arc, title: "Email form", objective: "Build it", body: "…" });
+        assert.equal((await claim({ log, library: built, project: built.name, session: "holder", harness: "claude-code" }, held.id, "building the form")).ok, true);
+        const history = await built.history({ id: held.id });
+
+        const refused = await world.run(["arc", "increment", "unstart", held.id, "--project", built.name]);
+
+        assert.equal(refused.code, 1, `${refused.stdout}${refused.stderr}`);
+        assert.match(refused.stderr, new RegExp(`${held.id} is held by .*session holder \\(building the form\\)`));
+        assert.deepEqual(await built.history({ id: held.id }), history, "nothing was written");
+        assert.equal(((await built.get(held.id))?.fields as { status: string }).status, "active");
+      } finally {
+        await log.close();
+      }
+    });
   });
 });
 
@@ -905,6 +945,31 @@ test("4.16 `arc increment edit --capabilities` refuses a capability already on t
     } finally {
       await log.close();
     }
+  });
+});
+
+test("4.16 `arc increment edit --capabilities --project <another>` refuses a capability already on the list of an increment another live session holds in that project's library, naming it and its holder, with nothing written, run from a folder whose project is not that one", async () => {
+  await inWorld(command, async (world) => {
+    await withABuiltProject(world, async (built) => {
+      const arc = (await built.createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up" })).id;
+      const story = await built.addStory({ title: "Sign up" });
+      const form = await built.addCapability({ story: story.id, title: "Form" });
+      const log = await openActivityLog(testServerUrl());
+      try {
+        const theirs = await built.addIncrement({ arc, title: "Email form", objective: "Build it", body: "…", capabilities: [form.id] } as never);
+        assert.equal((await claim({ log, library: built, project: built.name, session: "holder", harness: "claude-code" }, theirs.id, "driving the email form")).ok, true);
+        const mine = await built.addIncrement({ arc, title: "Form copy", objective: "Reword it", body: "…" });
+        const history = await built.history({ id: mine.id });
+
+        const refused = await world.run(["arc", "increment", "edit", mine.id, "--capabilities", form.id, "--project", built.name], { CLAUDE_CODE_SESSION_ID: "caller" });
+
+        assert.equal(refused.code, 1, `${refused.stdout}${refused.stderr}`);
+        assert.match(refused.stderr, new RegExp(`${form.id} is already on the capabilities list of ${theirs.id}, which .*session holder \\(driving the email form\\)`));
+        assert.deepEqual(await built.history({ id: mine.id }), history, "nothing was written");
+      } finally {
+        await log.close();
+      }
+    });
   });
 });
 

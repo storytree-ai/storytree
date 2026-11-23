@@ -36,7 +36,8 @@ const ci = verb({
     if (!read.written) return { text: read.why };
     return {
       text: `Read ${read.tests} test results from ${read.run} (commit ${read.commit.slice(0, 12)}): ${read.passing} contracts verified passing, ${read.failing} failing, ${read.notChecked} not checked by a skip` +
-        `${read.unmatched === 0 ? "." : `; ${read.unmatched} results named no contract of one story.`}`,
+        `${read.unmatched === 0 ? "." : `; ${read.unmatched} results named no contract of one story.`}` +
+        read.uncredited.map(({ test, number, reason, story }) => `\n  ${test}: ${reason}${story === undefined ? "" : `; contract ${number} is ${story}'s`}`).join(""),
       next: [{ command: "tree", why: "see each contract's verified health beside the agent's report" }],
     };
   },

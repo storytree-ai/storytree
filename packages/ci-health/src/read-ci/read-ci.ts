@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 import type { Library } from "@storytree/library";
 import { parseTestLog, scopeOfLog } from "../run-results/run-results.js";
 import { recordHealth, recordUnclaimed } from "./record.js";
-import { judgeRun, proofsAt, unclaimedVerdicts, type PlanTree, type Verdict } from "../verdicts/verdicts.js";
+import { judgeRun, proofsAt, unclaimedVerdicts, type PlanTree, type Uncredited, type Verdict } from "../verdicts/verdicts.js";
 
 export type GitHub = { json(route: string): Promise<any>; text(route: string): Promise<string> };
 
@@ -16,7 +16,7 @@ export const VERIFIED_BY_PROJECT_CI = "the project's CI";
 
 export type CiReading =
   | { written: false; why: string }
-  | { written: true; repository: string; run: string; commit: string; tests: number; unmatched: number; passing: number; failing: number; notChecked: number };
+  | { written: true; repository: string; run: string; commit: string; tests: number; unmatched: number; uncredited: Uncredited[]; passing: number; failing: number; notChecked: number };
 
 export function gitIn(folder: string): Git {
   return async (args) => (await promisify(execFile)("git", ["-C", folder, ...args], { encoding: "utf8", maxBuffer: 256 * 1024 * 1024, windowsHide: true })).stdout;
@@ -106,7 +106,7 @@ export async function readProjectCi({ library, git, github }: { library: Library
   const tree = await library.projectTree();
   const byRun = new Map<number, { commit: string; run: string; platformsSeen: Set<string>; verdicts: Map<string, Verdict> }>();
   const done = new Set<string>();
-  let newest: { run: Run; tests: number; unmatched: ReturnType<typeof judgeRun>["unmatched"]; files: { path: string; text: string }[] } | undefined;
+  let newest: { run: Run; tests: number; unmatched: ReturnType<typeof judgeRun>["unmatched"]; uncredited: Uncredited[]; files: { path: string; text: string }[] } | undefined;
   for (const run of candidates.filter(({ conclusion }) => conclusion !== "cancelled")) {
     const jobs = await jobResults(github, repository, run.id);
     if (jobs.some(({ conclusion }) => conclusion === "cancelled") && !jobs.some(({ conclusion, results }) => conclusion !== "cancelled" && results.length > 0)) continue;
@@ -120,8 +120,8 @@ export async function readProjectCi({ library, git, github }: { library: Library
       continue;
     }
     const proofs = proofsAt(tree, files);
-    const { verdicts, unmatched } = judgeRun(proofs, results);
-    newest ??= { run, tests: results.length, unmatched, files };
+    const { verdicts, unmatched, uncredited } = judgeRun(proofs, results);
+    newest ??= { run, tests: results.length, unmatched, uncredited, files };
     const platformsSeen = new Set(jobs.flatMap(({ conclusion, platform }) => (conclusion === "cancelled" || platform === undefined ? [] : [platform])));
     const fromRun = byRun.get(run.id) ?? { commit: run.head_sha.slice(0, 12), run: run.html_url, platformsSeen, verdicts: new Map<string, Verdict>() };
     byRun.set(run.id, fromRun);
@@ -144,5 +144,5 @@ export async function readProjectCi({ library, git, github }: { library: Library
     counts.notChecked += [...verdicts.values()].filter(({ state, skipped }) => state === "not-checked" && skipped > 0).length;
   }
   await recordUnclaimed(library, tree, await unclaimedVerdicts(tree, newest.files, newest.unmatched), { by: VERIFIED_BY_PROJECT_CI, source: "ci", commit: commit.slice(0, 12), run: run.html_url });
-  return { written: true, repository, run: run.html_url, commit, tests: newest.tests, unmatched: newest.unmatched.length, ...counts };
+  return { written: true, repository, run: run.html_url, commit, tests: newest.tests, unmatched: newest.unmatched.length, uncredited: newest.uncredited, ...counts };
 }

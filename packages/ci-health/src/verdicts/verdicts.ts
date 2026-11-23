@@ -96,8 +96,10 @@ function asRun(title: string): string {
   return title.replace(/\\(["'`\\])/g, "$1");
 }
 
+const COUNTING_NAME = /^(?:[a-z][a-z0-9-]*\s+)?(\d+\.\d+)/;
+
 function countingName(result: TestResult): string | undefined {
-  return [...result.suites, result.name].find((name) => /^(?:[a-z][a-z0-9-]*\s+)?\d+\.\d+/.test(name));
+  return [...result.suites, result.name].find((name) => COUNTING_NAME.test(name));
 }
 
 const NUMBERED_NAME = /^test_((?:[a-z][a-z0-9]*_)*?)(\d+)_(\d+)(?![0-9])/i;
@@ -116,15 +118,22 @@ function namedSkip(proofs: readonly StoryProofs[], result: TestResult): TestResu
   return test === undefined ? result : { ...result, name: test.name };
 }
 
-function pytestCredit(proofs: readonly StoryProofs[], result: TestResult): { story: StoryProofs; numbers: readonly string[] } | undefined {
+type Missed = { readonly number: string; readonly reason: string; readonly among: readonly StoryProofs[] };
+
+export type Uncredited = { test: string; number: string; reason: string; story?: string };
+
+function pytestCredit(proofs: readonly StoryProofs[], result: TestResult): (Missed & { readonly story?: StoryProofs }) | undefined {
   const name = result.name.split("[", 1)[0]!;
   const holders = pytestHolders(proofs, result.file!).filter(({ tests }) => tests.some((test) => test.name === name));
   const numbered = NUMBERED_NAME.exec(name);
-  if (holders.length !== 1 || numbered === null) return undefined;
+  if (numbered === null) return undefined;
   const [, prefix, major, minor] = numbered;
+  const number = `${major}.${minor}`;
+  if (holders.length !== 1) return { number, reason: holders.length === 0 ? "no story's folder holds its file" : "more than one story's folder holds its file", among: proofs };
   const named = prefix!.replace(/_$/, "").toLowerCase();
   const story = named === "" ? holders[0]!.story : proofs.find(({ packages }) => packages.some((one) => one.replaceAll("-", "_") === named));
-  return story === undefined ? undefined : { story, numbers: [`${major}.${minor}`] };
+  if (story === undefined) return { number, reason: `its name names package ${named}, which is no story's`, among: [] };
+  return { story, number, reason: `its story ${story.story} has no contract ${number}`, among: named === "" ? proofs : [story] };
 }
 
 function provedFor(proofs: readonly StoryProofs[], result: TestResult): string[] {
@@ -172,16 +181,24 @@ export function skipKind(reasons: readonly string[]): SkipKind {
   return platform === undefined ? "other" : `platform:${platform.toLowerCase()}`;
 }
 
-export function judgeRun(proofs: readonly StoryProofs[], reported: readonly TestResult[]): { verdicts: Map<string, Verdict>; unmatched: TestResult[] } {
+export function judgeRun(proofs: readonly StoryProofs[], reported: readonly TestResult[]): { verdicts: Map<string, Verdict>; unmatched: TestResult[]; uncredited: Uncredited[] } {
   const results = creditPlatformSkips(reported.map((result) => namedSkip(proofs, result)));
   const byPackage = new Map(proofs.flatMap((story) => story.packages.map((name) => [name, story] as const)));
   const tests = new Map<string, TestResult[]>(proofs.flatMap((story) => [...story.contracts.values(), ...story.proved.map(({ contract }) => contract)].map((id) => [id, []] as [string, TestResult[]])));
   const unmatched: TestResult[] = [];
+  const uncredited: Uncredited[] = [];
+  const miss = (test: string, { number, reason, among }: Missed) => {
+    if (uncredited.some((one) => one.test === test)) return;
+    const having = among.filter(({ contracts }) => contracts.has(number));
+    uncredited.push({ test, number, reason, ...(having.length === 1 ? { story: having[0]!.story } : {}) });
+  };
   for (const result of results) {
     if (result.file !== undefined) {
       const credit = pytestCredit(proofs, result);
-      const ids = [...new Set([...(credit === undefined ? [] : credit.numbers.flatMap((number) => credit.story.contracts.get(number) ?? [])), ...provedFor(proofs, result)])];
+      const own = credit?.story?.contracts.get(credit.number);
+      const ids = [...new Set([...(own === undefined ? [] : [own]), ...provedFor(proofs, result)])];
       if (ids.length === 0) unmatched.push(result);
+      if (ids.length === 0 && credit !== undefined) miss([result.file, ...result.suites, result.name].join("::"), credit);
       for (const id of ids) tests.get(id)!.push(result);
       continue;
     }
@@ -200,13 +217,18 @@ export function judgeRun(proofs: readonly StoryProofs[], reported: readonly Test
     const only = credited.size === 1 ? [...credited.values()][0]! : undefined;
     const ids = [...new Set([...(only === undefined ? [] : only.numbers.flatMap((number) => only.story.contracts.get(number) ?? [])), ...provedFor(proofs, result)])];
     if (ids.length === 0) unmatched.push(result);
+    if (ids.length === 0 && name !== undefined) {
+      const number = COUNTING_NAME.exec(name)![1]!;
+      const reason = only !== undefined ? `its story ${only.story.story} has no contract ${number}` : credited.size === 0 ? "no story's tests hold its title" : "more than one story's tests hold its title";
+      miss([...result.suites, result.name].join(" › "), { number, reason, among: proofs });
+    }
     for (const id of ids) tests.get(id)!.push(result);
   }
   const verdicts = new Map<string, Verdict>();
   for (const [id, own] of tests) {
     verdicts.set(id, verdictOf(own));
   }
-  return { verdicts, unmatched };
+  return { verdicts, unmatched, uncredited };
 }
 
 export function verdictOf(own: readonly { readonly status: TestResult["status"]; readonly message?: string; readonly name?: string; readonly suites?: readonly string[] }[]): Verdict {

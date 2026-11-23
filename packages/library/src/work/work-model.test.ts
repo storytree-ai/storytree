@@ -514,6 +514,22 @@ for (const backend of [memory, postgres]) {
     assert.equal(Object.hasOwn(stories.find((story) => story.id === own.id)!, "mapped"), false);
   });
 
+  contract("4.54", "a story planned with folders keeps them, editStory replaces them, the tree node carries folders and no mapped, and folders given with mapped or a blank folder are refused with nothing written", async ({ work, records, transactions }) => {
+    const story = await work.addStory({ title: "Checkout", folders: ["src/checkout", "."] });
+    assert.deepEqual((await records.get(story.id))?.fields, { title: "Checkout", folders: ["src/checkout", "."] });
+    await work.editStory(story.id, { folders: ["tests"] });
+    assert.deepEqual((await records.get(story.id))?.fields, { title: "Checkout", folders: ["tests"] });
+    const node = (await work.projectTree()).stories.find((each) => each.id === story.id)!;
+    assert.deepEqual(node.folders, ["tests"]);
+    assert.equal(Object.hasOwn(node, "mapped"), false);
+    const before = await transactions.history();
+    const mapped = { from: "/code/shop", package: ".", folders: ["."] };
+    await assert.rejects(work.addStory({ title: "Shop", folders: ["."], mapped } as never), schemaError("story", ["mapped"]));
+    await assert.rejects(work.editStory(story.id, { folders: ["."], mapped } as never), schemaError("story", ["mapped"]));
+    await assert.rejects(work.addStory({ title: "Blank", folders: [""] }), SchemaError);
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
+
   contract("4.15", "a number given in a contract's title without its separator is written as number then \" · \", on planning and on correcting; a title already in that form is kept", async ({ work }) => {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "3 · Email form", story: story.id });

@@ -79,12 +79,16 @@ export default {
           if (given) report(read, given);
         }
         for (const given of functions.filter(givenPlatform)) {
-          walk(given.body, (node) => {
+          const seen = new Set([given]);
+          const follow = (body) => walk(body, (node) => {
             if (node.type !== "CallExpression" || node.callee.type !== "Identifier") return;
             const helper = topLevel.get(node.callee.name);
-            if (helper === undefined || helper === given || givenPlatform(helper)) return;
+            if (helper === undefined || seen.has(helper) || givenPlatform(helper)) return;
+            seen.add(helper);
             for (const read of reads) if (enclosing(read).includes(helper)) report(read, given);
+            follow(helper.body);
           });
+          follow(given.body);
         }
       },
     };

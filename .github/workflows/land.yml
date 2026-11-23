@@ -72,10 +72,6 @@ jobs:
             packages/base-dev-loop/src/land-enqueue.mjs
           sparse-checkout-cone-mode: false
           persist-credentials: false
-      # The queue entry's pass, minted for this job as automation's GitHub App from the repository
-      # variable AUTOMATION_APP_ID and the secret AUTOMATION_APP_KEY (ADR-1177), so the pull request
-      # reads as merged by the App, not by a person's token. Its pass expires within the hour and is
-      # revoked when the job ends.
       - uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         id: pass
         if: steps.held.outputs.held == 'false' && vars.AUTOMATION_APP_ID != ''

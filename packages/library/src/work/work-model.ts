@@ -99,6 +99,7 @@ export interface StoryNode {
   title: string;
   description?: string;
   mapped?: { from: string; package: string; folders: string[] };
+  folders?: string[];
   plugin?: string;
   risk?: NonNullable<FieldsOf<"story">["risk"]>;
   guardrails?: Guardrail[];
@@ -491,6 +492,7 @@ export class WorkModel {
       stories: stories.sort(byCreation).map((story) => ({
         ...nodeOf(story),
         ...(story.fields.mapped === undefined ? {} : { mapped: { ...story.fields.mapped, folders: [...story.fields.mapped.folders] } }),
+        ...(story.fields.folders === undefined ? {} : { folders: [...story.fields.folders] }),
         ...(story.fields.plugin === undefined ? {} : { plugin: story.fields.plugin }),
         ...(story.fields.risk === undefined ? {} : { risk: structuredClone(story.fields.risk) }),
         ...guardrailsOf(story),

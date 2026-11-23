@@ -964,7 +964,7 @@ test("4.16 `arc increment edit --capabilities --project <another>` refuses a cap
         const refused = await world.run(["arc", "increment", "edit", mine.id, "--capabilities", form.id, "--project", built.name], { CLAUDE_CODE_SESSION_ID: "caller" });
 
         assert.equal(refused.code, 1, `${refused.stdout}${refused.stderr}`);
-        assert.match(refused.stderr, new RegExp(`${form.id} is already on the capabilities list of ${theirs.id}, which .*session holder \\(driving the email form\\)`));
+        assert.match(refused.stderr, new RegExp(`${form.id} is already on the capabilities list of ${theirs.id}, which .*session holder holds \\(driving the email form\\)`));
         assert.deepEqual(await built.history({ id: mine.id }), history, "nothing was written");
       } finally {
         await log.close();

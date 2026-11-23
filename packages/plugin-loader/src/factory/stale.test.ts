@@ -1,10 +1,12 @@
 // Capability 5 · Factory plugins
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { factoryStale } from "./factory.js";
 
@@ -20,7 +22,7 @@ function commit(cwd: string, file: string): void {
 
 function world(t: TestContext): { factory: string; pushFromElsewhere(count: number): void } {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-factory-stale-")));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   const origin = path.join(dir, "origin.git");
   git(dir, "init", "-q", "--bare", origin);
   const factory = path.join(dir, "factory");
@@ -76,7 +78,7 @@ test("5.25 · factoryStale says so when only one of the two is not zero, behind 
   commit(ahead.factory, "mine.md");
   assert.equal(await factoryStale(ahead.factory), undefined, "commits HEAD has that origin/main lacks are not behind");
   const plain = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-factory-plain-")));
-  t.after(() => rmSync(plain, { recursive: true, force: true }));
+  t.after(() => removeTemp(plain));
   mkdirSync(path.join(plain, "plugins"));
   assert.equal(await factoryStale(plain), undefined);
 });

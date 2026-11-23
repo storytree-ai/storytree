@@ -1641,7 +1641,7 @@ test("5.77 · closing an increment from a checkout whose folder names another pr
   });
 });
 
-test("5.78 · the stale-claim worklist and the session manager's release, by command, read and end claims in the project named, not the folder's, returning its increment there; without one they act on the folder's project", async () => {
+test("5.78 · the stale-claim worklist and the session manager's release, by command, read and end claims in the project named, not the folder's, returning its increment there, and the release the worklist prints names that project; without one they act on the folder's project", async () => {
   await withWorld(async ({ log, project, library, as }) => {
     await withOtherProject(async (mono) => {
       const { arc, park } = await arcOf(mono);
@@ -1654,7 +1654,7 @@ test("5.78 · the stale-claim worklist and the session manager's release, by com
 
       assert.equal((await stale.act({}, context, COMMAND_WORDS)).text, "No claimed increment is stale.", "the folder's project holds no claim");
       const listed = (await stale.act({ project: mono.name }, context, COMMAND_WORDS)).text;
-      assert.match(listed, new RegExp(`^1 claimed increment is stale:\n- ${work}: Claude Code session A \\(marking assessments\\), last seen [^\n]*\\. Gone: storytree workspace release ${work} --holder A --reason <why>\\.$`), listed);
+      assert.match(listed, new RegExp(`^1 claimed increment is stale:\n- ${work}: Claude Code session A \\(marking assessments\\), last seen [^\n]*\\. Gone: storytree workspace release ${work} --holder A --project ${mono.name} --reason <why>\\.$`), listed);
 
       await assert.rejects(release.act({ work, holder: "A", reason: "gone 13 hours" }, context, COMMAND_WORDS), /A doesn't hold .*, and nobody else does/, "without a project the folder's is read");
       const released = (await release.act({ work, holder: "A", reason: "gone 13 hours", project: mono.name }, context, COMMAND_WORDS)).text;
@@ -1667,7 +1667,7 @@ test("5.78 · the stale-claim worklist and the session manager's release, by com
   });
 });
 
-test("5.78 · the stale_claims and release tools read and end claims in the project named, not the folder's; without one they act on the folder's project", async () => {
+test("5.78 · the stale_claims and release tools read and end claims in the project named, not the folder's, and the release the worklist names carries that project; without one they act on the folder's project", async () => {
   await withWorld(async ({ log, project, library, as }) => {
     await withOtherProject(async (mono) => {
       await withTempDir(async (folder) => {
@@ -1682,13 +1682,15 @@ test("5.78 · the stale_claims and release tools read and end claims in the proj
         const listed = (answer: { data?: Record<string, unknown> }) => (answer.data?.claims as { increment: string; holder: string; route: string }[]).map(({ increment, holder, route }) => [increment, holder, route]);
 
         assert.deepEqual(listed(await acts.get("stale_claims")!({}, call)), [], "the folder's project holds no claim");
-        assert.deepEqual(listed(await acts.get("stale_claims")!({ project: mono.name }, call)), [[gone, "A", "release"]]);
+        const named = await acts.get("stale_claims")!({ project: mono.name }, call);
+        assert.deepEqual(listed(named), [[gone, "A", "release"]]);
+        assert.ok(named.text.includes(`--holder A --project ${mono.name}`), named.text);
 
         const unnamed = await acts.get("release")!({ increment: mine }, call);
         assert.equal(unnamed.refused, true, "without a project the folder's is read, where C holds nothing");
-        const named = await acts.get("release")!({ increment: mine, project: mono.name }, call);
-        assert.equal(named.refused, undefined, named.text);
-        assert.match(named.text, /^You released grade report: nobody holds it, so it is a proposal again\.$/);
+        const released = await acts.get("release")!({ increment: mine, project: mono.name }, call);
+        assert.equal(released.refused, undefined, released.text);
+        assert.equal(released.text, `You released "grade report" (${mine}): nobody holds it, so it is a proposal again.`);
         assert.deepEqual((await readClaims(log, mono.name)).map(({ increment, session }) => [increment, session]), [[gone, "A"]]);
         assert.deepEqual((await log.since(project, 0)).lines, [], "nothing is written to the folder's project");
       });

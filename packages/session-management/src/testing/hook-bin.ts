@@ -7,7 +7,7 @@ import { build } from "esbuild";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-const ENTRY = 'import { deafIfHandingOffAtOnce } from "../hooks/at-once.ts";\n\ndeafIfHandingOffAtOnce();\nconst { hookCommand } = await import("../bins/storytree-hook.ts");\nconst { declaredInTests } = await import("./declared.ts");\nconst guardMs = Number(process.env.STORYTREE_TEST_GUARD_MS) || undefined;\nhookCommand({ declaredCapabilities: declaredInTests, guardMs });\n';
+const ENTRY = 'import { deafIfHandingOffAtOnce } from "../hooks/at-once.ts";\n\ndeafIfHandingOffAtOnce();\nconst { hookCommand } = await import("../bins/storytree-hook.ts");\nconst { declaredInTests } = await import("./declared.ts");\nconst guardMs = Number(process.env.STORYTREE_TEST_GUARD_MS) || undefined;\nconst code = process.env.STORYTREE_TEST_CODE;\nhookCommand({ declaredCapabilities: declaredInTests, guardMs, ...(code === undefined ? {} : { isCode: async (file) => new RegExp(code).test(file) }) });\n';
 
 export async function buildHook(outdir: string): Promise<string> {
   await build({

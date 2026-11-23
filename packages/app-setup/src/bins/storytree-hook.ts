@@ -16,10 +16,16 @@ export const readsCode = async (file: string): Promise<boolean> => {
   return languagesOf([file]).read.length > 0;
 };
 
+export const isCode = async (file: string): Promise<boolean> => {
+  const { languagesOf } = await import("@storytree/map/languages");
+  const { read, unread } = languagesOf([file]);
+  return read.length > 0 || unread.length > 0;
+};
+
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   deafIfHandingOffAtOnce();
   const [{ default: hooks }, { mount }, { readPartsOff }] = await Promise.all([import("#parts/hooks"), import("@storytree/plugin-loader/switch"), import("@storytree/project-and-caller")]);
-  for (const hookCommand of mount(hooks, partsOff(readPartsOff)).mounted) hookCommand({ declaredCapabilities, readsCode });
+  for (const hookCommand of mount(hooks, partsOff(readPartsOff)).mounted) hookCommand({ declaredCapabilities, readsCode, isCode });
 }
 
 function partsOff(read: () => readonly string[]): readonly string[] {

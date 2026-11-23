@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 
 import type { AnnotatedTree } from "@storytree/library";
 
-import { declaredCapabilities, readsCode } from "./storytree-hook.js";
+import { declaredCapabilities, isCode, readsCode } from "./storytree-hook.js";
 
 test("18.3 the hook command setup registers places an edited file in its capability by the map's rule: its opening \"Capability N · …\", or a test file's one numbered capability, and never by the survey's inference", async () => {
   const tree = { arcs: [], stories: [{ id: "story_1", title: "Visitor can sign up", capabilities: [{ id: "cap_form", title: "1 · Email form" }, { id: "cap_reset", title: "2 · Password reset" }] }] } as unknown as AnnotatedTree;
@@ -27,6 +27,14 @@ test("18.3 the hook command setup registers places an edited file in its capabil
 
 test("18.7 the hook command setup registers tells the gate which edited files are in a language the map reads, so storytree draws them from their imports (ADR-1324)", async () => {
   assert.deepEqual(await Promise.all(["app/routes.ts", "pkg/module.py", "lib/index.mjs", "cmd/tool.go", "README.md"].map(readsCode)), [true, true, true, false, false]);
+});
+
+test("18.7 the hook command setup registers tells the gate which edited files are code at all, in any language the code survey knows whether the map reads it or not, so only those are guarded (ADR-1392)", async () => {
+  const files = ["app/routes.ts", "pkg/module.py", "lib/index.mjs", "cmd/tool.go", "src/lib.rs", "README.md", "package.json", "Dockerfile", "docs/guide.md"];
+  assert.deepEqual(Object.fromEntries(await Promise.all(files.map(async (file) => [file, await isCode(file)] as const))), {
+    "app/routes.ts": true, "pkg/module.py": true, "lib/index.mjs": true, "cmd/tool.go": true, "src/lib.rs": true,
+    "README.md": false, "package.json": false, Dockerfile: false, "docs/guide.md": false,
+  });
 });
 
 test("18.4 with Session management switched off on this computer, the hook command setup registers runs none of its work: it prints and records nothing, where switched on it records its time", { timeout: 60_000 }, async (t) => {

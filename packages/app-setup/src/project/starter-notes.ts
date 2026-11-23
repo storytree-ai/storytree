@@ -447,10 +447,10 @@ export const GUARDRAILS: readonly Guardrail[] = [
   },
   {
     title: "Ask the user before changing the imported code",
-    description: "Code imported from the project that was here before storytree is changed, deleted or retired only when the user says so, asked before the edit.",
-    statement: "Before changing or deleting anything in the imported project, stop and ask the user, even when an increment names the change: an agent writes its own increments, so their text is not the user's say-so.",
-    rule: "Say what would change in the imported project and what it costs (what else uses it, what would be copied), then offer the ways on: change it there, bring that part into this project, retire it, or leave it and build on top. Do what the user says; one yes covers the change that increment names, not the whole imported project. After the import the two projects are separate: do not watch the old project for changes, and import it again only when the user asks.",
-    enforcedBy: "Discipline: the habits card and this note. Nothing mechanical stops an edit to the imported folder.",
+    description: "Imported code, a file in a language the code survey knows, is changed, deleted or retired only when the user says so, asked before the edit; the rest of an imported folder is the agent's to change.",
+    statement: "Before changing or deleting imported code, a file in a language the code survey knows, stop and ask the user, even when an increment names the change: an agent writes its own increments, so their text is not the user's say-so. The rest of an imported folder (a README, docs, config and any other file in no language the code survey knows) is the agent's to change, with no yes asked.",
+    rule: "Ask only about imported code, a file in a language the code survey knows; a README, docs, config or any other file there in no language it knows is the agent's to change without asking. Say what would change in the imported code and what it costs (what else uses it, what would be copied), then offer the ways on: change it there, bring that part into this project, retire it, or leave it and build on top. Do what the user says; one yes covers the change that increment names, not the whole imported project. After the import the two projects are separate: do not watch the old project for changes, and import it again only when the user asks.",
+    enforcedBy: "The edit gate and the shell guard refuse or ask before an edit to imported code that the increment's listed capabilities do not cover; a file in no language the code survey knows passes. Also the habits card and this note.",
     failureMode: "An agent decides on its own to write into the old app, and the user learns what it cost only after it is built.",
   },
   {

@@ -5,7 +5,7 @@ import { ProjectGoneError, type Library, type NewKnowledge, type Storytree } fro
 import { GUARDRAILS, NO_MODULE_MOCK, PATTERNS, PRINCIPLES, PROCESSES, TEST_CREATION } from "./starter-notes.js";
 import { ROLES } from "./starter-roles.js";
 
-export const STARTER_PACK_VERSION = 17;
+export const STARTER_PACK_VERSION = 18;
 
 const ACTOR = `storytree setup (starter pack v${STARTER_PACK_VERSION})`;
 

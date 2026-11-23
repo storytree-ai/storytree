@@ -1,9 +1,10 @@
 // Capability 5 · Factory plugins
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 
 import { pluginSchema, type PluginPlan, type PluginPlanHeld, type PluginRecordKind } from "@storytree/library";
 import type { OutsideWriter } from "@storytree/library/outside-writer";
@@ -314,4 +315,28 @@ export function pluginServices(folder: string | undefined, plugin: string): Plug
     const start = service.start as PluginService["start"];
     return { name, run, start: (host: ServiceHost) => start.call(service, host) };
   });
+}
+
+const gitRun = promisify(execFile);
+
+async function gitOut(folder: string, args: string[], timeout?: number): Promise<string | undefined> {
+  try {
+    const { stdout } = await gitRun("git", args, { cwd: folder, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, maxBuffer: 1 << 26, ...(timeout === undefined ? {} : { timeout }) });
+    return stdout;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function factoryStale(folder: string): Promise<string | undefined> {
+  if ((await gitOut(folder, ["rev-parse", "--is-inside-work-tree"]))?.trim() !== "true") return undefined;
+  await gitOut(folder, ["fetch", "-q", "origin", "main"], 10_000);
+  const behind = Number((await gitOut(folder, ["rev-list", "--count", "HEAD..origin/main"]))?.trim() ?? 0) || 0;
+  const changed = (await gitOut(folder, ["status", "--porcelain"]) ?? "").split("\n").filter((line) => line !== "").length;
+  if (behind === 0 && changed === 0) return undefined;
+  const said = [
+    ...(behind === 0 ? [] : [`is behind origin/main by ${behind} commit${behind === 1 ? "" : "s"}`]),
+    ...(changed === 0 ? [] : [`has ${changed} changed path${changed === 1 ? "" : "s"}`]),
+  ];
+  return `storytree: the factory clone ${folder} ${said.join(" and ")}; to run from an up-to-date worktree, run with STORYTREE_FACTORY=<worktree>`;
 }

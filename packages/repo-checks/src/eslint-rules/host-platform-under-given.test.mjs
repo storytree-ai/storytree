@@ -85,3 +85,112 @@ test("8.35 · through pnpm lint's config, the escape's own cpuShare in packages/
   assert.match(atShare[0].message, /\brunUnit\b/);
   assert.match(atShare[0].message, new RegExp(ESCAPE));
 });
+
+const PROBE = [
+  `function probe() {`,
+  `  return process.platform === "darwin";`,
+  `}`,
+];
+
+test("8.35 · storytree/host-platform-under-given follows any chain of same-file top-level helpers that each bind no platform: a process.platform read two or three calls below a function binding a platform, helpers declared before or after it or as arrow functions, is one hit at the read naming that function and escape_23c591a68875; a chain through a helper binding its own platform stops there, so a read below it names that helper and not the first function; a call cycle among helpers ends and reports its read once; the same chains under a function binding none, and a binding helper whose only read is its own default, pass", () => {
+  new RuleTester().run("host-platform-under-given", rule, {
+    valid: [
+      passes([...PROBE, `function gather() {`, `  return probe();`, `}`, `export function runAll(options) {`, `  return gather() && options;`, `}`]),
+      passes([
+        `export function runAll({ platform }) {`,
+        `  return gather() && platform;`,
+        `}`,
+        `function gather() {`,
+        `  return host();`,
+        `}`,
+        `function host(platform = process.platform) {`,
+        `  return platform === "win32";`,
+        `}`,
+      ]),
+      passes([...PROBE, `function gather() {`, `  return probe();`, `}`, `export function runAll({ platform }) {`, `  return gather() && platform;`, `}`], TEST),
+    ],
+    invalid: [
+      refused([...PROBE, `function gather() {`, `  return probe();`, `}`, `export function runAll({ platform }) {`, `  return gather() && platform;`, `}`], [2, "runAll"]),
+      refused([`export function runAll(platform) {`, `  return gather() && platform;`, `}`, `function gather() {`, `  return probe();`, `}`, ...PROBE], [8, "runAll"]),
+      refused([
+        `export function runAll(platform) {`,
+        `  return gather() && platform;`,
+        `}`,
+        `const gather = () => scan();`,
+        `function scan() {`,
+        `  return [probe()];`,
+        `}`,
+        ...PROBE,
+      ], [9, "runAll"]),
+      refused([
+        `export function runAll(platform) {`,
+        `  return gather() && platform;`,
+        `}`,
+        `export function runEach({ platform }) {`,
+        `  return gather() && platform;`,
+        `}`,
+        `function gather() {`,
+        `  return probe();`,
+        `}`,
+        ...PROBE,
+      ], [11, "(?:runAll|runEach)"]),
+      {
+        code: [
+          `export function runAll(platform) {`,
+          `  return gather() && platform;`,
+          `}`,
+          `function gather() {`,
+          `  return prepare();`,
+          `}`,
+          `function prepare(platform = "linux") {`,
+          `  return scan() && platform;`,
+          `}`,
+          `function scan() {`,
+          `  return process.platform === "darwin";`,
+          `}`,
+        ].join("\n"),
+        filename: SOURCE,
+        errors: [{ line: 11, message: new RegExp(String.raw`^(?![\s\S]*\brunAll\b)(?=[\s\S]*\bprepare\b)(?=[\s\S]*${ESCAPE})`) }],
+      },
+    ],
+  });
+
+  const cycle = [
+    `export function runAll(platform) {`,
+    `  return ping(3) && platform;`,
+    `}`,
+    `function ping(n) {`,
+    `  return pong(n);`,
+    `}`,
+    `function pong(n) {`,
+    `  return n > 0 ? ping(n - 1) : process.platform === "linux";`,
+    `}`,
+  ];
+  const manyPaths = [
+    `export function runAll(platform) {`,
+    `  return spin(3) && twice() && platform;`,
+    `}`,
+    `function spin(n) {`,
+    `  return n > 0 ? spin(n - 1) : twice();`,
+    `}`,
+    `function twice() {`,
+    `  return probe() || probe();`,
+    `}`,
+    ...PROBE,
+  ];
+  const hits = oxlint.ruleHits([cycle, manyPaths].map((lines) => ({ file: SOURCE, text: lines.join("\n") })))
+    .map((found) => found.filter(({ rule: id }) => id === "storytree/host-platform-under-given"));
+  assert.deepEqual(hits.map((found) => found.map(({ line }) => line)), [[8], [11]]);
+  for (const [hit] of hits) assert.match(hit.message, naming("runAll"));
+});
+
+test("8.35 · through pnpm lint's config, drill_84580d0e8d4d's plant, packages/app-setup/src/connect/codex.ts at 1e2269be where installedCodexVersion binds a platform and calls desktopCodex, which calls macApplications, is exactly one storytree/host-platform-under-given hit, at macApplications' read on line 54, naming installedCodexVersion and escape_23c591a68875", () => {
+  const file = "packages/app-setup/src/connect/codex.ts";
+  const text = readFileSync(new URL("./fixtures/codex-1e2269be.txt", import.meta.url), "utf8");
+  assert.match(text.split("\n")[52], /^function macApplications\(\)/, "line 53 declares macApplications");
+  assert.match(text.split("\n")[53], /^\s*return process\.platform === "darwin"/, "line 54 is macApplications' read");
+  const [hits] = oxlint.ruleHits([{ file, text }]).map((found) => found.filter(({ rule: id }) => id === "storytree/host-platform-under-given"));
+  assert.deepEqual(hits.map(({ line }) => line), [54]);
+  assert.match(hits[0].message, /\binstalledCodexVersion\b/);
+  assert.match(hits[0].message, new RegExp(ESCAPE));
+});

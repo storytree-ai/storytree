@@ -271,7 +271,7 @@ export async function releaseFor(context: ClaimContext, id: string, holder: stri
   return context.log.locked(context.project, async (log) => {
     const current = (await heldNow(log, context)).get(id);
     if (current?.session !== holder) return current === undefined ? { ok: false, refused: "not-held" } : { ok: false, refused: "not-held", holder: current };
-    if (current.holder === "live") return { ok: false, refused: "live", holder: current };
+    if (current.holder === "live" && !(await isClosed(context.library, id))) return { ok: false, refused: "live", holder: current };
     const { returned } = await endClaim(log, who(context), partOf(current), { by: "manager", holder, reason }, context);
     return returned ? { ok: true, returned } : { ok: true };
   });
@@ -288,7 +288,7 @@ export async function land(context: ClaimContext, capability: string): Promise<L
 
 export async function closeRefusal(context: ClaimContext, increment: string): Promise<Held | undefined> {
   if (context.session.startsWith("person:")) return undefined;
-  const standing = await readClaims(context.log, context.project, {
+  const standing = await readClaims(context.log, context.library.name, {
     ...(context.quietMs === undefined ? {} : { quietMs: context.quietMs }),
     ...(context.restarted === undefined ? {} : { restarted: context.restarted }),
   });
@@ -298,7 +298,7 @@ export async function closeRefusal(context: ClaimContext, increment: string): Pr
 }
 
 export async function closed(context: ClaimContext, increment: string, disposition: "landed" | "failed" | "withdrawn"): Promise<Line> {
-  return context.log.locked(context.project, async (log) => (await endClaim(log, who(context), { increment }, { by: "close", disposition })).line);
+  return context.log.locked(context.library.name, async (log) => (await endClaim(log, who(context), { increment }, { by: "close", disposition })).line);
 }
 
 export async function readClaims(log: ActivityLog, project: string, options: ClaimsOptions = {}): Promise<Claim[]> {
@@ -385,6 +385,10 @@ function who(context: Who) {
 interface Found {
   readonly part: Part;
   readonly status?: IncrementStatus;
+}
+
+export async function isClosed(library: Library, id: string): Promise<boolean> {
+  return (await partNamed(library, id))?.status === "closed";
 }
 
 async function partNamed(library: Library, id: string): Promise<Found | undefined> {

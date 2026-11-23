@@ -20,6 +20,7 @@ import { allMergedPullsThrough, allOpenPullsThrough, boardClaims, queuedPullsThr
 import { staleClaims } from "./stale-claims.js";
 import { NOTICEBOARD_BOARD } from "./board-verbs.js";
 import { WORKSPACE_FAMILIES } from "./verbs.js";
+import { sessionTools, type ToolCall } from "../tools.js";
 
 interface World {
   log: ActivityLog;
@@ -1572,3 +1573,147 @@ async function clockPastLastLine(log: ActivityLog, project: string, ms: number, 
   const last = Date.parse((await log.since(project, 0)).lines.at(-1)!.at);
   await waitUntil(() => Date.now() > last + ms, ms + 1_000, what);
 }
+
+async function withOtherProject(body: (other: Library) => Promise<void>): Promise<void> {
+  const name = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const other = await storytree.openProject(name);
+    await other.addStory({ title: "Assessments are marked" });
+    await body(other);
+  } finally {
+    try {
+      await storytree.close();
+    } finally {
+      await dropTestProjects([name]);
+    }
+  }
+}
+
+function reaching(library: Library, other: Library): Library {
+  return {
+    ...library,
+    reach: async (name: string) => {
+      if (name === other.name) return other;
+      throw Object.assign(new Error(`Project ${JSON.stringify(name)} is neither factory ${JSON.stringify(library.name)} nor a project that names it.`), { name: "OutsideCircleError" });
+    },
+  } as Library;
+}
+
+async function ageSession(project: string, session: string, hours: number): Promise<void> {
+  const store = await connect({ url: testServerUrl() });
+  try {
+    await (await store.ownDatabase(ACTIVITY_DATABASE)).query(`UPDATE activity SET at = at - interval '${hours} hours' WHERE project = $1 AND session = $2`, [project, session]);
+  } finally {
+    await store.close();
+  }
+}
+
+const COMMAND_WORDS = { door: "command", say: (step: { command?: string; tool?: string }) => step.command ?? step.tool! } as never;
+
+function workspaceVerb(name: string) {
+  return WORKSPACE_FAMILIES[0]!.verbs.find((verb) => (verb.command as { name?: string }).name === name)!;
+}
+
+test("5.77 · closing an increment from a checkout whose folder names another project ends its holder's claims on it and on the capability taken under it in the project whose library holds it, writing no closed line to the folder's project; another session's live claim there still refuses the close (regression: the mono-assessment claim closed from storytree's checkout)", async () => {
+  await withWorld(async ({ log, project, as }) => {
+    await withOtherProject(async (mono) => {
+      const { park } = await arcOf(mono);
+      const [work, other] = [await park("mark assessments"), await park("grade report")];
+      const [story] = (await mono.projectTree()).stories;
+      const marking = (await mono.addCapability({ title: "Marking", story: story!.id })).id;
+      const inMono = (session: "A" | "B"): ClaimContext => ({ ...as(session), library: mono, project: mono.name });
+      const fromStorytree = (session: "A" | "B"): ClaimContext => ({ ...as(session), library: mono });
+      assert.ok((await claim(inMono("A"), work, "marking assessments")).ok);
+      assert.ok((await claim(inMono("A"), marking, "building marking")).ok);
+      assert.ok((await claim(inMono("B"), other, "grading")).ok);
+
+      assert.equal(await closeRefusal(fromStorytree("A"), work), undefined, "its holder closes it");
+      await closed(fromStorytree("A"), work, "landed");
+      assert.deepEqual((await readClaims(log, mono.name)).map(({ increment, capability, session }) => [increment ?? capability, session]), [[other, "B"]],
+        "A's claims on the increment and on the capability under it ended in mono-assessment; B's stands");
+      assert.deepEqual((await log.since(mono.name, 0)).lines.flatMap((line) => (line.kind === "closed" ? [[line.session, line.increment, line.disposition]] : [])), [["A", work, "landed"]]);
+      assert.deepEqual((await log.since(project, 0)).lines, [], "nothing is written to the folder's project");
+
+      const refused = await closeRefusal(fromStorytree("A"), other);
+      assert.equal(refused?.holder.session, "B", "B holds it live in mono-assessment, so A's close from storytree's checkout is refused naming B");
+    });
+  });
+});
+
+test("5.78 · the stale-claim worklist and the session manager's release, by command, read and end claims in the project named, not the folder's, returning its increment there, and the release the worklist prints names that project; without one they act on the folder's project", async () => {
+  await withWorld(async ({ log, project, library, as }) => {
+    await withOtherProject(async (mono) => {
+      const { arc, park } = await arcOf(mono);
+      const work = await park("mark assessments");
+      assert.ok((await claim({ ...as("A"), library: mono, project: mono.name }, work, "marking assessments")).ok);
+      await ageSession(mono.name, "A", 13);
+      const context = { ...as("C"), library: reaching(library, mono) } as never;
+      const stale = workspaceVerb("stale");
+      const release = workspaceVerb("release");
+
+      assert.equal((await stale.act({}, context, COMMAND_WORDS)).text, "No claimed increment is stale.", "the folder's project holds no claim");
+      const listed = (await stale.act({ project: mono.name }, context, COMMAND_WORDS)).text;
+      assert.match(listed, new RegExp(`^1 claimed increment is stale:\n- ${work}: Claude Code session A \\(marking assessments\\), last seen [^\n]*\\. Gone: storytree workspace release ${work} --holder A --project ${mono.name} --reason <why>\\.$`), listed);
+
+      await assert.rejects(release.act({ work, holder: "A", reason: "gone 13 hours" }, context, COMMAND_WORDS), /A doesn't hold .*, and nobody else does/, "without a project the folder's is read");
+      const released = (await release.act({ work, holder: "A", reason: "gone 13 hours", project: mono.name }, context, COMMAND_WORDS)).text;
+      assert.equal(released, `Released ${work} for A: gone 13 hours; nobody holds it, so it is a proposal again.`);
+      assert.deepEqual(await readClaims(log, mono.name), []);
+      assert.deepEqual((await log.since(mono.name, 0)).lines.flatMap((line) => (line.kind === "released" ? [[line.session, line.holder, line.increment, line.reason]] : [])), [["C", "A", work, "gone 13 hours"]]);
+      assert.equal(await statusOf(mono, arc, work), "proposal", "the increment is returned in mono-assessment's library");
+      assert.deepEqual((await log.since(project, 0)).lines, [], "nothing is written to the folder's project");
+    });
+  });
+});
+
+test("5.78 · the stale_claims and release tools read and end claims in the project named, not the folder's, and the release the worklist names carries that project; without one they act on the folder's project", async () => {
+  await withWorld(async ({ log, project, library, as }) => {
+    await withOtherProject(async (mono) => {
+      await withTempDir(async (folder) => {
+        const { park } = await arcOf(mono);
+        const [gone, mine] = [await park("mark assessments"), await park("grade report")];
+        assert.ok((await claim({ ...as("A"), library: mono, project: mono.name }, gone, "marking assessments")).ok);
+        await ageSession(mono.name, "A", 13);
+        assert.ok((await claim({ ...as("C"), library: mono, project: mono.name }, mine, "grading")).ok);
+        const acts = new Map<string, (args: Record<string, unknown>, call: ToolCall) => Promise<{ text: string; data?: Record<string, unknown>; refused?: boolean }>>();
+        sessionTools({ merges: { allOpenPulls: async () => new Map() } }).registerTools?.((name, _description, _input, act) => { acts.set(name, act as never); });
+        const call = { library: reaching(library, mono), log, project, caller: { session: "C", harness: "claude-code" }, folder, quietMs: 1_000, writer: {} } as unknown as ToolCall;
+        const listed = (answer: { data?: Record<string, unknown> }) => (answer.data?.claims as { increment: string; holder: string; route: string }[]).map(({ increment, holder, route }) => [increment, holder, route]);
+
+        assert.deepEqual(listed(await acts.get("stale_claims")!({}, call)), [], "the folder's project holds no claim");
+        const named = await acts.get("stale_claims")!({ project: mono.name }, call);
+        assert.deepEqual(listed(named), [[gone, "A", "release"]]);
+        assert.ok(named.text.includes(`--holder A --project ${mono.name}`), named.text);
+
+        const unnamed = await acts.get("release")!({ increment: mine }, call);
+        assert.equal(unnamed.refused, true, "without a project the folder's is read, where C holds nothing");
+        const released = await acts.get("release")!({ increment: mine, project: mono.name }, call);
+        assert.equal(released.refused, undefined, released.text);
+        assert.equal(released.text, `You released "grade report" (${mine}): nobody holds it, so it is a proposal again.`);
+        assert.deepEqual((await readClaims(log, mono.name)).map(({ increment, session }) => [increment, session]), [[gone, "A"]]);
+        assert.deepEqual((await log.since(project, 0)).lines, [], "nothing is written to the folder's project");
+      });
+    });
+  });
+});
+
+test("5.79 · a claim standing on a closed increment is on the stale-claim worklist routed to release, marked closed, while its holder reads live with an open pull request on its branch, and the session manager's release ends it; a live claim on an open increment is not listed", async () => {
+  await withWorld(async ({ log, project, library, as }) => {
+    const quietMs = 60_000;
+    const { arc, park } = await arcOf(library);
+    const [done, open] = [await park("done"), await park("open")];
+    assert.ok((await claim(as("A", { branch: "a-branch" }), done, "driving it")).ok);
+    assert.ok((await claim(as("B", { branch: "b-branch" }), open, "driving it")).ok);
+    await library.closeIncrement(done, { disposition: "landed", pr: "#5", date: "2026-11-20" });
+    const pulls = async () => new Map<string, OpenPull>([["a-branch", { number: 5, draft: false, queued: false }], ["b-branch", { number: 6, draft: false, queued: false }]]);
+
+    const worklist = await staleClaims({ log, project, folder: ".", library } as never, { quietMs, allOpenPulls: pulls });
+    assert.deepEqual(worklist.claims.map((stale) => [stale.increment, stale.holder, stale.route, (stale as { closed?: true }).closed]), [[done, "A", "release", true]]);
+    assert.equal((await readClaim(log, project, done, { quietMs }))?.holder, "live", "A still reads live");
+
+    assert.deepEqual(await releaseFor(as("C", { quietMs }), done, "A", "its increment closed"), { ok: true });
+    assert.deepEqual((await readClaims(log, project, { quietMs })).map(({ increment, session }) => [increment, session]), [[open, "B"]]);
+    assert.equal(await statusOf(library, arc, done), "closed", "a closed increment is not returned");
+  });
+});

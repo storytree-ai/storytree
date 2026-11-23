@@ -24,7 +24,7 @@ on:
         type: string
         required: true
     secrets:
-      MERGE_QUEUE_TOKEN:
+      AUTOMATION_APP_KEY:
         required: false
 
 permissions:
@@ -72,9 +72,17 @@ jobs:
             packages/base-dev-loop/src/land-enqueue.mjs
           sparse-checkout-cone-mode: false
           persist-credentials: false
+      - uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        id: pass
+        if: steps.held.outputs.held == 'false' && vars.AUTOMATION_APP_ID != ''
+        with:
+          app-id: ${{ vars.AUTOMATION_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
       # With a merge queue required on main, enqueue the pull request at the commit `verify` passed
       # (expectedHeadOid): the queue tests it on top of main and merges it. It enqueues with the
-      # MERGE_QUEUE_TOKEN secret, never this workflow's own token: GitHub starts no workflow from an
+      # App's pass, never this workflow's own token: GitHub starts no workflow from an
       # event that token causes, so an entry it enqueued gets no `merge_group` run and waits in the
       # queue until it times out (2026-09-30, PRs #311-#316). Without a queue, merge it
       # directly. --match-head-commit: merge the commit `verify` passed, never one pushed since.
@@ -88,7 +96,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_ID: ${{ inputs.pr-id }}
-          QUEUE_TOKEN: ${{ secrets.MERGE_QUEUE_TOKEN }}
+          QUEUE_TOKEN: ${{ steps.pass.outputs.token }}
         run: |
           queue=$(gh api graphql -f owner="${GITHUB_REPOSITORY%/*}" -f name="${GITHUB_REPOSITORY#*/}" -F pr="$PR" \
             -f query='query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) { isMergeQueueEnabled } } }' \
@@ -96,7 +104,7 @@ jobs:
           echo "queue=$queue" >> "$GITHUB_OUTPUT"
           if [ "$queue" = true ]; then
             if [ -z "$QUEUE_TOKEN" ]; then
-              echo "::error::main requires the merge queue, but the MERGE_QUEUE_TOKEN secret is not set, so this pull request cannot be enqueued (an entry this workflow's own token enqueued would never be checked)."
+              echo "::error::main requires the merge queue, but the repository variable AUTOMATION_APP_ID or the secret AUTOMATION_APP_KEY is not set, so this pull request cannot be enqueued (an entry this workflow's own token enqueued would never be checked)."
               exit 1
             fi
             # GitHub can refuse the enqueue after this run's `verify` passed on this very commit,

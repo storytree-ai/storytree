@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -264,6 +265,45 @@ test("1.47 · a family only a factory plugin this computer does not name declare
   writeFileSync(path.join(home, "settings.json"), "{ not json");
   const unread = await invoke(["my-extra", "hello"]);
   assert.match(unread.stderr, /storytree has no "my-extra"\n/, "a settings file that cannot be read names no plugin, and the word is refused as before");
+});
+
+test("plugin-loader 5.25 · a command a factory plugin adds, run from a factory clone 2 commits behind origin/main with 3 changed paths, says so first on standard error with STORYTREE_FACTORY=<worktree>, and still answers as it would; a built-in command says nothing", async (t) => {
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-stale-factory-")));
+  t.after(() => removeTemp(dir));
+  const home = path.join(dir, "home");
+  const factory = healthPlugin(dir);
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main", ...args], { cwd, stdio: "ignore" });
+  const origin = path.join(dir, "origin.git");
+  git(dir, "init", "-q", "--bare", origin);
+  git(factory, "init", "-q", "-b", "main");
+  git(factory, "add", "-A");
+  git(factory, "commit", "-q", "-m", "my-health");
+  git(factory, "remote", "add", "origin", origin);
+  git(factory, "push", "-q", "-u", "origin", "main");
+  const elsewhere = path.join(dir, "elsewhere");
+  git(dir, "clone", "-q", "--", origin, elsewhere);
+  for (const later of ["later-1.md", "later-2.md"]) {
+    writeFileSync(path.join(elsewhere, later), later);
+    git(elsewhere, "add", later);
+    git(elsewhere, "commit", "-q", "-m", later);
+  }
+  git(elsewhere, "push", "-q", "origin", "HEAD:main");
+  for (const mine of ["mine-1.txt", "mine-2.txt", "mine-3.txt"]) writeFileSync(path.join(factory, mine), mine);
+  const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home, env: { STORYTREE_FACTORY: factory } });
+  assert.equal((await invoke(["settings", "set", "module", "ci-health", "plugin", "my-health"])).code, 0);
+
+  const ran = await invoke(["health", "check"]);
+  assert.equal(ran.code, 0, ran.stderr);
+  assert.equal(ran.stdout.trim().split("\n")[0], `my health is fine in ${dir}`);
+  const first = ran.stderr.split("\n")[0]!;
+  assert.ok(first.includes(factory), `the first line on standard error names the factory folder ${factory}:\n${ran.stderr}`);
+  assert.match(first, /behind origin\/main by 2 commits/);
+  assert.match(first, /\b3 changed paths\b/);
+  assert.match(first, /STORYTREE_FACTORY=/);
+
+  const builtIn = await invoke(["settings", "show"]);
+  assert.equal(builtIn.code, 0, builtIn.stderr);
+  assert.doesNotMatch(builtIn.stderr, /behind origin\/main|changed paths|STORYTREE_FACTORY=/);
 });
 
 test("1.40 · with a factory folder chosen and `settings set module ci-health plugin my-health`, the command line lists and runs the factory plugin's family where ci-health's was, its verb handed the door's place; `settings set module ci-health on` mounts ci-health's own again", async (t) => {

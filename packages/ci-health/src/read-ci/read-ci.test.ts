@@ -513,3 +513,22 @@ test("4.2 a CI reading writes a skip as a test run does: a verdict the newest ru
   await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), skipped) });
   assert.equal((await library.healthHistory(contracts[1]!)).filter(({ column }) => column === "verified").length, 2, "an entry already saying the same is not written again");
 });
+
+test("3.26 · reading a project's CI returns every contract-numbered test of the newest run it credited to no story, with its reason and the one story its number would have matched: a numbered pytest test in a file outside every story's folder is named", async (t) => {
+  const { library } = await shopLibrary(t);
+  const story = (await library.projectTree()).stories[0]!.id;
+  const { folder } = projectFolder(t);
+  const git = (...args: string[]) => execFileSync("git", ["-C", folder, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
+  mkdirSync(path.join(folder, "tests"));
+  writeFileSync(path.join(folder, "tests/test_api.py"), "def test_1_2_answers():\n    pass\n");
+  git("add", ".");
+  git("commit", "-q", "-m", "api tests");
+  const log = [tap("ok"), "2026-11-23T10:00:01.3000000Z PASSED tests/test_api.py::test_1_2_answers"].join("\n");
+
+  const read = await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(git("rev-parse", "HEAD")), log) });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.tests, 3);
+  assert.deepEqual(read.written && read.uncredited, [
+    { test: "tests/test_api.py::test_1_2_answers", number: "1.2", reason: "no story's folder holds its file", story },
+  ], "the checkout's two TAP tests are credited, so only the root's pytest test is named");
+});

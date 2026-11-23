@@ -1,6 +1,8 @@
 // Capability 6 · CI times.
-import type { Storytree } from "@storytree/library";
+import type { Library, Storytree } from "@storytree/library";
 
+import { readCiOnRefresh, type CiLook } from "../read-ci/on-refresh.js";
+import type { GitHub } from "../read-ci/read-ci.js";
 import { CI_TIMES_CHANNELS, type CiTimesBridge } from "./bridge.js";
 import { ciTimesReading, type CiTimesReading } from "./reading.js";
 import type { ActionsReader } from "./record.js";
@@ -9,19 +11,24 @@ import { ciTimesPool, type CiTimesDb } from "./store.js";
 export const RECORD_AFTER_MS = 10 * 60 * 1000;
 
 export interface CiTimesPageFrame {
-  server(): Pick<Storytree, "ownDatabase" | "listProjects"> | undefined;
+  server(): Pick<Storytree, "ownDatabase" | "listProjects" | "openProject"> | undefined;
   library(): { projectFolder(project: unknown): Promise<string | undefined> };
 }
 
 export type CiTimesRecorder = (db: CiTimesDb, project: string, folder: string) => Promise<void>;
 
-export function ciTimesAnswers(frame: CiTimesPageFrame, { record = (db, project, folder) => recordFromFolder(db, project, folder), now = () => new Date() }: { record?: CiTimesRecorder; now?: () => Date } = {}): CiTimesBridge {
+export function ciTimesAnswers(frame: CiTimesPageFrame, { record = (db, project, folder) => recordFromFolder(db, project, folder), now = () => new Date(), github, readCi = readCiOnRefresh({ open: (name) => openOnce(frame.server()!, name), github }) }: { record?: CiTimesRecorder; now?: () => Date; github?: GitHub; readCi?: CiLook } = {}): CiTimesBridge {
   const recording = new Map<string, Promise<void>>();
   return {
     async ciTimes(project: unknown): Promise<CiTimesReading | undefined> {
       const server = frame.server();
       if (server === undefined) return undefined;
       if (typeof project !== "string" || !(await server.listProjects()).includes(project)) throw new Error(`there is no project called ${JSON.stringify(project)}`);
+      frame.library().projectFolder(project).then((folder) => (folder === undefined ? undefined : readCi(project, folder)))
+        .catch((error: unknown) => {
+          if (closedLibrary(error)) return;
+          console.error(`The CI of ${project} could not be read: ${error instanceof Error ? error.message : String(error)}`);
+        });
       const db = await ciTimesPool(server);
       const reading = await ciTimesReading(db, project, now());
       const stale = reading === undefined || now().getTime() - Date.parse(reading.readAt) >= RECORD_AFTER_MS;
@@ -39,7 +46,30 @@ export function ciTimesAnswers(frame: CiTimesPageFrame, { record = (db, project,
   };
 }
 
+type Opener = Pick<Storytree, "openProject">;
+
+const opened = new WeakMap<Opener, Map<string, Promise<Library>>>();
+
+function openOnce(server: Opener, name: string): Promise<Library> {
+  let libraries = opened.get(server);
+  if (libraries === undefined) {
+    libraries = new Map();
+    opened.set(server, libraries);
+  }
+  let open = libraries.get(name);
+  if (open === undefined) {
+    open = server.openProject(name);
+    libraries.set(name, open);
+    open.catch(() => libraries.delete(name));
+  }
+  return open;
+}
+
 class LibraryClosed extends Error {}
+
+function closedLibrary(error: unknown): boolean {
+  return error instanceof LibraryClosed || (error instanceof Error && /connection is closed|after calling end on the pool/.test(error.message));
+}
 
 function untilEnded(db: CiTimesDb): CiTimesDb {
   return {

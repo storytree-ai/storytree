@@ -440,7 +440,7 @@ const incrementUnstart = verb({
     const status = (increment.fields as { status: string }).status;
     if (status !== "active") throw new VerbRefusal(`${id} is ${status}, not active: only active work returns to proposal.`);
     const { readClaims } = await import("@storytree/session-management");
-    const holder = (await readClaims(context.log, context.project)).find((claim) => claim.increment === id);
+    const holder = (await readClaims(context.log, context.library.name)).find((claim) => claim.increment === id);
     if (holder !== undefined) throw new VerbRefusal(`${id} is held by ${holder.label} session ${holder.session} (${holder.reason}): it is work in progress. Its holder releases it, which returns it to proposal.`);
     await library.returnIncrement(id, context.writer);
     return { text: `${id} is a proposal again: nobody holds it.`, next: [{ command: `arc show ${(increment.fields as { arc: string }).arc}`, why: "see the arc" }] };
@@ -476,7 +476,7 @@ const incrementEdit = verb({
 
 async function refuseShared(target: string, capabilities: readonly string[], context: ArcVerbContext): Promise<void> {
   const { readClaims } = await import("@storytree/session-management");
-  const claims = await readClaims(context.log, context.project);
+  const claims = await readClaims(context.log, context.library.name);
   const others = claims.filter((claim) => claim.session !== context.session && claim.holder === "live" && claim.increment !== undefined && claim.increment !== target);
   for (const claim of others) {
     const listed = ((await context.library.get(claim.increment!))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];

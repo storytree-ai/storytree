@@ -1,6 +1,6 @@
 // Capability 5 · Claims
 import type { Library, WriteOptions } from "@storytree/library";
-import type { Consumer } from "@storytree/library/verbs";
+import { VerbRefusal, writtenLibrary, type Consumer } from "@storytree/library/verbs";
 import { locateStorytree, type LocateOptions } from "@storytree/project-and-caller";
 import { lineOf, type Caller } from "@storytree/project-and-caller/caller";
 import { z } from "zod";
@@ -79,6 +79,18 @@ const part = {
   increment: z.string().min(1).optional().describe("The id of the increment, as the plan shows it: claiming one starts it"),
 };
 const ONE_PART = "Name a capability or an increment to claim, exactly one.";
+const inProject = z.string().min(1).optional().describe("The project whose claims this reads and ends, when not this folder's: its factory or a project that factory builds");
+
+async function projectCall(call: ToolCall, project: string | undefined): Promise<ToolCall | ToolAnswer> {
+  if (project === undefined) return call;
+  try {
+    const reached = await writtenLibrary(call.library, { project });
+    return { ...call, library: reached, project: reached.name };
+  } catch (error) {
+    if (error instanceof VerbRefusal) return { text: error.message, refused: true };
+    throw error;
+  }
+}
 const ONE_CLAIM = "Name a capability, several capabilities or an increment to claim, exactly one of them.";
 const AGENT = { consumers: ["agent"] } as const;
 
@@ -188,9 +200,11 @@ function registerClaimTools(define: Define, merges: MergeWatch): void {
     AGENT,
   );
 
-  define("release", "Release a capability or an increment you hold, without landing or closing it, so another session can take it.", z.object(part), async ({ capability, increment }, call) => {
+  define("release", "Release a capability or an increment you hold, without landing or closing it, so another session can take it.", z.object({ ...part, project: inProject }), async ({ capability, increment, project }, given) => {
     const id = capability ?? increment;
     if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true };
+    const call = await projectCall(given, project);
+    if (!("caller" in call)) return call;
     const answer = await release(claimContext(call), id);
     if (answer.ok) return { text: `You released ${await titleOf(call.library, id)}${answer.returned ? ": nobody holds it, so it is a proposal again" : ""}.` };
     return {
@@ -202,9 +216,11 @@ function registerClaimTools(define: Define, merges: MergeWatch): void {
   define(
     "stale_claims",
     "For the session manager: the claimed increments whose holder is quiet, with no command running and no open pull request, oldest first, each with its route (ADR-0953 D4). Release a gone or ended holder's with `storytree workspace release <increment> --holder <session> --reason …`; ask a quiet holder first. Reading it ends nothing.",
-    z.object({}),
-    async (_args, call) => {
-      const { claims, pullsUnread } = await staleClaims({ log: call.log, project: call.project, folder: call.folder }, {
+    z.object({ project: inProject }),
+    async ({ project }, given) => {
+      const call = await projectCall(given, project);
+      if (!("caller" in call)) return call;
+      const { claims, pullsUnread } = await staleClaims({ log: call.log, project: call.project, folder: call.folder, library: call.library }, {
         quietMs: call.quietMs,
         ...(merges.allOpenPulls === undefined ? {} : { allOpenPulls: merges.allOpenPulls }),
       });
@@ -212,7 +228,7 @@ function registerClaimTools(define: Define, merges: MergeWatch): void {
       if (claims.length === 0) return { text: ["No claimed increment is stale.", ...unread].join("\n"), data: { claims, ...(pullsUnread ? { pullsUnread } : {}) } };
       const rows = await Promise.all(claims.map(async (stale) =>
         `- ${await titleOf(call.library, stale.increment)}: ${stale.label} session ${stale.holder} (${stale.reason}), last seen ${stale.lastSeenAt}${stale.branch === undefined ? "" : `, on ${stale.branch}`}. ${
-          stale.route === "release" ? `${stale.ended ? "Ended: its process stopped and it stayed quiet since" : "Gone"}: release it for its holder (--holder ${stale.holder}).` : "Quiet: ask its holder, and release it only once it stays quiet."}`));
+          stale.route === "release" ? `${stale.closed ? "Closed: its increment is closed" : stale.ended ? "Ended: its process stopped and it stayed quiet since" : "Gone"}: release it for its holder (--holder ${stale.holder}).` : "Quiet: ask its holder, and release it only once it stays quiet."}`));
       return { text: [`${claims.length} claimed increment${claims.length === 1 ? " is" : "s are"} stale:`, ...rows, ...unread].join("\n"), data: { claims, ...(pullsUnread ? { pullsUnread } : {}) } };
     },
   );

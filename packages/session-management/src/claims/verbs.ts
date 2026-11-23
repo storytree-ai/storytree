@@ -1,5 +1,5 @@
 // Capability 5 · Claims
-import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
+import { verb, VerbRefusal, writtenLibrary, type VerbFamily } from "@storytree/library/verbs";
 
 import type { SessionVerbContext } from "../sessions/verbs.js";
 import type { Waiting } from "./claims.js";
@@ -14,6 +14,13 @@ function agentOnly(context: SessionVerbContext): void {
 }
 
 const work = { kind: "text", word: 0, describe: "the work's id: an increment or a capability" } as const;
+const project = { kind: "text", optional: true, describe: "the project whose claims this reads and ends, when not this folder's: its factory or a project that factory builds" } as const;
+
+async function inProject(context: SessionVerbContext, named: string | undefined): Promise<SessionVerbContext> {
+  if (named === undefined) return context;
+  const reached = await writtenLibrary(context.library, { project: named });
+  return { ...context, library: reached, project: reached.name };
+}
 const reason = { kind: "text", describe: "why this session takes it: its name in the sessions list" } as const;
 
 const make = verb({
@@ -142,16 +149,18 @@ const releaseClaim = verb({
     family: "workspace",
     name: "release",
     summary: "release a claim this agent session holds, without closing or landing the work; with --holder, the session manager's release of a quiet session's claim (ADR-0944 D7)",
-    usage: "workspace release <increment|capability> [--holder <session> --reason <why>]",
+    usage: "workspace release <increment|capability> [--holder <session> --reason <why>] [--project <project>]",
   },
   tool: ownTool("release"),
   inputs: {
     work,
     holder: { kind: "text", optional: true, describe: "the quiet session whose claim the session manager releases" },
     reason: { kind: "text", optional: true, describe: "with --holder: why its claim is released" },
+    project,
   },
-  async act({ work: id, holder, reason: why }, context: SessionVerbContext) {
-    agentOnly(context);
+  async act({ work: id, holder, reason: why, project: named }, given: SessionVerbContext) {
+    agentOnly(given);
+    const context = await inProject(given, named);
     const { release, releaseFor } = await import("./claims.js");
     if (holder !== undefined) {
       if (why === undefined) throw new VerbRefusal("this needs --reason", { misuse: true });
@@ -180,11 +189,13 @@ const stale = verb({
   command: {
     family: "workspace",
     name: "stale",
-    summary: "the session manager's stale-claim worklist: claimed increments whose holder is quiet, with no command running and no open pull request, each with its route (ADR-0953 D4)",
+    summary: "the session manager's stale-claim worklist: claimed increments whose holder is quiet, with no command running and no open pull request, and claims on closed increments, each with its route (ADR-0953 D4)",
+    usage: "workspace stale [--project <project>]",
   },
   tool: ownTool("stale_claims"),
-  inputs: {},
-  async act(_input, context: SessionVerbContext) {
+  inputs: { project },
+  async act({ project: named }, given: SessionVerbContext) {
+    const context = await inProject(given, named);
     const { staleClaims } = await import("./stale-claims.js");
     const { claims, pullsUnread } = await staleClaims(context);
     const unread = pullsUnread ? ["GitHub could not be asked which pull requests are open: check each branch before releasing."] : [];
@@ -192,7 +203,7 @@ const stale = verb({
     const rows = claims.map((claim) =>
       `- ${claim.increment}: ${claim.label} session ${claim.holder} (${claim.reason}), last seen ${claim.lastSeenAt}${claim.branch === undefined ? "" : `, on ${claim.branch}`}. ${
         claim.route === "release"
-          ? `${claim.ended ? "Ended: its process stopped and it stayed quiet since" : "Gone"}: storytree workspace release ${claim.increment} --holder ${claim.holder} --reason <why>.`
+          ? `${claim.closed ? "Closed: its increment is closed" : claim.ended ? "Ended: its process stopped and it stayed quiet since" : "Gone"}: storytree workspace release ${claim.increment} --holder ${claim.holder} --reason <why>.`
           : "Quiet: ask its holder first, and release it only once it stays quiet."}`);
     return { text: [`${claims.length} claimed increment${claims.length === 1 ? " is" : "s are"} stale:`, ...rows, ...unread].join("\n") };
   },

@@ -169,6 +169,66 @@ test("5.40 an edit tool aimed at a file in an imported folder is refused before 
   }
 });
 
+test("5.40 given the code seam, an edit to an imported folder's file in no language the code survey knows (README.md, docs/x.md, package.json, Dockerfile) is neither refused nor asked, whether no capability covers it or one covering \".\" is unlisted, listed or held by another session; its code files (main.py, index.ts) are refused, asked or held as before, also in the same edit as such a file (ADR-1392)", async () => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (root) => {
+      const checkout = path.join(root, "project");
+      const viewer = path.join(root, "viewer");
+      const site = path.join(root, "site");
+      mkdirSync(path.join(viewer, "app", "stats"), { recursive: true });
+      mkdirSync(path.join(viewer, "docs"), { recursive: true });
+      mkdirSync(site, { recursive: true });
+      for (const file of ["README.md", "docs/x.md", "package.json", "Dockerfile", "main.py"]) writeFileSync(path.join(viewer, file), "x\n");
+      for (const file of ["README.md", "index.ts"]) writeFileSync(path.join(site, file), "x\n");
+      const library = await storytree.openProject(project);
+      const { added: [viewerStory] } = await library.mapStories("https://github.com/someone/viewer.git", [{ package: ".", title: "viewer", folders: ["."] }]);
+      const { added: [siteStory] } = await library.mapStories("https://github.com/someone/site.git", [{ package: ".", title: "site", folders: ["."] }]);
+      await library.addCapability({ title: "Stats page", story: viewerStory!.id, covers: ["app/stats"] });
+      const whole = (await library.addCapability({ title: "Whole site", story: siteStory!.id, covers: ["."] })).id;
+      const arc = await library.createArc({ title: "Site", intent: "A site", endState: "Site shown", stories: [siteStory!.id] });
+      const imports = [{ folder: viewer, repository: "https://github.com/someone/viewer.git" }, { folder: site, repository: "https://github.com/someone/site.git" }];
+      const isCode = async (file: string) => /\.(py|ts|tsx|go)$/.test(file);
+      const as = (session: string) => ({ log, library, project, session, harness: "claude-code", folder: checkout });
+      const gate = async (session: string, ...files: string[]) => {
+        const refusal = await editRefusal(as(session), checkout, files.map((file) => ({ path: file })), declaredInTests, imports, undefined, isCode);
+        return refusal && { ...refusal };
+      };
+      const inViewer = (file: string) => path.join(viewer, file);
+      const inSite = (file: string) => path.join(site, file);
+
+      for (const file of ["README.md", "docs/x.md", "package.json", "Dockerfile"]) assert.equal(await gate("A", inViewer(file)), undefined, `${file}, which no capability covers, is not refused`);
+      assert.equal(await gate("A", inSite("README.md")), undefined, "README.md under an unlisted capability covering \".\" is not refused");
+      assert.deepEqual(await gate("A", inViewer("main.py")), { refused: "imported", file: "main.py", folder: viewer }, "a root code file no capability covers is refused as before");
+      assert.deepEqual(await gate("A", inSite("index.ts")), { refused: "imported", file: "index.ts", folder: site, covering: { capability: whole, title: "1 · Whole site" } }, "a root code file under an unlisted capability is refused as before");
+      assert.deepEqual(await gate("A", inViewer("README.md"), inViewer("main.py")), { refused: "imported", file: "main.py", folder: viewer }, "a code file is refused in the same edit as a README");
+
+      const mine = (await library.addIncrement({ arc: arc.id, title: "site", objective: "site", body: "site", capabilities: [whole] })).id;
+      assert.equal((await claim(as("A"), mine, "driving the site")).ok, true);
+      assert.equal(await gate("A", inSite("README.md")), undefined, "README.md under a listed capability covering \".\" is not asked");
+      assert.deepEqual(await gate("A", inSite("index.ts")), { refused: "ask", file: "index.ts", folder: site, capability: whole, title: "1 · Whole site", increment: mine }, "a code file under it is asked as before");
+      assert.deepEqual(await gate("A", inSite("README.md"), inSite("index.ts")), { refused: "ask", file: "index.ts", folder: site, capability: whole, title: "1 · Whole site", increment: mine }, "and asked in the same edit as a README");
+      assert.equal(await gate("A", inViewer("README.md")), undefined, "under an increment, a README no capability covers is not refused");
+
+      assert.equal((await release(as("A"), mine)).ok, true);
+      assert.equal((await claim(as("B"), whole, "a fix to the site")).ok, true);
+      assert.equal((await claim(as("A"), mine, "driving the site")).ok, true);
+      assert.equal(await gate("A", inSite("README.md")), undefined, "README.md under a capability another live session holds is not refused");
+      assert.equal((await gate("A", inSite("index.ts")))?.refused, "held", "a code file under it is held as before");
+      assert.deepEqual((await log.lines(project, { kinds: ["claim-refused"] })).map((line) => line.kind === "claim-refused" && line.reason), ["edit to index.ts refused before it happened"], "only the code file's refusal is logged");
+    });
+  } finally {
+    try {
+      await log.close();
+      await storytree.close();
+    } finally {
+      await dropTestProjects([project]);
+    }
+  }
+});
+
 test("5.65 a refused edit to an imported file no capability covers, under an increment that lists capabilities, names adding the file to one of them: each listed capability with its covers now and the edit_plan that widens them, not drawing a capability it already has", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });

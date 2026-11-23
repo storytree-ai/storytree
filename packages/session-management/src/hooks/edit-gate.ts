@@ -81,12 +81,12 @@ export function refusalAnswer(harness: string, reason: string, ask = false): str
   return JSON.stringify({ decision: "block", reason, hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
 }
 
-export async function editGate(harness: string, input: unknown, declared: DeclaredCapabilities | undefined, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, gateMs?: number, readsCode?: ReadsCode): Promise<string | undefined> {
+export async function editGate(harness: string, input: unknown, declared: DeclaredCapabilities | undefined, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, gateMs?: number, readsCode?: ReadsCode, isCode?: ReadsCode): Promise<string | undefined> {
   const edit = editIn(harness, input);
   if (edit === undefined || declared === undefined) return undefined;
   const limit = gateMs ?? limitOf(home, EDIT_GATE_STEP);
   try {
-    const result = await withinLimit(EDIT_GATE_STEP, limit, gateMs === undefined ? home : undefined, (limitMs) => refusalFor(harness, edit, declared, locate, home, limitMs, readsCode));
+    const result = await withinLimit(EDIT_GATE_STEP, limit, gateMs === undefined ? home : undefined, (limitMs) => refusalFor(harness, edit, declared, locate, home, limitMs, readsCode, isCode));
     const refusal = result.late ? undefined : result.answer;
     if (refusal === undefined) return undefined;
     return refusalAnswer(harness, refusal.reason, refusal.ask);
@@ -96,15 +96,15 @@ export async function editGate(harness: string, input: unknown, declared: Declar
   }
 }
 
-async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, declared: DeclaredCapabilities, locate: LocateOptions | undefined, home: string, limitMs: number, readsCode?: ReadsCode): Promise<{ reason: string; ask: boolean } | undefined> {
+async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, declared: DeclaredCapabilities, locate: LocateOptions | undefined, home: string, limitMs: number, readsCode?: ReadsCode, isCode?: ReadsCode): Promise<{ reason: string; ask: boolean } | undefined> {
   const { editRefusal, refusalMessage } = await import("../claims/edit-gate.js");
   return gated(harness, edit, locate, home, async (context, checkout, imports) => {
-    const refusal = await editRefusal(context, checkout, edit.files, declared, imports, readsCode);
+    const refusal = await editRefusal(context, checkout, edit.files, declared, imports, readsCode, isCode);
     return refusal === undefined ? undefined : { reason: refusalMessage(refusal), ask: refusal.refused === "ask" };
   }, limitMs);
 }
 
-export async function recordYesAfterEdit(harness: string, input: unknown, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, guardMs?: number): Promise<void> {
+export async function recordYesAfterEdit(harness: string, input: unknown, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, guardMs?: number, isCode?: ReadsCode): Promise<void> {
   if (harness !== "claude-code" || typeof input !== "object" || input === null || (input as Record<string, unknown>).hook_event_name !== "PostToolUse") return;
   const edit = editIn(harness, { ...input, hook_event_name: "PreToolUse" });
   if (edit === undefined) return;
@@ -113,7 +113,7 @@ export async function recordYesAfterEdit(harness: string, input: unknown, locate
   const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), limit)));
   try {
     const { recordPromptYes } = await import("../claims/edit-gate.js");
-    await Promise.race([gated(harness, edit, locate, home, (context, checkout, imports) => recordPromptYes(context, checkout, edit.files, imports), limit), late]);
+    await Promise.race([gated(harness, edit, locate, home, (context, checkout, imports) => recordPromptYes(context, checkout, edit.files, imports, isCode), limit), late]);
   } catch (error) {
     failed("hook", error);
   } finally {

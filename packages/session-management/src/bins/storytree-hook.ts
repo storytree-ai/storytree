@@ -12,7 +12,7 @@ import { atDeadline, BACKGROUND, HANDED, HookClock, hookDeadline, recordHookTime
 
 export type { DeclaredCapabilities, ReadsCode };
 
-export function hookCommand({ declaredCapabilities, readsCode, guardMs }: { declaredCapabilities?: DeclaredCapabilities; readsCode?: ReadsCode; guardMs?: number } = {}): void {
+export function hookCommand({ declaredCapabilities, readsCode, isCode, guardMs }: { declaredCapabilities?: DeclaredCapabilities; readsCode?: ReadsCode; isCode?: ReadsCode; guardMs?: number } = {}): void {
   const clock = new HookClock();
   if (process.argv[2] !== "statusline") process.on("exit", () => recordHookTime(storytreeHome(), clock.reading(process.argv[2] ?? "", process.argv.slice(3))));
   setTimeout(() => {
@@ -38,7 +38,7 @@ export function hookCommand({ declaredCapabilities, readsCode, guardMs }: { decl
       void handOff(harness, input, flags.filter((flag) => flag !== BACKGROUND)).then(() => process.exit(0));
       return;
     }
-    runHook({ argv: process.argv.slice(2), input, handOff, clock, ...(declaredCapabilities === undefined ? {} : { declaredCapabilities }), ...(readsCode === undefined ? {} : { readsCode }), ...(guardMs === undefined ? {} : { guardMs }) }).then(
+    runHook({ argv: process.argv.slice(2), input, handOff, clock, ...(declaredCapabilities === undefined ? {} : { declaredCapabilities }), ...(readsCode === undefined ? {} : { readsCode }), ...(isCode === undefined ? {} : { isCode }), ...(guardMs === undefined ? {} : { guardMs }) }).then(
       (added) => (added === undefined ? process.exit(0) : process.stdout.write(added, () => process.exit(0))),
       () => process.exit(0),
     );

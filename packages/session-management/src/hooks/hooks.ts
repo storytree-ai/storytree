@@ -44,6 +44,7 @@ export interface HookInput {
   readonly locate?: LocateOptions;
   readonly declaredCapabilities?: DeclaredCapabilities;
   readonly readsCode?: ReadsCode;
+  readonly isCode?: ReadsCode;
   readonly guardMs?: number;
   readonly clock?: HookClock;
   readonly git?: Git;
@@ -105,7 +106,7 @@ export async function runHook(hook: HookInput): Promise<string | undefined> {
 
 export const EVENT = "--event=";
 
-async function answerHook({ argv, input: given, handOff: handing, merges, locate, declaredCapabilities, readsCode, guardMs, clock, git = runGit }: HookInput): Promise<string | undefined> {
+async function answerHook({ argv, input: given, handOff: handing, merges, locate, declaredCapabilities, readsCode, isCode, guardMs, clock, git = runGit }: HookInput): Promise<string | undefined> {
   const [harness = "", ...flags] = argv;
   const read = parse(given);
   const parsed = withEvent(read, flags);
@@ -128,10 +129,10 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
       return withFollowUps(toolsStoppedAtTurnEnd(harness, parsed, storytreeHome()) ?? closeOutReminder(harness, parsed, git), await lane);
     }
     if (flags.includes(TEST_GUARD)) return testGuard(harness, parsed, flags);
-    if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed, guardMs, readsCode);
+    if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed, guardMs, readsCode, isCode);
     if (flags.includes(SHELL_GUARD)) {
       const lane = event === "PostToolUse" ? codexLaneMessages(harness, parsed, "tool", { locate, home: homeOf(locate), connectMs: CONNECT_TIMEOUT_MS }) : undefined;
-      const guarded = await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities, guardMs, git);
+      const guarded = await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities, guardMs, git, isCode);
       return withSteers(guarded, await lane);
     }
     const made = hookLines(harness, parsed);
@@ -149,7 +150,7 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
       return promptAnswer(harness, [...(stopped === undefined ? [] : [stopped.agent]), ...(yes ?? []), ...(context ?? [])], parsed, stopped?.user);
     }
     if (made === undefined) return;
-    await Promise.all([writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed, guardMs)]);
+    await Promise.all([writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed, guardMs, isCode)]);
   } catch (error) {
     failed("hook", error);
   }

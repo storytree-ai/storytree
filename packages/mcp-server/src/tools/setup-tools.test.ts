@@ -505,7 +505,7 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
   });
 });
 
-test("7.9 how to build beside imported code is handed on demand, never on the card: check_setup's answer carries it after the card only in a project with imported stories, and import_project's answer carries it", async () => {
+test("7.9 how to build beside imported code is handed on demand, never on the card: check_setup's answer carries it after the card only in a project with imported stories, and import_project's answer carries it, saying only imported code is asked about and a README, docs or config file is the agent's to change", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const name = uniqueProjectName();
@@ -530,7 +530,10 @@ test("7.9 how to build beside imported code is handed on demand, never on the ca
         assert.ok(after.text.indexOf(MAPPED_CODE_GUIDANCE) > after.text.indexOf(habitsCard()), "check_setup in a project with imported stories lacks the section after the card");
         for (const answer of [imported.text, after.text]) {
           for (const said of [
-            "Before changing or deleting anything in the imported project, stop and ask the user",
+            "Before changing or deleting imported code",
+            "a file in a language storytree's code survey knows",
+            "stop and ask the user, even when an increment names the change",
+            "A README, docs or config file in the imported folder is yours to change with no yes asked",
             "change it there, bring that part into this project, retire it, or leave it and build on top",
             "Do what the user says",
             "do not watch the old project for changes",
@@ -544,6 +547,7 @@ test("7.9 how to build beside imported code is handed on demand, never on the ca
             "its node_modules a link to the old project's",
             "storytree does not draw or watch it",
           ]) assert.ok(answer.includes(said), `the answer lacks: ${said}`);
+          assert.ok(!answer.includes("anything in the imported project"), "the answer still guards anything in the imported project, not only its code");
         }
       });
       await withAgent(folder, { client: "zed", env: { STORYTREE_SESSION_ID: "zed-chat-1" }, ...setup }, async (agent) => {

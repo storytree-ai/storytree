@@ -12,7 +12,7 @@ import { pullFactory, type Install } from "./pull.js";
 
 const PLUGINS = { "plugins/my-voice/package.json": "{}\n", "plugins/my-echo/package.json": "{}\n" };
 
-test("4.1 · the pull fast-forwards the factory clone to origin/main, names the plugins the move changed, and reinstalls only when the lockfile changed; a failed install puts HEAD back where it was and says why", async (t) => {
+test("4.1 · Given the factory clone is behind origin/main, when the host's 15-minute cadence comes round, then it fast-forwards the clone to origin/main, and then it reinstalls only if the lockfile changed; when that install fails, then the host puts HEAD back where it was, keeps the running services on their code, and says why; when the clone moves, then the pull names the plugins the move changed", async (t) => {
   const repo = factoryRepo(t, PLUGINS);
   const installs: string[] = [];
   const install: Install = async (folder) => { installs.push(folder); };
@@ -37,7 +37,7 @@ test("4.1 · the pull fast-forwards the factory clone to origin/main, names the 
   assert.equal(git(repo.clone, "status", "--porcelain"), "", "and leaves the clone clean, so the next pull tries the same move again");
 });
 
-test("4.2 · the pull updates only a clone on main with a clean working tree: otherwise it says the factory was not updated, with the reason, and leaves the clone alone", async (t) => {
+test("4.2 · Given the factory clone is off main or its working tree is not clean, when the host's cadence comes round, then the host leaves the clone alone and says the factory was not updated, with the reason", async (t) => {
   const repo = factoryRepo(t, PLUGINS);
   const head = git(repo.clone, "rev-parse", "HEAD");
   repo.push({ "plugins/my-voice/services.js": "export const listen = {};\n" });

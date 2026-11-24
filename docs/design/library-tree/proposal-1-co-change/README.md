@@ -13,7 +13,7 @@ scorer, measured below; with renames followed and read file by file, the proposa
 better than the baseline. Neither reading shows a big win: co-change is a good tool for small merges,
 not for reshaping a tree.
 
-- Picture: [tree.svg](tree.svg) (or [tree.png](tree.png)), with the baseline on the left and the proposal on the right.
+- Picture: [tree.svg](tree.svg) (a PNG of it is linked from the pull request), with the baseline on the left and the proposal on the right.
 - Tree file: [tree.json](tree.json). Grade it with `storytree code-measures tree story_754e87e7d531 --tree docs/design/library-tree/proposal-1-co-change/tree.json`.
   Each node lists its files and also carries `was` (the capability numbers it came from), `change` and `why`; the scorer ignores those three fields.
 

@@ -1053,6 +1053,29 @@ test("8.17 a changed file is placed by its own declaration, else by the survey's
   }
 });
 
+test("8.70 a file under plugins/<plugin>/ is placed in that plugin's story by the capability it declares, as a file under packages/<package>/ is in its story; a plugins/ file of no plugin story, a non-plugin story's name included, is placed nowhere", async () => {
+  const plan = { arcs: [], stories: [
+    { id: "story-shop", title: "Shop", capabilities: [{ id: "cap-shop-tools", title: "2 · The read tools" }] },
+    { id: "story-voice", title: "Talk to storytree by voice", plugin: "voice", capabilities: [{ id: "cap-listen", title: "1 · Listening" }, { id: "cap-read-tools", title: "2 · The read tools" }] },
+  ] } as unknown as AnnotatedTree;
+  const header = "// Capability 2 · The read tools\nexport const tools = 1;\n";
+  const texts: Record<string, string> = {
+    "plugins/voice/src/tools.ts": header,
+    "plugins/voice/src/tools.test.ts": 'import { tools } from "./tools.js";\ntest("2.1 the read tools", () => tools);\n',
+    "plugins/voice/src/plain.ts": "export const plain = 1;\n",
+    "plugins/voicemail/src/tools.ts": header,
+    "plugins/shop/src/tools.ts": header,
+    "plugins/other/src/tools.ts": header,
+    "packages/shop/src/tools.ts": header,
+  };
+  const owners = await capabilitiesOfFiles("/nowhere", Object.keys(texts), plan, { readText: (file) => texts[file], survey: async () => ({}) });
+  assert.deepEqual([...owners], [
+    ["plugins/voice/src/tools.ts", { capability: "cap-read-tools", inferred: false }],
+    ["plugins/voice/src/tools.test.ts", { capability: "cap-read-tools", inferred: false }],
+    ["packages/shop/src/tools.ts", { capability: "cap-shop-tools", inferred: false }],
+  ]);
+});
+
 test("8.59 a file whose statements are only re-exports is placed in no capability, whatever its header declares, while a file with any other statement keeps its capability", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-barrels-"));
   const plan = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-claims", title: "3 · Claims" }, { id: "cap-cart", title: "4 · Cart" }] }] } as unknown as AnnotatedTree;

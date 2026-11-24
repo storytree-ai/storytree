@@ -1,0 +1,37 @@
+{
+  "nodes": [
+    { "id": "storage", "title": "Storage", "files": ["packages/library/src/project/index.ts"] },
+    { "id": "projects", "title": "Project libraries", "parent": "storage", "files": ["packages/library/src/project/names.ts", "packages/library/src/project/record-cache.ts", "packages/library/src/project/schema-merged.ts", "packages/library/src/project/schema.ts", "packages/library/src/project/server.ts", "packages/library/src/project/snapshot.ts", "packages/library/src/project/storytree.ts", "packages/library/src/commands/media.ts"] },
+    { "id": "connections", "title": "Connections", "parent": "storage", "files": ["packages/library/src/project/address.ts", "packages/library/src/project/websocket.ts", "packages/library/src/project/reads.ts", "packages/library/src/project/connection-error.ts"] },
+    { "id": "transactions", "title": "Transactions", "parent": "storage", "capabilities": [2] },
+    { "id": "schema", "title": "Record schema", "parent": "storage", "files": ["packages/library/src/schema/activity-line.ts", "packages/library/src/schema/code-distance.ts", "packages/library/src/schema/errors.ts", "packages/library/src/schema/index.ts", "packages/library/src/schema/records.ts", "packages/library/src/schema/schedule.ts", "packages/library/src/schema/story-survey.ts", "packages/library/src/schema/types.ts", "packages/library/src/schema/upgrades.ts"] },
+    { "id": "factory-circle", "title": "Factory circle", "parent": "storage", "files": ["packages/library/src/project/factory.ts", "packages/library/src/project/switches.ts", "packages/library/src/commands/elsewhere.ts"] },
+    { "id": "plugin-kinds", "title": "Plugin kinds", "parent": "storage", "files": ["packages/library/src/project/outside-writer.ts", "packages/library/src/schema/plugin-kinds.ts"] },
+
+    { "id": "plan", "title": "The plan" },
+    { "id": "plan-structure", "title": "Plan structure", "parent": "plan", "files": ["packages/library/src/work/work-model.ts"] },
+    { "id": "branch-changes", "title": "Branch plan changes", "parent": "plan", "files": ["packages/library/src/work/pending-changes.ts", "packages/library/src/work/plan-hold.ts"] },
+
+    { "id": "work", "title": "Work", "files": ["packages/library/src/work/index.ts"] },
+    { "id": "increments", "title": "Arcs and increments", "parent": "work", "files": ["packages/library/src/work/work-in-flight.ts", "packages/library/src/work/pr-cutover.ts"] },
+    { "id": "waits", "title": "Waits", "parent": "work", "files": ["packages/library/src/work/waits.ts", "packages/library/src/work/wait-writes.ts"] },
+    { "id": "owner-exchange", "title": "Owner exchange", "parent": "work", "files": ["packages/library/src/work/owner-questions.ts", "packages/library/src/commands/fyi.ts"] },
+
+    { "id": "health", "title": "Health record", "capabilities": [5] },
+
+    { "id": "knowledge", "title": "Knowledge", "files": ["packages/library/src/knowledge/index.ts"] },
+    { "id": "notes", "title": "Notes", "parent": "knowledge", "files": ["packages/library/src/knowledge/kinds.ts", "packages/library/src/knowledge/knowledge.ts", "packages/library/src/knowledge/memory-upgrade.ts", "packages/library/src/knowledge/similarity.ts", "packages/library/src/commands/notes.ts"] },
+    { "id": "search", "title": "Ranked search", "parent": "knowledge", "files": ["packages/library/src/knowledge/embedding-model.ts", "packages/library/src/knowledge/embedding.ts", "packages/library/src/knowledge/embeddings.ts", "packages/library/src/knowledge/whole-words.ts", "packages/library/src/commands/ranked.ts"] },
+    { "id": "decisions", "title": "Decisions", "parent": "knowledge", "files": ["packages/library/src/decisions/index.ts", "packages/library/src/decisions/adr.ts", "packages/library/src/decisions/decision-log.ts", "packages/library/src/decisions/supersede.ts", "packages/library/src/decisions/corrections.ts", "packages/library/src/knowledge/front-covers.ts"] },
+
+    { "id": "librarian", "title": "The librarian", "capabilities": [35] },
+    { "id": "links", "title": "Links", "parent": "librarian", "capabilities": [21] },
+    { "id": "catalogue", "title": "Catalogue", "parent": "librarian", "capabilities": [23] },
+    { "id": "graduation", "title": "Graduation", "parent": "librarian", "capabilities": [24] },
+    { "id": "rounds", "title": "Rounds", "parent": "librarian", "capabilities": [26] },
+
+    { "id": "api", "title": "Library API", "capabilities": [7] },
+    { "id": "commands", "title": "Library commands", "files": ["packages/library/src/commands/index.ts", "packages/library/src/commands/stale-edit.ts", "packages/library/src/data/commands.ts", "packages/library/src/data/data-questions.ts"] },
+    { "id": "command-schema", "title": "Command schema", "capabilities": [16] }
+  ]
+}

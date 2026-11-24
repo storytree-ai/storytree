@@ -114,16 +114,18 @@ test("4.9 `arc increment wait --for` makes an increment wait for you, or for an 
     const library = await world.library();
     const increment = (await library.addIncrement({ arc: await anArc(world), title: "Ship to TestFlight", objective: "A build testers install", body: "…" })).id;
 
+    const writing = new Date().toISOString();
     const owner = await world.run(["arc", "increment", "wait", increment, "--for", "owner", "--note", "Sign the Apple developer agreement", "--why", "it unblocks the work"]);
     assert.equal(owner.code, 0, owner.stderr);
     const event = await world.run(["arc", "increment", "wait", increment, "--for", "event", "--note", "Apple reviews build 12", "--check-back", "2099-01-01"]);
     assert.equal(event.code, 0, event.stderr);
-    const signed = { releaser: "owner", note: "Sign the Apple developer agreement", why: "it unblocks the work", reviewed: today(), holds: true };
+    const signed = { releaser: "owner", note: "Sign the Apple developer agreement", why: "it unblocks the work", reviewed: readAt((await library.waitsFor(increment))[0]?.reviewed, writing), holds: true };
     assert.deepEqual(await library.waitsFor(increment), [signed, { releaser: "event", note: "Apple reviews build 12", checkBack: "2099-01-01", holds: true }]);
+    const reranking = new Date().toISOString();
     const ranked = await world.run(["arc", "increment", "wait", increment, "--for", "owner", "--rank", "2"]);
     assert.equal(ranked.code, 0, ranked.stderr);
     assert.match(ranked.stdout, /waits for the owner: Sign the Apple developer agreement\./, "re-ranked, it keeps its note");
-    assert.deepEqual((await library.waitsFor(increment))[0], { ...signed, rank: 2 });
+    assert.deepEqual((await library.waitsFor(increment))[0], { ...signed, rank: 2, reviewed: readAt((await library.waitsFor(increment))[0]?.reviewed, reranking) });
 
     const before = (await library.changesSince(0)).cursor;
     for (const [words, code, said] of [
@@ -329,7 +331,7 @@ test("4.27 `arc waits --audit` lists the owner actions that need attention, olde
       increment_000000000002: owner("Not yet: this opens once the push URL lands"),
       increment_000000000003: owner("Not yet: after the box key"),
       increment_000000000004: owner("Drop the old organisation", {}),
-      increment_000000000005: owner(`Set the push URL once ${closed.id} lands`, { why: "pushes reach the right remote", rank: 2, reviewed: day(-8) }),
+      increment_000000000005: owner(`Set the push URL once ${closed.id} lands`, { why: "pushes reach the right remote", rank: 2, reviewed: `${day(-8)}T09:30:00.000Z` }),
       increment_000000000006: [{ releaser: "event", note: "the mirror syncs", checkBack: day(1), holds: true }],
       increment_000000000007: owner("Tidy the GitHub organisation"),
     },
@@ -357,7 +359,7 @@ test("4.27 `arc waits --audit` lists the owner actions that need attention, olde
   });
 });
 
-test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose increment waits on, an increment closed on or after the day the wait was last read again (any closing when never read again), or which an increment landed since then, with or without a pull request, names in its body or outcome note; a closing before that day, or a withdrawn increment naming it, lists nothing", async () => {
+test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose increment waits on, an increment closed at or after the wait was last read again, comparing the full closing date with the full stamp, a day-only closing taking its time from the record's last write on that same day (on or after its day for a stamp holding only a day; any closing when never read again), or which an increment landed since then, with or without a pull request, names in its body or outcome note; a closing before that stamp, a day-only closing on a timed stamp's day with no same-day write after it, or a withdrawn increment naming it, lists nothing", async () => {
   const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
   const open = (id: string, title: string, more: Record<string, unknown> = {}) => ({ id, fields: { title, status: "active", body: "…", ...more } });
   const shut = (id: string, title: string, body: string, outcome: Record<string, unknown>) => ({ id, fields: { title, status: "closed", body, outcome } });
@@ -371,10 +373,21 @@ test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose in
       open("increment_000000000015", "Check the token"),
       open("increment_000000000016", "Drop the old org"),
       open("increment_000000000017", "Name the mirror"),
+      open("increment_000000000018", "Re-read the remote"),
+      open("increment_000000000019", "Re-read the host"),
+      open("increment_000000000020", "Read the remote by day"),
+      open("increment_000000000021", "Re-read the proxy"),
+      open("increment_000000000022", "Re-read the cache"),
+      open("increment_000000000023", "Re-read the gateway"),
       shut("increment_0000000000a1", "Pick the remote", "…", { date: day(-1), disposition: "landed", pr: "#10" }),
       shut("increment_0000000000a2", "Move the remote", "…", { date: day(-3), disposition: "withdrawn", note: "Not needed" }),
       shut("increment_0000000000a3", "Stand up the mirror host", "Does what increment_000000000012 waits for", { date: day(-4), disposition: "landed", pr: "#9", note: "increment_000000000012 can go ahead" }),
       shut("increment_0000000000a4", "Build the release", "…", { date: day(-2), disposition: "landed", pr: "#11" }),
+      shut("increment_0000000000a9", "Pick the new remote", "…", { date: day(0), disposition: "landed", pr: "#13" }),
+      shut("increment_0000000000aa", "Move the host", "…", { date: `${day(0)}T00:00:02.000Z`, disposition: "landed", pr: "#14" }),
+      { ...shut("increment_0000000000ab", "Move the proxy", "…", { date: day(0), disposition: "landed", pr: "#15" }), updatedAt: `${day(0)}T00:00:05.000Z` },
+      { ...shut("increment_0000000000ac", "Move the cache", "…", { date: day(0), disposition: "landed", pr: "#16" }), updatedAt: `${day(0)}T00:00:03.000Z` },
+      { ...shut("increment_0000000000ad", "Move the gateway", "…", { date: day(-1), disposition: "landed", pr: "#17" }), updatedAt: `${day(0)}T00:00:05.000Z` },
     ] },
     { arc: { id: "arc_keys", fields: { title: "Keys" } }, state: "active", questions: [], increments: [
       shut("increment_0000000000a6", "Rotate keys by hand", "Does the steps of increment_000000000014", { date: day(-1), disposition: "landed", note: "Landed on main with no pull request" }),
@@ -393,6 +406,12 @@ test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose in
       increment_000000000015: owner("Check the token still works"),
       increment_000000000016: owner("Drop the old organisation"),
       increment_000000000017: owner("Name the mirror once increment_0000000000a3 lands", {}),
+      increment_000000000018: owner("Set the remote once increment_0000000000a9 lands", { reviewed: `${day(0)}T00:00:01.000Z` }),
+      increment_000000000019: owner("Point at the host once increment_0000000000aa lands", { reviewed: `${day(0)}T00:00:01.000Z` }),
+      increment_000000000020: owner("Set the remote by day once increment_0000000000a9 lands", { reviewed: day(0) }),
+      increment_000000000021: owner("Point at the proxy once increment_0000000000ab lands", { reviewed: `${day(0)}T00:00:04.000Z` }),
+      increment_000000000022: owner("Point at the cache once increment_0000000000ac lands", { reviewed: `${day(0)}T00:00:04.000Z` }),
+      increment_000000000023: owner("Point at the gateway once increment_0000000000ad lands", { reviewed: `${day(-1)}T12:00:00.000Z` }),
     },
   };
   const library = { arcViews: async () => views, holds: async () => holds };
@@ -400,7 +419,7 @@ test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose in
     const verb = arcs.verbs.find((one) => one.name === "waits")!;
     const answer = await verb.act(parseArgs(["--audit"], ["audit"], world.folder), { cwd: world.folder, activityContext: async () => ({ library }) } as unknown as Context);
     assert.deepEqual(answer.text.split("\n"), [
-      "5 actions of yours need attention, oldest read first:",
+      "8 actions of yours need attention, oldest read first:",
       "  - increment_000000000017  Name the mirror, on arc_release  Release: its note names increment_0000000000a3, which has closed since it was last read; it has never been read again",
       "      #1  Name the mirror once increment_0000000000a3 lands (why: it unblocks the release)",
       "  - increment_000000000011  Set the push URL, on arc_release  Release: its note names increment_0000000000a1, increment_0000000000a2, which have closed since it was last read",
@@ -411,6 +430,12 @@ test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose in
       "      #1  Rotate the box key (why: it unblocks the release)",
       "  - increment_000000000015  Check the token, on arc_release  Release: increment_0000000000a7, which names it, has landed since it was last read",
       "      #1  Check the token still works (why: it unblocks the release)",
+      "  - increment_000000000020  Read the remote by day, on arc_release  Release: its note names increment_0000000000a9, which has closed since it was last read",
+      "      #1  Set the remote by day once increment_0000000000a9 lands (why: it unblocks the release)",
+      "  - increment_000000000019  Re-read the host, on arc_release  Release: its note names increment_0000000000aa, which has closed since it was last read",
+      "      #1  Point at the host once increment_0000000000aa lands (why: it unblocks the release)",
+      "  - increment_000000000021  Re-read the proxy, on arc_release  Release: its note names increment_0000000000ab, which has closed since it was last read",
+      "      #1  Point at the proxy once increment_0000000000ab lands (why: it unblocks the release)",
     ]);
   });
 });
@@ -451,6 +476,12 @@ test("4.29 `arc increment unwait --for event --merged <pr>` clears the event wai
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function readAt(stamp: unknown, from: string): string {
+  assert.match(String(stamp), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/, `stamped with the instant of the write, not only its day: ${String(stamp)}`);
+  assert.ok(String(stamp) >= from && String(stamp) <= new Date().toISOString(), `${String(stamp)} is the instant of the write, at or after ${from}`);
+  return String(stamp);
 }
 
 function localToday(): string {
@@ -897,10 +928,11 @@ test("4.25 `arc increment new --wait-for owner --wait-note <text|@file> --wait-w
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);
+    const parking = new Date().toISOString();
     const parked = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Real install", "--objective", "Install", "--body", "Run it", "--wait-for", "owner", "--wait-note", "power on the old laptop", "--wait-why", "it unblocks the work"]);
     assert.equal(parked.code, 0, parked.stderr);
     const id = /increment_[0-9a-f]+/.exec(parked.stdout)![0];
-    assert.deepEqual(await library.waitsFor(id), [{ releaser: "owner", note: "power on the old laptop", why: "it unblocks the work", reviewed: today(), holds: true }]);
+    assert.deepEqual(await library.waitsFor(id), [{ releaser: "owner", note: "power on the old laptop", why: "it unblocks the work", reviewed: readAt((await library.waitsFor(id))[0]?.reviewed, parking), holds: true }]);
     const plain = await world.run(["arc", "increment", "new", "--arc", arc, "--title", "Docs", "--objective", "Write", "--body", "Write them"]);
     assert.equal(plain.code, 0, plain.stderr);
     assert.deepEqual(await library.waitsFor(/increment_[0-9a-f]+/.exec(plain.stdout)![0]), [], "without the flags it waits for nothing");

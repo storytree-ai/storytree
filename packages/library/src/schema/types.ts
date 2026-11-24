@@ -88,7 +88,7 @@ const waitsFor = z
         checkBack: day.optional(),
         why: nonEmpty.optional(),
         rank: z.number().int().min(1).optional(),
-        reviewed: day.optional(),
+        reviewed: z.union([day, z.iso.datetime()]).optional(),
         merged: z.number().int().min(1).optional(),
       })
       .strict()

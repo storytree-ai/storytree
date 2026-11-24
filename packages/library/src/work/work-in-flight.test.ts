@@ -560,9 +560,10 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(flight.addIncrement({ arc: arc.id, ...WORK, waitsFor: [{ releaser: "owner", note: "run it", why: "it unblocks the work" }], outcome: { pr: "#1", disposition: "landed" } }), RangeError, "a closed increment waits for nothing");
     assert.deepEqual(await transactions.history(), before, "nothing was written");
 
+    const parking = new Date().toISOString();
     const install = await flight.addIncrement({ arc: arc.id, ...WORK, waitsFor: [{ releaser: "owner", note: "run the install on the old laptop", why: "it unblocks the work" }] });
     assert.equal((await transactions.history()).length, before.length + 1, "parked and waiting in one write");
-    const owner = { releaser: "owner", note: "run the install on the old laptop", why: "it unblocks the work", reviewed: new Date().toISOString().slice(0, 10), holds: true };
+    const owner = { releaser: "owner", note: "run the install on the old laptop", why: "it unblocks the work", reviewed: readAt((await flight.waitsFor(install.id))[0]?.reviewed, parking), holds: true };
     assert.deepEqual(await flight.waitsFor(install.id), [owner]);
     assert.deepEqual((await flight.holds()).waitsFor?.[install.id], [owner], "the pool and the claim read it from the start");
     await flight.removeWaitFor(install.id, "owner");
@@ -975,7 +976,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), closed, "nothing written");
   });
 
-  contract("10.37", "an owner wait needs a why and may carry a rank, 1 first; each write stamps the day it was read again, and writing it again keeps the note, why and rank not given; an event wait takes neither", async ({ work, flight, records, transactions }) => {
+  contract("10.37", "an owner wait needs a why and may carry a rank, 1 first; each write stamps the instant it was read again (a stamp holding only a day still reads), and writing it again keeps the note, why and rank not given; an event wait takes neither", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc({ title: "Security", ...BARE_ARC });
     const rotate = await flight.addIncrement({ arc: arc.id, title: "Rotate the token", ...BARE_WORK });
     const today = new Date().toISOString().slice(0, 10);
@@ -990,30 +991,41 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(flight.addIncrement({ arc: arc.id, title: "Born waiting", ...BARE_WORK, waitsFor: [{ releaser: "owner", note: "sign in" }] }), /needs a why/, "nor is one born without it");
     assert.deepEqual(await transactions.history(), before, "nothing written");
 
+    const first = new Date().toISOString();
     await flight.addWaitFor(rotate.id, { releaser: "owner", note: "rotate the GitHub token", why: "a leaked token can push as you", rank: 2 });
     const stored = async () => ((await records.get(rotate.id))?.fields as { waitsFor?: unknown } | undefined)?.waitsFor;
-    const stamped = { releaser: "owner" as const, note: "rotate the GitHub token", why: "a leaked token can push as you", rank: 2, reviewed: today };
+    const stampOf = async (): Promise<unknown> => ((await stored()) as { reviewed?: unknown }[] | undefined)?.[0]?.reviewed;
+    const stamped = { releaser: "owner" as const, note: "rotate the GitHub token", why: "a leaked token can push as you", rank: 2, reviewed: readAt(await stampOf(), first) };
     assert.deepEqual(await stored(), [stamped]);
     assert.deepEqual((await flight.holds()).waitsFor?.[rotate.id], [{ ...stamped, holds: true }]);
 
-    await records.edit(rotate.id, { waitsFor: [{ ...stamped, reviewed: "2026-01-01" }] });
-    await flight.addWaitFor(rotate.id, { releaser: "owner", rank: 1 });
-    assert.deepEqual(await stored(), [{ ...stamped, rank: 1 }], "re-ranked: the note and why kept, read again today");
-    await records.edit(rotate.id, { waitsFor: [{ ...stamped, rank: 1, reviewed: "2026-01-01" }] });
-    await flight.addWaitFor(rotate.id, { releaser: "owner" });
-    assert.deepEqual(await stored(), [{ ...stamped, rank: 1 }], "written again with nothing new, it is only read again");
+    for (const old of ["2026-01-01", "2026-01-01T09:30:00.000Z"]) {
+      await records.edit(rotate.id, { waitsFor: [{ ...stamped, reviewed: old }] });
+      assert.deepEqual(await flight.waitsFor(rotate.id), [{ ...stamped, reviewed: old, holds: true }], `a stamp of ${old} validates and reads`);
+    }
+    await assert.rejects(records.edit(rotate.id, { waitsFor: [{ ...stamped, reviewed: "2026-01-01 at noon" }] }), SchemaError, "a stamp is a day or an instant");
 
+    await records.edit(rotate.id, { waitsFor: [{ ...stamped, reviewed: "2026-01-01" }] });
+    const reranking = new Date().toISOString();
+    await flight.addWaitFor(rotate.id, { releaser: "owner", rank: 1 });
+    assert.deepEqual(await stored(), [{ ...stamped, rank: 1, reviewed: readAt(await stampOf(), reranking) }], "re-ranked: the note and why kept, read again now");
+    await records.edit(rotate.id, { waitsFor: [{ ...stamped, rank: 1, reviewed: "2026-01-01T09:30:00.000Z" }] });
+    const rereading = new Date().toISOString();
+    await flight.addWaitFor(rotate.id, { releaser: "owner" });
+    assert.deepEqual(await stored(), [{ ...stamped, rank: 1, reviewed: readAt(await stampOf(), rereading) }], "written again with nothing new, it is only read again");
+
+    const birth = new Date().toISOString();
     const born = await flight.addIncrement({ arc: arc.id, title: "Sign in", ...BARE_WORK, waitsFor: [{ releaser: "owner", note: "sign in", why: "the box reads mail", rank: 3 }] });
-    assert.deepEqual(born.fields.waitsFor, [{ releaser: "owner", note: "sign in", why: "the box reads mail", rank: 3, reviewed: today }]);
+    assert.deepEqual(born.fields.waitsFor, [{ releaser: "owner", note: "sign in", why: "the box reads mail", rank: 3, reviewed: readAt(born.fields.waitsFor?.[0]?.reviewed, birth) }]);
   });
 
   contract("10.38", "clearing an increment's event wait as a pull request it was handed over with merges stamps that pull request on its owner wait in the same write; writing the owner wait again drops it, and only an owner wait carries one", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc({ title: "Hand-overs", ...BARE_ARC });
-    const today = new Date().toISOString().slice(0, 10);
     const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
     const ship = await flight.addIncrement({ arc: arc.id, title: "Ship in two pull requests", ...BARE_WORK });
-    const owner = { releaser: "owner" as const, note: "turn the setting on", why: "the second pull request needs it", reviewed: today };
-    await flight.addWaitFor(ship.id, { releaser: "owner", note: owner.note, why: owner.why });
+    const writing = new Date().toISOString();
+    await flight.addWaitFor(ship.id, { releaser: "owner", note: "turn the setting on", why: "the second pull request needs it" });
+    const owner = { releaser: "owner" as const, note: "turn the setting on", why: "the second pull request needs it", reviewed: readAt((await flight.waitsFor(ship.id))[0]?.reviewed, writing) };
     await flight.addWaitFor(ship.id, { releaser: "event", note: "PR #173 lands", checkBack: tomorrow });
     const before = (await transactions.history()).length;
     await flight.removeWaitFor(ship.id, "event", undefined, { merged: 173 });
@@ -1022,8 +1034,9 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await stored(), [{ ...owner, merged: 173 }], "the event wait cleared, the merge stamped on the owner wait");
     assert.deepEqual((await flight.holds()).waitsFor?.[ship.id], [{ ...owner, merged: 173, holds: true }]);
 
+    const rereading = new Date().toISOString();
     await flight.addWaitFor(ship.id, { releaser: "owner" });
-    assert.deepEqual(await stored(), [owner], "read again, the merge is dropped");
+    assert.deepEqual(await stored(), [{ ...owner, reviewed: readAt((await flight.waitsFor(ship.id))[0]?.reviewed, rereading) }], "read again, the merge is dropped");
 
     const alone = await flight.addIncrement({ arc: arc.id, title: "Only an event", ...BARE_WORK });
     await flight.addWaitFor(alone.id, { releaser: "event", note: "PR #174 lands", checkBack: tomorrow });
@@ -1088,10 +1101,12 @@ for (const backend of [memory, postgres]) {
     const event = { releaser: "event" as const, note: "the first lag run on a main holding PR #580", checkBack: tomorrow };
     const owner = { releaser: "owner" as const, note: "sign in", why: "the run reads mail" };
     const linked = await flight.addIncrement({ arc: arc.id, title: "Re-measure 3.49", ...BARE_WORK, links: [lag.id], waitsFor: [event] });
+    const parking = new Date().toISOString();
     const listed = await flight.addIncrement({ arc: arc.id, title: "Fix the render", ...BARE_WORK, capabilities: [render!.id], waitsFor: [event, owner] });
     const unrelated = await flight.addIncrement({ arc: arc.id, title: "Other work", ...BARE_WORK, capabilities: [other!.id], links: [elsewhere.id], waitsFor: [event] });
     const ownerOnly = await flight.addIncrement({ arc: arc.id, title: "Waits for the owner", ...BARE_WORK, links: [lag.id], waitsFor: [owner] });
     const fields = async (id: string) => (await records.get(id))?.fields as { body: string; waitsFor?: unknown };
+    const stamp = readAt(((await fields(listed.id)).waitsFor as { reviewed?: unknown }[] | undefined)?.[1]?.reviewed, parking);
 
     let history = await transactions.history();
     await health.recordVerified(lag.id, "passing", { by: "lag run 250" });
@@ -1105,7 +1120,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(written.filter((change) => change.recordId === listed.id).length, 1, "the increment listing its capability is released in one write");
 
     assert.equal((await fields(linked.id)).waitsFor, undefined, "its event wait is cleared");
-    assert.deepEqual((await fields(listed.id)).waitsFor, [{ ...owner, reviewed: new Date().toISOString().slice(0, 10) }], "its owner wait stays");
+    assert.deepEqual((await fields(listed.id)).waitsFor, [{ ...owner, reviewed: stamp }], "its owner wait stays");
     for (const id of [linked.id, listed.id]) {
       const { body } = await fields(id);
       assert.ok(body.endsWith(BARE_WORK.body), "the body it had is kept");
@@ -1211,4 +1226,10 @@ async function createInOrder<R extends { readonly id: string; readonly createdAt
     await laterThan(record);
   }
   return created;
+}
+
+function readAt(stamp: unknown, from: string): string {
+  assert.match(String(stamp), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/, `stamped with the instant of the write, not only its day: ${String(stamp)}`);
+  assert.ok(String(stamp) >= from && String(stamp) <= new Date().toISOString(), `${String(stamp)} is the instant of the write, at or after ${from}`);
+  return String(stamp);
 }

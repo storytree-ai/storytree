@@ -13,7 +13,7 @@ import { CONNECT_TIMEOUT_MS, connect, type Library, type Line } from "@storytree
 import { worklist } from "@storytree/library/librarian";
 import pg from "pg";
 
-import { openActivityLog } from "@storytree/session-management";
+import { claim, openActivityLog } from "@storytree/session-management";
 import { readClaims } from "@storytree/session-management";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { git, withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
@@ -322,6 +322,29 @@ test("13.1 a note written with no place named while holding a claim goes onto th
       assert.deepEqual((await noteFields(library, idOf(unshelved))).links, undefined);
       assert.equal(unshelved.data.shelf, "empty", "the answer says the shelf is empty");
     });
+  });
+});
+
+test("13.1 a decision written with project <another> and no place named, while holding a claim on a capability in that project's library, goes onto that capability's shelf there, called from a folder whose project is not that one (ADR-0627 D4, ADR-1348 D3)", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    const productName = uniqueProjectName();
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await library.markFactory();
+      const product = await storytree.openProject(productName);
+      await product.recordFactory(project);
+      const story = await product.addStory({ title: "Visitor can sign up" });
+      const form = await product.addCapability({ story: story.id, title: "Email form" });
+      assert.equal((await claim({ log, library: product, project: productName, session: "claude-1", harness: "claude-code" }, form.id, "building the email form")).ok, true);
+      await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+        const decided = await agent.call("write_note", { kind: "decision", title: "Validate on the client first", text: "Before any request", project: productName });
+        assert.equal(decided.isError, false, decided.text);
+        assert.deepEqual((await product.frontCovers(form.id)).map((cover) => cover.id), [idOf(decided)], decided.text);
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([productName]);
+    }
   });
 });
 

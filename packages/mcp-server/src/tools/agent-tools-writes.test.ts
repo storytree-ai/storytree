@@ -14,7 +14,7 @@ import { nameThisMachine } from "@storytree/session-management/machines";
 import { recordFriction, route } from "@storytree/session-management/friction";
 import type { ToolExtension } from "./index.js";
 import { CARD_WORD_BUDGET, cardWords } from "../instructions/habits.js";
-import { readClaims } from "@storytree/session-management";
+import { claim, readClaims } from "@storytree/session-management";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
 import { git, withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
@@ -1136,6 +1136,34 @@ test("10.10 edit_plan refuses an increment's capabilities list a capability alre
       assert.equal(allowed.isError, false, allowed.text);
       assert.deepEqual(await capabilitiesOf(mine), [capability]);
     });
+  });
+});
+
+test("10.10 edit_plan with project <another> refuses an increment's capabilities list a capability already on the list of an increment another live session holds in that project's library, naming it and its holder, with nothing written, called from a folder whose project is not that one (ADR-1348 D3)", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    const productName = uniqueProjectName();
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await library.markFactory();
+      const product = await storytree.openProject(productName);
+      await product.recordFactory(project);
+      const arc = (await product.createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up" })).id;
+      const story = await product.addStory({ title: "Sign up" });
+      const form = await product.addCapability({ story: story.id, title: "Form" });
+      const theirs = await product.addIncrement({ arc, title: "Email form", objective: "Build it", body: "Red then green", capabilities: [form.id] } as never);
+      const mine = await product.addIncrement({ arc, title: "Form copy", objective: "Reword it", body: "Red then green" });
+      assert.equal((await claim({ log, library: product, project: productName, session: "claude-1", harness: "claude-code" }, theirs.id, "driving the email form")).ok, true);
+      await withAgent(folder, codex("codex-1"), async (agent) => {
+        const history = await product.history({ id: mine.id });
+        const refused = await agent.call("edit_plan", { id: mine.id, capabilities: [form.id], project: productName });
+        assert.equal(refused.isError, true, refused.text);
+        assert.match(refused.text, new RegExp(`${form.id} is already on the capabilities list of ${theirs.id}, which .*session claude-1 holds \\(driving the email form\\)`));
+        assert.deepEqual(await product.history({ id: mine.id }), history, "nothing was written");
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([productName]);
+    }
   });
 });
 

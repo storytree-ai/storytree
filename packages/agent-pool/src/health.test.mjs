@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, realpath, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -22,7 +22,7 @@ const green = (extra = {}) => ({
 
 async function box(t, { status = [], live = { 100: "node launch.mjs pool", 200: "node watch.mjs run" }, engines = 2, cap = 5, pulls = {}, serviceOn = false } = {}) {
   const lanesDir = await mkdtemp(join(tmpdir(), "pool-health-"));
-  t.after(() => rm(lanesDir, { recursive: true, force: true }));
+  t.after(() => removeTemp(lanesDir));
   await mkdir(join(lanesDir, "watch"));
   await writeFile(join(lanesDir, "pool.pid"), "100\n");
   await writeFile(join(lanesDir, "watch", "watch.pid"), "200\n");

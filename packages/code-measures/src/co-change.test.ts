@@ -130,6 +130,9 @@ function renamed(t: TestContext): History {
   write(`${SRC}/b.ts`, "export const b = 1;\n");
   write(`${SRC}/c.ts`, `export const c = 1;\n${LONG}`);
   write(`${SRC}/d.ts`, `export const d = 1;\n${LONG}`);
+  write(`${SRC}/x.ts`, "export const x = 1;\n");
+  write(`${SRC}/w.ts`, "export const w = 1;\n");
+  write(`${SRC}/y.ts`, "export const y = 'the file that takes the path x leaves, long enough to be kept whole';\n");
   commit("base");
 
   git("checkout", "-q", "-b", "early");
@@ -138,6 +141,9 @@ function renamed(t: TestContext): History {
   write(`${SRC}/d.ts`, `export const d = 2;\n${LONG}`);
   commit("a, c and d before any rename");
   merges.early = merged("early");
+
+  write(`${SRC}/c.ts`, `export const c = 4;\n${LONG}`);
+  commit("c edited by a direct commit on main before it is renamed");
 
   git("checkout", "-q", "-b", "move");
   git("mv", `${SRC}/c.ts`, `${SRC}/see.ts`);
@@ -167,10 +173,25 @@ function renamed(t: TestContext): History {
   commit("b and deep/see after every rename");
   merges.late = merged("late");
 
+  git("checkout", "-q", "-b", "gone");
+  write(`${SRC}/x.ts`, "export const x = 2;\n");
+  write(`${SRC}/w.ts`, "export const w = 2;\n");
+  commit("x and w before they are deleted");
+  merges.gone = merged("gone");
+
+  git("rm", "-q", `${SRC}/x.ts`, `${SRC}/w.ts`);
+  commit("x and w deleted by a direct commit on main");
+  git("mv", `${SRC}/y.ts`, `${SRC}/x.ts`);
+  write(`${SRC}/w.ts`, "export const w = 'a new file at a deleted name, long enough to be kept whole';\n");
+  commit("y renamed onto the path x left, and w added afresh");
+  git("mv", `${SRC}/x.ts`, `${SRC}/z.ts`);
+  git("mv", `${SRC}/w.ts`, `${SRC}/v.ts`);
+  commit("the new x renamed to z and the new w to v");
+
   return { folder, head: git("rev-parse", "HEAD"), merges };
 }
 
-test("5.2 · a unit's files are named by their paths today, following every later rename on main's first-parent line, by a dropped rename merge, a direct commit on main or a dropped sweep, chained through more than one; a rename made after a unit leaves it alone", async (t) => {
+test("5.2 · a unit's files are named by their paths today, following every later rename on main's first-parent line, by a dropped rename merge, a direct commit on main or a dropped sweep, chained through more than one and past an edit of the old path between; a rename made after a unit leaves it alone; a file deleted before another took its path, by a rename onto it or a fresh add, keeps its own path", async (t) => {
   const { folder, head, merges } = renamed(t);
   const read = await readCoChange(folder, head);
 
@@ -180,8 +201,9 @@ test("5.2 · a unit's files are named by their paths today, following every late
       [merges.early!]: [`${SRC}/a.ts`, `${SRC}/dee/d.ts`, `${SRC}/deep/see.ts`],
       [merges.again!]: [`${SRC}/a.ts`, `${SRC}/c.ts`],
       [merges.late!]: [`${SRC}/b.ts`, `${SRC}/deep/see.ts`],
+      [merges.gone!]: [`${SRC}/w.ts`, `${SRC}/x.ts`],
     },
-    "early's c.ts reads deep/see.ts through the rename merge and then the direct commit, and its d.ts reads dee/d.ts through the sweep; again's fresh c.ts, made after c.ts was renamed, stays c.ts",
+    "early's c.ts reads deep/see.ts through the edit on main, the rename merge and then the direct commit, and its d.ts reads dee/d.ts through the sweep; again's fresh c.ts, made after c.ts was renamed, stays c.ts; gone's x.ts and w.ts, deleted before y took x's path and a new w was added, stay x.ts and w.ts, not z.ts and v.ts",
   );
   assert.deepEqual(
     Object.fromEntries(read.dropped.map(({ merge, why }) => [merge, why])),

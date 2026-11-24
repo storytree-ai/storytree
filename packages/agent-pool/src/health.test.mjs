@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import { setFactory, setPartOff } from "@storytree/project-and-caller";
+import { removeTemp } from "@storytree/test-waits";
 
 import { main } from "./health.mjs";
 
@@ -222,7 +223,7 @@ test("8.5 · a hand-off's merge-queue removal is read from its last fix session,
 
 async function standIn(t, { off = true, health = true } = {}) {
   const at = await realpath(await mkdtemp(join(tmpdir(), "pool-health-home-")));
-  t.after(() => rm(at, { recursive: true, force: true }));
+  t.after(() => removeTemp(at));
   const plugin = join(at, "factory", "plugins", "my-runner");
   await mkdir(join(plugin, "src"), { recursive: true });
   const exports = { "./runner": "./src/runner.mjs", ...(health ? { "./health": "./src/health.mjs" } : {}) };

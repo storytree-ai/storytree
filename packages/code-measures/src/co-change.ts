@@ -44,25 +44,38 @@ const MARK = "\u0001";
 const isSource = (path: string): boolean => kindOf({ path, text: "" }) === "source";
 
 export async function readCoChange(folder: string, commit: string): Promise<{ kept: Unit[]; dropped: Dropped[] }> {
-  const { stdout } = await run("git", ["-c", "core.quotePath=false", "log", "--first-parent", "--merges", "--diff-merges=first-parent", "-M", "--name-status", `--format=${MARK}%H`, commit], { cwd: folder, encoding: "utf8", maxBuffer: 1 << 30 });
+  const { stdout } = await run("git", ["-c", "core.quotePath=false", "log", "--first-parent", "--diff-merges=first-parent", "-M", "--name-status", `--format=${MARK}%H %P`, commit], { cwd: folder, encoding: "utf8", maxBuffer: 1 << 30 });
   const kept: Unit[] = [];
   const dropped: Dropped[] = [];
+  const today = new Map<string, string>();
   for (const block of stdout.split(MARK).slice(1)) {
-    const [merge, ...lines] = block.split("\n");
-    const files = new Set<string>();
-    let renamed = false;
-    for (const line of lines) {
+    const [head, ...lines] = block.split("\n");
+    const [merge, ...parents] = head!.trim().split(" ");
+    const changes = lines.flatMap((line) => {
       const [status, ...paths] = line.split("\t");
-      if (status === undefined || paths.length === 0) continue;
-      const sources = paths.filter(isSource);
-      if (status.startsWith("R") && sources.length > 0) renamed = true;
-      const now = paths[paths.length - 1]!;
-      if (isSource(now)) files.add(now);
+      return status === undefined || paths.length === 0 ? [] : [{ status, paths }];
+    });
+    if (parents.length > 1) {
+      const files = new Set<string>();
+      let renamed = false;
+      for (const { status, paths } of changes) {
+        if (status.startsWith("R") && paths.some(isSource)) renamed = true;
+        const now = paths[paths.length - 1]!;
+        if (isSource(now)) files.add(today.get(now) ?? now);
+      }
+      const unit = { merge: merge!, files: [...files].sort() };
+      if (unit.files.length > SWEEP_FILES) dropped.push({ ...unit, why: "over 30 files" });
+      else if (renamed) dropped.push({ ...unit, why: "rename" });
+      else if (unit.files.length > 0) kept.push(unit);
     }
-    const unit = { merge: merge!.trim(), files: [...files].sort() };
-    if (unit.files.length > SWEEP_FILES) dropped.push({ ...unit, why: "over 30 files" });
-    else if (renamed) dropped.push({ ...unit, why: "rename" });
-    else if (unit.files.length > 0) kept.push(unit);
+    for (const { status, paths } of changes) {
+      const [was, now] = paths as [string, string?];
+      if (status.startsWith("R") && now !== undefined) {
+        const named = today.get(now) ?? now;
+        today.delete(now);
+        today.set(was, named);
+      } else if (status === "A") today.delete(was);
+    }
   }
   return { kept, dropped };
 }
@@ -162,11 +175,15 @@ const mean = (values: readonly number[]): number => (values.length === 0 ? 0 : v
 export function groupingOf(units: readonly { files: readonly string[] }[], tree: Tree): Grouping {
   const top = topOf(tree.nodes);
   const ids = new Set(tree.nodes.map(({ id }) => id));
-  const owners = [...new Set(Object.values(tree.ownerOf))].filter((id) => ids.has(id)).sort();
-  const groupOf = new Map(owners.map((id) => [id, top(id)]));
-  const { together } = supportOf(nodeSets(units, Object.fromEntries(Object.entries(tree.ownerOf).filter(([, id]) => ids.has(id)))));
+  const files = Object.keys(tree.ownerOf).filter((file) => ids.has(tree.ownerOf[file]!)).sort();
+  const groupOf = new Map(files.map((file) => [file, top(tree.ownerOf[file]!)]));
+  const sets = units.flatMap((unit) => {
+    const owned = new Set(unit.files.filter((file) => groupOf.has(file)));
+    return owned.size === 0 ? [] : [owned];
+  });
+  const { together } = supportOf(sets);
   const value = scoreOf(together, groupOf);
-  const slots = owners.map((id) => groupOf.get(id)!);
+  const slots = files.map((file) => groupOf.get(file)!);
   const random = seeded(SEED);
   const mqs: number[] = [];
   const insides: number[] = [];
@@ -176,7 +193,7 @@ export function groupingOf(units: readonly { files: readonly string[] }[], tree:
       const pick = Math.floor(random() * (last + 1));
       [shuffled[last], shuffled[pick]] = [shuffled[pick]!, shuffled[last]!];
     }
-    const drawn = scoreOf(together, new Map(owners.map((id, which) => [id, shuffled[which]!])));
+    const drawn = scoreOf(together, new Map(files.map((file, which) => [file, shuffled[which]!])));
     mqs.push(drawn.mq);
     insides.push(drawn.inside);
   }

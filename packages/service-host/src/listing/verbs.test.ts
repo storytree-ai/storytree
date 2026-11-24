@@ -113,7 +113,7 @@ test("2.2 · Given a service has failed, when a user runs `storytree services re
   }
 });
 
-test("2.5 · the installed storytree command, a build with no package.json beside it, lists and restarts the services of the host that ran here, from the folder that host stood on", async (t) => {
+test("2.5 · Given a service host has run on this machine, when a user runs `storytree services` or `storytree services restart` from the installed command, then it lists and restarts that host's services from the folder the host stood on; given no host has ever run here, then it says so", async (t) => {
   const { home } = fixtureHome(t);
   const build = mkdtempSync(path.join(tmpdir(), "storytree-build-"));
   t.after(() => removeTemp(build));

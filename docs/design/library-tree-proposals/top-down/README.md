@@ -3,7 +3,7 @@
 This is one of three independent tree proposals for the library story (story_754e87e7d531) on arc_c465ed702824 (ADR-1395 D3). It is increment_8a4a692551d6. It is a proposal only: no capability in the plan changed, and no code moved.
 
 - `tree.json` is the proposed tree, in the scorer's format. Grade it again with `storytree code-measures tree story_754e87e7d531 --tree docs/design/library-tree-proposals/top-down/tree.json`.
-- `tree.png` (and `tree.html`, the same page) shows the baseline and this proposal side by side.
+- `tree.html` shows the baseline and this proposal side by side: open it in a browser. A picture of the same page is in the evidence bucket, linked from the pull request (ADR-1234 D1).
 - `scorecard.txt` is the scorer's full output for this tree: every pair, node and boundary with the types crossing it.
 - `moves.txt` lists every file the refactor would move.
 

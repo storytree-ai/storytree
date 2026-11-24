@@ -88,6 +88,7 @@ function storyHolding(tree: AnnotatedTree, file: string, alsoOwned: AlsoOwned): 
     const name = packagesOf(story, alsoOwned).find((one) => file.startsWith(`packages/${one}/`));
     if (name !== undefined) return { story, folder: `packages/${name}` };
     if (packageOf(story) === "app" && file.startsWith("apps/desktop/")) return { story, folder: "apps/desktop" };
+    if (story.plugin !== undefined && file.startsWith(`plugins/${story.plugin}/`)) return { story, folder: `plugins/${story.plugin}` };
   }
   return undefined;
 }

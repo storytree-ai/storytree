@@ -8,7 +8,7 @@ import { connect } from "@storytree/library";
 
 import { openActivityLog } from "../activity/index.js";
 import { declaredInTests } from "../testing/declared.js";
-import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { claim, closed, release, releaseFor } from "./claims.js";
 import { allowIncrement, allowSaid, editRefusal, recordPromptYes, refusalMessage } from "./edit-gate.js";
@@ -65,6 +65,82 @@ test("5.31 an edit tool aimed at a capability its session's claimed increment do
 
       await closed(as("B"), theirs, "withdrawn");
       assert.equal(await gate("A", "reset.ts"), undefined, "once B's increment closes, its list holds nothing");
+    });
+  } finally {
+    try {
+      await log.close();
+      await storytree.close();
+    } finally {
+      await dropTestProjects([project]);
+    }
+  }
+});
+
+test("5.80 an edit tool aimed at a file under plugins/<plugin>/ in the factory folder or a git worktree of it, declaring a capability of that plugin's story, is refused naming the holder or the way through as 5.31 refuses a storytree file; a session's own listed capability, a plugin file that declares none, and a folder that is no checkout of the factory are never refused", async () => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (root) => {
+      const checkout = path.join(root, "project");
+      const factory = path.join(root, "factory");
+      const lane = path.join(root, "factory-lane");
+      const elsewhere = path.join(root, "elsewhere");
+      const plugin = (folder: string) => {
+        const src = path.join(folder, "plugins", "voice", "src");
+        mkdirSync(src, { recursive: true });
+        writeFileSync(path.join(src, "listen.ts"), "/**\n * Capability 1 · Listening: the microphone.\n */\nexport const listen = 1;\n");
+        writeFileSync(path.join(src, "tools.ts"), "/**\n * Capability 2 · The read tools: what it reads.\n */\nexport const tools = 1;\n");
+        writeFileSync(path.join(src, "plain.ts"), "export const plain = 1;\n");
+      };
+      mkdirSync(checkout, { recursive: true });
+      for (const folder of [factory, elsewhere]) {
+        mkdirSync(folder, { recursive: true });
+        plugin(folder);
+        git(folder, "init", "-q");
+        git(folder, "add", ".");
+        git(folder, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "plugin");
+      }
+      git(factory, "worktree", "add", "-q", "--detach", lane, "HEAD");
+
+      const library = await storytree.openProject(project);
+      const imported = await library.importPluginPlan("voice", {
+        story: { title: "Talk to storytree by voice" },
+        capabilities: [{ title: "1 · Listening", proposed: false, contracts: [] }, { title: "2 · The read tools", proposed: false, contracts: [] }],
+      });
+      const voice = (await library.projectTree()).stories.find((story) => story.id === imported.story)!;
+      const listen = voice.capabilities.find(({ title }) => title === "1 · Listening")!.id;
+      const tools = voice.capabilities.find(({ title }) => title === "2 · The read tools")!.id;
+      const arc = await library.createArc({ title: "Voice", intent: "Talk by voice", endState: "Voice reads", stories: [voice.id] });
+      const park = async (title: string, capabilities: string[]) => (await library.addIncrement({ arc: arc.id, title, objective: title, body: title, capabilities })).id;
+      const as = (session: string) => ({ log, library, project, session, harness: "claude-code", folder: checkout });
+      const gate = (session: string, folder: string, file: string) =>
+        editRefusal(as(session), checkout, [{ path: path.join(folder, "plugins", "voice", "src", file) }], declaredInTests, [], undefined, undefined, factory);
+
+      const mine = await park("listening", [listen]);
+      assert.equal((await claim(as("A"), mine, "driving listening")).ok, true);
+      assert.equal(await gate("A", lane, "listen.ts"), undefined, "a capability on the session's own list");
+      assert.equal(await gate("A", lane, "plain.ts"), undefined, "a plugin file that declares no capability");
+      const unlisted = await gate("A", lane, "tools.ts");
+      assert.deepEqual(unlisted && { ...unlisted }, { refused: "unlisted", capability: tools, title: "2 · The read tools", file: "plugins/voice/src/tools.ts", increment: mine, listed: [listen] }, "in a worktree of the factory, beside the session's checkout");
+      const inFactory = await gate("A", factory, "tools.ts");
+      assert.deepEqual(inFactory && { ...inFactory }, { refused: "unlisted", capability: tools, title: "2 · The read tools", file: "plugins/voice/src/tools.ts", increment: mine, listed: [listen] }, "in the factory folder itself");
+      assert.equal(await gate("A", elsewhere, "tools.ts"), undefined, "a git repository that is no checkout of the factory");
+      assert.equal(await editRefusal(as("A"), checkout, [{ path: path.join(lane, "plugins", "voice", "src", "tools.ts") }], declaredInTests, [], undefined, undefined), undefined, "no factory given");
+
+      const theirs = await park("read tools", [tools]);
+      assert.equal((await claim(as("B"), theirs, "driving the read tools")).ok, true);
+      await library.editIncrement(mine, { capabilities: [listen, tools] });
+      const held = await gate("A", lane, "tools.ts");
+      assert.equal(held?.refused, "held");
+      assert.equal(held?.refused === "held" ? [held.holder.session, held.on, held.file].join(" ") : undefined, `B ${theirs} plugins/voice/src/tools.ts`, "held on the list of B's increment");
+      assert.match(refusalMessage(held!), /session B holds it on the capabilities list/);
+
+      assert.equal((await release(as("A"), mine)).ok, true);
+      assert.equal((await claim(as("B"), listen, "a quick fix to listening")).ok, true);
+      assert.equal((await claim(as("A"), mine, "driving listening")).ok, true);
+      const claimed = await gate("A", factory, "listen.ts");
+      assert.deepEqual(claimed?.refused === "held" ? { session: claimed.holder.session, on: claimed.on, file: claimed.file } : claimed, { session: "B", on: undefined, file: "plugins/voice/src/listen.ts" }, "a capability another session claimed itself");
     });
   } finally {
     try {

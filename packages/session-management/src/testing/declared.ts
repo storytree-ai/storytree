@@ -4,7 +4,7 @@ import type { DeclaredCapabilities } from "../claims/edit-gate.js";
 export const declaredInTests: DeclaredCapabilities = async (_checkout, files, tree, readText) => {
   const placed = new Map<string, string>();
   for (const file of files) {
-    const story = tree.stories.find(({ title }) => file.startsWith(`packages/${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}/`));
+    const story = tree.stories.find(({ title, plugin }) => file.startsWith(`packages/${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}/`) || (plugin !== undefined && file.startsWith(`plugins/${plugin}/`)));
     if (story === undefined) continue;
     let text: string;
     try {

@@ -4,7 +4,7 @@ import { checkReference, checkReferences, liveRecord, type Expected } from "../r
 import { judgedState, SchemaError, unstorable, type FieldsOf, type KnowledgeKind, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import { defaultEmbedder } from "./embedding-model.js";
 import { ARTIFACT_KINDS } from "./kinds.js";
-import { checkClauseSupersession, checkFrontCover, DecisionLog, justifiedEdit, partlySupersedes, prunedEdit, restoredEdit, type ArchivedDecisionLink, type DecisionLinkBacklog, type DecisionNumberPlan, type DecisionView, type NarrowsMove, type NewDecision, type SupersessionPairs } from "../decisions/index.js";
+import { checkClauseSupersession, checkFrontCover, DecisionLog, justifiedEdit, partlySupersedes, prunedEdit, restoredEdit, type ArchivedDecisionLink, type DecisionLinkBacklog, type DecisionLinkChanges, type DecisionLinkSpan, type DecisionNumberPlan, type DecisionView, type NarrowsMove, type NewDecision, type SupersessionPairs } from "../decisions/index.js";
 import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";
 import { artifactsOnly, frontCovers } from "./front-covers.js";
 import { relatedEach, relatedTo, type Related, type RelatedOptions, type SimilarityDoc } from "./similarity.js";
@@ -199,6 +199,10 @@ export class Knowledge {
 
   decisionLinkBacklog(): Promise<DecisionLinkBacklog> {
     return this.#log.decisionLinkBacklog();
+  }
+
+  decisionLinkChanges(span?: DecisionLinkSpan): Promise<DecisionLinkChanges> {
+    return this.#log.decisionLinkChanges(span);
   }
 
   archivedLinks(from?: string): Promise<ArchivedDecisionLink[]> {

@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { connect, type Line, type NewLine } from "@storytree/library";
@@ -418,5 +419,17 @@ test("2.18 · doorTally counts a window's door-answered lines on the server, its
     assert.deepEqual(Object.fromEntries(tally.calls), { "storytree arc show": 4, "storytree arc": 1, show_plan: 2, "storytree adr list": 1, storytree: 1 });
     assert.deepEqual(tally.steps.map((line) => line.seq), [refused.seq, afterRefusal.seq, pointed.seq, nextCommand.seq, last.seq], "each refusal and its next line, each pointed call and its next command, and nothing else");
     assert.deepEqual(await log.doorTally(project, new Date().toISOString()), { sessions: 0, calls: new Map(), steps: [] }, "a window with no line counts nothing");
+  });
+});
+
+test("2.19 · a locked write whose work waits 11 s on other work before it appends still commits: locked resolves with the work's answer, and the line reads back as appended", { timeout: 60_000 }, async () => {
+  const project = uniqueProjectName();
+  await withLog(async (log) => {
+    const written = await log.locked(project, async (locked) => {
+      await sleep(11_000);
+      return locked.append({ session: "slow", source: "tool", kind: "command-run", command: "advance the increment" });
+    });
+    assert.equal(commandOf(written), "advance the increment");
+    assert.deepEqual((await log.since(project, 0)).lines, [written], "the slow work's line is committed, and nothing else is");
   });
 });

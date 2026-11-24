@@ -10,6 +10,7 @@ import { connect, type Line, type NewLine } from "@storytree/library";
 import pg from "pg";
 
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { waitUntil } from "@storytree/test-waits";
 import { databasesOnTestServer, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { selectLines } from "./bounded.js";
 import { ACTIVITY_DATABASE, cachedLines, openActivityLog, type ActivityLog, type LinesCache } from "./index.js";
@@ -419,4 +420,33 @@ test("2.18 · doorTally counts a window's door-answered lines on the server, its
     assert.deepEqual(tally.steps.map((line) => line.seq), [refused.seq, afterRefusal.seq, pointed.seq, nextCommand.seq, last.seq], "each refusal and its next line, each pointed call and its next command, and nothing else");
     assert.deepEqual(await log.doorTally(project, new Date().toISOString()), { sessions: 0, calls: new Map(), steps: [] }, "a window with no line counts nothing");
   });
+});
+
+const POOL_IDLE_IN_TRANSACTION_MS = 10_000;
+
+const LOCK_HOLDER_IDLE = `SELECT a.state, extract(epoch FROM now() - a.state_change) * 1000 AS idle_ms
+  FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid
+  WHERE l.locktype = 'advisory' AND l.granted AND l.objsubid = 2
+    AND l.classid = hashtext('storytree.activity')::oid AND l.objid = hashtext($1)::oid`;
+
+test("2.19 · a locked write whose work waits on other work until its connection has sat idle in its transaction past the pool's 10 s limit still commits: locked resolves with the work's answer, and the line reads back as appended", { timeout: 60_000 }, async () => {
+  const project = uniqueProjectName();
+  const watcher = new pg.Client({ connectionString: testServerUrl() });
+  await watcher.connect();
+  try {
+    await withLog(async (log) => {
+      const written = await log.locked(project, async (locked) => {
+        await waitUntil(async () => {
+          const holder = (await watcher.query<{ state: string; idle_ms: string }>(LOCK_HOLDER_IDLE, [project])).rows[0];
+          if (holder === undefined) throw new Error("the locked write's connection was ended while its work waited");
+          return holder.state === "idle in transaction" && Number(holder.idle_ms) > POOL_IDLE_IN_TRANSACTION_MS + 500;
+        }, 30_000, "the locked write's connection to sit idle in its transaction past the pool's limit");
+        return locked.append({ session: "slow", source: "tool", kind: "command-run", command: "advance the increment" });
+      });
+      assert.equal(commandOf(written), "advance the increment");
+      assert.deepEqual((await log.since(project, 0)).lines, [written], "the slow work's line is committed, and nothing else is");
+    });
+  } finally {
+    await watcher.end();
+  }
 });

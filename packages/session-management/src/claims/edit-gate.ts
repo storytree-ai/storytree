@@ -1,5 +1,5 @@
 // Capability 5 · Claims
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 
@@ -31,25 +31,31 @@ export type EditRefusal = (
   | { readonly refused: "held"; readonly capability: string; readonly title: string; readonly file: string; readonly holder: Claim; readonly on?: string }
 ) & { readonly lapsed?: readonly Lapse[] };
 
-export async function editRefusal(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[] = [], readsCode?: ReadsCode, isCode?: ReadsCode): Promise<EditRefusal | undefined> {
-  return refusalOf(context, checkout, files, declared, imports, true, readsCode, isCode);
+export async function editRefusal(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[] = [], readsCode?: ReadsCode, isCode?: ReadsCode, factory?: string): Promise<EditRefusal | undefined> {
+  return refusalOf(context, checkout, files, declared, imports, true, readsCode, isCode, factory);
 }
 
 export type GateContext = Pick<ClaimContext, "log" | "library" | "project" | "session" | "harness" | "folder" | "quietMs" | "restarted">;
 
-async function refusalOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean, readsCode?: ReadsCode, isCode?: ReadsCode): Promise<EditRefusal | undefined> {
-  return (await refusalsOf(context, checkout, files, declared, imports, noting, false, readsCode, isCode))[0];
+async function refusalOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean, readsCode?: ReadsCode, isCode?: ReadsCode, factory?: string): Promise<EditRefusal | undefined> {
+  return (await refusalsOf(context, checkout, files, declared, imports, noting, false, readsCode, isCode, factory))[0];
 }
 
-async function refusalsOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean, every: boolean, readsCode?: ReadsCode, isCode?: ReadsCode): Promise<EditRefusal[]> {
+async function refusalsOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean, every: boolean, readsCode?: ReadsCode, isCode?: ReadsCode, factory?: string): Promise<EditRefusal[]> {
   const located = files.flatMap((file) => {
     const absolute = path.resolve(checkout, file.path);
     const imported = imports.find(({ folder }) => isWithin(absolute, folder));
     return imported === undefined ? [] : [{ imported, relative: path.relative(imported.folder, absolute).split(path.sep).join("/") }];
   });
   const inImports = isCode === undefined ? located : (await Promise.all(located.map(async (one) => ((await isCode(one.relative)) ? [one] : [])))).flat();
-  const placed = files.map((file) => ({ ...file, relative: path.relative(checkout, path.resolve(checkout, file.path)).split(path.sep).join("/") }))
-    .filter(({ relative }) => relative.startsWith("packages/") || relative.startsWith("apps/desktop/"));
+  const placed = files.flatMap((file) => {
+    const absolute = path.resolve(checkout, file.path);
+    const relative = path.relative(checkout, absolute).split(path.sep).join("/");
+    if (relative.startsWith("packages/") || relative.startsWith("apps/desktop/")) return [{ ...file, root: checkout, relative }];
+    const root = factory === undefined || isWithin(absolute, checkout) ? undefined : factoryCheckoutOf(absolute, factory);
+    const within = root === undefined ? undefined : path.relative(root, absolute).split(path.sep).join("/");
+    return root !== undefined && within!.startsWith("plugins/") ? [{ ...file, root, relative: within! }] : [];
+  });
   if (placed.length === 0 && inImports.length === 0) return [];
   const [tree, claims] = await Promise.all([
     context.library.projectTree(),
@@ -67,7 +73,7 @@ async function refusalsOf(context: GateContext, checkout: string, files: readonl
   const moves = [...new Set(mine.map((claim) => claim.increment!))].flatMap((increment) => plans.get(increment)!.pending);
   const owners = [
     ...explored.flatMap(({ covering, file }) => (covering === undefined ? [] : [{ ...covering, file }])),
-    ...(placed.length === 0 ? [] : await declaredOwners(tree, moves, checkout, placed, declared)),
+    ...(placed.length === 0 ? [] : await declaredOwners(tree, moves, placed, declared)),
   ];
   if (owners.length === 0 && explored.length === 0) return [];
 
@@ -282,21 +288,44 @@ export function allowCommand(increment: string): string {
   return `storytree workspace allow ${increment}`;
 }
 
-async function declaredOwners(tree: AnnotatedTree, moves: readonly PendingChange[], checkout: string, files: readonly (EditedFile & { relative: string })[], declared: DeclaredCapabilities): Promise<{ capability: string; title: string; file: string }[]> {
-  const texts = new Map(files.map((file) => [file.relative, file.text] as const));
-  const readText = (file: string) => texts.get(file) ?? readFileSync(path.join(checkout, file), "utf8");
+async function declaredOwners(tree: AnnotatedTree, moves: readonly PendingChange[], files: readonly (EditedFile & { root: string; relative: string })[], declared: DeclaredCapabilities): Promise<{ capability: string; title: string; file: string }[]> {
   const moved = movedOnly(tree, moves);
-  const first = moved === undefined ? new Map<string, string>() : await declared(checkout, [...texts.keys()], moved, readText);
-  const rest = [...texts.keys()].filter((file) => !first.has(file));
-  const placed = new Map([...first, ...(rest.length === 0 ? [] : await declared(checkout, rest, tree, readText))]);
   const titles = new Map([...tree.stories, ...(moved?.stories ?? [])].flatMap((story) => story.capabilities.map(({ id, title }) => [id, title] as const)));
   const owners: { capability: string; title: string; file: string }[] = [];
-  for (const file of texts.keys()) {
-    const capability = placed.get(file);
-    if (capability === undefined) continue;
-    if (!owners.some((owner) => owner.capability === capability)) owners.push({ capability, title: titles.get(capability)!, file });
+  for (const root of new Set(files.map((file) => file.root))) {
+    const texts = new Map(files.filter((file) => file.root === root).map((file) => [file.relative, file.text] as const));
+    const readText = (file: string) => texts.get(file) ?? readFileSync(path.join(root, file), "utf8");
+    const first = moved === undefined ? new Map<string, string>() : await declared(root, [...texts.keys()], moved, readText);
+    const rest = [...texts.keys()].filter((file) => !first.has(file));
+    const placed = new Map([...first, ...(rest.length === 0 ? [] : await declared(root, rest, tree, readText))]);
+    for (const file of texts.keys()) {
+      const capability = placed.get(file);
+      if (capability === undefined) continue;
+      if (!owners.some((owner) => owner.capability === capability)) owners.push({ capability, title: titles.get(capability)!, file });
+    }
   }
   return owners;
+}
+
+function factoryCheckoutOf(file: string, factory: string): string | undefined {
+  let root = path.dirname(file);
+  while (!existsSync(path.join(root, ".git"))) {
+    if (path.dirname(root) === root) return undefined;
+    root = path.dirname(root);
+  }
+  const home = realOf(factory);
+  const dotGit = path.join(root, ".git");
+  if (statSync(dotGit).isDirectory()) return realOf(root) === home ? root : undefined;
+  const pointed = /^gitdir:(.*)$/m.exec(readFileSync(dotGit, "utf8"))?.[1]?.trim();
+  return pointed !== undefined && isWithin(realOf(path.resolve(root, pointed)), path.join(home, ".git", "worktrees")) ? root : undefined;
+}
+
+function realOf(folder: string): string {
+  try {
+    return realpathSync.native(folder);
+  } catch {
+    return path.resolve(folder);
+  }
 }
 
 function movedOnly(tree: AnnotatedTree, moves: readonly PendingChange[]): AnnotatedTree | undefined {

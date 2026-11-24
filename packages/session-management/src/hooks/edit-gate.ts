@@ -97,9 +97,9 @@ export async function editGate(harness: string, input: unknown, declared: Declar
 }
 
 async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, declared: DeclaredCapabilities, locate: LocateOptions | undefined, home: string, limitMs: number, readsCode?: ReadsCode, isCode?: ReadsCode): Promise<{ reason: string; ask: boolean } | undefined> {
-  const { editRefusal, refusalMessage } = await import("../claims/edit-gate.js");
+  const [{ editRefusal, refusalMessage }, { factoryFolder }] = await Promise.all([import("../claims/edit-gate.js"), import("@storytree/project-and-caller")]);
   return gated(harness, edit, locate, home, async (context, checkout, imports) => {
-    const refusal = await editRefusal(context, checkout, edit.files, declared, imports, readsCode, isCode);
+    const refusal = await editRefusal(context, checkout, edit.files, declared, imports, readsCode, isCode, factoryFolder(home).folder);
     return refusal === undefined ? undefined : { reason: refusalMessage(refusal), ask: refusal.refused === "ask" };
   }, limitMs);
 }

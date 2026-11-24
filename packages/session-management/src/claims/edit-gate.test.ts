@@ -114,8 +114,8 @@ test("5.80 an edit tool aimed at a file under plugins/<plugin>/ in the factory f
       const arc = await library.createArc({ title: "Voice", intent: "Talk by voice", endState: "Voice reads", stories: [voice.id] });
       const park = async (title: string, capabilities: string[]) => (await library.addIncrement({ arc: arc.id, title, objective: title, body: title, capabilities })).id;
       const as = (session: string) => ({ log, library, project, session, harness: "claude-code", folder: checkout });
-      const gate = (session: string, folder: string, file: string, given: string | undefined = factory) =>
-        editRefusal(as(session), checkout, [{ path: path.join(folder, "plugins", "voice", "src", file) }], declaredInTests, [], undefined, undefined, given);
+      const gate = (session: string, folder: string, file: string) =>
+        editRefusal(as(session), checkout, [{ path: path.join(folder, "plugins", "voice", "src", file) }], declaredInTests, [], undefined, undefined, factory);
 
       const mine = await park("listening", [listen]);
       assert.equal((await claim(as("A"), mine, "driving listening")).ok, true);
@@ -126,7 +126,7 @@ test("5.80 an edit tool aimed at a file under plugins/<plugin>/ in the factory f
       const inFactory = await gate("A", factory, "tools.ts");
       assert.deepEqual(inFactory && { ...inFactory }, { refused: "unlisted", capability: tools, title: "2 · The read tools", file: "plugins/voice/src/tools.ts", increment: mine, listed: [listen] }, "in the factory folder itself");
       assert.equal(await gate("A", elsewhere, "tools.ts"), undefined, "a git repository that is no checkout of the factory");
-      assert.equal(await gate("A", lane, "tools.ts", undefined), undefined, "no factory given");
+      assert.equal(await editRefusal(as("A"), checkout, [{ path: path.join(lane, "plugins", "voice", "src", "tools.ts") }], declaredInTests, [], undefined, undefined), undefined, "no factory given");
 
       const theirs = await park("read tools", [tools]);
       assert.equal((await claim(as("B"), theirs, "driving the read tools")).ok, true);

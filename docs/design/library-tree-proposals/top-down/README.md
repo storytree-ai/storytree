@@ -118,3 +118,5 @@ All counts are measured except the contract moves, which are a judgement.
   - 10.32–10.34 and 10.36–10.38 → Waits.
 - **Contracts to write.** One new contract for The plan's entry file.
 - **Capabilities.** 5 are folded into others (28, 27, 22, 9, 31) and 2 are new (The plan, Branch plan changes). The rest keep their ids, about half of them under a new title. Each file's capability header changes wherever its capability does.
+
+In the evidence bucket for #1156, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `1156/tree.png`.

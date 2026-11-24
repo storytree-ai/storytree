@@ -24,7 +24,7 @@ const plugin = (name: string, exported: string, body: string): Record<string, st
 
 const listening = (said: string) => `host.log("${said} as pid " + process.pid); await new Promise((stopped) => host.stopping.addEventListener("abort", stopped));`;
 
-test("4.3 · When the factory clone moves, then the host restarts only the services whose plugin folder changed, its manifest included, on their declarations read fresh from the new code, and then it clears a restarted failed service's ends and back-off; every other service keeps running; when the factory's install fails, then the host restarts nothing and keeps every service on its code", async (t) => {
+test("4.3 · After the factory moves, only the services whose plugin changed restart", async (t) => {
   const home = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-service-host-keep-")));
   t.after(() => removeTemp(home));
   const repo = factoryRepo(t, { ...plugin("my-voice", "listen", "throw new Error('not built yet');"), ...plugin("my-echo", "listen", listening("echo listening")) }, home);
@@ -77,7 +77,7 @@ test("4.3 · When the factory clone moves, then the host restarts only the servi
   }
 });
 
-test("4.4 · When a commit moves the host's own code in the storytree checkout, then the host stops every service, and then it exits with code 3", async (t) => {
+test("4.4 · After the host's own code moves, the host stops its services and exits with code 3", async (t) => {
   const { home } = fixtureHome(t);
   setServiceOn("voice/listen", true, home);
   let version = "before";

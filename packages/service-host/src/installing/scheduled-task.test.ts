@@ -32,7 +32,7 @@ function fakeNode(bin: string, said: string): string {
   return file;
 }
 
-test("3.3 · Given the laptop's storytree-host task, when the user logs on, then the task runs node itself on `storytree services run` in storytree's checkout, windowless and with no time limit; when the host ends with any code but 0, then the task starts it again", { skip: process.platform !== "win32" && "platform:win32: a scheduled task is the Windows entry point" }, (t) => {
+test("3.3 · On Windows, the laptop's task runs the host at logon and starts it again", { skip: process.platform !== "win32" && "platform:win32: a scheduled task is the Windows entry point" }, (t) => {
   const dir = tempDir(t);
   const checkout = path.join(dir, "storytree");
   mkdirSync(checkout);
@@ -68,7 +68,7 @@ test("3.3 · Given the laptop's storytree-host task, when the user logs on, then
   assert.ok(task.includes(`<Command>conhost.exe</Command><Arguments>--headless cmd.exe /d /c &quot;${script}&quot;</Arguments>`), "it runs the script with no window");
 });
 
-test("3.4 · Given a Windows machine, when a user runs `storytree services install`, then it writes the script and registers the task, and running it again changes nothing; given a host is running and the task's text has changed, then install first stops the host cleanly; when a user runs `storytree services uninstall`, then it stops the host, deletes the task and removes its files", async (t) => {
+test("3.4 · On Windows, install and uninstall manage the scheduled task", async (t) => {
   const dir = tempDir(t);
   const calls: string[] = [];
   const scheduler = {

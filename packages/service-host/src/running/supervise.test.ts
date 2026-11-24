@@ -27,7 +27,7 @@ function children() {
   };
 }
 
-test("1.2 · Given an always service, when it ends, then the host starts it again after 10 seconds, and then the wait doubles with each further end up to 5 minutes; when it ends five times within 10 minutes, then the host marks it failed and does not start it again", async () => {
+test("1.2 · An always service that ends starts again, slower each time, until it fails", async () => {
   const clock = handClock();
   const kids = children();
   const lines: string[] = [];
@@ -74,7 +74,7 @@ test("1.2 · Given an always service, when it ends, then the host starts it agai
   assert.deepEqual(slowWaits, [10_000, 20_000, 40_000, 80_000, 160_000, 300_000, 300_000, 300_000]);
 });
 
-test("1.3 · Given an every service, when its cadence comes round, then the host starts it; given its last run is still going, then the host does not start it again", async () => {
+test("1.3 · An every service starts on its cadence, never over its last run", async () => {
   const clock = handClock();
   const kids = children();
   const host = new Supervisor({ clock, start: kids.start(clock), log: () => {} });
@@ -98,7 +98,7 @@ test("1.3 · Given an every service, when its cadence comes round, then the host
   assert.notEqual(host.states()[0]!.state, "failed");
 });
 
-test("1.4 · When the host stops, then it sends each running service the stop signal, which fires that service's host.stopping, and then it kills any service still running 30 seconds later", async () => {
+test("1.4 · Stopping the host signals each service, and kills any still running after 30 seconds", async () => {
   const clock = handClock();
   const kids = children();
   kids.hold();

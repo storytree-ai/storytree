@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="964" viewBox="0 0 1500 964" font-family="Segoe UI, Helvetica, Arial, sans-serif"><rect width="100%" height="100%" fill="white"/>
+<text x="30" y="50" font-size="20" font-weight="700">Baseline: the plan today (30 capabilities, 12 at the top)</text>
+<rect x="30.0" y="70" width="340.0" height="192" rx="8" fill="#fafafa" stroke="#555" stroke-width="1.2"/>
+<text x="40.0" y="92" font-size="14" font-weight="700">34 · Project storage</text>
+<rect x="44.0" y="104" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="52.0" y="120" font-size="12.5">1 · Project libraries</text>
+<rect x="44.0" y="134" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="52.0" y="150" font-size="12.5">15 · Connection by address</text>
+<rect x="44.0" y="164" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="52.0" y="180" font-size="12.5">28 · Shared server</text>
+<rect x="44.0" y="194" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="52.0" y="210" font-size="12.5">29 · Factory and product</text>
+<rect x="44.0" y="224" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="52.0" y="240" font-size="12.5">30 · Outside writers</text>
+<rect x="390.0" y="70" width="340.0" height="162" rx="8" fill="#fafafa" stroke="#555" stroke-width="1.2"/>
+<text x="400.0" y="92" font-size="14" font-weight="700">32 · Questions and work</text>
+<rect x="404.0" y="104" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="412.0" y="120" font-size="12.5">4 · Work model</text>
+<rect x="404.0" y="134" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="412.0" y="150" font-size="12.5">10 · Work in flight</text>
+<rect x="404.0" y="164" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="412.0" y="180" font-size="12.5">11 · Waits</text>
+<rect x="404.0" y="194" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="412.0" y="210" font-size="12.5">12 · Owner questions</text>
+<rect x="390.0" y="244" width="340.0" height="162" rx="8" fill="#fafafa" stroke="#555" stroke-width="1.2"/>
+<text x="400.0" y="266" font-size="14" font-weight="700">35 · The librarian</text>
+<rect x="404.0" y="278" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="412.0" y="294" font-size="12.5">21 · Links</text>
+<rect x="404.0" y="308" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="412.0" y="324" font-size="12.5">23 · Catalogue</text>
+<rect x="404.0" y="338" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="412.0" y="354" font-size="12.5">24 · Graduation</text>
+<rect x="404.0" y="368" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="412.0" y="384" font-size="12.5">26 · Rounds</text>
+<rect x="30.0" y="274" width="340.0" height="132" rx="8" fill="#fafafa" stroke="#555" stroke-width="1.2"/>
+<text x="40.0" y="296" font-size="14" font-weight="700">33 · Notes and search</text>
+<rect x="44.0" y="308" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="52.0" y="324" font-size="12.5">6 · Knowledge artifacts</text>
+<rect x="44.0" y="338" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="52.0" y="354" font-size="12.5">9 · Knowledge entrances</text>
+<rect x="44.0" y="368" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="52.0" y="384" font-size="12.5">14 · Ranked search</text>
+<rect x="30.0" y="418" width="340.0" height="102" rx="8" fill="#fafafa" stroke="#555" stroke-width="1.2"/>
+<text x="40.0" y="440" font-size="14" font-weight="700">31 · Decisions</text>
+<rect x="44.0" y="452" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="52.0" y="468" font-size="12.5">22 · Decision corrections</text>
+<rect x="44.0" y="482" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="52.0" y="498" font-size="12.5">13 · Decision log</text>
+<rect x="390.0" y="418" width="340.0" height="34" rx="8" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+<text x="400.0" y="440" font-size="14" font-weight="700">2 · Library transactions</text>
+<rect x="390.0" y="464" width="340.0" height="34" rx="8" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+<text x="400.0" y="486" font-size="14" font-weight="700">3 · Data schema</text>
+<rect x="390.0" y="510" width="340.0" height="34" rx="8" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+<text x="400.0" y="532" font-size="14" font-weight="700">5 · Health record</text>
+<rect x="30.0" y="532" width="340.0" height="34" rx="8" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+<text x="40.0" y="554" font-size="14" font-weight="700">7 · Library API</text>
+<rect x="390.0" y="556" width="340.0" height="34" rx="8" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+<text x="400.0" y="578" font-size="14" font-weight="700">16 · The command schema</text>
+<rect x="30.0" y="578" width="340.0" height="34" rx="8" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+<text x="40.0" y="600" font-size="14" font-weight="700">17 · The library&#x27;s commands</text>
+<rect x="390.0" y="602" width="340.0" height="34" rx="8" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+<text x="400.0" y="624" font-size="14" font-weight="700">27 · Fixed data questions</text>
+<text x="770" y="50" font-size="20" font-weight="700">Proposal 1, grown from co-change (26 capabilities, 11 at the top)</text>
+<rect x="770.0" y="70" width="340.0" height="162" rx="8" fill="#fafafa" stroke="#555" stroke-width="1.2"/>
+<text x="780.0" y="92" font-size="14" font-weight="700">33 · Notes, decisions and search</text>
+<text x="1102.0" y="92" font-size="11" text-anchor="end" fill="#333">renamed</text>
+<rect x="784.0" y="104" width="316.0" height="24" rx="5" fill="#d6efd4" stroke="#888"/>
+<text x="792.0" y="120" font-size="12.5">6 · Knowledge artifacts</text>
+<text x="1094.0" y="120" font-size="10.5" text-anchor="end" fill="#333">gains files</text>
+<rect x="784.0" y="134" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="792.0" y="150" font-size="12.5">9 · Knowledge entrances</text>
+<rect x="784.0" y="164" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="792.0" y="180" font-size="12.5">14 · Ranked search</text>
+<rect x="784.0" y="194" width="316.0" height="24" rx="5" fill="#cfe0f7" stroke="#888"/>
+<text x="792.0" y="210" font-size="12.5">13 · Decisions</text>
+<text x="1094.0" y="210" font-size="10.5" text-anchor="end" fill="#333">absorbs 22, 31</text>
+<rect x="1130.0" y="70" width="340.0" height="162" rx="8" fill="#fafafa" stroke="#555" stroke-width="1.2"/>
+<text x="1140.0" y="92" font-size="14" font-weight="700">34 · Project storage</text>
+<rect x="1144.0" y="104" width="316.0" height="24" rx="5" fill="#cfe0f7" stroke="#888"/>
+<text x="1152.0" y="120" font-size="12.5">1 · Project libraries</text>
+<text x="1454.0" y="120" font-size="10.5" text-anchor="end" fill="#333">absorbs 29</text>
+<rect x="1144.0" y="134" width="316.0" height="24" rx="5" fill="#efe3f7" stroke="#888"/>
+<text x="1152.0" y="150" font-size="12.5">15 · Connection by address</text>
+<text x="1454.0" y="150" font-size="10.5" text-anchor="end" fill="#333">type cut</text>
+<rect x="1144.0" y="164" width="316.0" height="24" rx="5" fill="#d6efd4" stroke="#888"/>
+<text x="1152.0" y="180" font-size="12.5">28 · Shared server</text>
+<text x="1454.0" y="180" font-size="10.5" text-anchor="end" fill="#333">gains files</text>
+<rect x="1144.0" y="194" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="1152.0" y="210" font-size="12.5">30 · Outside writers</text>
+<rect x="770.0" y="244" width="340.0" height="162" rx="8" fill="#fafafa" stroke="#555" stroke-width="1.2"/>
+<text x="780.0" y="266" font-size="14" font-weight="700">35 · The librarian</text>
+<rect x="784.0" y="278" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="792.0" y="294" font-size="12.5">21 · Links</text>
+<rect x="784.0" y="308" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="792.0" y="324" font-size="12.5">23 · Catalogue</text>
+<rect x="784.0" y="338" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="792.0" y="354" font-size="12.5">24 · Graduation</text>
+<rect x="784.0" y="368" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="792.0" y="384" font-size="12.5">26 · Rounds</text>
+<rect x="1130.0" y="244" width="340.0" height="102" rx="8" fill="#fafafa" stroke="#555" stroke-width="1.2"/>
+<text x="1140.0" y="266" font-size="14" font-weight="700">32 · Questions and work</text>
+<rect x="1144.0" y="278" width="316.0" height="24" rx="5" fill="#cfe0f7" stroke="#888"/>
+<text x="1152.0" y="294" font-size="12.5">10 · Work in flight</text>
+<text x="1454.0" y="294" font-size="10.5" text-anchor="end" fill="#333">absorbs 11</text>
+<rect x="1144.0" y="308" width="316.0" height="24" rx="5" fill="#e8e8e8" stroke="#888"/>
+<text x="1152.0" y="324" font-size="12.5">12 · Owner questions</text>
+<rect x="1130.0" y="358" width="340.0" height="72" rx="8" fill="#fafafa" stroke="#555" stroke-width="1.2"/>
+<text x="1140.0" y="380" font-size="14" font-weight="700">17 · The library&#x27;s commands</text>
+<text x="1462.0" y="380" font-size="11" text-anchor="end" fill="#333">loses files</text>
+<rect x="1130.0" y="358" width="6" height="72" fill="#f6d5d5"/>
+<rect x="1144.0" y="392" width="316.0" height="24" rx="5" fill="#fbe0c4" stroke="#888"/>
+<text x="1152.0" y="408" font-size="12.5">27 · Fixed data questions</text>
+<text x="1454.0" y="408" font-size="10.5" text-anchor="end" fill="#333">moved</text>
+<rect x="770.0" y="418" width="340.0" height="34" rx="8" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+<text x="780.0" y="440" font-size="14" font-weight="700">2 · Library transactions</text>
+<rect x="1130.0" y="442" width="340.0" height="34" rx="8" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+<text x="1140.0" y="464" font-size="14" font-weight="700">3 · Data schema</text>
+<rect x="770.0" y="464" width="340.0" height="34" rx="8" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+<text x="780.0" y="486" font-size="14" font-weight="700">7 · Library API</text>
+<rect x="1130.0" y="488" width="340.0" height="34" rx="8" fill="#e8e8e8" stroke="#555" stroke-width="1.2"/>
+<text x="1140.0" y="510" font-size="14" font-weight="700">5 · Health record</text>
+<rect x="770.0" y="510" width="340.0" height="34" rx="8" fill="#fbe0c4" stroke="#555" stroke-width="1.2"/>
+<text x="780.0" y="532" font-size="14" font-weight="700">4 · Work model</text>
+<text x="1102.0" y="532" font-size="11" text-anchor="end" fill="#333">moved</text>
+<rect x="1130.0" y="534" width="340.0" height="34" rx="8" fill="#d6efd4" stroke="#555" stroke-width="1.2"/>
+<text x="1140.0" y="556" font-size="14" font-weight="700">16 · The command schema</text>
+<text x="1462.0" y="556" font-size="11" text-anchor="end" fill="#333">gains helpers</text>
+<rect x="770" y="668" width="16" height="16" fill="#cfe0f7" stroke="#888"/><text x="792" y="681" font-size="12">merged</text>
+<rect x="890" y="668" width="16" height="16" fill="#fbe0c4" stroke="#888"/><text x="912" y="681" font-size="12">moved</text>
+<rect x="1010" y="668" width="16" height="16" fill="#d6efd4" stroke="#888"/><text x="1032" y="681" font-size="12">gains files</text>
+<rect x="1130" y="668" width="16" height="16" fill="#f6d5d5" stroke="#888"/><text x="1152" y="681" font-size="12">loses files</text>
+<rect x="1250" y="668" width="16" height="16" fill="#efe3f7" stroke="#888"/><text x="1272" y="681" font-size="12">type cut</text>
+<text x="30" y="708" font-size="16" font-weight="700">Scorecard, baseline against proposal 1</text>
+<text x="30" y="734" font-size="13" font-style="italic" fill="#555">Measured by the scorer (code-measures tree)</text>
+<text x="50" y="756" font-size="13">TurboMQ, top-level groups</text><text x="560" y="756" font-size="13">1.31 (random p95 0.70)</text><text x="900" y="756" font-size="13">0.98 (random p95 0.71)</text>
+<text x="50" y="778" font-size="13">co-change inside groups</text><text x="560" y="778" font-size="13">17.1% (random p95 14.9%)</text><text x="900" y="778" font-size="13">11.8% (random p95 17.6%)</text>
+<text x="50" y="800" font-size="13">sibling import cycles</text><text x="560" y="800" font-size="13">3 (8, 3, 2 members)</text><text x="900" y="800" font-size="13">2 (8, 2 members)</text>
+<text x="50" y="822" font-size="13">nodes and sibling edges, depth 1 / 2</text><text x="560" y="822" font-size="13">12 / 44,  18 / 19</text><text x="900" y="822" font-size="13">11 / 39,  15 / 14</text>
+<text x="50" y="844" font-size="13">boundaries, type names crossing</text><text x="560" y="844" font-size="13">103, 441</text><text x="900" y="844" font-size="13">94, 420</text>
+<text x="30" y="866" font-size="13" font-style="italic" fill="#555">Measured by this proposal&#x27;s script (renames followed, file level)</text>
+<text x="50" y="888" font-size="13">co-change inside top-level groups</text><text x="560" y="888" font-size="13">27.9% (random p95 12.8%)</text><text x="900" y="888" font-size="13">29.9% (random p95 14.8%)</text>
+<text x="50" y="910" font-size="13">co-change inside one capability</text><text x="560" y="910" font-size="13">16.3%</text><text x="900" y="910" font-size="13">19.2%</text>
+<text x="50" y="932" font-size="13">file imports newly cut / healed</text><text x="560" y="932" font-size="13"></text><text x="900" y="932" font-size="13">6 cut (7 types) / 13 healed (28 types)</text>
+<text x="560" y="708" font-size="13" font-weight="700">baseline</text><text x="900" y="708" font-size="13" font-weight="700">proposal 1</text>
+</svg>

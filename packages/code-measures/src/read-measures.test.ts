@@ -168,6 +168,25 @@ test("1.8 · a story's test count is the calls of test or it, their only, skip a
   assert.equal(testsOf(missing.stories[0]!), undefined, "a story not in the checkout carries no test count");
 });
 
+test("1.9 · a story's measures at the commit carry its erosion share, read from its source files there", async (t) => {
+  const repo = await repository(t);
+  const ifs = Array.from({ length: 10 }, (_, n) => `  if (x > ${n}) x--;`);
+  mkdirSync(path.join(repo.folder, "packages/alpha-tools/src"), { recursive: true });
+  writeFileSync(path.join(repo.folder, "packages/alpha-tools/src/big.ts"), ["export function big(x: number): number {", ...ifs, "  return x;", "}", ""].join("\n"));
+  repo.git("add", "packages/alpha-tools/src/big.ts");
+  repo.git("-c", "user.name=Measures test", "-c", "user.email=measures@example.test", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "big added");
+  const c4 = repo.git("rev-parse", "HEAD");
+
+  const read = await readStoryMeasures({ folder: repo.folder, commit: c4, stories: [ALPHA] });
+  const erosion = (read.stories[0] as { erosion?: { mass: number; eroded: number; share: number } }).erosion;
+  assert.ok(erosion !== undefined, "the story's measures carry erosion");
+  const all = 2 * Math.sqrt(4) + 11 * Math.sqrt(13);
+  const over = 11 * Math.sqrt(13);
+  assert.ok(Math.abs(erosion.mass - all) < 1e-9, `mass ${erosion.mass}, expected ${all}: a (CC 2, 4 lines) and big (CC 11, 13 lines)`);
+  assert.ok(Math.abs(erosion.eroded - over) < 1e-9, `eroded ${erosion.eroded}, expected ${over}`);
+  assert.ok(Math.abs(erosion.share - over / all) < 1e-9, `share ${erosion.share}, expected ${over / all}`);
+});
+
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
 test("1.4 · coupling is read across the workspace at the commit measured, each package known by its manifest's name: Beta kit imports Alpha tools as @ws/alpha-tools", async (t) => {

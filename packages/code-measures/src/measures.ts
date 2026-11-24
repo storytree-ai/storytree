@@ -62,6 +62,7 @@ export const BASE_MEASURE_READERS: readonly BaseMeasureReader[] = [
   reader("measure_5e762739ddc6", (story) => story.complexity?.lengthMax),
   reader("measure_ad17c2553bc3", (story) => story.complexity?.longestFile?.lines),
   reader("measure_47fd18d20974", (story) => story.duplication?.share),
+  reader("measure_306a55834a6b", (story) => story.erosion?.share),
   reader("measure_46164b2d5fec", (story) => story.coupling?.dependencies.length),
   reader("measure_0055d2326d24", (story) => story.coupling?.dependents.length),
   reader("measure_cf2dac1e33d1", (story) => story.surface),

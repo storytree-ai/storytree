@@ -5,6 +5,7 @@ export interface FunctionReading {
   readonly name: string;
   readonly line: number;
   readonly complexity: number;
+  readonly cyclomatic: number;
   readonly length: number;
 }
 
@@ -127,6 +128,19 @@ class Scorer {
   }
 }
 
+function cyclomaticOf(fn: Node): number {
+  let count = 1;
+  const visit = (node: Node): void => {
+    if (isFunction(node)) return;
+    if (node.type === "IfStatement" || node.type === "ConditionalExpression" || node.type === "CatchClause" || LOOPS.has(node.type)) count++;
+    else if (node.type === "SwitchCase" && node.test !== null && node.test !== undefined) count++;
+    else if (node.type === "LogicalExpression" && LOGICAL.has(node.operator as string)) count++;
+    for (const child of childrenOf(node)) visit(child);
+  };
+  for (const child of childrenOf(fn)) visit(child);
+  return count;
+}
+
 export function functionsOf(file: SourceText): FunctionReading[] {
   const { program, codeLines } = parsed(file);
   const found: FunctionReading[] = [];
@@ -139,7 +153,7 @@ export function functionsOf(file: SourceText): FunctionReading[] {
       const end = node.loc!.end.line;
       let length = 0;
       for (let line = start; line <= end; line++) if (codeLines.has(line)) length++;
-      found.push({ name, line: start, complexity: scorer.total, length });
+      found.push({ name, line: start, complexity: scorer.total, cyclomatic: cyclomaticOf(node), length });
       for (const child of childrenOf(node)) visit(child, node, className);
       return;
     }

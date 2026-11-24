@@ -23,6 +23,7 @@ const BASE = {
   looseness: "measure_34498f5ac5b2",
   churn: "measure_99b7b76e0140",
   commentShare: "measure_2fb29d59aca8",
+  erosionShare: "measure_306a55834a6b",
 } as const;
 
 const TEST_COUNT = "measure_1081d3e0c297";
@@ -72,13 +73,14 @@ const MEASURED: StoryMeasures = {
   size: { files: 9, sourceLines: 1200, testLines: 800, commentLines: 150, commentShare: 0.125 },
   complexity: { functions: 40, p90: 7, max: 23, per1000: 31.5, lengthP90: 18, lengthMax: 64, longestFile: { path: "packages/alpha-tools/src/big.ts", lines: 412 } },
   duplication: { tokens: 16000, cloned: 600, share: 0.0375 },
+  erosion: { mass: 400, eroded: 25, share: 0.0625 },
   coupling: { dependencies: ["beta-kit", "gamma-works", "delta-lab"], dependents: ["e", "f", "g", "h", "i"], instability: 0.375 },
   surface: 27,
   looseness: { any: 2, asCasts: 3, suppressions: 1, eslintDisables: 0, per1000: { any: 1.5, asCasts: 2.25, suppressions: 0.5, eslintDisables: 0.25 } },
   churn: { added: 500, deleted: 220, relative: 0.6, top: [] },
 };
 
-test("2.3 · code measures' package declares under storytree.measures one reader at version 1 for each of the sixteen base measure records, the fourteen read from structure, Test count and Mutation score, and no other", async () => {
+test("2.3 · code measures' package declares under storytree.measures one reader at version 1 for each of the seventeen base measure records, the fifteen read from structure, Test count and Mutation score, and no other", async () => {
   const declared = (await measureReadersOf(REPOSITORY)).filter(({ package: pkg }) => pkg === "packages/code-measures");
   assert.deepEqual(
     declared.map(({ story, measure, version }) => ({ story, measure, version })).sort((a, b) => a.measure.localeCompare(b.measure)),
@@ -106,6 +108,7 @@ test("2.3 · each base reader reads its one value from a story's measures: none 
     [BASE.looseness]: 4.5,
     [BASE.churn]: 0.6,
     [BASE.commentShare]: 0.125,
+    [BASE.erosionShare]: 0.0625,
   });
 
   const missing: StoryMeasures = { id: "story_b2b2b2b2b2b2", title: "Beta kit", packages: ["beta-kit"], missing: "packages/beta-kit is not in the checkout at 0123456789ab" };

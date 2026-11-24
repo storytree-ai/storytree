@@ -20,7 +20,7 @@ const CODE_MEASURES = verb({
   command: {
     family: "code-measures",
     name: "code-measures",
-    summary: `each story's base code-structure measures at a commit (report only): size, cognitive complexity and function length tails, duplication, coupling, public surface, type looseness and relative churn over ${DEFAULT_DAYS} days, with comment share as context`,
+    summary: `each story's base code-structure measures at a commit (report only): size, cognitive complexity and function length tails, duplication, erosion share, coupling, public surface, type looseness and relative churn over ${DEFAULT_DAYS} days, with comment share as context`,
     usage: "code-measures [<story>] [--commit <sha>] [--since <window>] [--json]",
   },
   tool: { absent: "a report read at the command line over a checkout's Git objects" },
@@ -133,6 +133,27 @@ const STORY = verb({
   },
 });
 
+const TREE = verb({
+  command: {
+    family: "code-measures",
+    name: "tree",
+    summary: "grade a story's capability tree, the plan's or a proposed one, on one scorecard (report only): co-change grouping and pairs over main's merges, levels, instability, common reuse, cycles, fat per depth and the types crossing each boundary, with guidance leads apart",
+    usage: "code-measures tree <story> [--tree <file>] [--json]",
+  },
+  tool: { absent: "a report read at the command line over a checkout and its merge history" },
+  inputs: {
+    story: { kind: "text", word: 0, describe: "the story whose tree is graded, by id or title" },
+    tree: { kind: "text", optional: true, describe: "a proposed tree file, JSON {\"nodes\": [{\"id\", \"title\", \"parent\"?, \"files\"? or \"capabilities\"?}]}; the plan's tree unless given" },
+    json: { kind: "switch", describe: "the scorecard as JSON" },
+  },
+  async act({ story, tree, json }, context: VerbContext) {
+    const { scorecardAt, scorecardText } = await import("./scorecard.js");
+    const card = await scorecardAt({ folder: context.folder, library: context.library, story, ...(tree === undefined ? {} : { proposal: tree }) });
+    if (json) return { text: JSON.stringify(card, null, 2), raw: true };
+    return { text: scorecardText(card) };
+  },
+});
+
 export const CODE_MEASURES_FAMILIES: readonly VerbFamily[] = [
-  { name: "code-measures", summary: "each story's base code-structure measures at a commit (report only; Code measures')", order: 37.5, verbs: [PAIR as Verb<VerbInputs, VerbContext>, RECORD as Verb<VerbInputs, VerbContext>, MUTATION as Verb<VerbInputs, VerbContext>, STORY as Verb<VerbInputs, VerbContext>], bare: CODE_MEASURES as Verb<VerbInputs, VerbContext> },
+  { name: "code-measures", summary: "each story's base code-structure measures at a commit (report only; Code measures')", order: 37.5, verbs: [PAIR as Verb<VerbInputs, VerbContext>, RECORD as Verb<VerbInputs, VerbContext>, MUTATION as Verb<VerbInputs, VerbContext>, STORY as Verb<VerbInputs, VerbContext>, TREE as Verb<VerbInputs, VerbContext>], bare: CODE_MEASURES as Verb<VerbInputs, VerbContext> },
 ];

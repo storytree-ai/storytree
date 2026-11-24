@@ -175,6 +175,81 @@ test("1.2 · a function nested in another, a callback, is scored on its own from
   assert.deepEqual(found.map(({ line, complexity, length }) => [line, complexity, length]), [[1, 1, 9], [3, 3, 6]]);
 });
 
+test("1.9 · each function's cyclomatic complexity is 1 plus each if, loop, case, catch, ?:, &&, || and ??, else, default, labelled jumps, recursion and optional chaining counting none, and a nested function's structures counted only in its own", () => {
+  const chained = file("packages/p/src/chained.ts", [
+    "export function chained(a?: { b?: number }, c?: number): number {",
+    "  const d = a?.b ?? c ?? 0;",
+    "  try {",
+    "    return d > 1 ? d : 1;",
+    "  } catch (error) {",
+    "    return 0;",
+    "  } finally {",
+    "    void d;",
+    "  }",
+    "}",
+  ]);
+  const nested = file("packages/p/src/nested.ts", [
+    "export function total(rows: number[], strict: boolean): number {",
+    "  if (strict) return 0;",
+    "  return rows.map((row) => {",
+    "    if (row > 0) {",
+    "      return row;",
+    "    }",
+    "    return row < -10 && strict ? -row : 0;",
+    "  }).length;",
+    "}",
+  ]);
+  const cyclomatic = (source: SourceText) => [...functionsOf(source)].sort((a, b) => a.line - b.line).map((fn) => [fn.line, (fn as { cyclomatic?: unknown }).cyclomatic]);
+  assert.deepEqual(cyclomatic(SCORED), [[2, 4], [17, 3], [28, 8], [38, 2], [40, 5], [51, 2], [57, 2], [61, 1], [64, 3]]);
+  assert.deepEqual(cyclomatic(chained), [[1, 5]], "two ??, one ?: and one catch; ?. and finally count none");
+  assert.deepEqual(cyclomatic(nested), [[1, 2], [3, 4]], "the callback's if, && and ?: are its own, not total's");
+});
+
+interface ErosionReading {
+  readonly mass: number;
+  readonly eroded: number;
+  readonly share: number;
+}
+
+test("1.9 · a story's erosion share is the CC × √SLOC mass of its functions with cyclomatic complexity over 10 over the mass of all its functions; a function at 10 is not over, and test files are not read", async () => {
+  const module = "./index.js";
+  const loaded = (await import(module)) as { erosionOf?: (files: readonly SourceText[]) => ErosionReading };
+  assert.equal(typeof loaded.erosionOf, "function", "code measures exports erosionOf");
+  const ifs = (count: number) => Array.from({ length: count }, (_, n) => `  if (x > ${n}) x--;`);
+  const fn = (name: string, count: number) => [`function ${name}(x: number): number {`, ...ifs(count), "  return x;", "}", ""];
+  const source = file("packages/p/src/eroded.ts", [...fn("eleven", 10), ...fn("ten", 9), ...fn("one", 0), ...fn("twelve", 11)]);
+  const testFile = file("packages/p/src/eroded.test.ts", fn("thirtyOne", 30));
+
+  const read = loaded.erosionOf!([source, testFile]);
+  const all = 11 * Math.sqrt(13) + 10 * Math.sqrt(12) + 1 * Math.sqrt(3) + 12 * Math.sqrt(14);
+  const over = 11 * Math.sqrt(13) + 12 * Math.sqrt(14);
+  near(read.mass, all, "mass of all functions");
+  near(read.eroded, over, "mass of functions over CC 10");
+  near(read.share, over / all, "erosion share");
+});
+
+test("1.9 · the printed report reads a story's erosion share on the line after its duplication share", async () => {
+  const { measuresText } = await import("./index.js");
+  const story = {
+    id: "story_a1a1a1a1a1a1",
+    title: "Alpha tools",
+    packages: ["alpha-tools"],
+    size: { files: 9, sourceLines: 1200, testLines: 800, commentLines: 150, commentShare: 0.125 },
+    complexity: { functions: 40, p90: 7, max: 23, per1000: 31.5, lengthP90: 18, lengthMax: 64, longestFile: { path: "packages/alpha-tools/src/big.ts", lines: 412 } },
+    duplication: { tokens: 16000, cloned: 600, share: 0.0375 },
+    erosion: { mass: 800, eroded: 100, share: 0.125 },
+    coupling: { dependencies: [], dependents: [], instability: null },
+    surface: 27,
+    looseness: { any: 0, asCasts: 0, suppressions: 0, eslintDisables: 0, per1000: { any: 0, asCasts: 0, suppressions: 0, eslintDisables: 0 } },
+    churn: { added: 0, deleted: 0, relative: 0, top: [] },
+  };
+  const text = measuresText({ commit: "c".repeat(40), committed: "2026-11-24T00:00:00.000Z", window: { days: 90, from: "2026-08-26", to: "2026-11-24" }, stories: [story] } as Parameters<typeof measuresText>[0]);
+  const lines = text.split("\n");
+  const duplication = lines.findIndex((line) => /^\s+duplication\b/.test(line));
+  assert.ok(duplication > 0, "the duplication line is printed");
+  assert.match(lines[duplication + 1] ?? "", /^\s+erosion\b.*\b12\.5%/, "erosion share 12.5% on the next line");
+});
+
 const RUN_60 = "a = 1; b = 2; c = 3; d = 4; e = 5; f = 6; g = 7; h = 8; i = 9; j = 10; k = 11; l = 12; m = 13; n = 14; o = 15;";
 const RUN_49 = "a = 1; b = 2; c = 3; d = 4; e = 5; f = 6; g = 7; h = 8; i = 9; j = 10; k = 11; n = -1;";
 

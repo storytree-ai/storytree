@@ -11,7 +11,7 @@ const plural = (count: number, word: string): string => `${whole(count)} ${word}
 function storyLines(story: StoryMeasures): string[] {
   const head = `${story.title} (${story.id}) · ${story.packages.map((own) => `packages/${own}`).join(", ")}`;
   if (story.missing !== undefined) return [head, `  not measured: ${story.missing}`];
-  const { size, complexity, duplication, coupling, surface, looseness, churn } = story as Required<StoryMeasures>;
+  const { size, complexity, duplication, erosion, coupling, surface, looseness, churn } = story as Required<StoryMeasures>;
   const longest = complexity.longestFile === null ? "none" : `${complexity.longestFile.path} (${plural(complexity.longestFile.lines, "line")})`;
   const loose = looseness.per1000;
   const top = churn.top.map((file) => `    ${file.path}: churn ${whole(file.churn)} × complexity ${whole(file.complexity)} = ${whole(file.score)}`);
@@ -22,6 +22,7 @@ function storyLines(story: StoryMeasures): string[] {
     `  complexity   ${plural(complexity.functions, "function")}: p90 ${orNone(complexity.p90)}, max ${orNone(complexity.max)}, ${one(complexity.per1000)} per 1,000 lines`,
     `  length       p90 ${orNone(complexity.lengthP90)}, max ${orNone(complexity.lengthMax)} lines; longest file ${longest}`,
     `  duplication  ${percent(duplication.share)} of ${plural(duplication.tokens, "token")} in clones of 50 tokens or more`,
+    `  erosion      ${percent(erosion.share)} of complexity mass (cyclomatic complexity × √length) in functions over cyclomatic complexity 10`,
     `  coupling     uses ${coupling.dependencies.length} (${coupling.dependencies.join(", ") || "none"}), used by ${coupling.dependents.length} (${coupling.dependents.join(", ") || "none"}); instability ${coupling.instability === null ? "none" : one(coupling.instability)}`,
     `  surface      ${plural(surface, "exported name")}`,
     `  looseness    any ${whole(looseness.any)} (${one(loose.any)}/1,000), casts ${whole(looseness.asCasts)} (${one(loose.asCasts)}/1,000), ts-ignore and ts-expect-error ${whole(looseness.suppressions)} (${one(loose.suppressions)}/1,000), eslint-disable ${whole(looseness.eslintDisables)} (${one(loose.eslintDisables)}/1,000)`,

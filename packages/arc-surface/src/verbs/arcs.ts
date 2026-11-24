@@ -722,7 +722,12 @@ const waits = verb({
 
 function auditOf(views: readonly ArcView[], holds: Holds, at: Date): { text: string; next?: { command: string; why: string }[] } {
   const shut = views.flatMap(({ increments }) => increments.filter((one) => one.fields.status === "closed"));
-  const closedOn = new Map(shut.map((one) => [one.id, (one.fields.outcome?.date ?? "").slice(0, 10)]));
+  const closedAt = (one: (typeof shut)[number]): string => {
+    const date = one.fields.outcome?.date ?? "";
+    const written = String(one.updatedAt ?? "");
+    return date.length === 10 && written.startsWith(date) ? written : date;
+  };
+  const closedOn = new Map(shut.map((one) => [one.id, closedAt(one)]));
   const due = new Date(at.getTime() - REVIEW_DAYS * 86_400_000).toISOString().slice(0, 10);
   const found = views.flatMap((view) => view.increments.flatMap((increment) => (holds.waitsFor?.[increment.id] ?? [])
     .filter((wait) => wait.releaser === "owner")
@@ -743,7 +748,7 @@ function auditOf(views: readonly ArcView[], holds: Holds, at: Date): { text: str
         ...(wait.rank === undefined ? ["it has no rank"] : []),
         ...(view.state === "parked" || view.state === "closed" ? [`its arc is ${view.state}`] : []),
         ...(wait.merged === undefined ? [] : [`PR #${wait.merged}, which it was handed over with, has merged since it was last read`]),
-        ...(wait.reviewed === undefined ? ["it has never been read again"] : wait.reviewed < due ? [`it was last read again on ${wait.reviewed}`] : []),
+        ...(wait.reviewed === undefined ? ["it has never been read again"] : wait.reviewed.slice(0, 10) < due ? [`it was last read again on ${wait.reviewed.slice(0, 10)}`] : []),
       ];
       return { wait, increment, arc: view.arc, reasons };
     })

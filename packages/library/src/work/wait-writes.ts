@@ -87,7 +87,8 @@ export async function addWaitFor(records: SchemaRecords, id: string, wait: WaitW
 }
 
 export function checkedWaitFor({ releaser, note, checkBack, why, rank }: WaitWrite & { readonly note: string }): WaitFor {
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date().toISOString();
+  const today = now.slice(0, 10);
   if (releaser === "event" && checkBack === undefined) throw new RangeError("an event wait needs a check-back day (YYYY-MM-DD)");
   if (releaser === "owner" && checkBack !== undefined) throw new RangeError("an owner wait takes no check-back day: it holds until it is cleared");
   if (checkBack !== undefined && checkBack < today) throw new RangeError(`check-back day ${checkBack} is before today`);
@@ -97,7 +98,7 @@ export function checkedWaitFor({ releaser, note, checkBack, why, rank }: WaitWri
   }
   if (why === undefined || why.trim() === "") throw new RangeError("an owner wait needs a why: what it protects or unblocks, in a line");
   if (rank !== undefined && (!Number.isInteger(rank) || rank < 1)) throw new RangeError(`a rank is a whole number from 1 (1 first), not ${rank}`);
-  return { releaser, note, why, ...(rank === undefined ? {} : { rank }), reviewed: today };
+  return { releaser, note, why, ...(rank === undefined ? {} : { rank }), reviewed: now };
 }
 
 export async function removeWaitFor(records: SchemaRecords, id: string, releaser: WaitFor["releaser"], options?: ClearOptions, { merged }: { readonly merged?: number } = {}): Promise<SchemaRecord<"increment"> | null> {

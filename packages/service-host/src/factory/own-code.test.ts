@@ -10,7 +10,7 @@ import { removeTemp } from "@storytree/test-waits";
 import { git } from "../testing/factory-repo.js";
 import { ownCodeVersion } from "./own-code.js";
 
-test("4.4 · the host's own code is its package and the workspace packages it stands on, as the checkout's HEAD holds them: a commit to one of them moves it, a commit elsewhere or an uncommitted edit does not", (t) => {
+test("4.4 · Given the host's checkout, when a commit changes the host's package or a workspace package it stands on, then the host's own code has moved; when a commit lands elsewhere or an edit is uncommitted, then it has not", (t) => {
   const top = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-own-code-")));
   t.after(() => removeTemp(top));
   const write = (file: string, text: string) => {

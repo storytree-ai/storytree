@@ -1,0 +1,369 @@
+{
+  "proposal": "Tree proposal 2 for the library story (story_754e87e7d531): capabilities cut by dependency layers (increment_f46b74b5fc26, arc_c465ed702824, ADR-1395 D3).",
+  "readme": "README.md beside this file",
+  "files": "paths are today's, so `storytree code-measures tree story_754e87e7d531 --tree <this file>` grades it; the refactor's moves are under refactor",
+  "nodes": [
+    {
+      "id": "transactions",
+      "title": "2 · Library transactions",
+      "level": 1,
+      "contracts": 26,
+      "files": [
+        "packages/library/src/transactions/behaviour-suite.ts",
+        "packages/library/src/transactions/index.ts",
+        "packages/library/src/transactions/memory.ts",
+        "packages/library/src/transactions/pg.ts",
+        "packages/library/src/transactions/records.ts",
+        "packages/library/src/transactions/types.ts",
+        "packages/library/src/transactions/waits.ts"
+      ]
+    },
+    {
+      "id": "schema",
+      "title": "3 · Data schema",
+      "level": 2,
+      "contracts": 22,
+      "files": [
+        "packages/library/src/schema/activity-line.ts",
+        "packages/library/src/schema/code-distance.ts",
+        "packages/library/src/schema/errors.ts",
+        "packages/library/src/schema/index.ts",
+        "packages/library/src/schema/plugin-kinds.ts",
+        "packages/library/src/schema/records.ts",
+        "packages/library/src/schema/schedule.ts",
+        "packages/library/src/schema/story-survey.ts",
+        "packages/library/src/schema/types.ts",
+        "packages/library/src/schema/upgrades.ts",
+        "packages/library/src/references.ts",
+        "packages/library/src/creation-order.ts"
+      ]
+    },
+    {
+      "id": "decisions",
+      "title": "13 · Decisions",
+      "level": 3,
+      "contracts": 19,
+      "rehomed": [
+        "22.2, 22.3 from 22 · Decision corrections",
+        "31.1 from 31 · Decisions",
+        "13.10, 13.16, 13.17, 13.24, 13.25, 13.27 leave for 17 (the adr command family)"
+      ],
+      "files": [
+        "packages/library/src/decisions/decision-log.ts",
+        "packages/library/src/decisions/supersede.ts",
+        "packages/library/src/decisions/corrections.ts",
+        "packages/library/src/decisions/index.ts"
+      ]
+    },
+    {
+      "id": "notes",
+      "title": "33 · Notes and search",
+      "level": 4,
+      "contracts": 1,
+      "files": [
+        "packages/library/src/knowledge/index.ts"
+      ]
+    },
+    {
+      "id": "notes-artifacts",
+      "title": "6 · Knowledge artifacts",
+      "parent": "notes",
+      "level": 2,
+      "contracts": 26,
+      "rehomed": [
+        "9.1, 9.3 from 9 · Knowledge entrances"
+      ],
+      "files": [
+        "packages/library/src/knowledge/knowledge.ts",
+        "packages/library/src/knowledge/kinds.ts",
+        "packages/library/src/knowledge/memory-upgrade.ts",
+        "packages/library/src/knowledge/front-covers.ts",
+        "packages/library/src/knowledge/similarity.ts"
+      ]
+    },
+    {
+      "id": "notes-search",
+      "title": "14 · Ranked search",
+      "parent": "notes",
+      "level": 1,
+      "contracts": 18,
+      "files": [
+        "packages/library/src/knowledge/embedding-model.ts",
+        "packages/library/src/knowledge/embedding.ts",
+        "packages/library/src/knowledge/embeddings.ts",
+        "packages/library/src/knowledge/whole-words.ts"
+      ]
+    },
+    {
+      "id": "work",
+      "title": "32 · Questions and work",
+      "level": 5,
+      "contracts": 1,
+      "files": [
+        "packages/library/src/work/index.ts"
+      ]
+    },
+    {
+      "id": "work-plan",
+      "title": "4 · Work model",
+      "parent": "work",
+      "level": 1,
+      "contracts": 52,
+      "rehomed": [
+        "4.36 leaves for 10 (plan-hold.ts)"
+      ],
+      "files": [
+        "packages/library/src/work/work-model.ts",
+        "packages/library/src/work/pr-cutover.ts",
+        "packages/library/src/work/pending-changes.ts"
+      ]
+    },
+    {
+      "id": "work-questions",
+      "title": "12 · Owner questions",
+      "parent": "work",
+      "level": 1,
+      "contracts": 18,
+      "files": [
+        "packages/library/src/work/owner-questions.ts"
+      ]
+    },
+    {
+      "id": "work-flight",
+      "title": "10 · Work in flight",
+      "parent": "work",
+      "level": 2,
+      "contracts": 42,
+      "rehomed": [
+        "11.1, 11.2, 11.4, 11.5, 11.6, 11.12 from 11 · Waits",
+        "4.36 from 4 · Work model"
+      ],
+      "files": [
+        "packages/library/src/work/work-in-flight.ts",
+        "packages/library/src/work/wait-writes.ts",
+        "packages/library/src/work/waits.ts",
+        "packages/library/src/work/plan-hold.ts"
+      ]
+    },
+    {
+      "id": "health",
+      "title": "5 · Health record",
+      "level": 6,
+      "contracts": 36,
+      "files": [
+        "packages/library/src/health/health-record.ts",
+        "packages/library/src/health/index.ts"
+      ]
+    },
+    {
+      "id": "project",
+      "title": "34 · Project storage",
+      "level": 7,
+      "contracts": 1,
+      "files": [
+        "packages/library/src/project/index.ts"
+      ]
+    },
+    {
+      "id": "project-server",
+      "title": "28 · Shared server",
+      "parent": "project",
+      "level": 1,
+      "contracts": 17,
+      "rehomed": [
+        "1.5 from 1 · Project libraries (names.ts)"
+      ],
+      "files": [
+        "packages/library/src/project/server.ts",
+        "packages/library/src/project/connection-error.ts",
+        "packages/library/src/project/reads.ts",
+        "packages/library/src/project/names.ts",
+        "packages/library/src/project/seed-connection.ts"
+      ]
+    },
+    {
+      "id": "project-address",
+      "title": "15 · Connection by address",
+      "parent": "project",
+      "level": 2,
+      "contracts": 6,
+      "files": [
+        "packages/library/src/project/address.ts",
+        "packages/library/src/project/websocket.ts"
+      ]
+    },
+    {
+      "id": "project-factory",
+      "title": "29 · Factory and product",
+      "parent": "project",
+      "level": 2,
+      "contracts": 7,
+      "files": [
+        "packages/library/src/project/factory.ts",
+        "packages/library/src/project/switches.ts"
+      ]
+    },
+    {
+      "id": "project-outside",
+      "title": "30 · Outside writers",
+      "parent": "project",
+      "level": 3,
+      "contracts": 7,
+      "files": [
+        "packages/library/src/project/outside-writer.ts"
+      ]
+    },
+    {
+      "id": "project-libraries",
+      "title": "1 · Project libraries",
+      "parent": "project",
+      "level": 3,
+      "contracts": 18,
+      "rehomed": [
+        "1.5 leaves for 28"
+      ],
+      "files": [
+        "packages/library/src/project/storytree.ts",
+        "packages/library/src/project/record-cache.ts",
+        "packages/library/src/project/schema.ts",
+        "packages/library/src/project/schema-merged.ts",
+        "packages/library/src/project/snapshot.ts"
+      ]
+    },
+    {
+      "id": "api",
+      "title": "7 · Library API",
+      "level": 8,
+      "contracts": 22,
+      "files": [
+        "packages/library/src/api/index.ts",
+        "packages/library/src/api/library.ts",
+        "packages/library/src/api/printable.ts",
+        "packages/library/src/index.ts",
+        "packages/library/src/data/data-questions.ts"
+      ]
+    },
+    {
+      "id": "verbs",
+      "title": "16 · The command schema",
+      "level": 9,
+      "contracts": 4,
+      "files": [
+        "packages/library/src/verbs/verb.ts"
+      ]
+    },
+    {
+      "id": "commands",
+      "title": "17 · The library's commands",
+      "level": 10,
+      "contracts": 48,
+      "rehomed": [
+        "27.1–27.6 from 27 · Fixed data questions",
+        "13.10, 13.16, 13.17, 13.24, 13.25, 13.27 from 13"
+      ],
+      "files": [
+        "packages/library/src/commands/elsewhere.ts",
+        "packages/library/src/commands/fyi.ts",
+        "packages/library/src/commands/index.ts",
+        "packages/library/src/commands/media.ts",
+        "packages/library/src/commands/notes.ts",
+        "packages/library/src/commands/ranked.ts",
+        "packages/library/src/commands/stale-edit.ts",
+        "packages/library/src/data/commands.ts",
+        "packages/library/src/decisions/adr.ts"
+      ]
+    },
+    {
+      "id": "librarian",
+      "title": "35 · The librarian",
+      "level": 9,
+      "contracts": 1,
+      "files": [
+        "packages/library/src/librarian/index.ts",
+        "packages/library/src/librarian/notes.ts"
+      ]
+    },
+    {
+      "id": "librarian-links",
+      "title": "21 · Links",
+      "parent": "librarian",
+      "level": 1,
+      "contracts": 5,
+      "files": [
+        "packages/library/src/librarian/links/index.ts",
+        "packages/library/src/librarian/links/links.ts"
+      ]
+    },
+    {
+      "id": "librarian-catalogue",
+      "title": "23 · Catalogue",
+      "parent": "librarian",
+      "level": 1,
+      "contracts": 3,
+      "files": [
+        "packages/library/src/librarian/catalogue/index.ts",
+        "packages/library/src/librarian/catalogue/catalogue.ts"
+      ]
+    },
+    {
+      "id": "librarian-graduation",
+      "title": "24 · Graduation",
+      "parent": "librarian",
+      "level": 1,
+      "contracts": 4,
+      "files": [
+        "packages/library/src/librarian/graduation/index.ts",
+        "packages/library/src/librarian/graduation/graduation.ts"
+      ]
+    },
+    {
+      "id": "librarian-rounds",
+      "title": "26 · Rounds",
+      "parent": "librarian",
+      "level": 2,
+      "contracts": 11,
+      "files": [
+        "packages/library/src/librarian/rounds/host.ts",
+        "packages/library/src/librarian/rounds/index.ts",
+        "packages/library/src/librarian/rounds/rounds.ts",
+        "packages/library/src/librarian/rounds/tools.ts"
+      ]
+    }
+  ],
+  "mergedAway": [
+    "9 · Knowledge entrances into 6",
+    "11 · Waits into 10",
+    "22 · Decision corrections into 13",
+    "27 · Fixed data questions: queries into 7, commands into 17",
+    "31 · Decisions: its folder and contract into 13, retitled Decisions"
+  ],
+  "refactor": {
+    "filesMoved": [
+      "src/references.ts → src/schema/references.ts",
+      "src/creation-order.ts → src/schema/creation-order.ts",
+      "src/decisions/adr.ts → src/commands/adr.ts",
+      "src/data/data-questions.ts → src/api/data-questions.ts",
+      "src/data/commands.ts → src/commands/data.ts"
+    ],
+    "testFilesMoved": [
+      "src/decisions/adr.test.ts → src/commands/",
+      "src/data/data-questions.test.ts → src/commands/"
+    ],
+    "typesMoved": [
+      "ConnectOptions: project/storytree.ts → project/address.ts",
+      "Note, NoteEdit, NoteType: knowledge/knowledge.ts → schema/"
+    ],
+    "typesAdded": [
+      "DecisionWrites in decisions/: the four Library methods decision edits call (decision, recordDecision, editNote, inOneWrite), which Library already satisfies"
+    ],
+    "importsRetargeted": [
+      "knowledge/knowledge.ts and index.ts read decisions without the adr family",
+      "decisions/supersede.ts, decisions/corrections.ts: Library → DecisionWrites, the rest from schema/",
+      "project/address.ts, project/outside-writer.ts: ConnectOptions from address.ts",
+      "the 12 source files that import references.js or creation-order.js",
+      "package.json exports unchanged"
+    ],
+    "contractsRehomed": 25,
+    "contractsRetired": 0
+  }
+}

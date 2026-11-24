@@ -359,7 +359,7 @@ test("4.27 `arc waits --audit` lists the owner actions that need attention, olde
   });
 });
 
-test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose increment waits on, an increment closed at or after the wait was last read again, comparing the full closing date with the full stamp (on or after its day for a stamp holding only a day; any closing when never read again), or which an increment landed since then, with or without a pull request, names in its body or outcome note; a closing before that stamp, a day-only closing on a day a timed stamp was read again, or a withdrawn increment naming it, lists nothing", async () => {
+test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose increment waits on, an increment closed at or after the wait was last read again, comparing the full closing date with the full stamp, a day-only closing taking its time from the record's last write on that same day (on or after its day for a stamp holding only a day; any closing when never read again), or which an increment landed since then, with or without a pull request, names in its body or outcome note; a closing before that stamp, a day-only closing on a timed stamp's day with no same-day write after it, or a withdrawn increment naming it, lists nothing", async () => {
   const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
   const open = (id: string, title: string, more: Record<string, unknown> = {}) => ({ id, fields: { title, status: "active", body: "…", ...more } });
   const shut = (id: string, title: string, body: string, outcome: Record<string, unknown>) => ({ id, fields: { title, status: "closed", body, outcome } });
@@ -376,12 +376,18 @@ test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose in
       open("increment_000000000018", "Re-read the remote"),
       open("increment_000000000019", "Re-read the host"),
       open("increment_000000000020", "Read the remote by day"),
+      open("increment_000000000021", "Re-read the proxy"),
+      open("increment_000000000022", "Re-read the cache"),
+      open("increment_000000000023", "Re-read the gateway"),
       shut("increment_0000000000a1", "Pick the remote", "…", { date: day(-1), disposition: "landed", pr: "#10" }),
       shut("increment_0000000000a2", "Move the remote", "…", { date: day(-3), disposition: "withdrawn", note: "Not needed" }),
       shut("increment_0000000000a3", "Stand up the mirror host", "Does what increment_000000000012 waits for", { date: day(-4), disposition: "landed", pr: "#9", note: "increment_000000000012 can go ahead" }),
       shut("increment_0000000000a4", "Build the release", "…", { date: day(-2), disposition: "landed", pr: "#11" }),
       shut("increment_0000000000a9", "Pick the new remote", "…", { date: day(0), disposition: "landed", pr: "#13" }),
       shut("increment_0000000000aa", "Move the host", "…", { date: `${day(0)}T00:00:02.000Z`, disposition: "landed", pr: "#14" }),
+      { ...shut("increment_0000000000ab", "Move the proxy", "…", { date: day(0), disposition: "landed", pr: "#15" }), updatedAt: `${day(0)}T00:00:05.000Z` },
+      { ...shut("increment_0000000000ac", "Move the cache", "…", { date: day(0), disposition: "landed", pr: "#16" }), updatedAt: `${day(0)}T00:00:03.000Z` },
+      { ...shut("increment_0000000000ad", "Move the gateway", "…", { date: day(-1), disposition: "landed", pr: "#17" }), updatedAt: `${day(0)}T00:00:05.000Z` },
     ] },
     { arc: { id: "arc_keys", fields: { title: "Keys" } }, state: "active", questions: [], increments: [
       shut("increment_0000000000a6", "Rotate keys by hand", "Does the steps of increment_000000000014", { date: day(-1), disposition: "landed", note: "Landed on main with no pull request" }),
@@ -403,6 +409,9 @@ test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose in
       increment_000000000018: owner("Set the remote once increment_0000000000a9 lands", { reviewed: `${day(0)}T00:00:01.000Z` }),
       increment_000000000019: owner("Point at the host once increment_0000000000aa lands", { reviewed: `${day(0)}T00:00:01.000Z` }),
       increment_000000000020: owner("Set the remote by day once increment_0000000000a9 lands", { reviewed: day(0) }),
+      increment_000000000021: owner("Point at the proxy once increment_0000000000ab lands", { reviewed: `${day(0)}T00:00:04.000Z` }),
+      increment_000000000022: owner("Point at the cache once increment_0000000000ac lands", { reviewed: `${day(0)}T00:00:04.000Z` }),
+      increment_000000000023: owner("Point at the gateway once increment_0000000000ad lands", { reviewed: `${day(-1)}T12:00:00.000Z` }),
     },
   };
   const library = { arcViews: async () => views, holds: async () => holds };
@@ -410,7 +419,7 @@ test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose in
     const verb = arcs.verbs.find((one) => one.name === "waits")!;
     const answer = await verb.act(parseArgs(["--audit"], ["audit"], world.folder), { cwd: world.folder, activityContext: async () => ({ library }) } as unknown as Context);
     assert.deepEqual(answer.text.split("\n"), [
-      "7 actions of yours need attention, oldest read first:",
+      "8 actions of yours need attention, oldest read first:",
       "  - increment_000000000017  Name the mirror, on arc_release  Release: its note names increment_0000000000a3, which has closed since it was last read; it has never been read again",
       "      #1  Name the mirror once increment_0000000000a3 lands (why: it unblocks the release)",
       "  - increment_000000000011  Set the push URL, on arc_release  Release: its note names increment_0000000000a1, increment_0000000000a2, which have closed since it was last read",
@@ -425,6 +434,8 @@ test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose in
       "      #1  Set the remote by day once increment_0000000000a9 lands (why: it unblocks the release)",
       "  - increment_000000000019  Re-read the host, on arc_release  Release: its note names increment_0000000000aa, which has closed since it was last read",
       "      #1  Point at the host once increment_0000000000aa lands (why: it unblocks the release)",
+      "  - increment_000000000021  Re-read the proxy, on arc_release  Release: its note names increment_0000000000ab, which has closed since it was last read",
+      "      #1  Point at the proxy once increment_0000000000ab lands (why: it unblocks the release)",
     ]);
   });
 });

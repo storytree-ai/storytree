@@ -163,9 +163,10 @@ for (const backend of [memory, postgres]) {
     const arc = await flight.createArc({ title: "Installer", ...ARC });
     const install = await flight.addIncrement({ arc: arc.id, title: "Real install", ...WORK });
     const day = (offset: number): string => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+    const writing = new Date().toISOString();
     await flight.addWaitFor(install.id, { releaser: "owner", note: "run the NSIS install on the old laptop", why: "the installer is proved on real hardware" });
     await flight.addWaitFor(install.id, { releaser: "event", note: "the next release build", checkBack: day(1) });
-    const owner = { releaser: "owner", note: "run the NSIS install on the old laptop", why: "the installer is proved on real hardware", reviewed: day(0), holds: true };
+    const owner = { releaser: "owner", note: "run the NSIS install on the old laptop", why: "the installer is proved on real hardware", reviewed: readAt((await flight.waitsFor(install.id))[0]?.reviewed, writing), holds: true };
     const event = { releaser: "event", note: "the next release build", checkBack: day(1) };
     assert.deepEqual(await flight.waitsFor(install.id), [owner, { ...event, holds: true }]);
     assert.deepEqual((await flight.holds()).waitsFor?.[install.id], [owner, { ...event, holds: true }]);
@@ -200,4 +201,10 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await flight.waitHolds(fix.id, { claimed: new Set() }), [{ on: expansion.id, reason: "goes after it", forGood: false }]);
     await assert.rejects(flight.addWait(arc.id, surface.id, "?"), MissingReferenceError, "an arc waits on no claim");
   });
+}
+
+function readAt(stamp: unknown, from: string): string {
+  assert.match(String(stamp), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/, `stamped with the instant of the write, not only its day: ${String(stamp)}`);
+  assert.ok(String(stamp) >= from && String(stamp) <= new Date().toISOString(), `${String(stamp)} is the instant of the write, at or after ${from}`);
+  return String(stamp);
 }

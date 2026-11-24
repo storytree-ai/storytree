@@ -1,0 +1,188 @@
+Readings
+  grouping    TurboMQ 1.18 (mean 0.6, 95th percentile 0.77 over 500 random groupings of the same sizes)
+              co-change inside groups 20% (mean 13.7%, 95th percentile 20.2% over 500 random groupings of the same sizes)
+  pairs       node pairs changing together at support 5 or more, by lift:
+    Factory circle and Project libraries: support 6, lift 9.58, Jaccard 0.32
+    Notes and Ranked search: support 8, lift 5.75, Jaccard 0.31
+    Arcs and increments and Waits: support 12, lift 4.8, Jaccard 0.33
+    Plan structure and Work: support 7, lift 4.72, Jaccard 0.22
+    Library API and Work: support 8, lift 3.17, Jaccard 0.15
+    Library commands and Ranked search: support 8, lift 3.01, Jaccard 0.17
+    Library commands and Notes: support 16, lift 2.88, Jaccard 0.31
+    Library API and Rounds: support 5, lift 2.55, Jaccard 0.09
+    Library API and Transactions: support 8, lift 2.38, Jaccard 0.15
+    Owner exchange and Record schema: support 5, lift 2.13, Jaccard 0.08
+    Record schema and Work: support 5, lift 1.66, Jaccard 0.08
+    Record schema and Ranked search: support 6, lift 1.63, Jaccard 0.09
+    Library API and Notes: support 10, lift 1.55, Jaccard 0.16
+    Library API and Project libraries: support 8, lift 1.5, Jaccard 0.13
+    Record schema and Transactions: support 6, lift 1.49, Jaccard 0.09
+    Library API and Record schema: support 23, lift 1.35, Jaccard 0.26
+    Library API and Library commands: support 15, lift 1.22, Jaccard 0.19
+    Library API and Health record: support 8, lift 1.19, Jaccard 0.12
+    Library API and Arcs and increments: support 11, lift 1.12, Jaccard 0.15
+    Plan structure and Record schema: support 11, lift 1.09, Jaccard 0.14
+    Library commands and Record schema: support 15, lift 1.02, Jaccard 0.17
+    Health record and Record schema: support 8, lift 0.99, Jaccard 0.1
+    Library API and Plan structure: support 8, lift 0.95, Jaccard 0.11
+    Project libraries and Record schema: support 6, lift 0.94, Jaccard 0.08
+    Notes and Record schema: support 7, lift 0.91, Jaccard 0.09
+    Arcs and increments and Plan structure: support 5, lift 0.87, Jaccard 0.08
+    Arcs and increments and Record schema: support 8, lift 0.68, Jaccard 0.09
+  nodes       level among siblings, instability, common reuse:
+    Storage: level 1, instability 0.29, common reuse 100%
+    Project libraries: level 2, instability 0.62, common reuse 100%
+    Connections: level 2, instability 0.2, common reuse 75%
+    Transactions: level 1, instability 0, common reuse 100%
+    Record schema: level 2, instability 0.13, common reuse 100%
+    Factory circle: level 2, instability 0.56, common reuse 100%
+    Plugin kinds: level 2, instability 0.6, common reuse 100%
+    The plan: level 1, instability 0.67, common reuse 100%
+    Plan structure: level 1, instability 0.5, common reuse 0%
+    Branch plan changes: level 2, instability 0.71, common reuse 100%
+    Work: level 1, instability 0.5, common reuse 100%
+    Arcs and increments: level 2, instability 0.7, common reuse 66.7%
+    Waits: level 1, instability 0.5, common reuse 0%
+    Owner exchange: level 1, instability 0.57, common reuse 100%
+    Health record: level 1, instability 0.6, common reuse 0%
+    Knowledge: level 1, instability 0.46, common reuse 85.7%
+    Notes: level 2, instability 0.82, common reuse 100%
+    Ranked search: level 1, instability 0.57, common reuse 100%
+    Decisions: level 1, instability 0.44, common reuse 80%
+    The librarian: level 2, instability 1, common reuse none
+    Links: level 1, instability 0.5, common reuse 0%
+    Catalogue: level 1, instability 0.5, common reuse 0%
+    Graduation: level 1, instability 0.5, common reuse 0%
+    Rounds: level 2, instability 0.86, common reuse 0%
+    Library API: level 1, instability 0.32, common reuse 88.2%
+    Library commands: level 1, instability 0.85, common reuse 100%
+    Command schema: level 1, instability 0.3, common reuse 0%
+  cycles      import cycles among siblings:
+    under the top level: Library commands, Command schema, The plan, Work, Health record, Library API, Knowledge, Storage
+    under Storage: Factory circle, Plugin kinds, Record schema, Connections, Project libraries
+  depths
+    depth 1: 9 nodes, 34 sibling import edges
+    depth 2: 18 nodes, 21 sibling import edges
+  boundaries  import edges between nodes, with the types crossing each:
+    Library API → Library commands: Counts, KindCount, RecentChange, TitleHit
+    Library API → Decisions: DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision
+    Library API → Health record: AnnotatedCapability, AnnotatedContract, AnnotatedEdge, AnnotatedStory, AnnotatedTree, CapabilityStatus, CapabilityWhy, ChangedOnMain, EarlierVerdict, FlakeSeen, HealthColumn, HealthColumnName, HealthEntry, HealthOptions, HealthReason, HealthSource, HealthState, HealthWorkItem, NamedOnMain, NodeHealth, OpenWait, PendingRun, SkipKind, VerifiedVerdict
+    Library API → Knowledge: NarrowingDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, PhraseKind, PhraseOptions, PhrasePage, RankOptions, Ranked, Related, RelatedHit, RelatedOptions
+    Library API → Record schema: Agent, CodeEdge, EdgeFile, FieldEdit, FieldsOf, FileImport, KnowledgeKind, Line, LineKind, LinesSince, NewLine, PartClash, PluginRecordKind, PluginUpgradeStep, Precheck, RecordType, ScheduleRule, SchemaRecord, SharedStore, StoreTable, StorySurvey, SurveyedFile, SurveyedPart, SurveyedParts, SurveyedTest, WriteOptions
+    Library API → Storage: ConnectOptions, ConnectionProblem, FactoryLink, OpenOptions, OwnDatabaseOptions, Project, ProjectSnapshot, Reached, SnapshotEvent, SnapshotMedia, SnapshotRecord, Storytree
+    Library API → Transactions: HistoryEntry, HistoryFilter, RecordEnvelope
+    Library API → Work: Anchor, AnchorEdit, AnchorGaps, ArcEdit, ArcNode, ArcState, ArcView, BoardArcView, BoardIncrement, CapabilityEdit, CloseInput, ContractEdit, ContractWriteOptions, DayWindow, Disposition, EdgeEdit, EdgeNode, Hold, Holds, ImportedPluginPlan, IncrementEdit, IncrementStatus, MappedPackage, MappedStories, MovedToEdges, NewArc, NewCapability, NewContract, NewEdge, NewIncrement, NewQuestion, NewStory, NoteWait, OpenListing, ParkedOn, Pended, PendingChange, PlanChange, PluginPlan, PluginPlanCapability, PluginPlanHeld, PrCutover, QuestionLease, Settlement, StoreLink, StoryEdit, SurveyOptions, WaitFor, WorkSurvey
+    Branch plan changes → Library API: no types
+    Branch plan changes → Arcs and increments: no types
+    Branch plan changes → Plan structure: CapabilityNode, EdgeNode, ProjectTree, StoryNode
+    Branch plan changes → Record schema: FieldsOf, SchemaRecord, WriteOptions
+    Branch plan changes → Transactions: HistoryEntry
+    Catalogue → Library API: Library, Note, WriteOptions
+    Catalogue → The librarian: Reference
+    Command schema → Library API: Library, Storytree
+    Command schema → Connections: no types
+    Command schema → Record schema: WriteOptions
+    Library commands → Library API: KnowledgeKind, Library, PendingChange, PhraseKind, PlanChange, RecordType, SchemaRecord, WriteOptions
+    Library commands → Command schema: DoorWords, VerbContext, VerbFamily
+    Library commands → Decisions: no types
+    Library commands → Factory circle: no types
+    Library commands → Knowledge: no types
+    Library commands → Notes: Found, NoteRead, NoteToolContext, Presenter
+    Library commands → Owner exchange: no types
+    Library commands → Project libraries: no types
+    Library commands → Ranked search: no types
+    Library commands → Transactions: no types
+    Library commands → Work: PlanEdit
+    Connections → Project libraries: ConnectOptions, ServerAccess, Transport, WaitBounds
+    Decisions → Library API: Expected, Library, Note, NoteEdit, SchemaRecord, WriteOptions
+    Decisions → Command schema: VerbContext, VerbFamily
+    Decisions → Record schema: FieldsOf, RecordType, SchemaRecord, WriteOptions
+    Decisions → Transactions: HistoryEntry
+    Factory circle → Library API: Library, Reached
+    Factory circle → Command schema: VerbContext
+    Factory circle → Project libraries: no types
+    Factory circle → Record schema: CreateOptions, FieldEdit, FieldsOf, LibrarySchema, RecordType, SchemaRecord, WriteOptions
+    Factory circle → Transactions: HistoryEntry, HistoryFilter, ListFilter, Transactions
+    Graduation → Library API: Library, Note, WriteOptions
+    Graduation → The librarian: no types
+    Health record → Library API: no types
+    Health record → Record schema: FieldsOf, RecordType, SchemaRecord, WriteOptions
+    Health record → Work: Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, Holds, ParkedOn, ProjectTree, StoryNode
+    Arcs and increments → Library API: no types
+    Arcs and increments → Branch plan changes: AppliedPending, Pended, PendingChange, PlanChange, SettledPending, StalePending, UnappliedPending
+    Arcs and increments → Knowledge: no types
+    Arcs and increments → Owner exchange: NewQuestion, Prep, QuestionDeviation, QuestionEdit, QuestionLease, Score, Settlement, WouldBeAnswer
+    Arcs and increments → Plan structure: ProjectTree
+    Arcs and increments → Record schema: FieldsOf, SchemaRecord, WriteOptions
+    Arcs and increments → Waits: ClaimReading, Hold, Holds, NoteWait, Wait, WaitFor, WaitWrite
+    Knowledge → Notes: Findable, NarrowingDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, PhraseKind, PhraseOptions, PhrasePage, PlanKind, RankOptions, Ranked, Ranking, Related, RelatedHit, RelatedOptions
+    Knowledge → Ranked search: Embedder, EmbedderSource, VectorDomain, VectorStore
+    The librarian → Library API: Library, Note
+    The librarian → Catalogue: NewNote
+    The librarian → Decisions: Annotation, Correction, Successor
+    The librarian → Graduation: GraduationKind, MemoryItem, ProcessGaps
+    The librarian → Links: BrokenEdge
+    The librarian → Rounds: RoundDue, ToolAnswer, ToolCall, Worklist, WorklistOptions
+    Links → Library API: Library, Note, Related, SchemaRecord, WriteOptions
+    Links → The librarian: Reference
+    Notes → Library API: Expected, KnowledgeKind, Library, NewLine, Note, NoteEdit, PhraseKind, SchemaRecord, WriteOptions
+    Notes → Command schema: Verb, VerbAnswer, VerbContext, VerbInputs
+    Notes → Library commands: HeldClaim
+    Notes → Decisions: ArchivedDecisionLink, DecisionLinkBacklog, DecisionLinkChanges, DecisionLinkSpan, DecisionNumberPlan, DecisionView, NarrowsMove, NewDecision, SupersessionPairs
+    Notes → Factory circle: no types
+    Notes → Knowledge: no types
+    Notes → Record schema: FieldsOf, KnowledgeKind, SchemaRecord, WriteOptions
+    Notes → Ranked search: EmbedderSource, VectorStore
+    Notes → Transactions: RecordEnvelope
+    Owner exchange → Library API: Expected
+    Owner exchange → Command schema: VerbContext, VerbFamily
+    Owner exchange → Knowledge: no types
+    Owner exchange → Record schema: FieldsOf, RecordType, SchemaRecord, WriteOptions
+    Plan structure → Library API: no types
+    Plan structure → Arcs and increments: PrCutover
+    Plan structure → Record schema: FieldsOf, SchemaRecord, WriteOptions
+    Plugin kinds → Connections: no types
+    Plugin kinds → Project libraries: ConnectOptions, ServerAccess
+    Plugin kinds → Record schema: LibrarySchema, UpgradeStep
+    Project libraries → Command schema: VerbContext, VerbFamily
+    Project libraries → Connections: no types
+    Project libraries → Factory circle: Reached, SystemSwitches
+    Project libraries → Health record: no types
+    Project libraries → Knowledge: EmbedderSource, VectorDomain
+    Project libraries → Record schema: PluginRecordKind
+    Project libraries → Transactions: EditInput, HistoryEntry, HistoryFilter, ListFilter, PoolWaits, RecordEnvelope, RetireInput, RevertInput, RevertWritesInput, RevertedWrite, SaveInput, Transactions
+    Project libraries → Work: no types
+    Rounds → Library API: Library, Related, SchemaRecord, WriteOptions
+    Rounds → Catalogue: MarkedWrite, NewNote
+    Rounds → Decisions: no types
+    Rounds → Graduation: MemoryItem, ProcessGaps
+    Rounds → The librarian: no types
+    Rounds → Links: BrokenEdge
+    Record schema → Plugin kinds: PluginRecordKind, PluginUpgradeStep
+    Record schema → Transactions: HistoryEntry, HistoryFilter, ListFilter, OutsideRead, RecordEnvelope, RevertedWrite, Transactions
+    Ranked search → Library API: Library
+    Ranked search → Command schema: no types
+    Ranked search → Knowledge: Findable, NarrowingDecision, NoteType, PlanKind, Ranked
+    Ranked search → Record schema: SchemaRecord
+    Storage → Connections: ConnectionProblem
+    Storage → Factory circle: FactoryLink, Reached
+    Storage → Plugin kinds: OutsideWriter
+    Storage → Project libraries: ConnectOptions, OpenOptions, OwnDatabaseOptions, Project, ProjectSnapshot, SnapshotEvent, SnapshotMedia, SnapshotRecord, Storytree
+    Storage → Transactions: no types
+    Waits → Library API: no types
+    Waits → Record schema: FieldsOf, SchemaRecord, WriteOptions
+    Work → Branch plan changes: PlanEdit
+    Work → Arcs and increments: ArcEdit, ArcState, ArcView, BoardArcView, BoardIncrement, CloseInput, DayWindow, Disposition, IncrementEdit, IncrementStatus, NewArc, NewIncrement, OpenListing, ParkOptions, ParkedOn, Pended, PendingChange, PlanChange, PrCutover, SurveyOptions, WorkSurvey
+    Work → Owner exchange: DeviationBand, NewQuestion, Prep, QuestionDeviation, QuestionEdit, QuestionLease, Score, Settlement, Verdict, WouldBeAnswer
+    Work → Plan structure: Anchor, AnchorEdit, AnchorGaps, ArcNode, CapabilityEdit, CapabilityNode, ContractEdit, ContractNode, ContractWriteOptions, EdgeEdit, EdgeNode, ImportedPluginPlan, MappedPackage, MappedStories, MovedToEdges, NewCapability, NewContract, NewEdge, NewStory, PluginPlan, PluginPlanCapability, PluginPlanHeld, ProjectTree, StoreLink, StoryEdit, StoryNode
+    Work → Waits: Hold, Holds, NoteWait, WaitFor
+  unplaced    none
+
+Guidance (leads for a story author to weigh, not readings)
+  merge-or-nest: Plan structure and Work change together at lift 4.72 across The plan and Work
+  merge-or-nest: Library API and Work change together at lift 3.17 across Library API and Work
+  merge-or-nest: Library commands and Ranked search change together at lift 3.01 across Library commands and Knowledge
+  merge-or-nest: Library commands and Notes change together at lift 2.88 across Library commands and Knowledge
+  merge-or-nest: Library API and Rounds change together at lift 2.55 across Library API and The librarian
+  merge-or-nest: Library API and Transactions change together at lift 2.38 across Library API and Storage
+  merge-or-nest: Owner exchange and Record schema change together at lift 2.13 across Work and Storage

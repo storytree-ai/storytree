@@ -7,47 +7,8 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { removeTemp } from "@storytree/test-waits";
 
-interface Unit {
-  readonly merge: string;
-  readonly files: readonly string[];
-}
-
-interface Dropped extends Unit {
-  readonly why: "over 30 files" | "rename";
-}
-
-interface Pair {
-  readonly a: string;
-  readonly b: string;
-  readonly support: number;
-  readonly lift: number;
-  readonly jaccard: number;
-}
-
-interface Spread {
-  readonly value: number;
-  readonly mean: number;
-  readonly p95: number;
-}
-
-interface Tree {
-  readonly nodes: readonly { id: string; title: string; parent?: string }[];
-  readonly ownerOf: Readonly<Record<string, string>>;
-  readonly unplaced: readonly string[];
-}
-
-interface CoChangeSeam {
-  readCoChange(folder: string, commit: string): Promise<{ kept: readonly Unit[]; dropped: readonly Dropped[] }>;
-  pairsOf(units: readonly { files: readonly string[] }[], ownerOf: Readonly<Record<string, string>>): Pair[];
-  groupingOf(units: readonly { files: readonly string[] }[], tree: Tree): { mq: Spread; inside: Spread; runs: number };
-}
-
-async function coChange(): Promise<CoChangeSeam> {
-  const module = "./co-change.js";
-  const loaded = (await import(module).catch(() => ({}))) as Record<string, unknown>;
-  for (const name of ["readCoChange", "pairsOf", "groupingOf"]) assert.equal(typeof loaded[name], "function", `${module} exports ${name}`);
-  return loaded as unknown as CoChangeSeam;
-}
+import { groupingOf, pairsOf, readCoChange } from "./co-change.js";
+import type { Tree } from "./tree.js";
 
 function near(actual: number, expected: number, what: string, within = 1e-9): void {
   assert.ok(Math.abs(actual - expected) < within, `${what}: ${actual}, expected ${expected}`);
@@ -134,7 +95,6 @@ function history(t: TestContext): History {
 }
 
 test("5.2 · co-change units are the merges on main's first-parent history, each the source files it changed against its first parent; a unit over 30 source files or with a whole-file rename is dropped as a structural sweep", async (t) => {
-  const { readCoChange } = await coChange();
   const { folder, head, merges } = history(t);
   const read = await readCoChange(folder, head);
 
@@ -157,8 +117,7 @@ test("5.2 · co-change units are the merges on main's first-parent history, each
 const unit = (...files: string[]) => ({ files: files.map((file) => `${SRC}/${file}`) });
 const times = (count: number, made: { files: readonly string[] }) => Array.from({ length: count }, () => made);
 
-test("5.2 · node pairs are ranked by lift, with Jaccard beside it, over the units touching the tree's nodes, at support 5 or more: a hub's frequent pair at chance ranks below a rarer pair that always changes together", async () => {
-  const { pairsOf } = await coChange();
+test("5.2 · node pairs are ranked by lift, with Jaccard beside it, over the units touching the tree's nodes, at support 5 or more: a hub's frequent pair at chance ranks below a rarer pair that always changes together", () => {
   const ownerOf = Object.fromEntries(([["a1.ts", "A"], ["a2.ts", "A"], ["b.ts", "B"], ["c.ts", "C"], ["d.ts", "D"], ["e.ts", "E"], ["h.ts", "H"]] as [string, string][]).map(([file, id]) => [`${SRC}/${file}`, id]));
   const units = [
     ...times(5, unit("b.ts", "c.ts")),
@@ -190,8 +149,7 @@ const GROUPED: Tree = {
   unplaced: [],
 };
 
-test("5.3 · the top-level grouping reads Bunch TurboMQ and the share of co-change inside groups, each beside its mean and 95th percentile over 500 random groupings of the same sizes from a fixed seed, the same on every run", async () => {
-  const { groupingOf } = await coChange();
+test("5.3 · the top-level grouping reads Bunch TurboMQ and the share of co-change inside groups, each beside its mean and 95th percentile over 500 random groupings of the same sizes from a fixed seed, the same on every run", () => {
   const units = [...times(3, unit("a.ts", "b.ts")), ...times(3, unit("c.ts", "d.ts")), unit("a.ts", "c.ts")];
   const read = groupingOf(units, GROUPED);
 

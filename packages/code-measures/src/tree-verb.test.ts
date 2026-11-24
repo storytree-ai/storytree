@@ -11,39 +11,8 @@ import { removeTemp } from "@storytree/test-waits";
 
 import { CODE_MEASURES_FAMILIES } from "./verbs.js";
 
-interface TreeNode {
-  readonly id: string;
-  readonly title: string;
-  readonly parent?: string;
-}
-
-interface Tree {
-  readonly nodes: readonly TreeNode[];
-  readonly ownerOf: Readonly<Record<string, string>>;
-  readonly unplaced: readonly string[];
-}
-
-type Lead =
-  | { readonly kind: "merge-or-nest"; readonly a: string; readonly b: string; readonly lift: number }
-  | { readonly kind: "no-change-family"; readonly parent: string; readonly lift: number };
-
-interface Scorecard {
-  readonly nodes: readonly TreeNode[];
-  readonly readings: Readonly<Record<string, unknown>>;
-  readonly guidance: readonly Lead[];
-}
-
-interface ScorecardSeam {
-  scorecardOf(input: { tree: Tree; units: readonly { files: readonly string[] }[]; imports: readonly { from: string; to: string; types?: readonly string[] }[] }): Scorecard;
-  scorecardText(card: Scorecard): string;
-}
-
-async function scorecards(): Promise<ScorecardSeam> {
-  const module = "./scorecard.js";
-  const loaded = (await import(module).catch(() => ({}))) as Record<string, unknown>;
-  for (const name of ["scorecardOf", "scorecardText"]) assert.equal(typeof loaded[name], "function", `${module} exports ${name}`);
-  return loaded as unknown as ScorecardSeam;
-}
+import { scorecardOf, scorecardText, type Lead, type Scorecard } from "./scorecard.js";
+import type { Tree } from "./tree.js";
 
 const SRC = "packages/p/src";
 const unit = (...files: string[]) => ({ files: files.map((file) => `${SRC}/${file}`) });
@@ -72,8 +41,7 @@ const UNITS = [
 
 const leadsOf = (guidance: readonly Lead[]) => guidance.map((lead) => (lead.kind === "merge-or-nest" ? [lead.kind, [lead.a, lead.b].sort(), lead.lift] : [lead.kind, lead.parent, lead.lift])).sort((x, y) => String(x[0]).localeCompare(String(y[0])));
 
-test("5.9 · the scorecard's guidance leads are merge-or-nest for a pair at lift 2 or more split across top-level groups, and no change family for a parent whose children's pairs average lift 1 or less, apart from its readings", async () => {
-  const { scorecardOf } = await scorecards();
+test("5.9 · the scorecard's guidance leads are merge-or-nest for a pair at lift 2 or more split across top-level groups, and no change family for a parent whose children's pairs average lift 1 or less, apart from its readings", () => {
   const card = scorecardOf({ tree: TREE, units: UNITS, imports: [] });
   assert.deepEqual(leadsOf(card.guidance), [
     ["merge-or-nest", ["A", "C"], 2],
@@ -82,8 +50,7 @@ test("5.9 · the scorecard's guidance leads are merge-or-nest for a pair at lift
   assert.deepEqual(Object.keys(card.readings).sort(), ["boundaries", "cycles", "depths", "grouping", "nodes", "pairs", "unplaced"], "every measured reading on the card, the leads apart from them");
 });
 
-test("5.9 · the printed scorecard puts the readings first and the leads under a Guidance heading after them, each naming its nodes by title, with no verdict", async () => {
-  const { scorecardOf, scorecardText } = await scorecards();
+test("5.9 · the printed scorecard puts the readings first and the leads under a Guidance heading after them, each naming its nodes by title, with no verdict", () => {
   const text = scorecardText(scorecardOf({ tree: TREE, units: UNITS, imports: [] }));
   const at = text.search(/^Guidance\b/m);
   assert.ok(at > 0, `a Guidance heading after the readings:\n${text}`);

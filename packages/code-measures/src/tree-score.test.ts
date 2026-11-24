@@ -3,66 +3,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { VerbRefusal } from "@storytree/library/verbs";
 
+import { planTreeOf, proposedTreeOf, type Tree } from "./tree.js";
+import { importsOf, treeStructureOf, type Import, type NodeStructure, type TreeStructure } from "./tree-structure.js";
 import type { SourceText } from "./index.js";
-
-interface TreeNode {
-  readonly id: string;
-  readonly title: string;
-  readonly parent?: string;
-}
-
-interface Tree {
-  readonly nodes: readonly TreeNode[];
-  readonly ownerOf: Readonly<Record<string, string>>;
-  readonly unplaced: readonly string[];
-}
-
-interface ProposedNode {
-  readonly id: string;
-  readonly title: string;
-  readonly parent?: string;
-  readonly files?: readonly string[];
-  readonly capabilities?: readonly number[];
-}
-
-interface TreeSeam {
-  planTreeOf(capabilities: readonly { id: string; title: string; parent?: string }[], files: readonly { path: string; capability?: string }[]): Tree;
-  proposedTreeOf(proposal: { nodes: readonly ProposedNode[] }, plan: Tree): Tree;
-}
-
-interface Import {
-  readonly from: string;
-  readonly to: string;
-  readonly types?: readonly string[];
-}
-
-interface NodeStructure {
-  readonly id: string;
-  readonly commonReuse: number | null;
-  readonly level: number;
-  readonly instability: number | null;
-}
-
-interface TreeStructure {
-  readonly nodes: readonly NodeStructure[];
-  readonly cycles: readonly { parent: string | null; members: readonly string[] }[];
-  readonly depths: readonly { depth: number; nodes: number; edges: number }[];
-  readonly boundaries: readonly { from: string; to: string; types: readonly string[] }[];
-}
-
-interface StructureSeam {
-  treeStructureOf(tree: Tree, imports: readonly Import[]): TreeStructure;
-  importsOf(files: readonly SourceText[]): Import[];
-}
-
-async function seam<T>(module: string, names: readonly string[]): Promise<T> {
-  const loaded = (await import(module).catch(() => ({}))) as Record<string, unknown>;
-  for (const name of names) assert.equal(typeof loaded[name], "function", `${module} exports ${name}`);
-  return loaded as T;
-}
-
-const trees = () => seam<TreeSeam>("./tree.js", ["planTreeOf", "proposedTreeOf"]);
-const structures = () => seam<StructureSeam>("./tree-structure.js", ["treeStructureOf", "importsOf"]);
 
 const READING = "capability_000000000001";
 const WRITING = "capability_000000000002";
@@ -91,8 +34,7 @@ const shape = (tree: Tree) => ({
   unplaced: [...tree.unplaced].sort(),
 });
 
-test("5.1 · the plan's tree nests the story's capabilities by parent and places each source file in the capability the owner rule gives it, a file it gives none named unplaced", async () => {
-  const { planTreeOf } = await trees();
+test("5.1 · the plan's tree nests the story's capabilities by parent and places each source file in the capability the owner rule gives it, a file it gives none named unplaced", () => {
   assert.deepEqual(shape(planTreeOf(CAPABILITIES, FILES)), {
     nodes: [
       [READING, "1 · Reading", null],
@@ -110,8 +52,7 @@ test("5.1 · the plan's tree nests the story's capabilities by parent and places
   });
 });
 
-test("5.1 · a proposed tree file's leaves take files by path or by capability number, the files the plan gives that capability; a story file no node takes is named unplaced", async () => {
-  const { planTreeOf, proposedTreeOf } = await trees();
+test("5.1 · a proposed tree file's leaves take files by path or by capability number, the files the plan gives that capability; a story file no node takes is named unplaced", () => {
   const plan = planTreeOf(CAPABILITIES, FILES);
   const proposed = proposedTreeOf({
     nodes: [
@@ -136,8 +77,7 @@ test("5.1 · a proposed tree file's leaves take files by path or by capability n
   });
 });
 
-test("5.1 · a proposed tree file giving one file to two nodes is refused, naming the file and both nodes", async () => {
-  const { planTreeOf, proposedTreeOf } = await trees();
+test("5.1 · a proposed tree file giving one file to two nodes is refused, naming the file and both nodes", () => {
   const plan = planTreeOf(CAPABILITIES, FILES);
   assert.throws(
     () => proposedTreeOf({
@@ -166,8 +106,7 @@ const edges = (pairs: readonly (readonly [string, string])[]): Import[] => pairs
 
 const byId = (structure: TreeStructure, pick: (node: NodeStructure) => unknown) => Object.fromEntries([...structure.nodes].map((node) => [node.id, pick(node)]));
 
-test("5.4 · a node's Common Reuse is the share of the other nodes importing it that import only part of the files imported into it from outside; a node nothing imports reads none", async () => {
-  const { treeStructureOf } = await structures();
+test("5.4 · a node's Common Reuse is the share of the other nodes importing it that import only part of the files imported into it from outside; a node nothing imports reads none", () => {
   const tree = flat({ X: ["x/one.ts", "x/two.ts", "x/three.ts"], Y: ["y.ts"], Z: ["z.ts"], W: ["w.ts"] });
   const imports = edges([
     ["y.ts", "x/one.ts"], ["y.ts", "x/two.ts"],
@@ -198,8 +137,7 @@ const NESTED_IMPORTS = edges([
   ["a.ts", "q1.ts"], ["d.ts", "q1.ts"], ["q1.ts", "b.ts"],
 ]);
 
-test("5.5 · import cycles among sibling nodes, a parent's through its children's files, are named under their parent as strongly connected sets of two or more", async () => {
-  const { treeStructureOf } = await structures();
+test("5.5 · import cycles among sibling nodes, a parent's through its children's files, are named under their parent as strongly connected sets of two or more", () => {
   const cycles = treeStructureOf(NESTED, NESTED_IMPORTS).cycles.map(({ parent, members }) => [parent, [...members].sort()]).sort(([a], [b]) => String(a).localeCompare(String(b)));
   assert.deepEqual(cycles, [
     ["P", ["A", "B", "C"]],
@@ -207,8 +145,7 @@ test("5.5 · import cycles among sibling nodes, a parent's through its children'
   ].sort(([a], [b]) => String(a).localeCompare(String(b))));
 });
 
-test("5.6 · each node's Lakos level among its siblings, a cycle's members sharing one, and its instability Ce/(Ca+Ce) counting nodes, not import lines; none for a node with neither", async () => {
-  const { treeStructureOf } = await structures();
+test("5.6 · each node's Lakos level among its siblings, a cycle's members sharing one, and its instability Ce/(Ca+Ce) counting nodes, not import lines; none for a node with neither", () => {
   const tree = flat({ A: ["a1.ts", "a2.ts"], B: ["b.ts"], C: ["c.ts"], D: ["d.ts"], E: ["e1.ts", "e2.ts"], F: ["f.ts"] });
   const imports = edges([
     ["a1.ts", "b.ts"], ["b.ts", "a1.ts"],
@@ -224,8 +161,7 @@ test("5.6 · each node's Lakos level among its siblings, a cycle's members shari
   assert.deepEqual(nested, { P: 1, Q: 1, A: 1, B: 1, C: 1, D: 2, Q1: 1, Q2: 1 }, "levels are read among siblings only: Q1's import of B, a node under another parent, raises no level");
 });
 
-test("5.7 · each depth of the tree reads its node count and the import edges among siblings at that depth, one per importing and imported node, not per import line", async () => {
-  const { treeStructureOf } = await structures();
+test("5.7 · each depth of the tree reads its node count and the import edges among siblings at that depth, one per importing and imported node, not per import line", () => {
   const depths = [...treeStructureOf(NESTED, NESTED_IMPORTS).depths].sort((a, b) => a.depth - b.depth);
   assert.deepEqual(depths, [
     { depth: 1, nodes: 2, edges: 2 },
@@ -235,8 +171,7 @@ test("5.7 · each depth of the tree reads its node count and the import edges am
 
 const source = (file: string, lines: readonly string[]): SourceText => ({ path: `${SOURCE}/${file}`, text: `${lines.join("\n")}\n` });
 
-test("5.8 · each boundary, an import edge from one node to another, lists the type and interface names imported across it, never values, classes or enums, and a boundary crossed by values only lists none", async () => {
-  const { importsOf, treeStructureOf } = await structures();
+test("5.8 · each boundary, an import edge from one node to another, lists the type and interface names imported across it, through a barrel's export * too, never values, classes or enums, and a boundary crossed by values only lists none", () => {
   const files = [
     source("x/shapes.ts", [
       "export interface Shape { readonly side: number }",
@@ -261,12 +196,15 @@ test("5.8 · each boundary, an import edge from one node to another, lists the t
       "export const t: Thing | undefined = undefined;",
     ]),
     source("w/plain.ts", ['import { unit } from "../x/shapes.js";', "export const twice = unit * 2;"]),
+    source("x/index.ts", ['export * from "./shapes.js";']),
+    source("v/barrel.ts", ['import { unit, Shape } from "../x/index.js";', "export const v: Shape = { side: unit };"]),
   ];
-  const tree = flat({ X: ["x/shapes.ts", "x/area.ts"], Y: ["y/use.ts"], Z: ["z/more.ts"], W: ["w/plain.ts"] });
+  const tree = flat({ X: ["x/shapes.ts", "x/area.ts", "x/index.ts"], Y: ["y/use.ts"], Z: ["z/more.ts"], W: ["w/plain.ts"], V: ["v/barrel.ts"] });
   const boundaries = treeStructureOf(tree, importsOf(files)).boundaries
     .map(({ from, to, types }) => [`${from}→${to}`, [...types].sort()])
     .sort(([a], [b]) => String(a).localeCompare(String(b)));
   assert.deepEqual(boundaries, [
+    ["V→X", ["Shape"]],
     ["W→X", []],
     ["Y→X", ["Colour", "Shape"]],
     ["Z→X", ["Shape"]],

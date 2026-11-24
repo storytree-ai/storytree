@@ -134,3 +134,5 @@ registry. Watch it after the refactor; do not merge.
   unpushed bundle). Source files only, merges over 30 source files dropped, paths traced through later
   renames: 185 pull requests touch the library. Ranked by lift, support at least 5 unless marked weak.
 - The scorer: `code-measures tree` as above, on the plan and on `tree.json`.
+
+In the evidence bucket for #1157, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `1157/tree.png`.

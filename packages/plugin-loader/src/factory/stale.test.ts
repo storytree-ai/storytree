@@ -1,6 +1,6 @@
 // Capability 5 · Factory plugins
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { createServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
@@ -133,6 +133,44 @@ test("5.25 · factoryStale answers within 5 s, counting 2 behind from origin/mai
   } finally {
     for (const socket of held) socket.destroy();
     await new Promise((closed) => server.close(closed));
+  }
+});
+
+test("5.25 · the fetch factoryStale starts outlives a Ctrl-C to the command's process group, its connection to the origin still open after the command has gone", { timeout: 60_000, skip: process.platform === "win32" ? "platform: a process group signalled as one is POSIX's" : false }, async (t) => {
+  const { factory, pushFromElsewhere, fetch, lastFetchedAgo } = world(t);
+  pushFromElsewhere(2);
+  fetch();
+  const held: Socket[] = [];
+  let closed = 0;
+  const server = createServer((socket) => {
+    socket.on("error", () => {});
+    socket.on("close", () => closed++);
+    socket.resume();
+    held.push(socket);
+  });
+  await new Promise<void>((listening) => server.listen(0, "127.0.0.1", listening));
+  let group: number | undefined;
+  try {
+    const { port } = server.address() as { port: number };
+    git(factory, "remote", "set-url", "origin", `git://127.0.0.1:${port}/origin.git`);
+    lastFetchedAgo(10 * MINUTE);
+    const command = `const { factoryStale } = await import(${JSON.stringify(new URL("./factory.ts", import.meta.url).href)}); process.stdout.write(((await factoryStale(${JSON.stringify(factory)})) ?? "nothing") + "\\n"); setInterval(() => {}, 1000);`;
+    const child = spawn(process.execPath, ["--import", import.meta.resolve("tsx"), "--input-type=module", "--eval", command], { detached: true, stdio: ["ignore", "pipe", "inherit"] });
+    group = child.pid;
+    let said = "";
+    child.stdout.on("data", (chunk: Buffer) => (said += chunk.toString()));
+    const gone = new Promise((exited) => child.on("exit", exited));
+    await waitUntil(() => said.includes("\n"), 20_000, "the command's answer");
+    assert.match(said, /behind origin\/main by 2 commits/);
+    await waitUntil(() => held.length > 0, 10_000, "the fetch factoryStale started to reach the origin");
+    process.kill(-group!, "SIGINT");
+    await gone;
+    group = undefined;
+    await quietFor(() => closed > 0, 1000, "the fetch dying with the command's process group");
+  } finally {
+    if (group !== undefined) process.kill(-group, "SIGKILL");
+    for (const socket of held) socket.destroy();
+    await new Promise((done) => server.close(done));
   }
 });
 

@@ -338,9 +338,12 @@ test("10.17 park_increment parks an increment born waiting for the owner with it
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
+      const parking = new Date().toISOString();
       const install = idOf(await agent.call("park_increment", { arc, title: "Real install", objective: "Install it", body: "Run it on the old laptop", wait_for_owner: "power on the old laptop", wait_for_owner_why: "it unblocks the work", wait_for_owner_rank: 3 }));
-      const today = new Date().toISOString().slice(0, 10);
-      assert.deepEqual(await library.waitsFor(install), [{ releaser: "owner", note: "power on the old laptop", why: "it unblocks the work", rank: 3, reviewed: today, holds: true }]);
+      const stamp = String((await library.waitsFor(install))[0]?.reviewed);
+      assert.match(stamp, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/, `stamped with the instant of the write, not only its day: ${stamp}`);
+      assert.ok(stamp >= parking && stamp <= new Date().toISOString(), `${stamp} is the instant of the write, at or after ${parking}`);
+      assert.deepEqual(await library.waitsFor(install), [{ releaser: "owner", note: "power on the old laptop", why: "it unblocks the work", rank: 3, reviewed: stamp, holds: true }]);
       const unjustified = await agent.call("park_increment", { arc, title: "Sign in", objective: "Sign in", body: "Sign in", wait_for_owner: "sign in" });
       assert.equal(unjustified.isError, true, "an owner action is parked with its why");
       assert.match(unjustified.text, /needs a why/);

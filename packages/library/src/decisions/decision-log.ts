@@ -77,6 +77,32 @@ export interface DecisionLinkBacklog {
   readonly targets: readonly DecisionLinkTarget[];
 }
 
+export interface DecisionLinkCounts {
+  readonly pruned: number;
+  readonly restored: number;
+  readonly justified: number;
+  readonly corrected: number;
+  readonly added: number;
+  readonly decisions: number;
+}
+
+export interface DecisionLinkDay extends DecisionLinkCounts {
+  readonly day: string;
+}
+
+export interface DecisionLinkChanges {
+  readonly days: DecisionLinkDay[];
+  readonly total: DecisionLinkCounts;
+}
+
+export interface DecisionLinkSpan {
+  readonly from?: string | undefined;
+  readonly to?: string | undefined;
+  readonly by?: string | undefined;
+}
+
+type LinkChange = "pruned" | "restored" | "justified" | "corrected" | "added";
+
 const EDGE_FIELDS = ["links", "supersedes", "supersedesClauses", "narrows", "justifications"];
 
 export function decisionEdgeTargets(fields: object): string[] {
@@ -427,6 +453,33 @@ export class DecisionLog {
     return { links, decisions, targets };
   }
 
+  async decisionLinkChanges({ from, to, by }: DecisionLinkSpan = {}): Promise<DecisionLinkChanges> {
+    const history = (await this.#records.history({ types: ["decision"], fields: [...EDGE_FIELDS, "archivedLinks"] })).filter((entry) => entry.action !== "retired");
+    const decisions = new Set(history.map((entry) => entry.recordId));
+    const previous = new Map<string, Record<string, unknown>>();
+    const days = new Map<string, { counts: Record<LinkChange, number>; touched: Set<string> }>();
+    const total = { counts: noLinkChanges(), touched: new Set<string>() };
+    for (const entry of history) {
+      const before = previous.get(entry.recordId) ?? {};
+      const after = entry.record.fields;
+      previous.set(entry.recordId, after);
+      const day = entry.at.slice(0, 10);
+      if ((from !== undefined && day < from) || (to !== undefined && day > to) || (by !== undefined && entry.actor !== by)) continue;
+      const counts = linkChanges(before, after, decisions);
+      if (Object.values(counts).every((count) => count === 0)) continue;
+      const tally = days.get(day) ?? { counts: noLinkChanges(), touched: new Set<string>() };
+      days.set(day, tally);
+      for (const into of [tally, total]) {
+        for (const kind of Object.keys(counts) as LinkChange[]) into.counts[kind] += counts[kind];
+        into.touched.add(entry.recordId);
+      }
+    }
+    return {
+      days: [...days].sort(([a], [b]) => (a < b ? -1 : 1)).map(([day, tally]) => ({ day, ...tally.counts, decisions: tally.touched.size })),
+      total: { ...total.counts, decisions: total.touched.size },
+    };
+  }
+
   async archivedLinks(from?: string): Promise<ArchivedDecisionLink[]> {
     const all = [...(await this.#records.list("decision"))].sort(byCreation);
     return all.filter((record) => from === undefined || record.id === from).flatMap((record) => (record.fields.archivedLinks ?? []).map((archived) => ({ from: record.id, ...archived })));
@@ -463,6 +516,42 @@ function notesIn(text: string, byNumber: ReadonlyMap<number, string>): string[] 
     const id = byNumber.get(Number(named.slice(4)));
     return id === undefined ? [] : [id];
   });
+}
+
+function noLinkChanges(): Record<LinkChange, number> {
+  return { pruned: 0, restored: 0, justified: 0, corrected: 0, added: 0 };
+}
+
+function archiveOf(fields: Record<string, unknown>): Map<string, string> {
+  return new Map((listOf(fields.archivedLinks) as ArchivedLink[]).map((archived) => [`${archived.to}|${archived.field}|${archived.at}`, archived.to]));
+}
+
+function edgesOf(fields: Record<string, unknown>, decisions: ReadonlySet<string>): Map<string, string> {
+  const clauses = listOf(fields.supersedesClauses) as ClauseSupersession[];
+  return new Map(decisionEdgeTargets(fields).filter((target) => decisions.has(target)).map((target) => {
+    const held = ["links", "supersedes", "narrows"].filter((field) => listOf(fields[field]).includes(target));
+    const entry = clauses.find((one) => one.decision === target);
+    const partly = entry === undefined ? [] : [`supersedesClauses ${[...(entry.clauses ?? [])].sort().join(",")}`];
+    return [target, [...held, ...partly].join(" ")];
+  }));
+}
+
+function linkChanges(before: Record<string, unknown>, after: Record<string, unknown>, decisions: ReadonlySet<string>): Record<LinkChange, number> {
+  const was = archiveOf(before);
+  const now = archiveOf(after);
+  const restored = [...was].filter(([key]) => !now.has(key));
+  const back = new Set(restored.map(([, target]) => target));
+  const edgesBefore = edgesOf(before, decisions);
+  const edgesAfter = edgesOf(after, decisions);
+  const justification = (fields: Record<string, unknown>, target: string): unknown => (fields.justifications as Record<string, unknown> | undefined)?.[target];
+  const kept = [...edgesAfter].filter(([target]) => edgesBefore.has(target));
+  return {
+    pruned: [...now.keys()].filter((key) => !was.has(key)).length,
+    restored: restored.length,
+    justified: kept.filter(([target]) => justification(after, target) !== undefined && justification(after, target) !== justification(before, target)).length,
+    corrected: kept.filter(([target, shape]) => edgesBefore.get(target) !== shape).length,
+    added: [...edgesAfter.keys()].filter((target) => !edgesBefore.has(target) && !back.has(target)).length,
+  };
 }
 
 function listOf(value: unknown): unknown[] {

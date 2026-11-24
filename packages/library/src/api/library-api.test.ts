@@ -137,6 +137,7 @@ const LIBRARY_API = [
   "moveNarrowsToClauses",
   "supersessionPairs",
   "decisionLinkBacklog",
+  "decisionLinkChanges",
   "pruneLink",
   "restoreLink",
   "archivedLinks",

@@ -348,3 +348,50 @@ test("13.24 · decision(id) carries supersededInPart, each accepted decision sup
   assert.match(pushed.text, /^No change/);
   assert.deepEqual((await library.changesSince(cursor)).changes, []);
 });
+
+test("13.27 · decisionLinkChanges and `adr changes` count, per UTC day and in total, decision links pruned, restored (not also added), justified, corrected and added and the decisions touched, never a link to a story or a text edit; --by keeps one writer's writes, a span with none says so, and pruned matches the archive", async (t) => {
+  const { library, records, context, verbOf } = await adrWorld(t);
+  const a = { actor: "session:s" };
+  const b = { actor: "session:t" };
+  const other = { ...context, writer: b } as VerbContext;
+  const story = await library.addStory({ title: "Mail" }, a);
+  const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." }, a);
+  const log = await library.recordDecision({ status: "accepted", title: "Mail is logged", text: "Log it." }, a);
+  const hand = await library.recordDecision({ status: "accepted", title: "Mail by hand", text: "D1. By hand. D2. Signed. D3. Filed." }, a);
+  const retries = await library.recordDecision({ status: "accepted", title: "Retries", text: "Retry twice.", links: [queue.id], justifications: { [queue.id]: "Follow it for where a retry waits." } } as never, a);
+  const old = await records.create("decision", { status: "accepted", title: "Bounces", text: "Drop them.", links: [log.id, story.id] }, a);
+  const signed = await library.recordDecision({ status: "accepted", title: "Signatures", text: "Sign twice.", supersedesClauses: [{ decision: hand.id, clauses: ["D1"] }], justifications: { [hand.id]: "Follow it for who signs." } } as never, a);
+
+  const day = new Date().toISOString().slice(0, 10);
+  const span = { from: day, to: day };
+  const none = { pruned: 0, restored: 0, justified: 0, corrected: 0, added: 0, decisions: 0 };
+  assert.deepEqual((await library.decisionLinkChanges(span)).total, { ...none, added: 3, decisions: 3 }, "three decision links added on creation, the story link not counted");
+
+  await library.editNote(old.id, { justifications: { [log.id]: "Follow it for where bounces are logged." } } as never, b);
+  await library.editNote(signed.id, { supersedesClauses: [{ decision: hand.id, clauses: ["D1", "D2"] }] } as never, a);
+  await library.editNote(queue.id, { text: "Queue it, always." }, b);
+  await library.pruneLink(retries.id, queue.id, "The queue rule moved.", a);
+  assert.equal((await library.decisionLinkChanges(span)).total.pruned, (await library.archivedLinks()).length, "pruned equals the archive's entries");
+  await library.restoreLink(retries.id, queue.id, undefined, b);
+
+  const total = { pruned: 1, restored: 1, justified: 1, corrected: 1, added: 3, decisions: 3 };
+  assert.deepEqual(await library.decisionLinkChanges(span), { days: [{ day, ...total }], total });
+  assert.deepEqual(await library.decisionLinkChanges({}), { days: [{ day, ...total }], total }, "an open span reads every day");
+  assert.deepEqual((await library.decisionLinkChanges({ ...span, by: b.actor })).total, { ...none, restored: 1, justified: 1, decisions: 2 }, "only the second writer's writes");
+  assert.deepEqual(await library.decisionLinkChanges({ from: "2000-01-01", to: "2000-01-01" }), { days: [], total: none });
+
+  const counts = ["pruned 1", "restored 1", "justified 1", "corrected 1", "added 3", "decisions 3"];
+  const text = (await verbOf("changes").act({ from: day, to: day, by: undefined } as never, context, WORDS)).text;
+  const dayLine = text.split("\n").find((line) => line.startsWith(day));
+  const totalLine = text.split("\n").find((line) => line.startsWith("total"));
+  for (const count of counts) {
+    assert.ok(dayLine?.includes(count) === true && totalLine?.includes(count) === true, `${count} on the day and total lines:\n${text}`);
+  }
+  const byText = (await verbOf("changes").act({ from: day, to: day, by: b.actor } as never, other, WORDS)).text;
+  const byTotal = byText.split("\n").find((line) => line.startsWith("total"));
+  for (const count of ["pruned 0", "restored 1", "justified 1", "corrected 0", "added 0", "decisions 2"]) {
+    assert.ok(byTotal?.includes(count) === true, `${count} on --by's total line:\n${byText}`);
+  }
+  const empty = (await verbOf("changes").act({ from: "2000-01-01", to: "2000-01-01", by: undefined } as never, context, WORDS)).text;
+  assert.ok(empty.includes("No decision link changed") && empty.includes("2000-01-01"), empty);
+});

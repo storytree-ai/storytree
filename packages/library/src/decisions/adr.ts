@@ -287,6 +287,23 @@ const backlog = verb({
   },
 });
 
+const changes = verb({
+  command: { family: "adr", name: "changes", summary: "count, per UTC day and in total, the decision links pruned, restored, justified, corrected and added, and the decisions touched", usage: "adr changes [--from <day>] [--to <day>] [--by <writer>]" },
+  tool: { absent: NO_TOOL },
+  inputs: {
+    from: { kind: "text", optional: true, describe: "the first UTC day counted, YYYY-MM-DD" },
+    to: { kind: "text", optional: true, describe: "the last UTC day counted, YYYY-MM-DD" },
+    by: { kind: "text", optional: true, describe: "only this writer's writes, such as session:<id>" },
+  },
+  async act({ from, to, by }, context: VerbContext) {
+    const { days, total } = await context.library.decisionLinkChanges({ from, to, by });
+    const span = `from ${from ?? "the start"} to ${to ?? "now"}${by === undefined ? "" : ` by ${by}`}`;
+    if (days.length === 0) return { text: `No decision link changed ${span}.` };
+    const counts = (one: typeof total): string => `pruned ${one.pruned} · restored ${one.restored} · justified ${one.justified} · corrected ${one.corrected} · added ${one.added} · decisions ${one.decisions}`;
+    return { text: [`Decision link changes ${span}:`, ...days.map((one) => `${one.day}  ${counts(one)}`), `total       ${counts(total)}`].join("\n") };
+  },
+});
+
 async function refused<T>(write: () => Promise<T>): Promise<T> {
   try {
     return await write();
@@ -344,8 +361,8 @@ const restore = verb({
 
 export const ADR_FAMILY: VerbFamily = {
   name: "adr",
-  summary: "the decision log: new, pull, push, compose, list, move-narrows, pairs, backlog, prune, pruned, restore",
+  summary: "the decision log: new, pull, push, compose, list, move-narrows, pairs, backlog, changes, prune, pruned, restore",
   order: 4,
   guesses: { read: "adr pull <decision>", get: "adr pull <decision>", open: "adr pull <decision>" },
-  verbs: [list, create, pull, push, compose, moveNarrows, pairs, backlog, prune, pruned, restore],
+  verbs: [list, create, pull, push, compose, moveNarrows, pairs, backlog, changes, prune, pruned, restore],
 };

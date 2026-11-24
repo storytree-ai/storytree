@@ -136,7 +136,7 @@ test("5.25 · factoryStale answers within 5 s, counting 2 behind from origin/mai
   }
 });
 
-test("5.25 · the fetch factoryStale starts outlives a Ctrl-C to the command's process group, its connection to the origin still open after the command has gone", { timeout: 60_000, skip: process.platform === "win32" ? "platform: a process group signalled as one is POSIX's" : false }, async (t) => {
+test("5.25 · the fetch factoryStale starts outlives a Ctrl-C to the command's process group, its connection to the origin still open after the command has gone", { timeout: 60_000, skip: process.platform === "win32" ? "platform:linux: a process group signalled as one is POSIX's; Linux CI runs this proof" : false }, async (t) => {
   const { factory, pushFromElsewhere, fetch, lastFetchedAgo } = world(t);
   pushFromElsewhere(2);
   fetch();

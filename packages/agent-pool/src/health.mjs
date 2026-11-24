@@ -3,9 +3,12 @@ import { execFile } from "node:child_process";
 import { open, readdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
+import { storytreeHome } from "@storytree/project-and-caller";
+
+import { agentRunnerEntry } from "./interface.mjs";
 import { poolConfig, readCap } from "./pool-config.mjs";
 import { countEngines } from "./queue.mjs";
 import { readPull, repoOf } from "./watch.mjs";
@@ -163,6 +166,11 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
 }
 
 export async function main(args, box = {}) {
+  const entry = agentRunnerEntry("./health", box.storytreeHome ?? storytreeHome());
+  if (entry !== fileURLToPath(import.meta.url)) {
+    const plugin = await import(pathToFileURL(entry).href);
+    return await plugin.main(args);
+  }
   const b = { ...boxDefaults({ home: box.home, env: box.env }), ...box };
   const { concerns, details, summary } = await poolHealth(b);
   for (const concern of concerns) b.out(`concern: ${concern}`);

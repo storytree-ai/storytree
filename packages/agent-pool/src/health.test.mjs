@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+
+import { setFactory, setPartOff } from "@storytree/project-and-caller";
+import { removeTemp } from "@storytree/test-waits";
 
 import { main } from "./health.mjs";
 
@@ -19,7 +22,7 @@ const green = (extra = {}) => ({
 
 async function box(t, { status = [], live = { 100: "node launch.mjs pool", 200: "node watch.mjs run" }, engines = 2, cap = 5, pulls = {}, serviceOn = false } = {}) {
   const lanesDir = await mkdtemp(join(tmpdir(), "pool-health-"));
-  t.after(() => rm(lanesDir, { recursive: true, force: true }));
+  t.after(() => removeTemp(lanesDir));
   await mkdir(join(lanesDir, "watch"));
   await writeFile(join(lanesDir, "pool.pid"), "100\n");
   await writeFile(join(lanesDir, "watch", "watch.pid"), "200\n");
@@ -27,7 +30,7 @@ async function box(t, { status = [], live = { 100: "node launch.mjs pool", 200: 
   const lines = [];
   return {
     lanesDir, lines,
-    b: { lanesDir, credentials: join(lanesDir, "no-credentials.json"), now: () => NOW, out: (line) => lines.push(line), argsOf: async (pid) => live[pid] ?? "",
+    b: { lanesDir, storytreeHome: lanesDir, credentials: join(lanesDir, "no-credentials.json"), now: () => NOW, out: (line) => lines.push(line), argsOf: async (pid) => live[pid] ?? "",
       count: async () => engines, maxLanes: async () => cap, serviceOn: async () => serviceOn,
       pull: async (pr) => { if (!pulls[pr]) throw new Error("not found"); return pulls[pr]; } },
   };
@@ -216,4 +219,55 @@ test("8.5 · a hand-off's merge-queue removal is read from its last fix session,
   await main(["--all"], b);
   assert.ok(lines.includes("hand-off PR #41 increment_a: handed 30m ago, red (the merge queue removed it (FAILED_CHECKS) and did not take it back), 0 fix sessions"), lines.join("\n"));
   assert.ok(lines.includes("hand-off PR #42 increment_b: handed 30m ago, pending, 1 fix session"), lines.join("\n"));
+});
+
+async function standIn(t, { off = true, health = true } = {}) {
+  const at = await realpath(await mkdtemp(join(tmpdir(), "pool-health-home-")));
+  t.after(() => removeTemp(at));
+  const plugin = join(at, "factory", "plugins", "my-runner");
+  await mkdir(join(plugin, "src"), { recursive: true });
+  const exports = { "./runner": "./src/runner.mjs", ...(health ? { "./health": "./src/health.mjs" } : {}) };
+  await writeFile(join(plugin, "package.json"), JSON.stringify({ name: "my-runner", type: "module", exports, storytree: { interface: 1, for: "agent-pool" } }));
+  await writeFile(join(plugin, "src", "health.mjs"),
+    'import { writeFileSync } from "node:fs";\nexport async function main(...given) { writeFileSync(new URL("./called.json", import.meta.url), JSON.stringify(given)); return 3; }\n');
+  setFactory(join(at, "factory"), at);
+  setPartOff("agent-pool", true, at, "my-runner");
+  if (!off) setPartOff("agent-pool", false, at);
+  return { at, called: join(plugin, "src", "called.json") };
+}
+
+function watched(b) {
+  const used = [];
+  for (const key of ["out", "now", "argsOf", "count", "maxLanes", "serviceOn", "pull"]) {
+    const was = b[key];
+    b[key] = (...given) => { used.push(key); return was(...given); };
+  }
+  return used;
+}
+
+test("8.11 · with the agent pool switched off and a plugin standing in, health runs the plugin's ./health with the same arguments, exits with its exit, and reads nothing itself", async (t) => {
+  const { at, called } = await standIn(t);
+  const { lines, b } = await box(t, { live: {}, engines: 9, cap: 1 });
+  const used = watched(b);
+  assert.equal(await main(["--all"], { ...b, storytreeHome: at }), 3);
+  assert.deepEqual(JSON.parse(await readFile(called, "utf8")), [["--all"]]);
+  assert.deepEqual(used, []);
+  assert.deepEqual(lines, []);
+});
+
+test("8.11 · with the agent pool on, storytree's own health reads the pool even where the plugin that stood in for it exports ./health", async (t) => {
+  const { at, called } = await standIn(t, { off: false });
+  const { lines, b } = await box(t, { engines: 1, cap: 5 });
+  assert.equal(await main([], { ...b, storytreeHome: at }), 0);
+  assert.deepEqual(lines, ["pool healthy: dispatcher running (pid 100), 1 of 5 slots, 0 sessions running, 0 hand-offs"]);
+  await assert.rejects(readFile(called, "utf8"), { code: "ENOENT" });
+});
+
+test("8.11 · with the agent pool switched off and a stand-in that exports no ./health, health fails naming the plugin and ./health, never reading the pool itself", async (t) => {
+  const { at } = await standIn(t, { health: false });
+  const { lines, b } = await box(t);
+  const used = watched(b);
+  await assert.rejects(main([], { ...b, storytreeHome: at }), /my-runner does not export "\.\/health"/);
+  assert.deepEqual(used, []);
+  assert.deepEqual(lines, []);
 });

@@ -21,7 +21,7 @@ test("3.34 · a dependent reaches the lane runner, the ready pool and the watche
   assert.equal(agentRunnerEntry("./runner", at), fileURLToPath(new URL("./runner.mjs", import.meta.url)));
   assert.equal(agentRunnerEntry("./launch", at), fileURLToPath(new URL("./launch.mjs", import.meta.url)));
   assert.equal(agentRunnerEntry("./watch", at), fileURLToPath(new URL("./watch.mjs", import.meta.url)));
-  assert.throws(() => agentRunnerEntry("./feed", at), /declares no "\.\/feed" in its interface; it declares \.\/launch, \.\/runner, \.\/watch/);
+  assert.throws(() => agentRunnerEntry("./feed", at), /declares no "\.\/feed" in its interface; it declares \.\/health, \.\/launch, \.\/runner, \.\/watch/);
 
   const factory = join(at, "factory");
   const plugin = join(factory, "plugins", "my-runner");

@@ -100,8 +100,11 @@ export async function editPlanRecord(
   writer: WriteOptions,
 ): Promise<PlanEdit | null> {
   if (type === "contract") {
-    const refused = await refuseHeldPlanWrite(library, claims, session, id);
-    if (refused !== undefined) return { refused };
+    for (const target of [id, fields.capability, fields.edge]) {
+      if (typeof target !== "string") continue;
+      const refused = await refuseHeldPlanWrite(library, claims, session, target);
+      if (refused !== undefined) return { refused };
+    }
   }
   if (PLAN_TYPES.has(type) && !live) {
     const held = await holdPlanChange(library, claims, session, { record: id, fields }, writer);

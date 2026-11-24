@@ -12,7 +12,7 @@ import { capabilityPlates } from "./nameplates.js";
 import { islandRoadMarks, landFill } from "./island-roads.js";
 import { CLASH, dockedClashes, hiddenByOpening, hideForOpening, namesShown, openedAt, openedMarks, openedOn, OpenedStore, opensAt, reachPlates, readsUnder, rollUp, touches, UNDER_READS } from "./opened-capability.js";
 import { globeHover, pickGlobe } from "./planet-navigation.js";
-import { PARKED_FILL, territoryLand, WORD_FILL } from "./territory-land.js";
+import { clipToConvex, PARKED_FILL, territoryLand, WORD_FILL } from "./territory-land.js";
 import { landColour } from "./island-roads.js";
 
 const round = (radius: number): Coast => [Array.from({ length: 96 }, (_, i) => ({ x: radius * Math.cos(i * Math.PI / 48), z: radius * Math.sin(i * Math.PI / 48) }))];
@@ -188,6 +188,17 @@ test("3.118 · an opened top part fills each capability inside it by its own wor
   assert.equal(globeHover(world, above(middleOf("q")), box, { x: 100, y: 100 }, "forest").title, "src/ui/q", "hovering a capability inside names it");
   assert.deepEqual(at(middleOf("a")), { kind: "story", id: "s", within: "top:s:ui" }, "the top part's land with no capability filled picks the island within the top part, never a capability of that id");
   assert.deepEqual(openedAt("parts", { kind: "story", id: "s", capability: "p", within: "top:s:ui" }), { story: "s", capability: "top:s:ui" }, "the eye over a capability inside keeps the top part open");
+});
+
+test("3.112 · clipping a part's land against a piece of ground with no area keeps no area and no corner outside that ground", () => {
+  const square = [{ x: -500, z: -500 }, { x: 500, z: -500 }, { x: 500, z: 500 }, { x: -500, z: 500 }];
+  for (const flat of [[{ x: 0, z: 0 }, { x: 1, z: 0 }, { x: 2, z: 0 }], [{ x: 3, z: 3 }, { x: 3, z: 3 }, { x: 3, z: 3 }]]) {
+    const piece = clipToConvex(square, flat);
+    const area = piece.reduce((sum, p, i) => { const q = piece[(i + 1) % piece.length]!; return sum + p.x * q.z - q.x * p.z; }, 0) / 2;
+    assert.ok(Math.abs(area) < 1e-9, `clipped against ${JSON.stringify(flat)} the square keeps no area, not ${area}`);
+    const outside = piece.filter((p) => p.x < Math.min(...flat.map((f) => f.x)) || p.x > Math.max(...flat.map((f) => f.x)) || p.z < Math.min(...flat.map((f) => f.z)) || p.z > Math.max(...flat.map((f) => f.z)));
+    assert.deepEqual(outside, [], `clipped against ${JSON.stringify(flat)} no corner lies outside it`);
+  }
 });
 
 test("3.120 · an opened capability marks each road an import reaching round a part's front door rides on, and its gate into that part, naming the part it reaches when it is deeper than those shown", () => {

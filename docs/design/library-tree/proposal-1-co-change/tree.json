@@ -1,0 +1,399 @@
+{
+  "story": "story_754e87e7d531",
+  "proposal": "increment_65748d511b31",
+  "rules": "grown bottom-up from co-change (Common Closure); hubs kept apart by lift",
+  "nodes": [
+    {
+      "id": "p1-transactions",
+      "title": "Library transactions",
+      "files": [
+        "packages/library/src/project/seed-connection.ts",
+        "packages/library/src/transactions/behaviour-suite.ts",
+        "packages/library/src/transactions/index.ts",
+        "packages/library/src/transactions/memory.ts",
+        "packages/library/src/transactions/pg.ts",
+        "packages/library/src/transactions/records.ts",
+        "packages/library/src/transactions/types.ts",
+        "packages/library/src/transactions/waits.ts"
+      ],
+      "was": [
+        2
+      ],
+      "change": "kept",
+      "why": "Hub, kept apart. Its pull with schema/records.ts (lift 14 to 15, 6 of that file's 7 changes) is kept with a reason: records.ts carries Data schema's validation contracts (3.1 to 3.9), so moving it would split them (ADR-1242 D3)."
+    },
+    {
+      "id": "p1-schema",
+      "title": "Data schema",
+      "files": [
+        "packages/library/src/schema/activity-line.ts",
+        "packages/library/src/schema/code-distance.ts",
+        "packages/library/src/schema/errors.ts",
+        "packages/library/src/schema/index.ts",
+        "packages/library/src/schema/plugin-kinds.ts",
+        "packages/library/src/schema/records.ts",
+        "packages/library/src/schema/schedule.ts",
+        "packages/library/src/schema/story-survey.ts",
+        "packages/library/src/schema/types.ts",
+        "packages/library/src/schema/upgrades.ts"
+      ],
+      "was": [
+        3
+      ],
+      "change": "kept",
+      "why": "Hub, kept apart: it changes with everything (62 pull requests) at chance lift."
+    },
+    {
+      "id": "p1-api",
+      "title": "Library API",
+      "files": [
+        "packages/library/src/api/index.ts",
+        "packages/library/src/api/library.ts",
+        "packages/library/src/api/printable.ts",
+        "packages/library/src/creation-order.ts",
+        "packages/library/src/index.ts",
+        "packages/library/src/references.ts"
+      ],
+      "was": [
+        7
+      ],
+      "change": "kept",
+      "why": "Hub, kept apart: its leads (with 32 at lift 3.2, with 2 at 2.4, with 26 at 2.6) are a facade changing with what it re-exports."
+    },
+    {
+      "id": "p1-health",
+      "title": "Health record",
+      "files": [
+        "packages/library/src/health/health-record.ts",
+        "packages/library/src/health/index.ts"
+      ],
+      "was": [
+        5
+      ],
+      "change": "kept",
+      "why": "Well closed: 10 of its 25 pull requests touch nothing else in the library."
+    },
+    {
+      "id": "p1-plan",
+      "title": "Work model",
+      "files": [
+        "packages/library/src/work/pending-changes.ts",
+        "packages/library/src/work/plan-hold.ts",
+        "packages/library/src/work/pr-cutover.ts",
+        "packages/library/src/work/work-model.ts"
+      ],
+      "was": [
+        4
+      ],
+      "change": "moved",
+      "why": "Leaves Questions and work: with Work in flight at lift 0.9 (chance), and its only pull to the work/ entry file is that file re-exporting it. Its four files move to a plan/ folder with its own entry file."
+    },
+    {
+      "id": "p1-work",
+      "title": "Questions and work",
+      "files": [
+        "packages/library/src/work/index.ts"
+      ],
+      "was": [
+        32
+      ],
+      "change": "kept",
+      "why": "work/ entry file."
+    },
+    {
+      "id": "p1-flight",
+      "title": "Work in flight",
+      "parent": "p1-work",
+      "files": [
+        "packages/library/src/work/wait-writes.ts",
+        "packages/library/src/work/waits.ts",
+        "packages/library/src/work/work-in-flight.ts"
+      ],
+      "was": [
+        10,
+        11
+      ],
+      "change": "merged",
+      "why": "Absorbs 11 Waits: support 7, lift 5.1; waits.ts with wait-writes.ts at lift 8.8. Both write an increment's waits (ADR-1242 D2)."
+    },
+    {
+      "id": "p1-questions",
+      "title": "Owner questions",
+      "parent": "p1-work",
+      "files": [
+        "packages/library/src/work/owner-questions.ts"
+      ],
+      "was": [
+        12
+      ],
+      "change": "kept",
+      "why": "With Work in flight at lift 3.4, support 4: below support 5, so kept as a sibling, not merged."
+    },
+    {
+      "id": "p1-notes",
+      "title": "Notes, decisions and search",
+      "files": [
+        "packages/library/src/knowledge/index.ts"
+      ],
+      "was": [
+        33
+      ],
+      "change": "renamed",
+      "why": "knowledge/ entry file; now holds Decisions too."
+    },
+    {
+      "id": "p1-artifacts",
+      "title": "Knowledge artifacts",
+      "parent": "p1-notes",
+      "files": [
+        "packages/library/src/commands/notes.ts",
+        "packages/library/src/commands/ranked.ts",
+        "packages/library/src/knowledge/kinds.ts",
+        "packages/library/src/knowledge/knowledge.ts",
+        "packages/library/src/knowledge/memory-upgrade.ts",
+        "packages/library/src/knowledge/similarity.ts"
+      ],
+      "was": [
+        6
+      ],
+      "change": "gained",
+      "why": "Gains the note commands: ranked.ts with knowledge.ts lift 12.3 (support 7), notes.ts lift 5.8 (support 8); the 6 with 17 lead at lift 2.4, support 10. ADR-1242 D2: the owner of notes owns the commands that write them, as Decisions already owns adr.ts."
+    },
+    {
+      "id": "p1-entrances",
+      "title": "Knowledge entrances",
+      "parent": "p1-notes",
+      "files": [
+        "packages/library/src/knowledge/front-covers.ts"
+      ],
+      "was": [
+        9
+      ],
+      "change": "kept",
+      "why": "Too thin to read (2 pull requests)."
+    },
+    {
+      "id": "p1-search",
+      "title": "Ranked search",
+      "parent": "p1-notes",
+      "files": [
+        "packages/library/src/knowledge/embedding-model.ts",
+        "packages/library/src/knowledge/embedding.ts",
+        "packages/library/src/knowledge/embeddings.ts",
+        "packages/library/src/knowledge/whole-words.ts"
+      ],
+      "was": [
+        14
+      ],
+      "change": "kept",
+      "why": ""
+    },
+    {
+      "id": "p1-decisions",
+      "title": "Decisions",
+      "parent": "p1-notes",
+      "files": [
+        "packages/library/src/decisions/adr.ts",
+        "packages/library/src/decisions/corrections.ts",
+        "packages/library/src/decisions/decision-log.ts",
+        "packages/library/src/decisions/index.ts",
+        "packages/library/src/decisions/supersede.ts"
+      ],
+      "was": [
+        13,
+        22,
+        31
+      ],
+      "change": "merged",
+      "why": "22 Decision corrections into 13 Decision log: support 8, lift 15.4 (rename-traced). 31 is then left with one child, so parent and child become one capability, keeping 13's record. Nested under Notes: 13 with 6 at support 5, lift 4.5; decision-log.ts with knowledge.ts at lift 8.8. decisions/ moves to knowledge/decisions/, its entry file kept."
+    },
+    {
+      "id": "p1-storage",
+      "title": "Project storage",
+      "files": [
+        "packages/library/src/project/index.ts"
+      ],
+      "was": [
+        34
+      ],
+      "change": "kept",
+      "why": "project/ entry file."
+    },
+    {
+      "id": "p1-projects",
+      "title": "Project libraries",
+      "parent": "p1-storage",
+      "files": [
+        "packages/library/src/project/factory.ts",
+        "packages/library/src/project/names.ts",
+        "packages/library/src/project/record-cache.ts",
+        "packages/library/src/project/schema-merged.ts",
+        "packages/library/src/project/schema.ts",
+        "packages/library/src/project/snapshot.ts",
+        "packages/library/src/project/storytree.ts",
+        "packages/library/src/project/switches.ts"
+      ],
+      "was": [
+        1,
+        29
+      ],
+      "change": "merged",
+      "why": "Absorbs 29 Factory and product: support 6, lift 9.3; factory.ts with storytree.ts at lift 11.9, with switches.ts at 30.8."
+    },
+    {
+      "id": "p1-address",
+      "title": "Connection by address",
+      "parent": "p1-storage",
+      "files": [
+        "packages/library/src/project/address.ts",
+        "packages/library/src/project/websocket.ts"
+      ],
+      "was": [
+        15
+      ],
+      "change": "cut",
+      "why": "Gains the ConnectOptions type from storytree.ts, so it no longer imports Project libraries: breaks the 1, 15 cycle (ADR-1399 D4)."
+    },
+    {
+      "id": "p1-server",
+      "title": "Shared server",
+      "parent": "p1-storage",
+      "files": [
+        "packages/library/src/project/connection-error.ts",
+        "packages/library/src/project/reads.ts",
+        "packages/library/src/project/server.ts"
+      ],
+      "was": [
+        28
+      ],
+      "change": "gained",
+      "why": "Gains server.ts, the connection pool: its tests are already 28's (28.1 to 28.15 call localServer), so today 28's contracts are made true in 1's code (ADR-1242 D3). Not a co-change move."
+    },
+    {
+      "id": "p1-outside",
+      "title": "Outside writers",
+      "parent": "p1-storage",
+      "files": [
+        "packages/library/src/project/outside-writer.ts"
+      ],
+      "was": [
+        30
+      ],
+      "change": "kept",
+      "why": ""
+    },
+    {
+      "id": "p1-librarian",
+      "title": "The librarian",
+      "files": [
+        "packages/library/src/librarian/index.ts",
+        "packages/library/src/librarian/notes.ts"
+      ],
+      "was": [
+        35
+      ],
+      "change": "kept",
+      "why": "Children change together at lift 12 to 44 (research_8e072046897e)."
+    },
+    {
+      "id": "p1-links",
+      "title": "Links",
+      "parent": "p1-librarian",
+      "files": [
+        "packages/library/src/librarian/links/index.ts",
+        "packages/library/src/librarian/links/links.ts"
+      ],
+      "was": [
+        21
+      ],
+      "change": "kept",
+      "why": ""
+    },
+    {
+      "id": "p1-catalogue",
+      "title": "Catalogue",
+      "parent": "p1-librarian",
+      "files": [
+        "packages/library/src/librarian/catalogue/catalogue.ts",
+        "packages/library/src/librarian/catalogue/index.ts"
+      ],
+      "was": [
+        23
+      ],
+      "change": "kept",
+      "why": ""
+    },
+    {
+      "id": "p1-graduation",
+      "title": "Graduation",
+      "parent": "p1-librarian",
+      "files": [
+        "packages/library/src/librarian/graduation/graduation.ts",
+        "packages/library/src/librarian/graduation/index.ts"
+      ],
+      "was": [
+        24
+      ],
+      "change": "kept",
+      "why": ""
+    },
+    {
+      "id": "p1-rounds",
+      "title": "Rounds",
+      "parent": "p1-librarian",
+      "files": [
+        "packages/library/src/librarian/rounds/host.ts",
+        "packages/library/src/librarian/rounds/index.ts",
+        "packages/library/src/librarian/rounds/rounds.ts",
+        "packages/library/src/librarian/rounds/tools.ts"
+      ],
+      "was": [
+        26
+      ],
+      "change": "kept",
+      "why": ""
+    },
+    {
+      "id": "p1-verbs",
+      "title": "The command schema",
+      "files": [
+        "packages/library/src/verbs/verb.ts"
+      ],
+      "was": [
+        16
+      ],
+      "change": "gained-code",
+      "why": "Takes the commands' shared helpers (elsewhere.ts, stale-edit.ts and the holding-lines helpers in commands/index.ts), so the note commands can leave without a commands and knowledge cycle."
+    },
+    {
+      "id": "p1-commands",
+      "title": "The library's commands",
+      "files": [
+        "packages/library/src/commands/elsewhere.ts",
+        "packages/library/src/commands/fyi.ts",
+        "packages/library/src/commands/index.ts",
+        "packages/library/src/commands/media.ts",
+        "packages/library/src/commands/stale-edit.ts"
+      ],
+      "was": [
+        17
+      ],
+      "change": "lost",
+      "why": "Loses the note commands to Knowledge artifacts; keeps the registry, which still re-exports NOTE_TOOLS for @storytree/library/commands."
+    },
+    {
+      "id": "p1-data",
+      "title": "Fixed data questions",
+      "parent": "p1-commands",
+      "files": [
+        "packages/library/src/data/commands.ts",
+        "packages/library/src/data/data-questions.ts"
+      ],
+      "was": [
+        27
+      ],
+      "change": "moved",
+      "why": "Nested under the commands (weak lead: support 3, lift 3.0, conf 0.80 in research_8e072046897e). data/ moves to commands/data/ with a new entry file."
+    }
+  ]
+}

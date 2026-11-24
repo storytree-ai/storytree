@@ -100,3 +100,13 @@ test("1.13 · the commit check refuses a commit staging media check:evidence wou
   assert.match(said, /pnpm evidence:upload/, "the refusal names the upload command");
   assert.match(said, /storytree media attach .*docs\/design\/rail\/approved\/look\.png/, "an approved reference is sent to the library");
 });
+
+test("1.13 · the commit check fails when the staged changes cannot be read, saying so with git's own reason", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "evidence-staged-corrupt-"));
+  t.after(() => removeTemp(root));
+  execFileSync("git", ["init", "-q"], { cwd: root });
+  writeFileSync(path.join(root, ".git", "index"), "not an index");
+  const errors = [];
+  assert.equal(evidenceCheck.checkStaged({ root, log: () => {}, error: (line) => errors.push(line) }), 1);
+  assert.match(errors.join("\n"), /staged changes could not be read \((?!Command failed)\S/, "the reason given is git's own, not node's wrapper around the failed command");
+});

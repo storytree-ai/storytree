@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 import { connect } from "../index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import * as planHold from "./plan-hold.js";
 import { editPlanRecord } from "./plan-hold.js";
 
 test("4.36 · a plan edit made from a session holding an increment on a branch waits on it as a pending change until its branch merges, the live record unchanged; one made from a session holding none, an increment claimed on no branch or the main line, or to a record the increment planned, is applied live", async (t) => {
@@ -45,4 +46,60 @@ test("4.36 · a plan edit made from a session holding an increment on a branch w
   const own = await library.addCapability({ story: story.id, title: "Confirmation link" });
   const planned = await editPlanRecord(library, claims, "lane", { type: "capability", id: own.id, fields: { description: "Sent by mail" } }, { actor: "session:lane" });
   assert.equal(planned && "edited" in planned ? (planned.edited.fields as { description?: string }).description : undefined, "Sent by mail", "one the increment planned is edited live");
+});
+
+test("4.55 · Given another live session claims a capability, directly or on its claimed increment's list, when another session (not a person) adds, edits or retires a contract on it, then the write is refused unwritten, naming the holder and the capability and to wait on its claim; the holder's own write is accepted", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const mail = await library.addCapability({ story: story.id, title: "Welcome mail" });
+  const free = await library.addCapability({ story: story.id, title: "Thanks page" });
+  const link = await library.addEdge({ from: form.id, to: free.id });
+  const onForm = await library.addContract({ capability: form.id, title: "3.1 · Accepts a valid address" });
+  const onLink = await library.addContract({ edge: link.id, title: "3.2 · The form sends its visitor to the thanks page" });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Welcome mail", objective: "Send it", body: "Red then green" });
+  await library.editIncrement(increment.id, { capabilities: [mail.id] });
+  await library.advanceIncrement(increment.id, "active");
+  const claims = [
+    { session: "form-lane", capability: form.id, since: "2026-11-24T14:00:00.000Z", holder: "live" as const },
+    { session: "mail-lane", increment: increment.id, since: "2026-11-24T14:00:00.000Z", holder: "live" as const },
+    { session: "idle-lane", capability: free.id, since: "2026-11-24T13:00:00.000Z", holder: "idle" as const },
+  ];
+  const titleOf = async (id: string): Promise<string | undefined> => ((await library.get(id))?.fields as { title?: string } | undefined)?.title;
+
+  const edited = await editPlanRecord(library, claims, "other-lane", { type: "contract", id: onForm.id, fields: { title: "3.1 · Accepts any address" } }, { actor: "session:other-lane" });
+  assert.ok(edited !== null && "refused" in edited, `another session's edit of a contract on a claimed capability is refused: ${JSON.stringify(edited)}`);
+  assert.ok(edited.refused.includes("form-lane") && edited.refused.includes(form.id) && /wait on/.test(edited.refused), edited.refused);
+  assert.equal(await titleOf(onForm.id), "3.1 · Accepts a valid address", "the refused edit wrote nothing");
+
+  const refused = async (session: string, target: string): Promise<string | undefined> => planHold.refuseHeldPlanWrite(library, claims, session, target);
+  for (const [target, holder, capability, what] of [
+    [form.id, "form-lane", form.id, "a new contract on a capability claimed directly"],
+    [onForm.id, "form-lane", form.id, "an edit or retirement of a contract on a capability claimed directly"],
+    [mail.id, "mail-lane", mail.id, "a new contract on a capability on the list of an increment another live session claims"],
+    [link.id, "form-lane", form.id, "a new contract on an edge whose from is a claimed capability"],
+    [onLink.id, "form-lane", form.id, "an edit or retirement of a contract on an edge whose from is a claimed capability"],
+  ] as const) {
+    const said = await refused("other-lane", target);
+    assert.ok(said !== undefined && said.includes(holder) && said.includes(capability) && /wait on/.test(said) && /claim/.test(said), `${what} is refused, naming ${holder} and ${capability} and to wait on its claim: ${said}`);
+  }
+  assert.equal(await refused("form-lane", form.id), undefined, "the holder's own new contract is accepted");
+  assert.equal(await refused("form-lane", onForm.id), undefined, "the holder's own edit or retirement is accepted");
+  assert.equal(await refused("mail-lane", mail.id), undefined, "the session claiming the increment that lists it writes on it");
+  assert.equal(await refused("person:owner", onForm.id), undefined, "a person's write is accepted");
+  assert.equal(await refused("other-lane", free.id), undefined, "an idle session's claim does not count");
+
+  const own = await editPlanRecord(library, claims, "form-lane", { type: "contract", id: onForm.id, fields: { title: "3.1 · Accepts a postal address" } }, { actor: "session:form-lane" });
+  assert.ok(own !== null && "edited" in own, "the holder's own edit is applied");
+  assert.equal(await titleOf(onForm.id), "3.1 · Accepts a postal address");
 });

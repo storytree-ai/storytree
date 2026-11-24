@@ -1805,3 +1805,32 @@ test("6.108 a tool that writes a library takes project, arc or increment, at lea
     }
   });
 });
+
+test("9.48 · Given another live session claims a capability, when plan_contract, edit_plan or retire_from_plan writes a contract on it, then the tool is refused naming the holder's session and the capability, and nothing is written", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (holder) => {
+      const { capability } = await planned(holder);
+      const kept = idOf(await holder.call("plan_contract", { capability, title: "Accepts a valid address" }));
+      assert.equal((await holder.call("claim", { capability, reason: "rewording the form's contracts" })).isError, false);
+      const contracts = async (): Promise<string[]> => (await library.list("contract")).map(({ id }) => id).sort();
+      const keptHistory = await library.history({ id: kept });
+
+      await withAgent(folder, claudeCode("claude-2"), async (other) => {
+        for (const [tool, input] of [
+          ["plan_contract", { capability, title: "Rejects a blank address" }],
+          ["edit_plan", { id: kept, title: "Accepts any address" }],
+          ["retire_from_plan", { id: kept, reason: "overtaken" }],
+        ] as const) {
+          const refused = await other.call(tool, input);
+          assert.equal(refused.isError, true, `${tool} by another session is refused: ${refused.text}`);
+          assert.ok(refused.text.includes("claude-1") && refused.text.includes(capability), `${tool}'s refusal names the holder and the capability: ${refused.text}`);
+        }
+      });
+      assert.deepEqual(await contracts(), [kept], "no contract was planned");
+      assert.deepEqual(await library.history({ id: kept }), keptHistory, "the contract was neither edited nor retired");
+
+      const own = idOf(await holder.call("plan_contract", { capability, title: "Rejects a blank address" }));
+      assert.deepEqual(await contracts(), [kept, own].sort(), "the holder's own contract is planned");
+    });
+  });
+});

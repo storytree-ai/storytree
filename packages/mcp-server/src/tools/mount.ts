@@ -74,7 +74,7 @@ export function mountTools(define: Define, verbs: readonly Verb<VerbInputs, Tool
           ...(branch === undefined ? {} : { branch }),
           ...(home === undefined ? {} : { home }),
           ...(composed === undefined ? {} : { hostVerbs: async () => composed }),
-          claims: () => readClaims(log, project, { quietMs: call.quietMs }),
+          claims: () => readClaims(log, library.name, { quietMs: call.quietMs }),
           placeFiles: async (paths) => placeFiles(folder, paths, await library.projectTree()),
           notesRead: () => notesRead(call),
           recordReads: (reads) => recordReads(call, reads),

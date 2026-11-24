@@ -456,8 +456,8 @@ function holdingSaid(drawn: DrawnStory, paths: readonly string[]): string {
   return `${paths.join(", ")} ${holding.length === 1 ? "is" : "are"} in ${holding.map((capability) => `${quoted(capability.title)} (${capability.id})`).join(", ")}: name and describe ${holding.length === 1 ? "it" : "them"} with edit_plan (title, description).`;
 }
 
-function claimsOf({ log, project, quietMs }: Call): ReturnType<typeof readClaims> {
-  return readClaims(log, project, { quietMs });
+function claimsOf({ log, library, quietMs }: Call): ReturnType<typeof readClaims> {
+  return readClaims(log, library.name, { quietMs });
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;

@@ -22,7 +22,7 @@ function fakeNode(bin: string, said: string): void {
   chmodSync(path.join(bin, "node"), 0o755);
 }
 
-test("3.1 · The box's storytree-host.service runs node itself on `storytree services run` in storytree's checkout, found under nvm when the user manager's PATH has none, with Restart=always, and a stop reaches the host alone", { skip: process.platform !== "linux" && "platform:linux: a systemd user unit is the Linux entry point" }, (t) => {
+test("3.1 · Given the box's storytree-host.service, when systemd starts it, then it runs node itself on `storytree services run` in storytree's checkout, finding node under nvm when the user manager's PATH has none; when the host ends, then systemd starts it again; when systemd stops the unit, then the stop reaches the host alone", { skip: process.platform !== "linux" && "platform:linux: a systemd user unit is the Linux entry point" }, (t) => {
   const dir = tempDir(t);
   const checkout = path.join(dir, "storytree");
   mkdirSync(checkout);
@@ -49,7 +49,7 @@ test("3.1 · The box's storytree-host.service runs node itself on `storytree ser
   assert.equal(run(`${own}:/usr/bin:/bin`)[0], own, "a node already on PATH is the one that runs");
 });
 
-test("3.2 · storytree services install writes, enables and starts the unit, again idempotently; services uninstall stops, disables and removes it", (t) => {
+test("3.2 · Given a Linux machine, when a user runs `storytree services install`, then it writes, enables and starts the unit, and running it again changes nothing; when a user runs `storytree services uninstall`, then it stops, disables and removes the unit", (t) => {
   const dir = tempDir(t);
   const unitDir = path.join(dir, "config", "systemd", "user");
   const calls: string[] = [];

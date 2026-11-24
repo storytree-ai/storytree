@@ -42,7 +42,7 @@ function homeIs(t: TestContext, home: string): void {
 
 const escaped = (text: string) => text.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&");
 
-test("2.1 · storytree services lists every declared service on this machine: off, running, failed with its last lines, or waiting, and the factory commit the host last ran; with no host running it says so", async (t) => {
+test("2.1 · When a user runs `storytree services`, then it lists every service declared on this machine with its state: off, running, failed with its last lines, or waiting, and then it names the factory commit the host last ran; given no host is running, then it says so", async (t) => {
   const { home } = fixtureHome(t);
   homeIs(t, home);
   setServiceOn("voice/listen", true, home);
@@ -77,7 +77,7 @@ test("2.1 · storytree services lists every declared service on this machine: of
   assert.match(committed, /^The service host \(process 7, since 2026-10-27T00:00:00\.000Z\) last ran the factory \/f at commit 0123abcd\.$/m);
 });
 
-test("2.2 · storytree services restart <part>/<service> has the host start a failed service again, its ends and back-off cleared", async (t) => {
+test("2.2 · Given a service has failed, when a user runs `storytree services restart <part>/<service>`, then the host starts it again with its ends and back-off cleared", async (t) => {
   const { home } = fixtureHome(t);
   homeIs(t, home);
   setServiceOn("voice/listen", true, home);
@@ -131,7 +131,7 @@ test("2.5 · the installed storytree command, a build with no package.json besid
   assert.equal(hostFolder(home, build), HOST_DIR, "a stopped host's folder still names its parts");
 });
 
-test("2.3 · storytree services run runs the service host in the foreground until a stop signal (Ctrl-C or SIGTERM) or a stop request (on Windows, where no signal is heard), then stops every service it ran and says so", { timeout: 60_000 }, async (t) => {
+test("2.3 · When a user runs `storytree services run`, then the service host runs in the foreground; when it gets a stop signal (Ctrl-C or SIGTERM) or a stop request, then it stops every service it ran and says so", { timeout: 60_000 }, async (t) => {
   const { home } = fixtureHome(t);
   homeIs(t, home);
   setServiceOn("voice/listen", true, home);
@@ -148,7 +148,7 @@ test("2.3 · storytree services run runs the service host in the foreground unti
   }
 });
 
-test("2.4 · storytree services says when a part switch has not taken in the running host: a service turned on that the host did not mount at its start, or one it still runs whose part is now off, takes at the host's next start, and it names the restart", async (t) => {
+test("2.4 · Given the host is running and a part has since been switched on or off, when a user runs `storytree services`, then it says each service that switch changes takes effect at the host's next start, and then it names how to restart the host", async (t) => {
   const { home } = fixtureHome(t);
   homeIs(t, home);
   setServiceOn("voice/listen", true, home);

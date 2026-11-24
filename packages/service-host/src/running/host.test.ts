@@ -13,7 +13,7 @@ import { fixtureHome } from "../testing/fixture.js";
 import { mountedServices } from "./declared.js";
 import { HOST_DIR, startHost } from "./host.js";
 
-test("1.1 · the host runs each declared service of each mounted part that this machine's settings turn on, each as its own child process, and writes each line it prints to the host's log after the service's name; a service not turned on, or of a part not mounted, is not started", async (t) => {
+test("1.1 · Given a mounted part declares a service that this machine's settings turn on, when the host starts, then the host runs that service as its own child process, and then the host's log shows each line the service prints after the service's name; given the service is turned off or its part is not mounted, then the host does not start it", async (t) => {
   const { home, plugin } = fixtureHome(t);
   setServiceOn("voice/listen", true, home);
   setServiceOn("voice/commit", true, home);
@@ -68,7 +68,7 @@ test("plugin-loader 5.19 · a factory plugin named as the part it stands in for 
   assert.deepEqual(mountedServices(hostDir, home).services.map((service) => "module" in service.from && service.from.module), ["@s/voice/services"]);
 });
 
-test("1.5 · the host runs the agent runner's dispatcher and watcher, each run always, and switching the agent runner off takes them off without taking off the service host a host stands on", (t) => {
+test("1.5 · Given the agent runner is switched on, when the host starts, then it runs the agent runner's dispatcher and watcher, each run always; when the agent runner is switched off, then its dispatcher and watcher are taken off, and the service host stays on", (t) => {
   const { home } = fixtureHome(t);
   const ours = (mounted: ReturnType<typeof mountedServices>) => mounted.services.filter((service) => service.part === "agent-pool").map(({ id, run, from }) => ({ id, run, from: "module" in from ? from.module : from.plugin }));
   assert.deepEqual(ours(mountedServices(HOST_DIR, home)), [

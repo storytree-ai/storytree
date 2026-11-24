@@ -2,7 +2,7 @@
 
 One of three independent tree proposals for the library story (story_754e87e7d531), on arc_c465ed702824 (ADR-1395 D3). This is increment_f46b74b5fc26. It is a proposal only: no capability in the plan changed and no code moved.
 
-- `tree.png` (or `tree.svg`): the baseline on the left, this proposal on the right. Each column is ordered by level, with the lowest part at the bottom. The arcs are imports between top-level parts. A red arc points up, against the layering, and every red arc is part of an import cycle.
+- `tree.svg` (and `tree.png`, linked from the pull request): the baseline on the left, this proposal on the right. Each column is ordered by level, with the lowest part at the bottom. The arcs are imports between top-level parts. A red arc points up, against the layering, and every red arc is part of an import cycle.
 - `tree.json`: the proposed tree, in the scorer's format, with today's file paths. Grade it with `storytree code-measures tree story_754e87e7d531 --tree docs/design/library-tree-proposal-2-layers/tree.json`.
 
 ## In short

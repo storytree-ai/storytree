@@ -3,6 +3,7 @@ export { churnOf, TOP_FILES, type ChurnFile, type ChurnReading } from "./churn.j
 export { complexityOf, functionsOf, p90, type ComplexityReading, type FunctionReading } from "./complexity.js";
 export { couplingOf, publicSurfaceOf, specifiersOf, type CouplingReading, type WorkspacePackage } from "./coupling.js";
 export { CLONE_TOKENS, duplicationOf, type DuplicationReading } from "./duplication.js";
+export { ERODED_OVER, erosionOf, type ErosionReading } from "./erosion.js";
 export { loosenessOf, type LoosenessCounts, type LoosenessReading } from "./looseness.js";
 export { DEFAULT_DAYS, readStoryMeasures, type MeasuresReading, type StoryMeasures } from "./read.js";
 export { measuresText } from "./report.js";

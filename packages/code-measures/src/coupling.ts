@@ -67,7 +67,7 @@ function entriesOf(exports: unknown): string[] {
   return [];
 }
 
-function resolve(from: string, specifier: string, byPath: ReadonlyMap<string, SourceText>): SourceText | undefined {
+export function resolve(from: string, specifier: string, byPath: ReadonlyMap<string, SourceText>): SourceText | undefined {
   const base = joinPath(from.slice(0, from.lastIndexOf("/") + 1), specifier);
   const stem = base.replace(/\.[cm]?jsx?$/, "");
   const tries = [base, `${stem}.ts`, `${stem}.tsx`, `${stem}.mts`, `${stem}.cts`, `${stem}.js`, `${stem}.jsx`, `${stem}.mjs`, `${stem}.cjs`, `${base}/index.ts`, `${base}/index.tsx`, `${base}/index.js`];

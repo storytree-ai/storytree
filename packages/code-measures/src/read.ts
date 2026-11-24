@@ -8,6 +8,7 @@ import { churnOf, type ChurnReading } from "./churn.js";
 import { complexityOf, type ComplexityReading } from "./complexity.js";
 import { couplingOf, publicSurfaceOf, type CouplingReading, type WorkspacePackage } from "./coupling.js";
 import { duplicationOf, type DuplicationReading } from "./duplication.js";
+import { erosionOf, type ErosionReading } from "./erosion.js";
 import { loosenessOf, type LoosenessReading } from "./looseness.js";
 import { sizeOf, type Size, type SourceText } from "./source.js";
 import { testsOf, type TestsReading } from "./tests.js";
@@ -22,6 +23,7 @@ export interface StoryMeasures {
   readonly size?: Size;
   readonly complexity?: ComplexityReading;
   readonly duplication?: DuplicationReading;
+  readonly erosion?: ErosionReading;
   readonly coupling?: CouplingReading;
   readonly surface?: number;
   readonly looseness?: LoosenessReading;
@@ -145,6 +147,7 @@ export async function readStoryMeasures({ folder, commit, since, stories, story 
       size: sizeOf(files),
       complexity: complexityOf(files),
       duplication: duplicationOf(files),
+      erosion: erosionOf(files),
       coupling: couplingOf(present.map((pkg) => pkg.folder), workspace),
       surface: present.reduce((total, pkg) => total + publicSurfaceOf(pkg), 0),
       looseness: loosenessOf(files),

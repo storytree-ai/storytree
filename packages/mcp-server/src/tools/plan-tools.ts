@@ -2,7 +2,7 @@
 import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PROOFS, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE as LONG_CONTRACT, listedNotice, STORE_LINK_DIRECTIONS, wordAndWhy, type AnnotatedTree, type StoreLink, type Library, type DayWindow, type DecisionView, type HealthState, type NodeHealth, type SurveyedPart } from "@storytree/library";
 import { z } from "zod";
 
-import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange, libraryNamed } from "@storytree/library/commands";
+import { bareSaid, editPlanRecord, heldPending, heldSaid, holdPlanChange, libraryNamed, refuseHeldPlanWrite } from "@storytree/library/commands";
 import { VerbRefusal } from "@storytree/library/verbs";
 import { oversizedSaid } from "@storytree/arc-surface/verbs";
 import { unimportedPackages, unimportedSentence } from "@storytree/app-setup/project";
@@ -158,6 +158,8 @@ export function registerPlanTools(define: Define): void {
     }),
     async ({ capability, edge, title: name, description: about, proved_by: proved, proof: how, increment }, call) => {
       if ((capability === undefined) === (edge === undefined)) return { text: "Give the capability the contract belongs to, or the edge: one of them.", refused: true };
+      const held = await refuseHeldPlanWrite(call.library, await claimsOf(call), call.caller.session, (capability ?? edge)!);
+      if (held !== undefined) return { text: held, refused: true };
       const work = increment === undefined ? undefined : await call.library.get(increment);
       const cited = (work?.fields as { links?: string[] } | undefined)?.links ?? [];
       if (increment !== undefined && (work?.type !== "increment" || (work.fields as { status?: string }).status === "closed")) {
@@ -273,6 +275,8 @@ export function registerPlanTools(define: Define): void {
       const { library, writer } = call;
       const found = partOf(await library.projectTree(), target);
       if (found === undefined) return { text: `${target} is not a capability, contract or edge in this project's plan: only those are retired here.`, refused: true };
+      const refused = found.kind === "contract" ? await refuseHeldPlanWrite(library, await claimsOf(call), call.caller.session, target) : undefined;
+      if (refused !== undefined) return { text: refused, refused: true };
       const held = await holdPlanChange(library, await claimsOf(call), call.caller.session, { record: target, retire: reason }, writer);
       if (held !== undefined) return { text: `Retiring ${found.kind} ${quoted(found.title)} (${target}) is ${heldSaid(held)}`, data: { id: target } };
       await library.retire(target, reason, writer);
@@ -395,6 +399,7 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   const leaves = kind === "contract" && changes.edge !== undefined ? ((await library.get(target))?.fields as { capability?: string } | undefined)?.capability : undefined;
   const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live: live || story !== undefined }, options);
   if (done === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
+  if ("refused" in done) return { text: done.refused, refused: true };
   if ("held" in done) {
     const renumbers = move?.renumbers === true ? ` Its number ${move.from} is not its new capability's, so it takes that capability's next free number when the change applies: rename its tests' titles to that number then.` : "";
     return { text: `Your change to ${kind} ${quoted(String(((await library.get(target))?.fields as { title?: string } | undefined)?.title))} (${target}) is ${heldSaid(done.held)}${renumbers}`, data: { id: target } };

@@ -13,8 +13,10 @@ export const PLAN_TYPES: ReadonlySet<string> = new Set(["story", "capability", "
 export interface PlanClaim {
   readonly session: string;
   readonly increment?: string | undefined;
+  readonly capability?: string | undefined;
   readonly since: string;
   readonly branch?: string | undefined;
+  readonly holder?: string | undefined;
 }
 
 const MAIN_BRANCHES: ReadonlySet<string> = new Set(["main", "master"]);
@@ -25,7 +27,7 @@ export function isPlanRecordType(type: string): type is PlanRecordType {
   return PLAN_TYPES.has(type) || type === "arc" || type === "increment";
 }
 
-export type PlanEdit = { readonly held: string } | { readonly edited: SchemaRecord };
+export type PlanEdit = { readonly held: string } | { readonly refused: string } | { readonly edited: SchemaRecord };
 
 export function heldIncrement(claims: readonly PlanClaim[], session: string): string | undefined {
   const last = claims
@@ -33,6 +35,44 @@ export function heldIncrement(claims: readonly PlanClaim[], session: string): st
     .sort((one, other) => one.since.localeCompare(other.since))
     .at(-1);
   return last?.branch === undefined || MAIN_BRANCHES.has(last.branch) ? undefined : last.increment;
+}
+
+async function capabilityOf(library: Pick<SchemaRecords, "get">, id: string): Promise<string | undefined> {
+  const record = await library.get(id);
+  if (record === null) return undefined;
+  const fields = record.fields as { capability?: string; edge?: string; from?: string };
+  if (record.type === "capability") return record.id;
+  if (record.type === "edge") return fields.from;
+  if (record.type !== "contract") return undefined;
+  return fields.capability ?? (fields.edge === undefined ? undefined : await capabilityOf(library, fields.edge));
+}
+
+async function listedOn(library: Pick<SchemaRecords, "get">, increment: string): Promise<readonly string[]> {
+  const record = await library.get(increment);
+  return record?.type === "increment" ? ((record.fields as { capabilities?: string[] }).capabilities ?? []) : [];
+}
+
+export async function refuseHeldPlanWrite(library: Pick<SchemaRecords, "get">, claims: readonly PlanClaim[], session: string, id: string): Promise<string | undefined> {
+  if (session.startsWith("person:")) return undefined;
+  const others = claims.filter((claim) => claim.session !== session && claim.holder === "live");
+  if (others.length === 0) return undefined;
+  const capability = await capabilityOf(library, id);
+  if (capability === undefined) return undefined;
+  let holder = others.find((claim) => claim.capability === capability);
+  let on: string | undefined;
+  if (holder === undefined) {
+    if (claims.some((claim) => claim.capability === capability && claim.session === session)) return undefined;
+    for (const claim of others) {
+      if (claim.increment !== undefined && (await listedOn(library, claim.increment)).includes(capability)) {
+        holder = claim;
+        on = claim.increment;
+        break;
+      }
+    }
+  }
+  if (holder === undefined) return undefined;
+  const where = on === undefined ? "holds it" : `holds it on the capabilities list of ${on}`;
+  return `Refused, nothing written: ${id} is on capability ${capability}, and live session ${holder.session} ${where}, so another session does not add, edit or retire its contracts. Back off (ADR-0944 D3): wait on that capability's claim (the set_wait tool with on: ${capability}, or \`storytree arc increment wait <increment> --on ${capability} --reason …\`), which clears when ${holder.session} releases it, and take other work.`;
 }
 
 export async function holdPlanChange(library: PlanEditors, claims: readonly PlanClaim[], session: string, change: PlanChange, writer: WriteOptions): Promise<string | undefined> {
@@ -59,6 +99,10 @@ export async function editPlanRecord(
   { type, id, fields, live = false }: { readonly type: PlanRecordType; readonly id: string; readonly fields: Record<string, unknown>; readonly live?: boolean },
   writer: WriteOptions,
 ): Promise<PlanEdit | null> {
+  if (type === "contract") {
+    const refused = await refuseHeldPlanWrite(library, claims, session, id);
+    if (refused !== undefined) return { refused };
+  }
   if (PLAN_TYPES.has(type) && !live) {
     const held = await holdPlanChange(library, claims, session, { record: id, fields }, writer);
     if (held !== undefined) return { held };

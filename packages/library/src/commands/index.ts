@@ -4,7 +4,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type SchemaRecord, type WriteOptions } from "../index.js";
-import { editPlanRecord, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, PR_CUTOVER_ID, type PlanEdit } from "../work/index.js";
+import { editPlanRecord, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, PR_CUTOVER_ID, refuseHeldPlanWrite, type PlanEdit } from "../work/index.js";
 import { fieldValue, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { FYI_FAMILY } from "./fyi.js";
@@ -25,6 +25,7 @@ export interface HeldClaim {
   readonly capability?: string | undefined;
   readonly since: string;
   readonly branch?: string | undefined;
+  readonly holder?: string | undefined;
 }
 
 export interface LibraryVerbContext extends VerbContext {
@@ -304,6 +305,9 @@ const create = verb({
     if (kind === "decision" && fields.status === "accepted" && fields.authority === undefined) {
       throw new VerbRefusal("an accepted decision carries its authority, whose call it was: record it with `storytree adr new … --basis <owner-directed|owner-ratified|agent-derived|agent-flipped> [--owner-said …]`, or give --authority @file holding its JSON", { misuse: true });
     }
+    const target = kind !== "contract" ? undefined : typeof fields.capability === "string" ? fields.capability : typeof fields.edge === "string" ? fields.edge : undefined;
+    const refused = target === undefined ? undefined : await refuseHeldPlanWrite(context.library, await context.claims(), context.session, target);
+    if (refused !== undefined) throw new VerbRefusal(refused);
     const numbers = kind === "contract" && typeof fields.capability === "string" ? await context.testedNumbers(fields.capability) : undefined;
     const pending = kind === "capability" ? { pending: await heldPending(context.library, await context.claims(), context.session) } : {};
     const options = numbers === undefined ? { ...context.writer!, ...pending } : { ...context.writer!, testedNumbers: [...numbers.tested] };
@@ -490,6 +494,7 @@ const edit = verb({
       return edited === null ? null : { edited };
     });
     if (done === null) throw new VerbRefusal(`no live ${record.type} "${id}" in this project`);
+    if ("refused" in done) throw new VerbRefusal(done.refused);
     if ("held" in done) {
       const drop = `arc increment drop-pending ${done.held} ${id} --reason <why>`;
       return {
@@ -564,7 +569,10 @@ const retire = verb({
   async act({ id: given, reason: why }, context: LibraryVerbContext) {
     const id = needed(given, "the record's id");
     const reason = needed(why, "--reason");
-    if (PLAN_TYPES.has((await context.library.get(id))?.type ?? "")) {
+    const type = (await context.library.get(id))?.type ?? "";
+    const refused = type === "contract" ? await refuseHeldPlanWrite(context.library, await context.claims(), context.session, id) : undefined;
+    if (refused !== undefined) throw new VerbRefusal(refused);
+    if (PLAN_TYPES.has(type)) {
       const held = await heldOnIncrement(context, { record: id, retire: reason });
       if (held !== undefined) return { text: `Retiring ${id} is ${held}` };
     }
@@ -696,7 +704,7 @@ const undo = verb({
 });
 
 export { NOTE_TOOLS, type Found, type NoteRead, type NoteToolContext, type Presenter } from "./notes.js";
-export { editPlanRecord, heldPending, heldSaid, holdPlanChange } from "../work/index.js";
+export { editPlanRecord, heldPending, heldSaid, holdPlanChange, refuseHeldPlanWrite } from "../work/index.js";
 
 export async function bareSaid(library: Library, capability: string | undefined, plan: string): Promise<string> {
   const part = capability === undefined ? undefined : (await library.projectTree()).stories.flatMap((story) => story.capabilities).find((node) => node.id === capability);

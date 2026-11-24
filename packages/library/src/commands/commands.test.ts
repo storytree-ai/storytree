@@ -1499,3 +1499,40 @@ test("17.37 · library new and library edit store a one-line field (title, term)
   await verbOf("edit").act({ "<id>": definition!.id, "<fields>": { term: "Zip code\n" } }, context, WORDS);
   assert.equal((await fieldsOf(definition!.id)).term, "Zip code", "edit drops the term's final \\n");
 });
+
+test("17.38 · Given another live session claims a capability, when library new contract, library edit or library retire writes a contract on it, then the command is refused naming the holder's session and the capability, and nothing is written", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family.verbs.find((one) => mounted(one.command) && one.command.name === name)!;
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const kept = await library.addContract({ capability: form.id, title: "3.1 · Accepts a valid address" });
+  const claims = [{ session: "form-lane", capability: form.id, since: "2026-11-24T14:00:00.000Z", holder: "live" as const }];
+  const contextOf = (session: string): LibraryVerbContext => ({
+    library, project, session, folder: tmpdir(), writer: { actor: `session:${session}` },
+    claims: async () => claims,
+    testedNumbers: async () => ({ tested: [], untested: [] }),
+  });
+  const namesHolder = (error: unknown): boolean => error instanceof VerbRefusal && error.message.includes("form-lane") && error.message.includes(form.id);
+  const contracts = async (): Promise<string[]> => (await library.list("contract")).map(({ id }) => id);
+  const keptHistory = await library.history({ id: kept.id });
+
+  await assert.rejects(verbOf("new").act({ "<kind>": "contract", "<fields>": { capability: form.id, title: "Rejects a blank address" } }, contextOf("other-lane"), WORDS), namesHolder, "a second session's new contract on the claimed capability is refused, naming the holder and the capability");
+  assert.deepEqual(await contracts(), [kept.id], "no contract was written");
+  await assert.rejects(verbOf("edit").act({ "<id>": kept.id, "<fields>": { title: "3.1 · Accepts any address" } }, contextOf("other-lane"), WORDS), namesHolder, "its edit is refused");
+  await assert.rejects(verbOf("retire").act({ id: kept.id, reason: "overtaken" }, contextOf("other-lane"), WORDS), namesHolder, "its retirement is refused");
+  assert.deepEqual(await library.history({ id: kept.id }), keptHistory, "the contract was neither edited nor retired");
+
+  const own = await verbOf("new").act({ "<kind>": "contract", "<fields>": { capability: form.id, title: "Rejects a blank address" } }, contextOf("form-lane"), WORDS);
+  const made = /contract_[0-9a-f]{12}/.exec(own.text)?.[0];
+  assert.deepEqual((await contracts()).sort(), [kept.id, made].sort(), "the holder's own new contract is written");
+});

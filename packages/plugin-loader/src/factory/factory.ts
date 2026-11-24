@@ -1,6 +1,6 @@
 // Capability 5 · Factory plugins
-import { execFile, execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { execFile, execFileSync, spawn } from "node:child_process";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -319,9 +319,9 @@ export function pluginServices(folder: string | undefined, plugin: string): Plug
 
 const gitRun = promisify(execFile);
 
-async function gitOut(folder: string, args: string[], timeout?: number): Promise<string | undefined> {
+async function gitOut(folder: string, args: string[]): Promise<string | undefined> {
   try {
-    const { stdout } = await gitRun("git", args, { cwd: folder, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, maxBuffer: 1 << 26, ...(timeout === undefined ? {} : { timeout }) });
+    const { stdout } = await gitRun("git", args, { cwd: folder, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, maxBuffer: 1 << 26 });
     return stdout;
   } catch {
     return undefined;
@@ -330,7 +330,10 @@ async function gitOut(folder: string, args: string[], timeout?: number): Promise
 
 export async function factoryStale(folder: string): Promise<string | undefined> {
   if ((await gitOut(folder, ["rev-parse", "--is-inside-work-tree"]))?.trim() !== "true") return undefined;
-  await gitOut(folder, ["fetch", "-q", "origin", "main"], 10_000);
+  const fetchHead = path.resolve(folder, (await gitOut(folder, ["rev-parse", "--git-path", "FETCH_HEAD"]))?.trim() ?? "FETCH_HEAD");
+  if (!existsSync(fetchHead) || Date.now() - statSync(fetchHead).mtimeMs > 5 * 60_000) {
+    spawn("git", ["fetch", "-q", "origin", "main"], { cwd: folder, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, detached: true, stdio: "ignore", windowsHide: true }).unref();
+  }
   const behind = Number((await gitOut(folder, ["rev-list", "--count", "HEAD..origin/main"]))?.trim() ?? 0) || 0;
   const changed = (await gitOut(folder, ["status", "--porcelain"]) ?? "").split("\n").filter((line) => line !== "").length;
   if (behind === 0 && changed === 0) return undefined;

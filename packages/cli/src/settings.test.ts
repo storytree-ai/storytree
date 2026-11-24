@@ -288,6 +288,7 @@ test("plugin-loader 5.25 · a command a factory plugin adds, run from a factory 
     git(elsewhere, "commit", "-q", "-m", later);
   }
   git(elsewhere, "push", "-q", "origin", "HEAD:main");
+  git(factory, "fetch", "-q", "origin", "main");
   for (const mine of ["mine-1.txt", "mine-2.txt", "mine-3.txt"]) writeFileSync(path.join(factory, mine), mine);
   const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home, env: { STORYTREE_FACTORY: factory } });
   assert.equal((await invoke(["settings", "set", "module", "ci-health", "plugin", "my-health"])).code, 0);

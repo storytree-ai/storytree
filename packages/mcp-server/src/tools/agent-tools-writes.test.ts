@@ -1291,6 +1291,35 @@ test("9.9 edit_plan and retire_from_plan, under an increment's claim, hold a cha
   });
 });
 
+test("9.9 edit_plan with project <another>, under an increment's claim in that project's library on a branch, holds a change to a record planned before it as a pending change on that increment, leaving the live record alone, called from a folder whose project is not that one (ADR-0966 D1, ADR-1348 D3)", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    const productName = uniqueProjectName();
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await library.markFactory();
+      const product = await storytree.openProject(productName);
+      await product.recordFactory(project);
+      const arc = (await product.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" })).id;
+      const story = await product.addStory({ title: "Sign up" });
+      const form = await product.addCapability({ story: story.id, title: "Form" });
+      const increment = (await product.addIncrement({ arc, title: "Address form", objective: "Rename it", body: "Red then green" })).id;
+      assert.equal((await claim({ log, library: product, project: productName, session: "claude-1", harness: "claude-code", branch: "claude/address-form" }, increment, "driving the address form")).ok, true);
+      const live = await product.get(form.id);
+      await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+        const edited = await agent.call("edit_plan", { id: form.id, description: "Where they type it", project: productName });
+        assert.equal(edited.isError, false, edited.text);
+        assert.match(edited.text, new RegExp(`pending on increment ${increment}`), edited.text);
+      });
+      assert.deepEqual(await product.get(form.id), live, "the live capability is left alone");
+      const pending = ((await product.get(increment))?.fields as { pending?: { record: string; after?: unknown }[] }).pending;
+      assert.deepEqual(pending?.map(({ record, after }) => [record, after]), [[form.id, { description: "Where they type it" }]]);
+    } finally {
+      await storytree.close();
+      await dropTestProjects([productName]);
+    }
+  });
+});
+
 test("9.22 edit_plan with live: true, under an increment's claim, corrects a story, capability or contract in the live plan, writing no pending change on the increment, and the session still holds its increment, so the pool never takes it in a release gap (ADR-0966 D1's note)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
@@ -1860,5 +1889,40 @@ test("9.48 · Given another live session claims a capability, when plan_contract
       const own = idOf(await holder.call("plan_contract", { capability, title: "Rejects a blank address" }));
       assert.deepEqual(await contracts(), [kept, own].sort(), "the holder's own contract is planned");
     });
+  });
+});
+
+test("9.48 · Given another live session claims a capability in another project's library, when plan_contract, edit_plan or retire_from_plan with project <another> writes a contract on it, called from a folder whose project is not that one, then the tool is refused naming the holder's session and the capability, and nothing is written (ADR-1348 D3)", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    const productName = uniqueProjectName();
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await library.markFactory();
+      const product = await storytree.openProject(productName);
+      await product.recordFactory(project);
+      const story = await product.addStory({ title: "Sign up" });
+      const capability = (await product.addCapability({ story: story.id, title: "Email form" })).id;
+      const kept = (await product.addContract({ capability, title: "Accepts a valid address" })).id;
+      assert.equal((await claim({ log, library: product, project: productName, session: "claude-1", harness: "claude-code" }, capability, "rewording the form's contracts")).ok, true);
+      const contracts = async (): Promise<string[]> => (await product.list("contract")).map(({ id }) => id).sort();
+      const keptHistory = await product.history({ id: kept });
+
+      await withAgent(folder, claudeCode("claude-2"), async (other) => {
+        for (const [tool, input] of [
+          ["plan_contract", { capability, title: "Rejects a blank address", project: productName }],
+          ["edit_plan", { id: kept, title: "Accepts any address", project: productName }],
+          ["retire_from_plan", { id: kept, reason: "overtaken", project: productName }],
+        ] as const) {
+          const refused = await other.call(tool, input);
+          assert.equal(refused.isError, true, `${tool} by another session is refused: ${refused.text}`);
+          assert.match(refused.text, new RegExp(`is on capability ${capability}, and live session claude-1 holds it`), `${tool}: ${refused.text}`);
+        }
+      });
+      assert.deepEqual(await contracts(), [kept], "no contract was planned");
+      assert.deepEqual(await product.history({ id: kept }), keptHistory, "the contract was neither edited nor retired");
+    } finally {
+      await storytree.close();
+      await dropTestProjects([productName]);
+    }
   });
 });

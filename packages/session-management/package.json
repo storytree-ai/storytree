@@ -19,6 +19,7 @@
     "./processes/stopping": "./src/processes/stopping/index.ts",
     "./processes/closing": "./src/processes/closing/index.ts",
     "./processes/testing": "./src/processes/testing/child.ts",
+    "./testing/shared-tables": "./src/testing/shared-tables.ts",
     "./processes/verbs": "./src/processes/verbs.ts",
     "./friction": "./src/friction/index.ts",
     "./friction/verbs": "./src/friction/verbs.ts",

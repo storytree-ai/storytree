@@ -143,7 +143,7 @@ const TREE = verb({
   tool: { absent: "a report read at the command line over a checkout and its merge history" },
   inputs: {
     story: { kind: "text", word: 0, describe: "the story whose tree is graded, by id or title" },
-    tree: { kind: "text", optional: true, describe: "a proposed tree file, JSON {\"nodes\": [{\"id\", \"title\", \"parent\"?, \"entry\"?, \"files\"? or \"capabilities\"?}]}; the plan's tree unless given" },
+    tree: { kind: "text", optional: true, describe: "a proposed tree file, JSON {\"nodes\": [{\"id\", \"title\", \"parent\"?, \"entry\"?, \"files\"? or \"capabilities\"?}], \"splits\"?: [{\"file\", \"into\": {\"<part>\": [names]}}], \"retargets\"?: [{\"file\", \"from\", \"to\"?, \"names\"?}]}: splits divide a file's exported names among parts, retargets move one file's import of another to a third or drop it; the plan's tree unless given" },
     json: { kind: "switch", describe: "the scorecard as JSON" },
   },
   async act({ story, tree, json }, context: VerbContext) {

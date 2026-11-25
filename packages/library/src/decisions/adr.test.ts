@@ -313,6 +313,44 @@ test("13.23 · `adr prune` archives a decision link with who, when and why and i
   assert.deepEqual([back.links, back.justifications], [[queue.id], { [queue.id]: "Follow it for how bounces would queue." }]);
 });
 
+test("13.28 · `adr prune` and `adr restore` move one decision link even when the decision's other links or supersedes name a retired or missing record, and a restore whose own target was retired is refused naming it, with nothing written", async (t) => {
+  const { library, records, context, verbOf } = await adrWorld(t);
+  const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
+  const gone = await library.recordDecision({ status: "accepted", title: "Mail by pigeon", text: "Fly it." });
+  const hand = await library.recordDecision({ status: "accepted", title: "Mail by hand", text: "By hand." });
+  const post = await library.recordDecision({ status: "accepted", title: "Mail by post", text: "Post it." });
+  const missing = "process_000000000000";
+  const linking = await records.create("decision", { status: "accepted", title: "Retries are twice", text: "Retry twice.", links: [queue.id, gone.id, missing], justifications: { [queue.id]: "Follow it for where a retry waits.", [gone.id]: "Follow it for the old carrier." } } as never);
+  const superseding = await records.create("decision", { status: "accepted", title: "Mail by courier", text: "Courier it.", supersedes: [hand.id, post.id], justifications: { [hand.id]: "Couriers replace hand delivery.", [post.id]: "Couriers replace the post." } } as never);
+  await records.retire(gone.id, "withdrawn");
+  await records.retire(post.id, "withdrawn");
+
+  await verbOf("prune").act({ decision: linking.id, target: queue.id, reason: "The queue rule moved." } as never, context, WORDS);
+  const pruned = (await library.get(linking.id))?.fields as { links?: string[]; archivedLinks?: { to: string; field: string; justification?: string; reason: string }[] };
+  assert.deepEqual(pruned.links, [gone.id, missing], "only the pruned link leaves links");
+  assert.deepEqual(pruned.archivedLinks?.map(({ to, field, justification, reason }) => ({ to, field, justification, reason })), [{ to: queue.id, field: "links", justification: "Follow it for where a retry waits.", reason: "The queue rule moved." }]);
+
+  await verbOf("restore").act({ decision: linking.id, target: queue.id, why: undefined } as never, context, WORDS);
+  const restored = (await library.get(linking.id))?.fields as { links?: string[]; justifications?: Record<string, string>; archivedLinks?: unknown[] };
+  assert.deepEqual([restored.links, restored.justifications?.[queue.id], restored.archivedLinks ?? []], [[gone.id, missing, queue.id], "Follow it for where a retry waits.", []], "back beside the retired and missing links, out of the archive");
+
+  await verbOf("prune").act({ decision: superseding.id, target: hand.id, reason: "Hand delivery stays." } as never, context, WORDS);
+  assert.deepEqual(((await library.get(superseding.id))?.fields as { supersedes?: string[] }).supersedes, [post.id], "only the pruned supersession leaves supersedes");
+  await verbOf("restore").act({ decision: superseding.id, target: hand.id, why: undefined } as never, context, WORDS);
+  assert.deepEqual(((await library.get(superseding.id))?.fields as { supersedes?: string[] }).supersedes, [post.id, hand.id], "back beside the retired supersession");
+
+  await verbOf("prune").act({ decision: linking.id, target: queue.id, reason: "The queue rule moved again." } as never, context, WORDS);
+  await records.retire(queue.id, "withdrawn");
+  const { cursor } = await library.changesSince(0);
+  await assert.rejects(
+    verbOf("restore").act({ decision: linking.id, target: queue.id, why: undefined } as never, context, WORDS),
+    (error: Error) => error.message.includes(queue.id) && !error.message.includes(gone.id) && !error.message.includes(missing),
+    "a restore whose own target was retired is refused naming that target",
+  );
+  assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
+  assert.deepEqual(((await library.get(linking.id))?.fields as { links?: string[] }).links, [gone.id, missing]);
+});
+
 test("13.24 · decision(id) carries supersededInPart, each accepted decision superseding it in named clauses with those clauses and an old-shape narrows with none, its status kept as stored; `adr pull` prints them and the records linking in as read-only superseded-in-part and linked-from lines, and `adr push` of the pulled file writes nothing", async (t) => {
   const { library, records, context, verbOf } = await adrWorld(t);
   const folder = mkdtempSync(path.join(tmpdir(), "library-adr-in-part-"));

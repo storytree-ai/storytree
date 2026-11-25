@@ -176,6 +176,14 @@ export function restoredEdit(record: SchemaRecord<"decision">, to: string, justi
   return why === undefined ? edit : { ...edit, justifications: { [to]: why } };
 }
 
+export function addedEdges(stored: Partial<FieldsOf<"decision">>, edit: Partial<FieldsOf<"decision">>): Partial<FieldsOf<"decision">> {
+  const added: Partial<FieldsOf<"decision">> = {};
+  if (edit.links !== undefined) added.links = edit.links.filter((id) => stored.links?.includes(id) !== true);
+  if (edit.supersedes !== undefined) added.supersedes = edit.supersedes.filter((id) => stored.supersedes?.includes(id) !== true);
+  if (edit.supersedesClauses !== undefined) added.supersedesClauses = edit.supersedesClauses.filter(({ decision }) => stored.supersedesClauses?.some((one) => one.decision === decision) !== true);
+  return added;
+}
+
 export interface DecisionNumberPlan {
   readonly id: string;
   readonly oldNumber: number | undefined;

@@ -4,7 +4,7 @@ import { checkReference, checkReferences, liveRecord, type Expected } from "../r
 import { judgedState, SchemaError, unstorable, type FieldsOf, type KnowledgeKind, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
 import { defaultEmbedder } from "./embedding-model.js";
 import { ARTIFACT_KINDS } from "./kinds.js";
-import { checkClauseSupersession, checkFrontCover, DecisionLog, justifiedEdit, partlySupersedes, prunedEdit, restoredEdit, type ArchivedDecisionLink, type DecisionLinkBacklog, type DecisionLinkChanges, type DecisionLinkSpan, type DecisionNumberPlan, type DecisionView, type NarrowsMove, type NewDecision, type SupersessionPairs } from "../decisions/index.js";
+import { addedEdges, checkClauseSupersession, checkFrontCover, DecisionLog, justifiedEdit, partlySupersedes, prunedEdit, restoredEdit, type ArchivedDecisionLink, type DecisionLinkBacklog, type DecisionLinkChanges, type DecisionLinkSpan, type DecisionNumberPlan, type DecisionView, type NarrowsMove, type NewDecision, type SupersessionPairs } from "../decisions/index.js";
 import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";
 import { artifactsOnly, frontCovers } from "./front-covers.js";
 import { relatedEach, relatedTo, type Related, type RelatedOptions, type SimilarityDoc } from "./similarity.js";
@@ -55,6 +55,12 @@ export interface PhrasePage {
 const SHARED_EMBEDDER = defaultEmbedder();
 
 export type NewDefinition = FieldsOf<"definition">;
+type EditOptions = WriteOptions & { readonly checkCurrent?: (note: Note) => void };
+
+function movedEdges(stored: object, edit: NoteEdit): NoteEdit {
+  return addedEdges(stored as Partial<FieldsOf<"decision">>, edit as Partial<FieldsOf<"decision">>) as NoteEdit;
+}
+
 export type NoteEdit = {
   [K in NoteType]: { [F in keyof FieldsOf<K>]?: FieldsOf<K>[F] | undefined };
 }[NoteType];
@@ -211,12 +217,12 @@ export class Knowledge {
 
   async pruneLink(from: string, to: string, reason: string, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
     const decision = await this.#liveDecision(from);
-    return (await this.editNote(from, prunedEdit(decision, to, reason, options?.actor ?? "unknown"), options)) as SchemaRecord<"decision">;
+    return (await this.#editNote(from, prunedEdit(decision, to, reason, options?.actor ?? "unknown"), options, movedEdges)) as SchemaRecord<"decision">;
   }
 
   async restoreLink(from: string, to: string, justification?: string, options?: WriteOptions): Promise<SchemaRecord<"decision">> {
     const decision = await this.#liveDecision(from);
-    return (await this.editNote(from, restoredEdit(decision, to, justification), options)) as SchemaRecord<"decision">;
+    return (await this.#editNote(from, restoredEdit(decision, to, justification), options, movedEdges)) as SchemaRecord<"decision">;
   }
 
   async #liveDecision(id: string): Promise<SchemaRecord<"decision">> {
@@ -263,7 +269,11 @@ export class Knowledge {
     return refiled;
   }
 
-  async editNote(id: string, fields: NoteEdit, options?: WriteOptions & { readonly checkCurrent?: (note: Note) => void }): Promise<Note | null> {
+  editNote(id: string, fields: NoteEdit, options?: EditOptions): Promise<Note | null> {
+    return this.#editNote(id, fields, options, (_stored, edit) => edit);
+  }
+
+  async #editNote(id: string, fields: NoteEdit, options: EditOptions | undefined, checked: (stored: object, edit: NoteEdit) => NoteEdit): Promise<Note | null> {
     const own = Object.keys(fields).find((field) => Object.hasOwn(OWN_VERBS, field));
     if (own !== undefined) throw new RangeError(`editNote does not change ${JSON.stringify(own)}: ${OWN_VERBS[own]}`);
     const note = await liveRecord(this.#records, id, NOTE_TYPES);
@@ -272,14 +282,15 @@ export class Knowledge {
       if ("state" in fields) throw new RangeError(UNNAMED_STATE);
       fields = frictionMove(note.fields, fields as FrictionEdit);
     }
-    await this.#checkNoteReferences(fields);
+    const references = checked(note.fields, fields);
+    await this.#checkNoteReferences(references);
     if (LINK_FIELDS.some((field) => field in fields)) await this.#refuseLinkLoop(id, { ...note.fields, ...fields });
     if ("frontCoverOf" in fields) await this.#checkFrontCover(fields.frontCoverOf);
     if ("supersedes" in fields) {
-      await checkReferences(this.#records, "supersedes", fields.supersedes, "decision");
+      await checkReferences(this.#records, "supersedes", (references as Partial<FieldsOf<"decision">>).supersedes, "decision");
       if (Array.isArray(fields.supersedes)) await this.#refuseSupersessionLoop(id, fields.supersedes);
     }
-    await checkClauseSupersession(this.#records, fields);
+    await checkClauseSupersession(this.#records, references);
     if (note.type === "decision") fields = await justifiedEdit(this.#records, id, note.fields, fields);
     const { checkCurrent, ...writer } = options ?? {};
     return (await this.#records.edit(id, fields, {

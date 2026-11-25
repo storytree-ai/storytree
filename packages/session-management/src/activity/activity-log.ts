@@ -96,6 +96,8 @@ export interface DeliveredEvent {
 
 export const EVENT_WINDOW = "2 minutes";
 
+const LOCKED_WRITE_IDLE_LIMIT = "60s";
+
 export interface LockedLog {
   lines(filter: LineFilter | readonly LineKind[]): Promise<Line[]>;
   standing(): Promise<Line[]>;
@@ -375,6 +377,7 @@ class PgActivityLog implements ActivityLog {
     let broken = false;
     try {
       await client.query("BEGIN");
+      await client.query(`SET LOCAL idle_in_transaction_session_timeout = '${LOCKED_WRITE_IDLE_LIMIT}'`);
       await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))", [project]);
       const result = await work(client);
       await client.query("COMMIT");

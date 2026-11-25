@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFile, execFileSync } from "node:child_process";
+import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -73,6 +73,54 @@ test("3.7 a worktree gets the push check as the pre-push hook its repository's w
   assert.equal(readFileSync(hook, "utf8"), "#!/bin/sh\necho someone else's\n");
   assert.ok(lines.at(-1)?.includes("someone else's"), lines.join("\n"));
   assert.ok(existsSync(hook));
+});
+
+test("3.13 · a worktree gets the commit check as the pre-commit hook its repository's worktrees share, leaving someone else's pre-commit hook as it was", (t) => {
+  assert.equal(typeof provisionWorktree.installCommitHook, "function", "provision-worktree.mjs exports installCommitHook");
+  const root = worktree(t, "current");
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  git("init", "-q");
+  git("config", "user.name", "t");
+  git("config", "user.email", "t@example.com");
+  git("commit", "-q", "--allow-empty", "-m", "start");
+  const hook = path.resolve(root, git("rev-parse", "--git-path", "hooks"), "pre-commit");
+  assert.equal(provision({ root, install: () => ({ ok: true }) }).ok, true);
+  assert.ok(existsSync(hook), "provisioning installs the pre-commit hook");
+  assert.match(readFileSync(hook, "utf8"), /# storytree commit check/);
+
+  mkdirSync(path.join(root, "docs", "design", "x"), { recursive: true });
+  writeFileSync(path.join(root, "docs", "design", "x", "tree.png"), "bytes");
+  git("add", "docs/design/x/tree.png");
+  const refused = spawnSync("git", ["commit", "-q", "-m", "evidence"], { cwd: root, encoding: "utf8" });
+  assert.notEqual(refused.status, 0, "the installed hook refuses a commit staging evidence media");
+  assert.match(refused.stderr, /evidence bucket/, refused.stderr);
+  assert.equal(git("rev-list", "--count", "HEAD"), "1", "nothing was committed");
+  git("rm", "-q", "--cached", "docs/design/x/tree.png");
+  mkdirSync(path.join(root, "docs", "design", "x", "inputs"), { recursive: true });
+  writeFileSync(path.join(root, "docs", "design", "x", "inputs", "frame.png"), "bytes");
+  git("add", "docs/design/x/inputs/frame.png");
+  const passed = spawnSync("git", ["commit", "-q", "-m", "input"], { cwd: root, encoding: "utf8" });
+  assert.equal(passed.status, 0, passed.stderr);
+
+  const linked = `${root}-linked`;
+  t.after(() => removeTemp(linked));
+  git("worktree", "add", "-q", linked);
+  const shared = path.resolve(linked, execFileSync("git", ["rev-parse", "--git-path", "hooks"], { cwd: linked, encoding: "utf8" }).trim(), "pre-commit");
+  assert.equal(realpathSync.native(shared), realpathSync.native(hook), "a linked worktree runs the same hook");
+
+  rmSync(hook);
+  const fallback = path.join(root, "elsewhere", "evidence-check.mjs");
+  const installed = provisionWorktree.installCommitHook({ root, fallback });
+  assert.match(installed, /installed/);
+  const text = readFileSync(hook, "utf8");
+  assert.ok(text.includes("/packages/repo-checks/src/evidence-check.mjs"), "the hook runs the committing checkout's evidence check");
+  assert.ok(text.includes(fallback.replaceAll("\\", "/")), "and falls back to the path it was given");
+  assert.match(text, /--staged/);
+
+  writeFileSync(hook, "#!/bin/sh\necho someone else's\n");
+  const left = provisionWorktree.installCommitHook({ root, fallback });
+  assert.match(left, /someone else's/);
+  assert.equal(readFileSync(hook, "utf8"), "#!/bin/sh\necho someone else's\n");
 });
 
 test("3.2 a fresh, a stale and an unlinked worktree each get installed", (t) => {

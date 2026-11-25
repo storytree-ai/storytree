@@ -25,7 +25,22 @@ export function checkEvidence({ root, log = console.log, error = console.error }
     return 1;
   }
   const present = files.filter((file) => statSync(path.join(root, file), { throwIfNoEntry: false })?.isFile());
-  const refused = present.filter(isCommittedEvidence).sort();
+  return judge(present, "changed", { log, error });
+}
+
+export function checkStaged({ root, log = console.log, error = console.error }) {
+  let files;
+  try {
+    files = execFileSync("git", ["diff", "--cached", "--name-only", "--no-renames", "--diff-filter=AM", "-z"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).split("\0").filter(Boolean);
+  } catch (failure) {
+    error(`commit check: the staged changes could not be read (${String(failure.stderr ?? failure.message).trim().split("\n")[0]})`);
+    return 1;
+  }
+  return judge(files, "staged", { log, error });
+}
+
+function judge(files, which, { log, error }) {
+  const refused = files.filter(isCommittedEvidence).sort();
   const approved = refused.filter((file) => APPROVED.test(file));
   const evidence = refused.filter((file) => !APPROVED.test(file));
   const said = [];
@@ -43,10 +58,12 @@ export function checkEvidence({ root, log = console.log, error = console.error }
     error(said.join("\n"));
     return 1;
   }
-  log(`${present.length} changed file${present.length === 1 ? "" : "s"}, no evidence media among them`);
+  log(`${files.length} ${which} file${files.length === 1 ? "" : "s"}, no evidence media among them`);
   return 0;
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = checkEvidence({ root: fileURLToPath(new URL("../../..", import.meta.url)) });
+  process.exitCode = process.argv.includes("--staged")
+    ? checkStaged({ root: execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim() })
+    : checkEvidence({ root: fileURLToPath(new URL("../../..", import.meta.url)) });
 }

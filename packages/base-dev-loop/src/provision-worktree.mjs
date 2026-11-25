@@ -408,44 +408,49 @@ function fetchElectron(root, log) {
   }
 }
 
-const HOOK_MARK = "# storytree push check";
+const PUSH_HOOK = { name: "pre-push", check: "push check", script: "push-check.mjs", args: '"$@"', does: "refuses a push that adds a credential held on this machine." };
+const COMMIT_HOOK = { name: "pre-commit", check: "commit check", script: "evidence-check.mjs", args: "--staged", does: "refuses a commit that stages evidence media." };
 
-function hookText(fallback) {
+function hookText({ check, script, args, does }, fallback) {
   const slashed = fallback.replaceAll("\\", "/");
   return [
     "#!/bin/sh",
-    `${HOOK_MARK}, installed by packages/base-dev-loop/src/provision-worktree.mjs: refuses a push that adds a credential held on this machine.`,
+    `# storytree ${check}, installed by packages/base-dev-loop/src/provision-worktree.mjs: ${does}`,
     'top="$(git rev-parse --show-toplevel)"',
-    'script="$top/packages/repo-checks/src/push-check.mjs"',
+    `script="$top/packages/repo-checks/src/${script}"`,
     `[ -f "$script" ] || script='${slashed.replaceAll("'", "'\\''")}'`,
     '[ -f "$script" ] || exit 0',
-    'exec node "$script" "$@"',
+    `exec node "$script" ${args}`,
     "",
   ].join("\n");
 }
 
-export function installPushHook({ root, fallback }) {
+function installHook(spec, { root, fallback }) {
   const git = (...args) => path.resolve(root, execFileSync("git", ["rev-parse", ...args], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim());
   let hooks;
   try {
     hooks = git("--git-path", "hooks");
-    const main = path.join(path.dirname(git("--git-common-dir")), "packages", "repo-checks", "src", "push-check.mjs");
-    fallback ??= existsSync(main) ? main : path.join(repoRoot, "packages", "repo-checks", "src", "push-check.mjs");
+    const main = path.join(path.dirname(git("--git-common-dir")), "packages", "repo-checks", "src", spec.script);
+    fallback ??= existsSync(main) ? main : path.join(repoRoot, "packages", "repo-checks", "src", spec.script);
   } catch {
-    return "not a git checkout: no push check installed";
+    return `not a git checkout: no ${spec.check} installed`;
   }
-  const hook = path.join(hooks, "pre-push");
-  const text = hookText(fallback);
+  const hook = path.join(hooks, spec.name);
+  const text = hookText(spec, fallback);
   if (existsSync(hook)) {
     const current = readFileSync(hook, "utf8");
-    if (!current.includes(HOOK_MARK)) return `a pre-push hook of someone else's is at ${hook}: the push check was not added`;
-    if (current === text) return "push check current";
+    if (!current.includes(`# storytree ${spec.check}`)) return `a ${spec.name} hook of someone else's is at ${hook}: the ${spec.check} was not added`;
+    if (current === text) return `${spec.check} current`;
   }
   mkdirSync(hooks, { recursive: true });
   writeFileSync(hook, text);
   chmodSync(hook, 0o755);
-  return `push check installed at ${hook}`;
+  return `${spec.check} installed at ${hook}`;
 }
+
+export const installPushHook = (options) => installHook(PUSH_HOOK, options);
+
+export const installCommitHook = (options) => installHook(COMMIT_HOOK, options);
 
 export function provision({ root = repoRoot, install = pnpmInstall, retries = 1, log = () => {}, update = {} } = {}) {
   if (superproject(root)) return { ok: true, code: 0 };
@@ -454,8 +459,9 @@ export function provision({ root = repoRoot, install = pnpmInstall, retries = 1,
     log(message);
     return { ok: false, condition: "checkout", message, code: 1 };
   }
-  const hook = installPushHook({ root });
-  if (/installed|someone else's/.test(hook)) log(`provision-worktree: ${hook}`);
+  for (const hook of [installPushHook({ root }), installCommitHook({ root })]) {
+    if (/installed|someone else's/.test(hook)) log(`provision-worktree: ${hook}`);
+  }
   const condition = conditionOf(root);
   if (condition === undefined) {
     fetchElectron(root, log);

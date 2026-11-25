@@ -35,10 +35,6 @@ function testsIn(file, source) {
   const found = [];
   const visit = (node) => {
     if (node === null || typeof node !== "object") return;
-    if (Array.isArray(node)) {
-      for (const each of node) visit(each);
-      return;
-    }
     if (node.type === "CallExpression" && node.callee.type === "Identifier") {
       const [first, second] = node.arguments;
       if (TESTS.has(node.callee.name)) {

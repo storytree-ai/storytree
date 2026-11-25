@@ -300,7 +300,7 @@ test("14.10 · a vector put while the cache's write lock is held past the 60 s w
   }
 });
 
-test("14.10 · a cache opened while another connection's read lock refuses its WAL switch is opened again until it is in WAL mode, and its vectors are read locally", { timeout: 30_000 }, async () => {
+test("14.10 · a cache opened while another connection's read lock refuses its WAL switch is opened again until it is in WAL mode, and its vectors are read locally", { timeout: 30_000 }, async (t) => {
   const folder = await mkdtemp(path.join(tmpdir(), "storytree-vectors-"));
   try {
     await withCountedProject(async ({ pool }) => {
@@ -312,18 +312,23 @@ test("14.10 · a cache opened while another connection's read lock refuses its W
       assert.deepEqual({ ...rollback.prepare("PRAGMA journal_mode = DELETE").get() }, { journal_mode: "delete" });
       rollback.close();
       const holder = new DatabaseSync(file);
-      let released = false;
-      const release = setTimeout(() => {
-        holder.exec("ROLLBACK");
-        holder.close();
-        released = true;
-      }, 300);
+      const later = globalThis.setTimeout;
+      let refusals = 0;
+      const waits = t.mock.method(globalThis, "setTimeout", ((callback: () => void) => {
+        refusals += 1;
+        if (refusals === 2) {
+          holder.exec("ROLLBACK");
+          holder.close();
+        }
+        return later(callback, 0);
+      }) as unknown as typeof setTimeout);
       try {
         holder.exec("BEGIN");
         holder.prepare("SELECT count(*) FROM embedding_v2").get();
         const remote = { query() { throw new Error("the vector must be read from the local cache: this reader never queries Postgres"); } };
         const read = await new PgVectors(remote as never, file, domain).get("unswitched", ["kept"]);
-        assert.equal(released, true, "the read waited for the read lock to go instead of opening the cache out of WAL mode");
+        waits.mock.restore();
+        assert.equal(holder.isOpen, false, `the read returned after ${refusals} refused opens, while the read lock was still held: it opened the cache out of WAL mode instead of opening it again`);
         assert.deepEqual(read, new Map([["kept", value]]));
         const after = new DatabaseSync(file);
         try {
@@ -332,10 +337,8 @@ test("14.10 · a cache opened while another connection's read lock refuses its W
           after.close();
         }
       } finally {
-        clearTimeout(release);
-        if (!released && holder.isOpen) {
-          holder.close();
-        }
+        waits.mock.restore();
+        if (holder.isOpen) holder.close();
       }
     });
   } finally {

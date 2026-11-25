@@ -137,13 +137,13 @@ const TREE = verb({
   command: {
     family: "code-measures",
     name: "tree",
-    summary: "grade a story's capability tree, the plan's or a proposed one, on one scorecard (report only): co-change grouping and pairs over main's merges, levels, instability, common reuse, cycles, fat per depth and the types crossing each boundary, with guidance leads apart",
+    summary: "grade a story's capability tree, the plan's or a proposed one, on one scorecard (report only): co-change grouping and pairs over main's merges, levels, instability, common reuse, the sibling-cycle gate, fat per depth, the types crossing each boundary, meet depth, sibling entries, common reuse by pair with split candidates and top-level technical names, with guidance leads apart",
     usage: "code-measures tree <story> [--tree <file>] [--json]",
   },
   tool: { absent: "a report read at the command line over a checkout and its merge history" },
   inputs: {
     story: { kind: "text", word: 0, describe: "the story whose tree is graded, by id or title" },
-    tree: { kind: "text", optional: true, describe: "a proposed tree file, JSON {\"nodes\": [{\"id\", \"title\", \"parent\"?, \"files\"? or \"capabilities\"?}]}; the plan's tree unless given" },
+    tree: { kind: "text", optional: true, describe: "a proposed tree file, JSON {\"nodes\": [{\"id\", \"title\", \"parent\"?, \"entry\"?, \"files\"? or \"capabilities\"?}]}; the plan's tree unless given" },
     json: { kind: "switch", describe: "the scorecard as JSON" },
   },
   async act({ story, tree, json }, context: VerbContext) {

@@ -66,6 +66,7 @@ test("5.9 · the printed scorecard puts the readings first and the leads under a
   const family = guidance.split("\n").filter((line) => /no change family/i.test(line));
   assert.equal(family.length, 1, `one no change family lead:\n${guidance}`);
   assert.match(family[0]!, /Queues/);
+  assert.equal(text.match(/cycle gate/gi)?.length, 1, "one sibling-cycle gate line");
   assert.doesNotMatch(text.replace(/^.*cycle gate.*$/gim, ""), /\b(pass(ed)?|fail(ed|s)?|verdict)\b/i, "report only: no verdict but the sibling-cycle gate's");
 });
 

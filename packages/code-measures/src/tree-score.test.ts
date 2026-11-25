@@ -268,7 +268,7 @@ test("5.11 · of the imports between siblings, the share landing on the imported
     ]),
     source("k/index.ts", ['export { key } from "./keys.js";']),
     source("k/deep/index.ts", ["export const deep = 3;"]),
-    source("v/api.ts", ['export { make, type Value } from "./impl.js";', "export const version = 1;"]),
+    source("v/api.ts", ['export { make, type Value } from "./impl.js";', "export const version = 1;", 'export const label = "v";']),
     source("v/impl.ts", [
       'import { key } from "../k/index.js";',
       'import { other } from "../k/keys.js";',
@@ -314,9 +314,9 @@ test("5.11 · of the imports between siblings, the share landing on the imported
     { id: "K", entry: at("k/index.ts"), exported: 1, behind: 3 },
     { id: "M", entry: at("m/index.mts"), exported: 1, behind: 2 },
     { id: "N", entry: null, exported: 0, behind: 1 },
-    { id: "S", entry: at("k/index.ts"), exported: 1, behind: 11 },
-    { id: "V", entry: at("v/api.ts"), exported: 3, behind: 5 },
-  ]);
+    { id: "S", entry: at("k/index.ts"), exported: 1, behind: 12 },
+    { id: "V", entry: at("v/api.ts"), exported: 4, behind: 5 },
+  ], "behind counts the files other than the entry: Values' label, exported only by its entry, is not behind it");
 });
 
 test("5.11 · with no import between siblings the entry share reads none", () => {
@@ -341,17 +341,21 @@ test("5.12 · each consumer and dependency node pair reads the share of the depe
     source("c1/two.ts", ['import { a } from "../d/one.js";', "export const y = a;"]),
     source("c2/use.ts", ['import * as one from "../d/one.js";', 'import six from "../d/two.js";', "export const z = one.a + six;"]),
     source("c3/barrel.ts", ['export * from "../d/one.js";', 'import type { F } from "../d/two.js";', "export const w: F | undefined = undefined;"]),
+    source("c4/rename.ts", ['export { b as bee } from "../d/one.js";']),
+    source("c5/qualified.ts", ['export type G = import("../d/two.js").F;']),
   ];
-  const tree = flat({ D: ["d/one.ts", "d/two.ts"], E: ["e/four.ts"], C1: ["c1/one.ts", "c1/two.ts"], C2: ["c2/use.ts"], C3: ["c3/barrel.ts"] });
+  const tree = flat({ D: ["d/one.ts", "d/two.ts"], E: ["e/four.ts"], C1: ["c1/one.ts", "c1/two.ts"], C2: ["c2/use.ts"], C3: ["c3/barrel.ts"], C4: ["c4/rename.ts"], C5: ["c5/qualified.ts"] });
   const structure = treeStructureOf(tree, importsOf(files)) as TreeStructure & { reuse?: readonly Reuse[]; splitCandidates?: readonly { consumer: string; dependency: string }[] };
   assert.deepEqual(structure.reuse, [
     { consumer: "C1", dependency: "D", used: 1, exported: 6, share: 1 / 6 },
     { consumer: "C1", dependency: "E", used: 1, exported: 4, share: 0.25 },
     { consumer: "C2", dependency: "D", used: 4, exported: 6, share: 4 / 6 },
     { consumer: "C3", dependency: "D", used: 4, exported: 6, share: 4 / 6 },
-  ]);
+    { consumer: "C4", dependency: "D", used: 1, exported: 6, share: 1 / 6 },
+    { consumer: "C5", dependency: "D", used: 1, exported: 6, share: 1 / 6 },
+  ], "a renamed re-export uses the dependency's name, and a qualified import type the one name it qualifies");
   assert.equal((treeStructure as Record<string, unknown>).SPLIT_SHARE, 0.25);
-  assert.deepEqual((structure.splitCandidates ?? []).map(({ consumer, dependency }) => [consumer, dependency]), [["C1", "D"]], "C1 uses one of D's six names; C1's one of E's four is a quarter, not under it");
+  assert.deepEqual((structure.splitCandidates ?? []).map(({ consumer, dependency }) => [consumer, dependency]), [["C1", "D"], ["C4", "D"], ["C5", "D"]], "C1, C4 and C5 each use one of D's six names; C1's one of E's four is a quarter, not under it");
 });
 
 const GATED: Tree = {

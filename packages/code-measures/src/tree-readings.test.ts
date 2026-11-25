@@ -47,6 +47,8 @@ test("5.10, 5.11, 5.12, 5.13, 5.14 · the printed scorecard names each new readi
   assert.match(lineOf(readings, /entr(y|ies)/i), /33(\.3)?%|1 of 3|1\/3/, "one of three sibling imports lands on an entry");
   assert.match(readings, /p2\/two\.ts.*p1\/more\.ts/, "Second page's import of First page's more.ts, not its index, is named by file");
   assert.match(readings, /p1\/index\.ts.*p2\/two\.ts/, "First page's import of Second page, which has no entry, is named by file");
+  assert.match(lineOf(readings, /entry size/i), /exported/i, "the entry size reading is named and explained");
+  assert.match(lineOf(readings, /First page:.*p1\/index\.ts/), /\b1\b.*\b4\b/, "First page's entry exports one name against four behind it");
   assert.match(lineOf(readings, /split/i), /Second page.*First page/, "Second page uses one of First page's five names");
   assert.match(lineOf(readings, /cycle gate/i), /fail.*Pages.*(First page.*Second page|Second page.*First page)/i);
   assert.match(lineOf(readings, /technical/i), /Shared bits/);

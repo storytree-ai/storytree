@@ -1,0 +1,377 @@
+Readings
+  grouping    TurboMQ 2.65 (mean 0.76, 95th percentile 0.94 over 500 random groupings of the same sizes)
+              co-change inside groups 28.5% (mean 9.9%, 95th percentile 12.8% over 500 random groupings of the same sizes)
+  pairs       node pairs changing together at support 5 or more, by lift:
+    13 · Decision log and 22 · Decision corrections: support 7, lift 15.5, Jaccard 0.58
+    1 · Project libraries and 29 · Factory and product: support 6, lift 9.79, Jaccard 0.32
+    10 · Work in flight and 11 · Waits: support 7, lift 5.17, Jaccard 0.19
+    13 · Decision log and 6 · Knowledge artifacts: support 5, lift 4.84, Jaccard 0.22
+    32 · Questions and work and 4 · Work model: support 8, lift 4.13, Jaccard 0.21
+    7 · Library API and 32 · Questions and work: support 8, lift 2.92, Jaccard 0.15
+    26 · Rounds and 7 · Library API: support 5, lift 2.61, Jaccard 0.09
+    7 · Library API and 22 · Decision corrections: support 5, lift 2.61, Jaccard 0.09
+    2 · Library transactions and 7 · Library API: support 8, lift 2.43, Jaccard 0.15
+    6 · Knowledge artifacts and 17 · The library's commands: support 9, lift 2.27, Jaccard 0.17
+    7 · Library API and 13 · Decision log: support 7, lift 2.13, Jaccard 0.13
+    13 · Decision log and 17 · The library's commands: support 5, lift 1.68, Jaccard 0.09
+    1 · Project libraries and 7 · Library API: support 8, lift 1.54, Jaccard 0.13
+    2 · Library transactions and 3 · Data schema: support 6, lift 1.52, Jaccard 0.09
+    3 · Data schema and 32 · Questions and work: support 5, lift 1.52, Jaccard 0.08
+    7 · Library API and 3 · Data schema: support 23, lift 1.38, Jaccard 0.26
+    7 · Library API and 6 · Knowledge artifacts: support 6, lift 1.37, Jaccard 0.1
+    3 · Data schema and 6 · Knowledge artifacts: support 7, lift 1.33, Jaccard 0.1
+    7 · Library API and 5 · Health record: support 8, lift 1.22, Jaccard 0.12
+    7 · Library API and 17 · The library's commands: support 15, lift 1.19, Jaccard 0.18
+    7 · Library API and 10 · Work in flight: support 11, lift 1.11, Jaccard 0.14
+    3 · Data schema and 5 · Health record: support 8, lift 1.02, Jaccard 0.1
+    3 · Data schema and 17 · The library's commands: support 15, lift 0.99, Jaccard 0.16
+    1 · Project libraries and 3 · Data schema: support 6, lift 0.96, Jaccard 0.08
+    3 · Data schema and 4 · Work model: support 11, lift 0.93, Jaccard 0.13
+    7 · Library API and 4 · Work model: support 9, lift 0.91, Jaccard 0.12
+    10 · Work in flight and 4 · Work model: support 6, lift 0.86, Jaccard 0.09
+    17 · The library's commands and 4 · Work model: support 7, lift 0.79, Jaccard 0.09
+    3 · Data schema and 10 · Work in flight: support 9, lift 0.76, Jaccard 0.1
+  nodes       level among siblings, instability, common reuse:
+    1 · Project libraries: level 2, instability 0.67, common reuse 75%
+    2 · Library transactions: level 1, instability 0, common reuse 100%
+    3 · Data schema: level 2, instability 0.07, common reuse 0%
+    4 · Work model: level 2, instability 0.67, common reuse 100%
+    6 · Knowledge artifacts: level 2, instability 0.86, common reuse 0%
+    5 · Health record: level 3, instability 0.6, common reuse 0%
+    7 · Library API: level 3, instability 0.32, common reuse 94.1%
+    9 · Knowledge entrances: level 1, instability 0.67, common reuse 0%
+    21 · Links: level 1, instability 0.5, common reuse 0%
+    22 · Decision corrections: level 2, instability 0.67, common reuse 0%
+    23 · Catalogue: level 1, instability 0.5, common reuse 0%
+    24 · Graduation: level 1, instability 0.5, common reuse 0%
+    26 · Rounds: level 2, instability 0.86, common reuse 0%
+    10 · Work in flight: level 2, instability 0.75, common reuse 50%
+    11 · Waits: level 1, instability 0.5, common reuse 0%
+    12 · Owner questions: level 1, instability 0.6, common reuse 0%
+    13 · Decision log: level 1, instability 0.67, common reuse 50%
+    14 · Ranked search: level 1, instability 0.33, common reuse 100%
+    15 · Connection by address: level 2, instability 0.4, common reuse 0%
+    16 · The command schema: level 3, instability 0.5, common reuse 0%
+    17 · The library's commands: level 4, instability 1, common reuse none
+    27 · Fixed data questions: level 3, instability 0.5, common reuse 100%
+    28 · Shared server: level 1, instability 0, common reuse 80%
+    29 · Factory and product: level 2, instability 0.6, common reuse 50%
+    30 · Outside writers: level 3, instability 0.75, common reuse 0%
+    31 · Decisions: level 3, instability 0.44, common reuse 0%
+    32 · Questions and work: level 3, instability 0.5, common reuse 0%
+    33 · Notes and search: level 3, instability 0.44, common reuse 0%
+    34 · Project storage: level 3, instability 0.71, common reuse 100%
+    35 · The librarian: level 4, instability 1, common reuse none
+  cycle gate  fail: under 34 · Project storage, 29 · Factory and product, 15 · Connection by address, 1 · Project libraries; under the top level, 27 · Fixed data questions, 32 · Questions and work, 16 · The command schema, 31 · Decisions, 33 · Notes and search, 34 · Project storage, 7 · Library API, 5 · Health record; under 32 · Questions and work, 10 · Work in flight, 4 · Work model
+  depths
+    depth 1: 12 nodes, 44 sibling import edges
+    depth 2: 18 nodes, 19 sibling import edges
+  boundaries  import edges between nodes, with the types crossing each:
+    9 · Knowledge entrances → 7 · Library API: Expected
+    9 · Knowledge entrances → 3 · Data schema: RecordType, SchemaRecord
+    23 · Catalogue → 7 · Library API: Library, Note, WriteOptions
+    23 · Catalogue → 35 · The librarian: Reference
+    26 · Rounds → 23 · Catalogue: MarkedWrite, NewNote
+    26 · Rounds → 24 · Graduation: MemoryItem, ProcessGaps
+    26 · Rounds → 7 · Library API: Library, Related, SchemaRecord, WriteOptions
+    26 · Rounds → 21 · Links: BrokenEdge
+    26 · Rounds → 31 · Decisions: no types
+    26 · Rounds → 35 · The librarian: no types
+    24 · Graduation → 7 · Library API: Library, Note, WriteOptions
+    24 · Graduation → 35 · The librarian: no types
+    14 · Ranked search → 3 · Data schema: SchemaRecord
+    1 · Project libraries → 2 · Library transactions: EditInput, HistoryEntry, HistoryFilter, ListFilter, PoolWaits, RecordEnvelope, RetireInput, RevertInput, RevertWritesInput, RevertedWrite, SaveInput, Transactions
+    1 · Project libraries → 33 · Notes and search: EmbedderSource, VectorDomain
+    1 · Project libraries → 29 · Factory and product: Reached, SystemSwitches
+    1 · Project libraries → 3 · Data schema: PluginRecordKind
+    1 · Project libraries → 15 · Connection by address: no types
+    1 · Project libraries → 32 · Questions and work: no types
+    1 · Project libraries → 5 · Health record: no types
+    1 · Project libraries → 28 · Shared server: no types
+    12 · Owner questions → 33 · Notes and search: no types
+    12 · Owner questions → 7 · Library API: Expected
+    12 · Owner questions → 3 · Data schema: FieldsOf, RecordType, SchemaRecord, WriteOptions
+    30 · Outside writers → 1 · Project libraries: ConnectOptions, ServerAccess
+    30 · Outside writers → 15 · Connection by address: no types
+    30 · Outside writers → 28 · Shared server: no types
+    33 · Notes and search → 14 · Ranked search: Embedder, EmbedderSource, VectorDomain, VectorStore
+    33 · Notes and search → 6 · Knowledge artifacts: Findable, NarrowingDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, PhraseKind, PhraseOptions, PhrasePage, PlanKind, RankOptions, Ranked, Ranking, Related, RelatedHit, RelatedOptions
+    27 · Fixed data questions → 7 · Library API: Library
+    27 · Fixed data questions → 16 · The command schema: VerbContext
+    7 · Library API → 2 · Library transactions: HistoryEntry, HistoryFilter, RecordEnvelope
+    7 · Library API → 33 · Notes and search: NarrowingDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, PhraseKind, PhraseOptions, PhrasePage, RankOptions, Ranked, Related, RelatedHit, RelatedOptions
+    7 · Library API → 27 · Fixed data questions: Counts, KindCount, RecentChange, TitleHit
+    7 · Library API → 3 · Data schema: Agent, CodeEdge, EdgeFile, FieldEdit, FieldsOf, FileImport, KnowledgeKind, Line, LineKind, LinesSince, NewLine, PartClash, PluginRecordKind, PluginUpgradeStep, Precheck, RecordType, ScheduleRule, SchemaRecord, SharedStore, StoreTable, StorySurvey, SurveyedFile, SurveyedPart, SurveyedParts, SurveyedTest, WriteOptions
+    7 · Library API → 32 · Questions and work: Anchor, AnchorEdit, AnchorGaps, ArcEdit, ArcNode, ArcState, ArcView, BoardArcView, BoardIncrement, CapabilityEdit, CloseInput, ContractEdit, ContractWriteOptions, DayWindow, Disposition, EdgeEdit, EdgeNode, Hold, Holds, ImportedPluginPlan, IncrementEdit, IncrementStatus, MappedPackage, MappedStories, MovedToEdges, NewArc, NewCapability, NewContract, NewEdge, NewIncrement, NewQuestion, NewStory, NoteWait, OpenListing, ParkedOn, Pended, PendingChange, PlanChange, PluginPlan, PluginPlanCapability, PluginPlanHeld, PrCutover, QuestionLease, Settlement, StoreLink, StoryEdit, SurveyOptions, WaitFor, WorkSurvey
+    7 · Library API → 31 · Decisions: DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision
+    7 · Library API → 34 · Project storage: ConnectOptions, ConnectionProblem, FactoryLink, OpenOptions, OwnDatabaseOptions, Project, ProjectSnapshot, Reached, SnapshotEvent, SnapshotMedia, SnapshotRecord, Storytree
+    7 · Library API → 5 · Health record: AnnotatedCapability, AnnotatedContract, AnnotatedEdge, AnnotatedStory, AnnotatedTree, CapabilityStatus, CapabilityWhy, ChangedOnMain, EarlierVerdict, FlakeSeen, HealthColumn, HealthColumnName, HealthEntry, HealthOptions, HealthReason, HealthSource, HealthState, HealthWorkItem, NamedOnMain, NodeHealth, OpenWait, PendingRun, SkipKind, VerifiedVerdict
+    13 · Decision log → 2 · Library transactions: HistoryEntry
+    13 · Decision log → 7 · Library API: Expected, Library, Note, NoteEdit, SchemaRecord, WriteOptions
+    13 · Decision log → 16 · The command schema: VerbContext, VerbFamily
+    13 · Decision log → 3 · Data schema: FieldsOf, SchemaRecord, WriteOptions
+    16 · The command schema → 7 · Library API: Library, Storytree
+    16 · The command schema → 3 · Data schema: WriteOptions
+    16 · The command schema → 28 · Shared server: no types
+    29 · Factory and product → 2 · Library transactions: HistoryEntry, HistoryFilter, ListFilter, Transactions
+    29 · Factory and product → 1 · Project libraries: no types
+    29 · Factory and product → 3 · Data schema: CreateOptions, FieldEdit, FieldsOf, LibrarySchema, RecordType, SchemaRecord, WriteOptions
+    21 · Links → 7 · Library API: Library, Note, Related, SchemaRecord, WriteOptions
+    21 · Links → 35 · The librarian: Reference
+    3 · Data schema → 2 · Library transactions: HistoryEntry, HistoryFilter, ListFilter, OutsideRead, RecordEnvelope, RevertedWrite, Transactions
+    15 · Connection by address → 1 · Project libraries: ConnectOptions, ServerAccess, Transport, WaitBounds
+    15 · Connection by address → 28 · Shared server: no types
+    10 · Work in flight → 12 · Owner questions: NewQuestion, Prep, QuestionDeviation, QuestionEdit, QuestionLease, Score, Settlement, WouldBeAnswer
+    10 · Work in flight → 33 · Notes and search: no types
+    10 · Work in flight → 7 · Library API: no types
+    10 · Work in flight → 3 · Data schema: FieldsOf, SchemaRecord, WriteOptions
+    10 · Work in flight → 11 · Waits: ClaimReading, Hold, Holds, NoteWait, Wait, WaitFor
+    10 · Work in flight → 4 · Work model: AppliedPending, Pended, PendingChange, PlanChange, ProjectTree, SettledPending, StalePending, UnappliedPending
+    22 · Decision corrections → 7 · Library API: Library, SchemaRecord, WriteOptions
+    22 · Decision corrections → 13 · Decision log: no types
+    6 · Knowledge artifacts → 9 · Knowledge entrances: no types
+    6 · Knowledge artifacts → 14 · Ranked search: EmbedderSource, VectorStore
+    6 · Knowledge artifacts → 2 · Library transactions: RecordEnvelope
+    6 · Knowledge artifacts → 7 · Library API: Expected
+    6 · Knowledge artifacts → 3 · Data schema: FieldsOf, KnowledgeKind, SchemaRecord, WriteOptions
+    6 · Knowledge artifacts → 31 · Decisions: ArchivedDecisionLink, DecisionLinkBacklog, DecisionLinkChanges, DecisionLinkSpan, DecisionNumberPlan, DecisionView, NarrowsMove, NewDecision, SupersessionPairs
+    32 · Questions and work → 12 · Owner questions: DeviationBand, NewQuestion, Prep, QuestionDeviation, QuestionEdit, QuestionLease, Score, Settlement, Verdict, WouldBeAnswer
+    32 · Questions and work → 10 · Work in flight: ArcEdit, ArcState, ArcView, BoardArcView, BoardIncrement, CloseInput, DayWindow, Disposition, IncrementEdit, IncrementStatus, NewArc, NewIncrement, OpenListing, ParkOptions, ParkedOn, Pended, PendingChange, PlanChange, SurveyOptions, WorkSurvey
+    32 · Questions and work → 11 · Waits: Hold, Holds, NoteWait, WaitFor
+    32 · Questions and work → 4 · Work model: Anchor, AnchorEdit, AnchorGaps, ArcNode, CapabilityEdit, CapabilityNode, ContractEdit, ContractNode, ContractWriteOptions, EdgeEdit, EdgeNode, ImportedPluginPlan, MappedPackage, MappedStories, MovedToEdges, NewCapability, NewContract, NewEdge, NewStory, PlanEdit, PluginPlan, PluginPlanCapability, PluginPlanHeld, PrCutover, ProjectTree, StoreLink, StoryEdit, StoryNode
+    31 · Decisions → 13 · Decision log: ArchivedDecisionLink, ArchivedLink, ClauseSupersession, DecisionLinkBacklog, DecisionLinkChanges, DecisionLinkCounts, DecisionLinkDay, DecisionLinkSpan, DecisionNumberPlan, DecisionStatus, DecisionView, NarrowsMove, NewDecision, Successor, SupersessionPair, SupersessionPairs
+    31 · Decisions → 22 · Decision corrections: Annotation, Correction
+    11 · Waits → 7 · Library API: no types
+    11 · Waits → 3 · Data schema: FieldsOf
+    17 · The library's commands → 2 · Library transactions: no types
+    17 · The library's commands → 33 · Notes and search: Findable, NarrowingDecision, NoteType, PlanKind, Ranked
+    17 · The library's commands → 27 · Fixed data questions: no types
+    17 · The library's commands → 7 · Library API: KnowledgeKind, Library, NewLine, Note, NoteEdit, PendingChange, PhraseKind, PlanChange, Reached, RecordType, SchemaRecord, WriteOptions
+    17 · The library's commands → 16 · The command schema: DoorWords, Verb, VerbAnswer, VerbContext, VerbFamily, VerbInputs
+    17 · The library's commands → 3 · Data schema: no types
+    17 · The library's commands → 32 · Questions and work: PlanEdit
+    17 · The library's commands → 31 · Decisions: no types
+    4 · Work model → 2 · Library transactions: HistoryEntry
+    4 · Work model → 7 · Library API: no types
+    4 · Work model → 3 · Data schema: FieldsOf, SchemaRecord, WriteOptions
+    4 · Work model → 10 · Work in flight: no types
+    35 · The librarian → 23 · Catalogue: NewNote
+    35 · The librarian → 26 · Rounds: RoundDue, ToolAnswer, ToolCall, Worklist, WorklistOptions
+    35 · The librarian → 24 · Graduation: GraduationKind, MemoryItem, ProcessGaps
+    35 · The librarian → 7 · Library API: Library, Note
+    35 · The librarian → 21 · Links: BrokenEdge
+    35 · The librarian → 31 · Decisions: Annotation, Correction, Successor
+    34 · Project storage → 2 · Library transactions: no types
+    34 · Project storage → 1 · Project libraries: ConnectOptions, OpenOptions, OwnDatabaseOptions, Project, ProjectSnapshot, SnapshotEvent, SnapshotMedia, SnapshotRecord, Storytree
+    34 · Project storage → 30 · Outside writers: OutsideWriter
+    34 · Project storage → 29 · Factory and product: FactoryLink, Reached
+    34 · Project storage → 15 · Connection by address: no types
+    34 · Project storage → 28 · Shared server: ConnectionProblem
+    5 · Health record → 7 · Library API: no types
+    5 · Health record → 3 · Data schema: FieldsOf, RecordType, SchemaRecord, WriteOptions
+    5 · Health record → 32 · Questions and work: Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, Holds, ParkedOn, ProjectTree, StoryNode
+  meet depth  imports by the depth their two ends' nodes meet at, deeper better: depth 0: 108 imports, depth 1: 117 imports, depth 2: 29 imports
+  entries     81 of 143 imports between siblings (56.6%) land on the imported sibling's entry; the rest, by file:
+    packages/library/src/project/server.ts → packages/library/src/project/connection-error.ts (into 28 · Shared server)
+    packages/library/src/project/server.ts → packages/library/src/project/reads.ts (into 28 · Shared server)
+    packages/library/src/project/storytree.ts → packages/library/src/project/address.ts (into 15 · Connection by address)
+    packages/library/src/project/storytree.ts → packages/library/src/project/connection-error.ts (into 28 · Shared server)
+    packages/library/src/project/storytree.ts → packages/library/src/project/factory.ts (into 29 · Factory and product)
+    packages/library/src/project/storytree.ts → packages/library/src/project/switches.ts (into 29 · Factory and product)
+    packages/library/src/work/pending-changes.ts → packages/library/src/creation-order.ts (into 7 · Library API)
+    packages/library/src/work/pending-changes.ts → packages/library/src/references.ts (into 7 · Library API)
+    packages/library/src/work/plan-hold.ts → packages/library/src/work/work-in-flight.ts (into 10 · Work in flight)
+    packages/library/src/work/work-model.ts → packages/library/src/creation-order.ts (into 7 · Library API)
+    packages/library/src/work/work-model.ts → packages/library/src/references.ts (into 7 · Library API)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/creation-order.ts (into 7 · Library API)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/references.ts (into 7 · Library API)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/knowledge/embedding-model.ts (into 14 · Ranked search)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/knowledge/embedding.ts (into 14 · Ranked search)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/knowledge/front-covers.ts (into 9 · Knowledge entrances)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/knowledge/whole-words.ts (into 14 · Ranked search)
+    packages/library/src/health/health-record.ts → packages/library/src/creation-order.ts (into 7 · Library API)
+    packages/library/src/health/health-record.ts → packages/library/src/references.ts (into 7 · Library API)
+    packages/library/src/api/library.ts → packages/library/src/data/data-questions.ts (into 27 · Fixed data questions)
+    packages/library/src/index.ts → packages/library/src/data/data-questions.ts (into 27 · Fixed data questions)
+    packages/library/src/knowledge/front-covers.ts → packages/library/src/creation-order.ts (into 7 · Library API)
+    packages/library/src/knowledge/front-covers.ts → packages/library/src/references.ts (into 7 · Library API)
+    packages/library/src/decisions/corrections.ts → packages/library/src/decisions/decision-log.ts (into 13 · Decision log)
+    packages/library/src/decisions/corrections.ts → packages/library/src/decisions/supersede.ts (into 13 · Decision log)
+    packages/library/src/work/wait-writes.ts → packages/library/src/creation-order.ts (into 7 · Library API)
+    packages/library/src/work/wait-writes.ts → packages/library/src/references.ts (into 7 · Library API)
+    packages/library/src/work/wait-writes.ts → packages/library/src/work/waits.ts (into 11 · Waits)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/creation-order.ts (into 7 · Library API)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/references.ts (into 7 · Library API)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/work/pending-changes.ts (into 4 · Work model)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/work/owner-questions.ts (into 12 · Owner questions)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/work/waits.ts (into 11 · Waits)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/work/work-model.ts (into 4 · Work model)
+    packages/library/src/work/waits.ts → packages/library/src/references.ts (into 7 · Library API)
+    packages/library/src/work/owner-questions.ts → packages/library/src/creation-order.ts (into 7 · Library API)
+    packages/library/src/work/owner-questions.ts → packages/library/src/references.ts (into 7 · Library API)
+    packages/library/src/decisions/adr.ts → packages/library/src/verbs/verb.ts (into 16 · The command schema)
+    packages/library/src/decisions/decision-log.ts → packages/library/src/creation-order.ts (into 7 · Library API)
+    packages/library/src/decisions/decision-log.ts → packages/library/src/references.ts (into 7 · Library API)
+    packages/library/src/project/address.ts → packages/library/src/project/connection-error.ts (into 28 · Shared server)
+    packages/library/src/project/address.ts → packages/library/src/project/server.ts (into 1 · Project libraries)
+    packages/library/src/project/address.ts → packages/library/src/project/storytree.ts (into 1 · Project libraries)
+    packages/library/src/project/websocket.ts → packages/library/src/project/connection-error.ts (into 28 · Shared server)
+    packages/library/src/project/websocket.ts → packages/library/src/project/server.ts (into 1 · Project libraries)
+    packages/library/src/verbs/verb.ts → packages/library/src/project/connection-error.ts (into 34 · Project storage)
+    packages/library/src/commands/elsewhere.ts → packages/library/src/verbs/verb.ts (into 16 · The command schema)
+    packages/library/src/commands/fyi.ts → packages/library/src/verbs/verb.ts (into 16 · The command schema)
+    packages/library/src/commands/index.ts → packages/library/src/verbs/verb.ts (into 16 · The command schema)
+    packages/library/src/commands/index.ts → packages/library/src/data/commands.ts (into 27 · Fixed data questions)
+    packages/library/src/commands/media.ts → packages/library/src/verbs/verb.ts (into 16 · The command schema)
+    packages/library/src/commands/notes.ts → packages/library/src/verbs/verb.ts (into 16 · The command schema)
+    packages/library/src/commands/ranked.ts → packages/library/src/verbs/verb.ts (into 16 · The command schema)
+    packages/library/src/commands/stale-edit.ts → packages/library/src/verbs/verb.ts (into 16 · The command schema)
+    packages/library/src/data/commands.ts → packages/library/src/verbs/verb.ts (into 16 · The command schema)
+    packages/library/src/project/factory.ts → packages/library/src/project/names.ts (into 1 · Project libraries)
+    packages/library/src/project/outside-writer.ts → packages/library/src/project/address.ts (into 15 · Connection by address)
+    packages/library/src/project/outside-writer.ts → packages/library/src/project/connection-error.ts (into 28 · Shared server)
+    packages/library/src/project/outside-writer.ts → packages/library/src/project/names.ts (into 1 · Project libraries)
+    packages/library/src/project/outside-writer.ts → packages/library/src/project/server.ts (into 1 · Project libraries)
+    packages/library/src/project/outside-writer.ts → packages/library/src/project/storytree.ts (into 1 · Project libraries)
+    packages/library/src/project/index.ts → packages/library/src/project/seed-connection.ts (into 2 · Library transactions)
+  entry size  each imported sibling's entry, its exported names against those of every file behind it:
+    1 · Project libraries: entry none, 0 exported names against 38 behind it
+    2 · Library transactions: entry packages/library/src/transactions/index.ts, 30 exported names against 52 behind it
+    3 · Data schema: entry packages/library/src/schema/index.ts, 57 exported names against 65 behind it
+    4 · Work model: entry none, 0 exported names against 69 behind it
+    5 · Health record: entry packages/library/src/health/index.ts, 32 exported names against 34 behind it
+    7 · Library API: entry packages/library/src/index.ts, 187 exported names against 27 behind it
+    9 · Knowledge entrances: entry none, 0 exported names against 2 behind it
+    21 · Links: entry packages/library/src/librarian/links/index.ts, 5 exported names against 5 behind it
+    23 · Catalogue: entry packages/library/src/librarian/catalogue/index.ts, 5 exported names against 5 behind it
+    24 · Graduation: entry packages/library/src/librarian/graduation/index.ts, 9 exported names against 9 behind it
+    10 · Work in flight: entry none, 0 exported names against 48 behind it
+    11 · Waits: entry none, 0 exported names against 13 behind it
+    12 · Owner questions: entry none, 0 exported names against 29 behind it
+    13 · Decision log: entry none, 0 exported names against 34 behind it
+    14 · Ranked search: entry none, 0 exported names against 23 behind it
+    15 · Connection by address: entry none, 0 exported names against 7 behind it
+    16 · The command schema: entry none, 0 exported names against 24 behind it
+    27 · Fixed data questions: entry none, 0 exported names against 11 behind it
+    28 · Shared server: entry none, 0 exported names against 22 behind it
+    29 · Factory and product: entry none, 0 exported names against 9 behind it
+    31 · Decisions: entry packages/library/src/decisions/index.ts, 35 exported names against 38 behind it
+    32 · Questions and work: entry packages/library/src/work/index.ts, 88 exported names against 152 behind it
+    33 · Notes and search: entry packages/library/src/knowledge/index.ts, 36 exported names against 59 behind it
+    34 · Project storage: entry packages/library/src/project/index.ts, 25 exported names against 80 behind it
+  reuse       share of each dependency's exported names its consumer imports:
+    9 · Knowledge entrances → 7 · Library API: 2 of 197 (1%)
+    9 · Knowledge entrances → 3 · Data schema: 3 of 65 (4.6%)
+    23 · Catalogue → 7 · Library API: 3 of 197 (1.5%)
+    23 · Catalogue → 35 · The librarian: 6 of 39 (15.4%)
+    26 · Rounds → 23 · Catalogue: 5 of 5 (100%)
+    26 · Rounds → 24 · Graduation: 7 of 9 (77.8%)
+    26 · Rounds → 7 · Library API: 4 of 197 (2%)
+    26 · Rounds → 21 · Links: 5 of 5 (100%)
+    26 · Rounds → 31 · Decisions: 3 of 35 (8.6%)
+    26 · Rounds → 35 · The librarian: 1 of 39 (2.6%)
+    24 · Graduation → 7 · Library API: 3 of 197 (1.5%)
+    24 · Graduation → 35 · The librarian: 2 of 39 (5.1%)
+    14 · Ranked search → 3 · Data schema: 1 of 65 (1.5%)
+    1 · Project libraries → 2 · Library transactions: 18 of 52 (34.6%)
+    1 · Project libraries → 33 · Notes and search: 8 of 36 (22.2%)
+    1 · Project libraries → 29 · Factory and product: 7 of 9 (77.8%)
+    1 · Project libraries → 3 · Data schema: 3 of 65 (4.6%)
+    1 · Project libraries → 15 · Connection by address: 1 of 7 (14.3%)
+    1 · Project libraries → 32 · Questions and work: 2 of 88 (2.3%)
+    1 · Project libraries → 5 · Health record: 1 of 34 (2.9%)
+    1 · Project libraries → 28 · Shared server: 8 of 22 (36.4%)
+    12 · Owner questions → 33 · Notes and search: 1 of 36 (2.8%)
+    12 · Owner questions → 7 · Library API: 5 of 197 (2.5%)
+    12 · Owner questions → 3 · Data schema: 6 of 65 (9.2%)
+    30 · Outside writers → 1 · Project libraries: 4 of 38 (10.5%)
+    30 · Outside writers → 15 · Connection by address: 1 of 7 (14.3%)
+    30 · Outside writers → 28 · Shared server: 1 of 22 (4.5%)
+    33 · Notes and search → 14 · Ranked search: 8 of 23 (34.8%)
+    33 · Notes and search → 6 · Knowledge artifacts: 28 of 34 (82.4%)
+    27 · Fixed data questions → 7 · Library API: 1 of 197 (0.5%)
+    27 · Fixed data questions → 16 · The command schema: 3 of 24 (12.5%)
+    7 · Library API → 2 · Library transactions: 4 of 52 (7.7%)
+    7 · Library API → 33 · Notes and search: 18 of 36 (50%)
+    7 · Library API → 27 · Fixed data questions: 5 of 11 (45.5%)
+    7 · Library API → 3 · Data schema: 40 of 65 (61.5%)
+    7 · Library API → 32 · Questions and work: 62 of 88 (70.5%)
+    7 · Library API → 31 · Decisions: 4 of 35 (11.4%)
+    7 · Library API → 34 · Project storage: 22 of 25 (88%)
+    7 · Library API → 5 · Health record: 27 of 34 (79.4%)
+    13 · Decision log → 2 · Library transactions: 2 of 52 (3.8%)
+    13 · Decision log → 7 · Library API: 10 of 197 (5.1%)
+    13 · Decision log → 16 · The command schema: 4 of 24 (16.7%)
+    13 · Decision log → 3 · Data schema: 4 of 65 (6.2%)
+    16 · The command schema → 7 · Library API: 2 of 197 (1%)
+    16 · The command schema → 3 · Data schema: 1 of 65 (1.5%)
+    16 · The command schema → 28 · Shared server: 1 of 22 (4.5%)
+    29 · Factory and product → 2 · Library transactions: 4 of 52 (7.7%)
+    29 · Factory and product → 1 · Project libraries: 1 of 38 (2.6%)
+    29 · Factory and product → 3 · Data schema: 8 of 65 (12.3%)
+    21 · Links → 7 · Library API: 5 of 197 (2.5%)
+    21 · Links → 35 · The librarian: 6 of 39 (15.4%)
+    3 · Data schema → 2 · Library transactions: 9 of 52 (17.3%)
+    15 · Connection by address → 1 · Project libraries: 7 of 38 (18.4%)
+    15 · Connection by address → 28 · Shared server: 2 of 22 (9.1%)
+    10 · Work in flight → 12 · Owner questions: 29 of 29 (100%)
+    10 · Work in flight → 33 · Notes and search: 1 of 36 (2.8%)
+    10 · Work in flight → 7 · Library API: 4 of 197 (2%)
+    10 · Work in flight → 3 · Data schema: 6 of 65 (9.2%)
+    10 · Work in flight → 11 · Waits: 13 of 13 (100%)
+    10 · Work in flight → 4 · Work model: 17 of 69 (24.6%)
+    22 · Decision corrections → 7 · Library API: 3 of 197 (1.5%)
+    22 · Decision corrections → 13 · Decision log: 3 of 34 (8.8%)
+    6 · Knowledge artifacts → 9 · Knowledge entrances: 2 of 2 (100%)
+    6 · Knowledge artifacts → 14 · Ranked search: 8 of 23 (34.8%)
+    6 · Knowledge artifacts → 2 · Library transactions: 1 of 52 (1.9%)
+    6 · Knowledge artifacts → 7 · Library API: 5 of 197 (2.5%)
+    6 · Knowledge artifacts → 3 · Data schema: 10 of 65 (15.4%)
+    6 · Knowledge artifacts → 31 · Decisions: 17 of 35 (48.6%)
+    32 · Questions and work → 12 · Owner questions: 11 of 29 (37.9%)
+    32 · Questions and work → 10 · Work in flight: 26 of 48 (54.2%)
+    32 · Questions and work → 11 · Waits: 4 of 13 (30.8%)
+    32 · Questions and work → 4 · Work model: 47 of 69 (68.1%)
+    31 · Decisions → 13 · Decision log: 31 of 34 (91.2%)
+    31 · Decisions → 22 · Decision corrections: 4 of 4 (100%)
+    11 · Waits → 7 · Library API: 1 of 197 (0.5%)
+    11 · Waits → 3 · Data schema: 2 of 65 (3.1%)
+    17 · The library's commands → 2 · Library transactions: 2 of 52 (3.8%)
+    17 · The library's commands → 33 · Notes and search: 8 of 36 (22.2%)
+    17 · The library's commands → 27 · Fixed data questions: 4 of 11 (36.4%)
+    17 · The library's commands → 7 · Library API: 16 of 197 (8.1%)
+    17 · The library's commands → 16 · The command schema: 9 of 24 (37.5%)
+    17 · The library's commands → 3 · Data schema: 1 of 65 (1.5%)
+    17 · The library's commands → 32 · Questions and work: 10 of 88 (11.4%)
+    17 · The library's commands → 31 · Decisions: 3 of 35 (8.6%)
+    4 · Work model → 2 · Library transactions: 1 of 52 (1.9%)
+    4 · Work model → 7 · Library API: 6 of 197 (3%)
+    4 · Work model → 3 · Data schema: 5 of 65 (7.7%)
+    4 · Work model → 10 · Work in flight: 1 of 48 (2.1%)
+    35 · The librarian → 23 · Catalogue: 3 of 5 (60%)
+    35 · The librarian → 26 · Rounds: 10 of 18 (55.6%)
+    35 · The librarian → 24 · Graduation: 9 of 9 (100%)
+    35 · The librarian → 7 · Library API: 3 of 197 (1.5%)
+    35 · The librarian → 21 · Links: 5 of 5 (100%)
+    35 · The librarian → 31 · Decisions: 6 of 35 (17.1%)
+    34 · Project storage → 2 · Library transactions: 1 of 52 (1.9%)
+    34 · Project storage → 1 · Project libraries: 15 of 38 (39.5%)
+    34 · Project storage → 30 · Outside writers: 2 of 4 (50%)
+    34 · Project storage → 29 · Factory and product: 3 of 9 (33.3%)
+    34 · Project storage → 15 · Connection by address: 2 of 7 (28.6%)
+    34 · Project storage → 28 · Shared server: 2 of 22 (9.1%)
+    5 · Health record → 7 · Library API: 5 of 197 (2.5%)
+    5 · Health record → 3 · Data schema: 6 of 65 (9.2%)
+    5 · Health record → 32 · Questions and work: 11 of 88 (12.5%)
+  split       candidates, a consumer importing under a quarter of a dependency's names: 9 · Knowledge entrances of 7 · Library API (1%); 9 · Knowledge entrances of 3 · Data schema (4.6%); 23 · Catalogue of 7 · Library API (1.5%); 23 · Catalogue of 35 · The librarian (15.4%); 26 · Rounds of 7 · Library API (2%); 26 · Rounds of 31 · Decisions (8.6%); 26 · Rounds of 35 · The librarian (2.6%); 24 · Graduation of 7 · Library API (1.5%); 24 · Graduation of 35 · The librarian (5.1%); 14 · Ranked search of 3 · Data schema (1.5%); 1 · Project libraries of 33 · Notes and search (22.2%); 1 · Project libraries of 3 · Data schema (4.6%); 1 · Project libraries of 15 · Connection by address (14.3%); 1 · Project libraries of 32 · Questions and work (2.3%); 1 · Project libraries of 5 · Health record (2.9%); 12 · Owner questions of 33 · Notes and search (2.8%); 12 · Owner questions of 7 · Library API (2.5%); 12 · Owner questions of 3 · Data schema (9.2%); 30 · Outside writers of 1 · Project libraries (10.5%); 30 · Outside writers of 15 · Connection by address (14.3%); 30 · Outside writers of 28 · Shared server (4.5%); 27 · Fixed data questions of 7 · Library API (0.5%); 27 · Fixed data questions of 16 · The command schema (12.5%); 7 · Library API of 2 · Library transactions (7.7%); 7 · Library API of 31 · Decisions (11.4%); 13 · Decision log of 2 · Library transactions (3.8%); 13 · Decision log of 7 · Library API (5.1%); 13 · Decision log of 16 · The command schema (16.7%); 13 · Decision log of 3 · Data schema (6.2%); 16 · The command schema of 7 · Library API (1%); 16 · The command schema of 3 · Data schema (1.5%); 16 · The command schema of 28 · Shared server (4.5%); 29 · Factory and product of 2 · Library transactions (7.7%); 29 · Factory and product of 1 · Project libraries (2.6%); 29 · Factory and product of 3 · Data schema (12.3%); 21 · Links of 7 · Library API (2.5%); 21 · Links of 35 · The librarian (15.4%); 3 · Data schema of 2 · Library transactions (17.3%); 15 · Connection by address of 1 · Project libraries (18.4%); 15 · Connection by address of 28 · Shared server (9.1%); 10 · Work in flight of 33 · Notes and search (2.8%); 10 · Work in flight of 7 · Library API (2%); 10 · Work in flight of 3 · Data schema (9.2%); 10 · Work in flight of 4 · Work model (24.6%); 22 · Decision corrections of 7 · Library API (1.5%); 22 · Decision corrections of 13 · Decision log (8.8%); 6 · Knowledge artifacts of 2 · Library transactions (1.9%); 6 · Knowledge artifacts of 7 · Library API (2.5%); 6 · Knowledge artifacts of 3 · Data schema (15.4%); 11 · Waits of 7 · Library API (0.5%); 11 · Waits of 3 · Data schema (3.1%); 17 · The library's commands of 2 · Library transactions (3.8%); 17 · The library's commands of 33 · Notes and search (22.2%); 17 · The library's commands of 7 · Library API (8.1%); 17 · The library's commands of 3 · Data schema (1.5%); 17 · The library's commands of 32 · Questions and work (11.4%); 17 · The library's commands of 31 · Decisions (8.6%); 4 · Work model of 2 · Library transactions (1.9%); 4 · Work model of 7 · Library API (3%); 4 · Work model of 3 · Data schema (7.7%); 4 · Work model of 10 · Work in flight (2.1%); 35 · The librarian of 7 · Library API (1.5%); 35 · The librarian of 31 · Decisions (17.1%); 34 · Project storage of 2 · Library transactions (1.9%); 34 · Project storage of 28 · Shared server (9.1%); 5 · Health record of 7 · Library API (2.5%); 5 · Health record of 3 · Data schema (9.2%); 5 · Health record of 32 · Questions and work (12.5%)
+  technical   top-level nodes named for a technical layer: 3 · Data schema (schema), 16 · The command schema (schema)
+  unplaced    none
+
+Guidance (leads for a story author to weigh, not readings)
+  merge-or-nest: 13 · Decision log and 6 · Knowledge artifacts change together at lift 4.84 across 31 · Decisions and 33 · Notes and search
+  merge-or-nest: 7 · Library API and 32 · Questions and work change together at lift 2.92 across 7 · Library API and 32 · Questions and work
+  merge-or-nest: 26 · Rounds and 7 · Library API change together at lift 2.61 across 35 · The librarian and 7 · Library API
+  merge-or-nest: 7 · Library API and 22 · Decision corrections change together at lift 2.61 across 7 · Library API and 31 · Decisions
+  merge-or-nest: 2 · Library transactions and 7 · Library API change together at lift 2.43 across 2 · Library transactions and 7 · Library API
+  merge-or-nest: 6 · Knowledge artifacts and 17 · The library's commands change together at lift 2.27 across 33 · Notes and search and 17 · The library's commands
+  merge-or-nest: 7 · Library API and 13 · Decision log change together at lift 2.13 across 7 · Library API and 31 · Decisions

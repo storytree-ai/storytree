@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1474" height="712" viewBox="0 0 1474 712" font-family="Segoe UI, Helvetica, Arial, sans-serif"><rect width="100%" height="100%" fill="white"/>
+<text x="30" y="50" font-size="19" font-weight="700">Today: the plan (30 capabilities, 12 at the top)</text>
+<rect x="30" y="70" width="330" height="38" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="38" y="88" font-size="14" font-weight="700">2 · Library transactions<tspan fill="#678" font-weight="400" font-size="11">  8 files</tspan></text>
+<rect x="376" y="70" width="330" height="38" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="384" y="88" font-size="14" font-weight="700">3 · Data schema<tspan fill="#678" font-weight="400" font-size="11">  10 files</tspan></text>
+<rect x="30" y="122" width="330" height="38" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="38" y="140" font-size="14" font-weight="700">5 · Health record<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<rect x="376" y="122" width="330" height="38" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="384" y="140" font-size="14" font-weight="700">7 · Library API<tspan fill="#678" font-weight="400" font-size="11">  6 files</tspan></text>
+<rect x="30" y="174" width="330" height="38" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="38" y="192" font-size="14" font-weight="700">16 · The command schema<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="376" y="174" width="330" height="38" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="384" y="192" font-size="14" font-weight="700">17 · The library&#39;s commands<tspan fill="#678" font-weight="400" font-size="11">  7 files</tspan></text>
+<rect x="30" y="226" width="330" height="38" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="38" y="244" font-size="14" font-weight="700">27 · Fixed data questions<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<rect x="376" y="226" width="330" height="98" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="384" y="244" font-size="14" font-weight="700">31 · Decisions<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="386" y="252" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="394" y="268" font-size="12.5" font-weight="400">22 · Decision corrections<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="386" y="284" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="394" y="300" font-size="12.5" font-weight="400">13 · Decision log<tspan fill="#678" font-weight="400" font-size="11">  3 files</tspan></text>
+<rect x="30" y="278" width="330" height="162" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="38" y="296" font-size="14" font-weight="700">32 · Questions and work<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="40" y="304" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="48" y="320" font-size="12.5" font-weight="400">4 · Work model<tspan fill="#678" font-weight="400" font-size="11">  4 files</tspan></text>
+<rect x="40" y="336" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="48" y="352" font-size="12.5" font-weight="400">10 · Work in flight<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<rect x="40" y="368" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="48" y="384" font-size="12.5" font-weight="400">11 · Waits<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="40" y="400" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="48" y="416" font-size="12.5" font-weight="400">12 · Owner questions<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="376" y="338" width="330" height="130" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="384" y="356" font-size="14" font-weight="700">33 · Notes and search<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="386" y="364" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="394" y="380" font-size="12.5" font-weight="400">6 · Knowledge artifacts<tspan fill="#678" font-weight="400" font-size="11">  4 files</tspan></text>
+<rect x="386" y="396" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="394" y="412" font-size="12.5" font-weight="400">9 · Knowledge entrances<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="386" y="428" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="394" y="444" font-size="12.5" font-weight="400">14 · Ranked search<tspan fill="#678" font-weight="400" font-size="11">  4 files</tspan></text>
+<rect x="30" y="454" width="330" height="194" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="38" y="472" font-size="14" font-weight="700">34 · Project storage<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="40" y="480" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="48" y="496" font-size="12.5" font-weight="400">1 · Project libraries<tspan fill="#678" font-weight="400" font-size="11">  7 files</tspan></text>
+<rect x="40" y="512" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="48" y="528" font-size="12.5" font-weight="400">15 · Connection by address<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<rect x="40" y="544" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="48" y="560" font-size="12.5" font-weight="400">28 · Shared server<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<rect x="40" y="576" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="48" y="592" font-size="12.5" font-weight="400">29 · Factory and product<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<rect x="40" y="608" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="48" y="624" font-size="12.5" font-weight="400">30 · Outside writers<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="376" y="482" width="330" height="162" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="384" y="500" font-size="14" font-weight="700">35 · The librarian<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<rect x="386" y="508" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="394" y="524" font-size="12.5" font-weight="400">21 · Links<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<rect x="386" y="540" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="394" y="556" font-size="12.5" font-weight="400">23 · Catalogue<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<rect x="386" y="572" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="394" y="588" font-size="12.5" font-weight="400">24 · Graduation<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<rect x="386" y="604" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="394" y="620" font-size="12.5" font-weight="400">26 · Rounds<tspan fill="#678" font-weight="400" font-size="11">  4 files</tspan></text>
+<text x="762" y="50" font-size="19" font-weight="700">Proposal 1, redone: grown from co-change, domain-first (21, 8 at the top)</text>
+<rect x="762" y="70" width="330" height="38" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="770" y="88" font-size="14" font-weight="700">The library&#39;s front door  (7)<tspan fill="#678" font-weight="400" font-size="11">  4 files</tspan></text>
+<rect x="1108" y="70" width="330" height="98" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="1116" y="88" font-size="14" font-weight="700">Records  (2, 3)<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="1118" y="96" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="1126" y="112" font-size="12.5" font-weight="400">Transactions  (2)<tspan fill="#678" font-weight="400" font-size="11">  8 files</tspan></text>
+<rect x="1118" y="128" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="1126" y="144" font-size="12.5" font-weight="400">Valid records  (3, 7)<tspan fill="#678" font-weight="400" font-size="11">  10 files</tspan></text>
+<rect x="762" y="122" width="330" height="53" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="770" y="140" font-size="14" font-weight="700">The plan  (4)<tspan fill="#678" font-weight="400" font-size="11">  3 files</tspan></text>
+<text x="770" y="156" font-size="10.5" font-style="italic" fill="#365">its own schema: story, capability, contract, edge, anchor, pin, prCutover</text>
+<rect x="1108" y="182" width="330" height="128" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="1116" y="200" font-size="14" font-weight="700">Work  (32)<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="1118" y="208" width="310" height="37" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="1126" y="224" font-size="12.5" font-weight="400">Work in flight  (10, 11, 4)<tspan fill="#678" font-weight="400" font-size="11">  5 files</tspan></text>
+<text x="1126" y="240" font-size="10.5" font-style="italic" fill="#365">its own schema: arc, increment</text>
+<rect x="1118" y="255" width="310" height="37" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="1126" y="271" font-size="12.5" font-weight="400">Owner questions  (12, 17)<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<text x="1126" y="287" font-size="10.5" font-style="italic" fill="#365">its own schema: question, prediction, feedback, fyi</text>
+<rect x="762" y="189" width="330" height="232" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="770" y="207" font-size="14" font-weight="700">Knowledge  (33)<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="772" y="215" width="310" height="37" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="780" y="231" font-size="12.5" font-weight="400">Notes  (6, 9, 17)<tspan fill="#678" font-weight="400" font-size="11">  7 files</tspan></text>
+<text x="780" y="247" font-size="10.5" font-style="italic" fill="#365">its own schema: definition, principle, guardrail and 12 more kinds</text>
+<rect x="772" y="262" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="780" y="278" font-size="12.5" font-weight="400">Ranked search  (14)<tspan fill="#678" font-weight="400" font-size="11">  4 files</tspan></text>
+<rect x="772" y="294" width="310" height="37" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="780" y="310" font-size="12.5" font-weight="400">Decisions  (31, 13, 22)<tspan fill="#678" font-weight="400" font-size="11">  5 files</tspan></text>
+<text x="780" y="326" font-size="10.5" font-style="italic" fill="#365">its own schema: decision, decisionNumbering</text>
+<rect x="772" y="341" width="310" height="66" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="780" y="359" font-size="12.5" font-weight="700">The librarian  (35, 21, 23, 24)<tspan fill="#678" font-weight="400" font-size="11">  8 files</tspan></text>
+<rect x="782" y="367" width="290" height="22" rx="5" fill="#e3ecf8" stroke="#8aa" stroke-width="1"/>
+<text x="790" y="383" font-size="12.5" font-weight="400">Rounds  (26)<tspan fill="#678" font-weight="400" font-size="11">  4 files</tspan></text>
+<rect x="1108" y="324" width="330" height="53" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="1116" y="342" font-size="14" font-weight="700">Health  (5)<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<text x="1116" y="358" font-size="10.5" font-style="italic" fill="#365">its own schema: health</text>
+<rect x="1108" y="391" width="330" height="98" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="1116" y="409" font-size="14" font-weight="700">Projects  (34)<tspan fill="#678" font-weight="400" font-size="11">  1 file</tspan></text>
+<rect x="1118" y="417" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="1126" y="433" font-size="12.5" font-weight="400">Opening a project  (1, 29)<tspan fill="#678" font-weight="400" font-size="11">  8 files</tspan></text>
+<rect x="1118" y="449" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="1126" y="465" font-size="12.5" font-weight="400">Reaching a shared library  (15, 28, 30, 1)<tspan fill="#678" font-weight="400" font-size="11">  6 files</tspan></text>
+<rect x="762" y="435" width="330" height="98" rx="8" fill="#fafafa" stroke="#456" stroke-width="1.4"/>
+<text x="770" y="453" font-size="14" font-weight="700">Commands  (17)<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<rect x="772" y="461" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="780" y="477" font-size="12.5" font-weight="400">Command kit  (16, 17)<tspan fill="#678" font-weight="400" font-size="11">  3 files</tspan></text>
+<rect x="772" y="493" width="310" height="22" rx="5" fill="#eef3fb" stroke="#8aa" stroke-width="1"/>
+<text x="780" y="509" font-size="12.5" font-weight="400">Fixed data questions  (27)<tspan fill="#678" font-weight="400" font-size="11">  2 files</tspan></text>
+<text x="30" y="694" font-size="12" fill="#456">Right: each box is a capability, nested inside its domain; the numbers in brackets are today's capabilities it is made from. A domain's own files are its entry. Tree file: tree.json.</text>
+</svg>

@@ -1,0 +1,398 @@
+{
+  "story": "story_754e87e7d531",
+  "proposal": "increment_4df1fe91aea3",
+  "rules": "redo of proposal 1: grown from co-change (files that land together, lift, support 5 or more, renames followed), then grouped domain-first behind small entries (ADR-1403 D1, D2)",
+  "nodes": [
+    {
+      "id": "r1-front",
+      "title": "The library's front door",
+      "files": [
+        "packages/library/src/api/index.ts",
+        "packages/library/src/api/library.ts",
+        "packages/library/src/api/printable.ts",
+        "packages/library/src/index.ts"
+      ],
+      "entry": "packages/library/src/index.ts",
+      "was": [
+        7
+      ],
+      "why": "The package root and the Library interface: the story's one entry, which composes every domain. Kept; references.ts and creation-order.ts leave it for Records."
+    },
+    {
+      "id": "r1-records",
+      "title": "Records",
+      "files": [
+        "packages/library/src/schema/index.ts"
+      ],
+      "entry": "packages/library/src/schema/index.ts",
+      "was": [
+        2,
+        3
+      ],
+      "why": "Domain: keeping any record, valid and versioned. Transactions and the record shape they write change together (schema/records.ts with each transactions file: lift 13.6 to 15.1, support 5 to 6), so they share a domain. The refactor makes records/ with this entry."
+    },
+    {
+      "id": "r1-records-tx",
+      "title": "Transactions",
+      "parent": "r1-records",
+      "files": [
+        "packages/library/src/transactions/behaviour-suite.ts",
+        "packages/library/src/transactions/index.ts",
+        "packages/library/src/transactions/memory.ts",
+        "packages/library/src/transactions/pg.ts",
+        "packages/library/src/transactions/records.ts",
+        "packages/library/src/transactions/types.ts",
+        "packages/library/src/transactions/waits.ts",
+        "packages/library/src/project/seed-connection.ts"
+      ],
+      "entry": "packages/library/src/transactions/index.ts",
+      "was": [
+        2
+      ],
+      "why": "Kept: the store, in memory and in Postgres, behind one 21-line entry."
+    },
+    {
+      "id": "r1-records-valid",
+      "title": "Valid records",
+      "parent": "r1-records",
+      "files": [
+        "packages/library/src/schema/records.ts",
+        "packages/library/src/schema/types.ts",
+        "packages/library/src/schema/upgrades.ts",
+        "packages/library/src/schema/plugin-kinds.ts",
+        "packages/library/src/schema/errors.ts",
+        "packages/library/src/schema/code-distance.ts",
+        "packages/library/src/schema/schedule.ts",
+        "packages/library/src/schema/activity-line.ts",
+        "packages/library/src/references.ts",
+        "packages/library/src/creation-order.ts"
+      ],
+      "entry": "packages/library/src/schema/records.ts",
+      "was": [
+        3,
+        7
+      ],
+      "why": "What is left of Data schema once each domain holds its own record schema: the validated, versioned record (contracts 3.1 to 3.9), plugin kinds, upgrades, and references to live records (references.ts, creation-order.ts, from Library API). Every domain reads it: a single source of truth (ADR-1403 D1). schema/types.ts is split per domain in the refactor."
+    },
+    {
+      "id": "r1-plan",
+      "title": "The plan",
+      "files": [
+        "packages/library/src/work/work-model.ts",
+        "packages/library/src/work/pr-cutover.ts",
+        "packages/library/src/schema/story-survey.ts"
+      ],
+      "entry": "packages/library/src/work/work-model.ts",
+      "schema": [
+        "story",
+        "capability",
+        "contract",
+        "edge",
+        "anchor",
+        "pin",
+        "prCutover"
+      ],
+      "was": [
+        4
+      ],
+      "why": "Domain: stories, capabilities, contracts, edges, anchors and the code survey they are drawn against. Its schema part (arc's tree records: story, capability, contract, edge, anchor, pin, prCutover) moves in from types.ts. The refactor makes plan/. It imports nothing from Work."
+    },
+    {
+      "id": "r1-work",
+      "title": "Work",
+      "files": [
+        "packages/library/src/work/index.ts"
+      ],
+      "entry": "packages/library/src/work/index.ts",
+      "was": [
+        32
+      ],
+      "why": "Domain: arcs, increments, waits, holds and the owner's questions. Its schema part (arc, increment, question, prediction, feedback, fyi) moves in."
+    },
+    {
+      "id": "r1-work-flight",
+      "title": "Work in flight",
+      "parent": "r1-work",
+      "files": [
+        "packages/library/src/work/work-in-flight.ts",
+        "packages/library/src/work/waits.ts",
+        "packages/library/src/work/wait-writes.ts",
+        "packages/library/src/work/pending-changes.ts",
+        "packages/library/src/work/plan-hold.ts"
+      ],
+      "entry": "packages/library/src/work/work-in-flight.ts",
+      "schema": [
+        "arc",
+        "increment"
+      ],
+      "was": [
+        10,
+        11,
+        4
+      ],
+      "why": "Waits merge in (waits.ts lift 5.4, wait-writes.ts 4.8 with work-in-flight.ts, support 7 and 8). Pending plan changes and plan holds move in from Work model: an increment carries them until it lands, work-in-flight.ts already calls them, and plan-hold.ts reads WorkInFlight, so in the plan they made a cycle. pending-changes.ts with plan-hold.ts lift 17.8, with work-in-flight.ts 4.1 (support 3, weak)."
+    },
+    {
+      "id": "r1-work-questions",
+      "title": "Owner questions",
+      "parent": "r1-work",
+      "files": [
+        "packages/library/src/work/owner-questions.ts",
+        "packages/library/src/commands/fyi.ts"
+      ],
+      "entry": "packages/library/src/work/owner-questions.ts",
+      "schema": [
+        "question",
+        "prediction",
+        "feedback",
+        "fyi"
+      ],
+      "was": [
+        12,
+        17
+      ],
+      "why": "Questions, predictions, feedback and the FYI family: what reaches the owner. With work-in-flight.ts lift 3.6 at support 4, below the bar: a nested sibling, not merged."
+    },
+    {
+      "id": "r1-knowledge",
+      "title": "Knowledge",
+      "files": [
+        "packages/library/src/knowledge/index.ts"
+      ],
+      "entry": "packages/library/src/knowledge/index.ts",
+      "was": [
+        33
+      ],
+      "why": "Domain: notes, decisions, search and the librarian that tends them. Its schema part (definition and the knowledge kinds) moves in."
+    },
+    {
+      "id": "r1-know-notes",
+      "title": "Notes",
+      "parent": "r1-knowledge",
+      "files": [
+        "packages/library/src/knowledge/knowledge.ts",
+        "packages/library/src/knowledge/kinds.ts",
+        "packages/library/src/knowledge/memory-upgrade.ts",
+        "packages/library/src/knowledge/similarity.ts",
+        "packages/library/src/knowledge/front-covers.ts",
+        "packages/library/src/commands/notes.ts",
+        "packages/library/src/commands/ranked.ts"
+      ],
+      "entry": "packages/library/src/knowledge/knowledge.ts",
+      "schema": [
+        "definition",
+        "principle",
+        "guardrail",
+        "pattern",
+        "process",
+        "agent",
+        "friction",
+        "resteer",
+        "techstack",
+        "check",
+        "research",
+        "experiment",
+        "escape",
+        "drill",
+        "measure"
+      ],
+      "was": [
+        6,
+        9,
+        17
+      ],
+      "why": "The note commands come home: ranked.ts with knowledge.ts lift 11.9 (support 7), notes.ts with knowledge.ts 5.6 (support 8), notes.ts with ranked.ts 9.6 (support 6). Knowledge entrances (front-covers.ts, 19 lines) folds in: its boundary fails the deletion test."
+    },
+    {
+      "id": "r1-know-search",
+      "title": "Ranked search",
+      "parent": "r1-knowledge",
+      "files": [
+        "packages/library/src/knowledge/embedding-model.ts",
+        "packages/library/src/knowledge/embedding.ts",
+        "packages/library/src/knowledge/embeddings.ts",
+        "packages/library/src/knowledge/whole-words.ts"
+      ],
+      "entry": "packages/library/src/knowledge/embedding.ts",
+      "was": [
+        14
+      ],
+      "why": "Kept: embeddings and word matching behind a few calls, read by notes and decisions."
+    },
+    {
+      "id": "r1-know-decisions",
+      "title": "Decisions",
+      "parent": "r1-knowledge",
+      "files": [
+        "packages/library/src/decisions/adr.ts",
+        "packages/library/src/decisions/corrections.ts",
+        "packages/library/src/decisions/decision-log.ts",
+        "packages/library/src/decisions/index.ts",
+        "packages/library/src/decisions/supersede.ts"
+      ],
+      "entry": "packages/library/src/decisions/index.ts",
+      "schema": [
+        "decision",
+        "decisionNumbering"
+      ],
+      "was": [
+        31,
+        13,
+        22
+      ],
+      "why": "Decision log, Decision corrections and the Decisions parent become one: corrections.ts with adr.ts lift 13 (support 6), decision-log.ts with decisions/index.ts 19.8 (support 5). Nested under Knowledge: decision-log.ts with knowledge.ts lift 8.9 (support 6), decisions/index.ts with knowledge.ts 9.9 (support 5). Its schema part (decision, decisionNumbering) moves in."
+    },
+    {
+      "id": "r1-know-librarian",
+      "title": "The librarian",
+      "parent": "r1-knowledge",
+      "files": [
+        "packages/library/src/librarian/index.ts",
+        "packages/library/src/librarian/notes.ts",
+        "packages/library/src/librarian/links/index.ts",
+        "packages/library/src/librarian/links/links.ts",
+        "packages/library/src/librarian/catalogue/catalogue.ts",
+        "packages/library/src/librarian/catalogue/index.ts",
+        "packages/library/src/librarian/graduation/graduation.ts",
+        "packages/library/src/librarian/graduation/index.ts"
+      ],
+      "entry": "packages/library/src/librarian/index.ts",
+      "was": [
+        35,
+        21,
+        23,
+        24
+      ],
+      "why": "Links, Catalogue and Graduation fold into the librarian: each entry exports every name behind it (5 of 5, 5 of 5, 9 of 9) and each is under 120 lines, so each boundary fails the deletion test."
+    },
+    {
+      "id": "r1-know-rounds",
+      "title": "Rounds",
+      "parent": "r1-know-librarian",
+      "files": [
+        "packages/library/src/librarian/rounds/host.ts",
+        "packages/library/src/librarian/rounds/index.ts",
+        "packages/library/src/librarian/rounds/rounds.ts",
+        "packages/library/src/librarian/rounds/tools.ts"
+      ],
+      "entry": "packages/library/src/librarian/rounds/index.ts",
+      "was": [
+        26
+      ],
+      "why": "Kept: about 330 lines behind a 5-line entry."
+    },
+    {
+      "id": "r1-health",
+      "title": "Health",
+      "files": [
+        "packages/library/src/health/health-record.ts",
+        "packages/library/src/health/index.ts"
+      ],
+      "entry": "packages/library/src/health/index.ts",
+      "schema": [
+        "health"
+      ],
+      "was": [
+        5
+      ],
+      "why": "Kept. Its schema part (health) moves in."
+    },
+    {
+      "id": "r1-projects",
+      "title": "Projects",
+      "files": [
+        "packages/library/src/project/index.ts"
+      ],
+      "entry": "packages/library/src/project/index.ts",
+      "was": [
+        34
+      ],
+      "why": "Domain: opening a project's library, wherever it lives."
+    },
+    {
+      "id": "r1-proj-open",
+      "title": "Opening a project",
+      "parent": "r1-projects",
+      "files": [
+        "packages/library/src/project/storytree.ts",
+        "packages/library/src/project/names.ts",
+        "packages/library/src/project/record-cache.ts",
+        "packages/library/src/project/schema.ts",
+        "packages/library/src/project/schema-merged.ts",
+        "packages/library/src/project/snapshot.ts",
+        "packages/library/src/project/factory.ts",
+        "packages/library/src/project/switches.ts"
+      ],
+      "entry": "packages/library/src/project/storytree.ts",
+      "was": [
+        1,
+        29
+      ],
+      "why": "Factory and product merge in: factory.ts with storytree.ts lift 12.2 (support 5), switches.ts 14.6 (support 3)."
+    },
+    {
+      "id": "r1-proj-shared",
+      "title": "Reaching a shared library",
+      "parent": "r1-projects",
+      "files": [
+        "packages/library/src/project/address.ts",
+        "packages/library/src/project/websocket.ts",
+        "packages/library/src/project/server.ts",
+        "packages/library/src/project/reads.ts",
+        "packages/library/src/project/connection-error.ts",
+        "packages/library/src/project/outside-writer.ts"
+      ],
+      "entry": "packages/library/src/project/address.ts",
+      "was": [
+        15,
+        28,
+        30,
+        1
+      ],
+      "why": "Connection by address, Shared server and Outside writers become one: they are reached only together, outside-writer.ts with connection-error.ts lift 31.7 (support 2, weak), and server.ts moves in from Project libraries, since 28's tests already drive it (ADR-1242 D3)."
+    },
+    {
+      "id": "r1-commands",
+      "title": "Commands",
+      "files": [
+        "packages/library/src/commands/index.ts",
+        "packages/library/src/commands/media.ts"
+      ],
+      "entry": "packages/library/src/commands/index.ts",
+      "was": [
+        17
+      ],
+      "why": "Domain: the library's command families and the registry that gathers them. The registry's plan and note verbs are split out to their domains in the refactor."
+    },
+    {
+      "id": "r1-cmd-kit",
+      "title": "Command kit",
+      "parent": "r1-commands",
+      "files": [
+        "packages/library/src/verbs/verb.ts",
+        "packages/library/src/commands/elsewhere.ts",
+        "packages/library/src/commands/stale-edit.ts"
+      ],
+      "entry": "packages/library/src/verbs/verb.ts",
+      "was": [
+        16,
+        17
+      ],
+      "why": "The verb shape every family uses, with the helpers every family shares (which project, stale edits): one source of truth for what a command is."
+    },
+    {
+      "id": "r1-cmd-data",
+      "title": "Fixed data questions",
+      "parent": "r1-commands",
+      "files": [
+        "packages/library/src/data/commands.ts",
+        "packages/library/src/data/data-questions.ts"
+      ],
+      "entry": "packages/library/src/data/data-questions.ts",
+      "was": [
+        27
+      ],
+      "why": "Kept, nested: its command module uses the kit."
+    }
+  ]
+}

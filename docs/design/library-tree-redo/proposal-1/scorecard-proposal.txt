@@ -1,0 +1,310 @@
+Readings
+  grouping    TurboMQ 2.14 (mean 0.84, 95th percentile 0.99 over 500 random groupings of the same sizes)
+              co-change inside groups 36.4% (mean 19.9%, 95th percentile 25.4% over 500 random groupings of the same sizes)
+  pairs       node pairs changing together at support 5 or more, by lift:
+    The librarian and Rounds: support 5, lift 16.61, Jaccard 0.5
+    The plan and Records: support 6, lift 4.1, Jaccard 0.17
+    The plan and Work: support 7, lift 3.83, Jaccard 0.19
+    The library's front door and Records: support 8, lift 3.72, Jaccard 0.16
+    Decisions and Notes: support 6, lift 3.43, Jaccard 0.19
+    The library's front door and Work: support 8, lift 2.98, Jaccard 0.15
+    The library's front door and Rounds: support 5, lift 2.66, Jaccard 0.1
+    Commands and Notes: support 15, lift 2.6, Jaccard 0.28
+    The library's front door and Transactions: support 8, lift 2.48, Jaccard 0.15
+    The library's front door and The librarian: support 5, lift 2.33, Jaccard 0.09
+    Valid records and Owner questions: support 5, lift 2.29, Jaccard 0.08
+    Work and Work in flight: support 5, lift 2.21, Jaccard 0.11
+    Records and Valid records: support 5, lift 2, Jaccard 0.08
+    The library's front door and Decisions: support 7, lift 2, Jaccard 0.13
+    The library's front door and Opening a project: support 8, lift 1.65, Jaccard 0.13
+    Transactions and Valid records: support 6, lift 1.6, Jaccard 0.09
+    Valid records and Work: support 5, lift 1.6, Jaccard 0.08
+    The library's front door and Notes: support 10, lift 1.49, Jaccard 0.15
+    The library's front door and Valid records: support 20, lift 1.28, Jaccard 0.23
+    The library's front door and Health: support 8, lift 1.24, Jaccard 0.12
+    Commands and The library's front door: support 14, lift 1.21, Jaccard 0.18
+    The library's front door and The plan: support 11, lift 1.2, Jaccard 0.15
+    Health and Valid records: support 8, lift 1.07, Jaccard 0.11
+    Opening a project and Valid records: support 6, lift 1.07, Jaccard 0.09
+    Commands and Valid records: support 14, lift 1.04, Jaccard 0.16
+    The plan and Valid records: support 11, lift 1.04, Jaccard 0.14
+    Notes and Valid records: support 8, lift 1.03, Jaccard 0.11
+    The library's front door and Work in flight: support 11, lift 0.97, Jaccard 0.14
+    The plan and Work in flight: support 6, lift 0.78, Jaccard 0.09
+    Valid records and Work in flight: support 10, lift 0.76, Jaccard 0.11
+    Commands and Work in flight: support 6, lift 0.62, Jaccard 0.08
+  nodes       level among siblings, instability, common reuse:
+    The library's front door: level 2, instability 0.56, common reuse 0%
+    Records: level 1, instability 0.07, common reuse 100%
+    Transactions: level 1, instability 0, common reuse 100%
+    Valid records: level 2, instability 0.2, common reuse 100%
+    The plan: level 1, instability 0.4, common reuse 100%
+    Work: level 2, instability 0.6, common reuse 75%
+    Work in flight: level 2, instability 0.86, common reuse 0%
+    Owner questions: level 1, instability 0.57, common reuse 100%
+    Knowledge: level 2, instability 0.55, common reuse 80%
+    Notes: level 2, instability 0.82, common reuse 100%
+    Ranked search: level 1, instability 0.33, common reuse 100%
+    Decisions: level 1, instability 0.5, common reuse 0%
+    The librarian: level 2, instability 1, common reuse none
+    Rounds: level 1, instability 0.75, common reuse 0%
+    Health: level 2, instability 0.6, common reuse 0%
+    Projects: level 2, instability 0.71, common reuse 100%
+    Opening a project: level 1, instability 0.75, common reuse 50%
+    Reaching a shared library: level 1, instability 0.4, common reuse 66.7%
+    Commands: level 2, instability 0.69, common reuse 100%
+    Command kit: level 1, instability 0.38, common reuse 60%
+    Fixed data questions: level 2, instability 0.5, common reuse 100%
+  cycle gate  fail: under the top level, The plan, Records; under the top level, Projects, Commands, Knowledge, Work, Health, The library's front door; under Projects, Reaching a shared library, Opening a project
+  depths
+    depth 1: 8 nodes, 26 sibling import edges
+    depth 2: 12 nodes, 8 sibling import edges
+    depth 3: 1 node, 0 sibling import edges
+  boundaries  import edges between nodes, with the types crossing each:
+    Fixed data questions → Command kit: VerbContext
+    Fixed data questions → The library's front door: Library
+    Command kit → The library's front door: Library, Reached, Storytree, WriteOptions
+    Command kit → Reaching a shared library: no types
+    Command kit → Records: WriteOptions
+    Commands → Fixed data questions: no types
+    Commands → Command kit: DoorWords, VerbContext, VerbFamily
+    Commands → The library's front door: KnowledgeKind, Library, PendingChange, PhraseKind, PlanChange, RecordType, SchemaRecord, WriteOptions
+    Commands → Decisions: no types
+    Commands → Notes: Found, NoteRead, NoteToolContext, Presenter
+    Commands → Knowledge: no types
+    Commands → Transactions: no types
+    Commands → Work: PlanEdit
+    Commands → Owner questions: no types
+    The library's front door → Fixed data questions: Counts, KindCount, RecentChange, TitleHit
+    The library's front door → Health: AnnotatedCapability, AnnotatedContract, AnnotatedEdge, AnnotatedStory, AnnotatedTree, CapabilityStatus, CapabilityWhy, ChangedOnMain, EarlierVerdict, FlakeSeen, HealthColumn, HealthColumnName, HealthEntry, HealthOptions, HealthReason, HealthSource, HealthState, HealthWorkItem, NamedOnMain, NodeHealth, OpenWait, PendingRun, SkipKind, VerifiedVerdict
+    The library's front door → Decisions: DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision
+    The library's front door → Knowledge: NarrowingDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, PhraseKind, PhraseOptions, PhrasePage, RankOptions, Ranked, Related, RelatedHit, RelatedOptions
+    The library's front door → Projects: ConnectOptions, ConnectionProblem, FactoryLink, OpenOptions, OwnDatabaseOptions, Project, ProjectSnapshot, Reached, SnapshotEvent, SnapshotMedia, SnapshotRecord, Storytree
+    The library's front door → Records: Agent, CodeEdge, EdgeFile, FieldEdit, FieldsOf, FileImport, KnowledgeKind, Line, LineKind, LinesSince, NewLine, PartClash, PluginRecordKind, PluginUpgradeStep, Precheck, RecordType, ScheduleRule, SchemaRecord, SharedStore, StoreTable, StorySurvey, SurveyedFile, SurveyedPart, SurveyedParts, SurveyedTest, WriteOptions
+    The library's front door → Transactions: HistoryEntry, HistoryFilter, RecordEnvelope
+    The library's front door → Valid records: no types
+    The library's front door → Work: Anchor, AnchorEdit, AnchorGaps, ArcEdit, ArcNode, ArcState, ArcView, BoardArcView, BoardIncrement, CapabilityEdit, CloseInput, ContractEdit, ContractWriteOptions, DayWindow, Disposition, EdgeEdit, EdgeNode, Hold, Holds, ImportedPluginPlan, IncrementEdit, IncrementStatus, MappedPackage, MappedStories, MovedToEdges, NewArc, NewCapability, NewContract, NewEdge, NewIncrement, NewQuestion, NewStory, NoteWait, OpenListing, ParkedOn, Pended, PendingChange, PlanChange, PluginPlan, PluginPlanCapability, PluginPlanHeld, PrCutover, QuestionLease, Settlement, StoreLink, StoryEdit, SurveyOptions, WaitFor, WorkSurvey
+    Health → Records: FieldsOf, RecordType, SchemaRecord, WriteOptions
+    Health → Valid records: no types
+    Health → Work: Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, Holds, ParkedOn, ProjectTree, StoryNode
+    Decisions → Command kit: VerbContext, VerbFamily
+    Decisions → The library's front door: Library, Note, NoteEdit, SchemaRecord, WriteOptions
+    Decisions → Records: FieldsOf, SchemaRecord, WriteOptions
+    Decisions → Transactions: HistoryEntry
+    Decisions → Valid records: Expected
+    The librarian → The library's front door: Library, Note, Related, SchemaRecord, WriteOptions
+    The librarian → Decisions: Annotation, Correction, Successor
+    The librarian → Rounds: RoundDue, ToolAnswer, ToolCall, Worklist, WorklistOptions
+    Notes → Command kit: Verb, VerbAnswer, VerbContext, VerbInputs
+    Notes → Commands: HeldClaim
+    Notes → The library's front door: KnowledgeKind, Library, NewLine, Note, NoteEdit, PhraseKind, SchemaRecord, WriteOptions
+    Notes → Decisions: ArchivedDecisionLink, DecisionLinkBacklog, DecisionLinkChanges, DecisionLinkSpan, DecisionNumberPlan, DecisionView, NarrowsMove, NewDecision, SupersessionPairs
+    Notes → Ranked search: EmbedderSource, VectorStore
+    Notes → Knowledge: Findable, NarrowingDecision, NoteType, PlanKind, Ranked
+    Notes → Records: FieldsOf, KnowledgeKind, RecordType, SchemaRecord, WriteOptions
+    Notes → Transactions: RecordEnvelope
+    Notes → Valid records: Expected
+    Rounds → The library's front door: Library, Related, SchemaRecord, WriteOptions
+    Rounds → Decisions: no types
+    Rounds → The librarian: BrokenEdge, MarkedWrite, MemoryItem, NewNote, ProcessGaps
+    Ranked search → Records: SchemaRecord
+    Knowledge → Notes: Findable, NarrowingDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, PhraseKind, PhraseOptions, PhrasePage, PlanKind, RankOptions, Ranked, Ranking, Related, RelatedHit, RelatedOptions
+    Knowledge → Ranked search: Embedder, EmbedderSource, VectorDomain, VectorStore
+    The plan → Records: FieldsOf, SchemaRecord, WriteOptions
+    The plan → Valid records: no types
+    Opening a project → Health: no types
+    Opening a project → Knowledge: EmbedderSource, VectorDomain
+    Opening a project → Reaching a shared library: ServerAccess, WaitBounds
+    Opening a project → Records: CreateOptions, FieldEdit, FieldsOf, LibrarySchema, PluginRecordKind, RecordType, SchemaRecord, WriteOptions
+    Opening a project → Transactions: EditInput, HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, RetireInput, RevertInput, RevertWritesInput, RevertedWrite, SaveInput, Transactions
+    Opening a project → Work: no types
+    Reaching a shared library → Opening a project: ConnectOptions
+    Reaching a shared library → Transactions: PoolWaits
+    Projects → Opening a project: ConnectOptions, FactoryLink, OpenOptions, OwnDatabaseOptions, Project, ProjectSnapshot, Reached, SnapshotEvent, SnapshotMedia, SnapshotRecord, Storytree
+    Projects → Reaching a shared library: ConnectionProblem, OutsideWriter
+    Projects → Transactions: no types
+    Records → The plan: CodeEdge, EdgeFile, FileImport, PartClash, SharedStore, StoreTable, StorySurvey, SurveyedFile, SurveyedPart, SurveyedParts, SurveyedTest
+    Records → Valid records: Agent, CreateOptions, FieldEdit, FieldProblem, FieldsOf, FrictionState, KnowledgeKind, LibrarySchema, Line, LineKind, LinesSince, NewLine, PluginRecordKind, PluginUpgradeStep, Precheck, RecordType, ScheduleRule, SchemaRecord, UpgradeStep, WriteOptions
+    Valid records → Records: RecordType, SchemaRecord
+    Valid records → Transactions: HistoryEntry, HistoryFilter, ListFilter, OutsideRead, RecordEnvelope, RevertedWrite, Transactions
+    Work → The plan: Anchor, AnchorEdit, AnchorGaps, ArcNode, CapabilityEdit, CapabilityNode, ContractEdit, ContractNode, ContractWriteOptions, EdgeEdit, EdgeNode, ImportedPluginPlan, MappedPackage, MappedStories, MovedToEdges, NewCapability, NewContract, NewEdge, NewStory, PluginPlan, PluginPlanCapability, PluginPlanHeld, PrCutover, ProjectTree, StoreLink, StoryEdit, StoryNode
+    Work → Work in flight: ArcEdit, ArcState, ArcView, BoardArcView, BoardIncrement, CloseInput, DayWindow, Disposition, Hold, Holds, IncrementEdit, IncrementStatus, NewArc, NewIncrement, NoteWait, OpenListing, ParkOptions, ParkedOn, Pended, PendingChange, PlanChange, PlanEdit, SurveyOptions, WaitFor, WorkSurvey
+    Work → Owner questions: DeviationBand, NewQuestion, Prep, QuestionDeviation, QuestionEdit, QuestionLease, Score, Settlement, Verdict, WouldBeAnswer
+    Work in flight → Knowledge: no types
+    Work in flight → The plan: CapabilityNode, EdgeNode, ProjectTree, StoryNode
+    Work in flight → Records: FieldsOf, SchemaRecord, WriteOptions
+    Work in flight → Transactions: HistoryEntry
+    Work in flight → Valid records: no types
+    Work in flight → Owner questions: NewQuestion, Prep, QuestionDeviation, QuestionEdit, QuestionLease, Score, Settlement, WouldBeAnswer
+    Owner questions → Command kit: VerbContext, VerbFamily
+    Owner questions → Knowledge: no types
+    Owner questions → Records: FieldsOf, RecordType, SchemaRecord, WriteOptions
+    Owner questions → Valid records: Expected
+  meet depth  imports by the depth their two ends' nodes meet at, deeper better: depth 0: 109 imports, depth 1: 55 imports, depth 2: 85 imports, depth 3: 5 imports
+  entries     69 of 124 imports between siblings (55.6%) land on the imported sibling's entry; the rest, by file:
+    packages/library/src/project/record-cache.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/project/server.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/project/snapshot.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/project/connection-error.ts (into Reaching a shared library)
+    packages/library/src/project/storytree.ts → packages/library/src/project/server.ts (into Reaching a shared library)
+    packages/library/src/schema/index.ts → packages/library/src/schema/story-survey.ts (into The plan)
+    packages/library/src/work/pending-changes.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/work/pending-changes.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/work/pending-changes.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/work/work-model.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/work/work-model.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/knowledge/embedding-model.ts (into Ranked search)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/knowledge/whole-words.ts (into Ranked search)
+    packages/library/src/knowledge/memory-upgrade.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/health/health-record.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/health/health-record.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/api/library.ts → packages/library/src/data/data-questions.ts (into Commands)
+    packages/library/src/api/library.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/api/library.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/index.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/index.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/index.ts → packages/library/src/data/data-questions.ts (into Commands)
+    packages/library/src/index.ts → packages/library/src/decisions/index.ts (into Knowledge)
+    packages/library/src/knowledge/front-covers.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/knowledge/front-covers.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/work/wait-writes.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/work/wait-writes.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/work/waits.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/work/owner-questions.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/work/owner-questions.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/decisions/adr.ts → packages/library/src/verbs/verb.ts (into Commands)
+    packages/library/src/decisions/decision-log.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/decisions/decision-log.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/decisions/decision-log.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/verbs/verb.ts → packages/library/src/project/connection-error.ts (into Projects)
+    packages/library/src/commands/fyi.ts → packages/library/src/verbs/verb.ts (into Commands)
+    packages/library/src/commands/index.ts → packages/library/src/commands/fyi.ts (into Work)
+    packages/library/src/commands/index.ts → packages/library/src/decisions/index.ts (into Knowledge)
+    packages/library/src/commands/index.ts → packages/library/src/commands/notes.ts (into Knowledge)
+    packages/library/src/commands/index.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/commands/index.ts → packages/library/src/commands/ranked.ts (into Knowledge)
+    packages/library/src/commands/notes.ts → packages/library/src/verbs/verb.ts (into Commands)
+    packages/library/src/commands/notes.ts → packages/library/src/commands/stale-edit.ts (into Commands)
+    packages/library/src/commands/notes.ts → packages/library/src/commands/elsewhere.ts (into Commands)
+    packages/library/src/commands/ranked.ts → packages/library/src/verbs/verb.ts (into Commands)
+    packages/library/src/project/factory.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/project/switches.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/project/outside-writer.ts → packages/library/src/project/names.ts (into Opening a project)
+    packages/library/src/work/index.ts → packages/library/src/work/pr-cutover.ts (into The plan)
+    packages/library/src/project/index.ts → packages/library/src/project/seed-connection.ts (into Records)
+  entry size  each imported sibling's entry, its exported names against those of every file behind it:
+    The library's front door: entry packages/library/src/index.ts, 187 exported names against 18 behind it
+    Records: entry packages/library/src/schema/index.ts, 57 exported names against 115 behind it
+    Transactions: entry packages/library/src/transactions/index.ts, 30 exported names against 52 behind it
+    The plan: entry packages/library/src/work/work-model.ts, 36 exported names against 17 behind it
+    Work: entry packages/library/src/work/index.ts, 88 exported names against 111 behind it
+    Owner questions: entry packages/library/src/work/owner-questions.ts, 29 exported names against 1 behind it
+    Knowledge: entry packages/library/src/knowledge/index.ts, 36 exported names against 149 behind it
+    Ranked search: entry packages/library/src/knowledge/embedding.ts, 9 exported names against 14 behind it
+    Decisions: entry packages/library/src/decisions/index.ts, 35 exported names against 38 behind it
+    Health: entry packages/library/src/health/index.ts, 32 exported names against 34 behind it
+    Projects: entry packages/library/src/project/index.ts, 25 exported names against 80 behind it
+    Opening a project: entry packages/library/src/project/storytree.ts, 7 exported names against 26 behind it
+    Reaching a shared library: entry packages/library/src/project/address.ts, 3 exported names against 44 behind it
+    Commands: entry packages/library/src/commands/index.ts, 27 exported names against 45 behind it
+    Command kit: entry packages/library/src/verbs/verb.ts, 24 exported names against 8 behind it
+  reuse       share of each dependency's exported names its consumer imports:
+    Fixed data questions → Command kit: 3 of 32 (9.4%)
+    Fixed data questions → The library's front door: 1 of 190 (0.5%)
+    Command kit → The library's front door: 4 of 190 (2.1%)
+    Command kit → Reaching a shared library: 1 of 47 (2.1%)
+    Command kit → Records: 1 of 57 (1.8%)
+    Commands → Fixed data questions: 4 of 11 (36.4%)
+    Commands → Command kit: 13 of 32 (40.6%)
+    Commands → The library's front door: 12 of 190 (6.3%)
+    Commands → Decisions: 3 of 38 (7.9%)
+    Commands → Notes: 9 of 45 (20%)
+    Commands → Knowledge: 2 of 36 (5.6%)
+    Commands → Transactions: 2 of 52 (3.8%)
+    Commands → Work: 10 of 88 (11.4%)
+    Commands → Owner questions: 1 of 30 (3.3%)
+    The library's front door → Fixed data questions: 5 of 11 (45.5%)
+    The library's front door → Health: 27 of 34 (79.4%)
+    The library's front door → Decisions: 4 of 38 (10.5%)
+    The library's front door → Knowledge: 18 of 36 (50%)
+    The library's front door → Projects: 22 of 25 (88%)
+    The library's front door → Records: 38 of 57 (66.7%)
+    The library's front door → Transactions: 4 of 52 (7.7%)
+    The library's front door → Valid records: 3 of 63 (4.8%)
+    The library's front door → Work: 62 of 88 (70.5%)
+    Health → Records: 6 of 57 (10.5%)
+    Health → Valid records: 5 of 63 (7.9%)
+    Health → Work: 11 of 88 (12.5%)
+    Decisions → Command kit: 4 of 32 (12.5%)
+    Decisions → The library's front door: 5 of 190 (2.6%)
+    Decisions → Records: 4 of 57 (7%)
+    Decisions → Transactions: 2 of 52 (3.8%)
+    Decisions → Valid records: 5 of 63 (7.9%)
+    The librarian → The library's front door: 6 of 190 (3.2%)
+    The librarian → Decisions: 6 of 38 (15.8%)
+    The librarian → Rounds: 10 of 18 (55.6%)
+    Notes → Command kit: 12 of 32 (37.5%)
+    Notes → Commands: 6 of 28 (21.4%)
+    Notes → The library's front door: 8 of 190 (4.2%)
+    Notes → Decisions: 17 of 38 (44.7%)
+    Notes → Ranked search: 8 of 23 (34.8%)
+    Notes → Knowledge: 8 of 36 (22.2%)
+    Notes → Records: 12 of 57 (21.1%)
+    Notes → Transactions: 1 of 52 (1.9%)
+    Notes → Valid records: 5 of 63 (7.9%)
+    Rounds → The library's front door: 4 of 190 (2.1%)
+    Rounds → Decisions: 3 of 38 (7.9%)
+    Rounds → The librarian: 18 of 41 (43.9%)
+    Ranked search → Records: 1 of 57 (1.8%)
+    Knowledge → Notes: 28 of 45 (62.2%)
+    Knowledge → Ranked search: 8 of 23 (34.8%)
+    The plan → Records: 5 of 57 (8.8%)
+    The plan → Valid records: 6 of 63 (9.5%)
+    Opening a project → Health: 1 of 34 (2.9%)
+    Opening a project → Knowledge: 8 of 36 (22.2%)
+    Opening a project → Reaching a shared library: 9 of 47 (19.1%)
+    Opening a project → Records: 10 of 57 (17.5%)
+    Opening a project → Transactions: 15 of 52 (28.8%)
+    Opening a project → Work: 2 of 88 (2.3%)
+    Reaching a shared library → Opening a project: 2 of 33 (6.1%)
+    Reaching a shared library → Transactions: 3 of 52 (5.8%)
+    Projects → Opening a project: 16 of 33 (48.5%)
+    Projects → Reaching a shared library: 8 of 47 (17%)
+    Projects → Transactions: 1 of 52 (1.9%)
+    Records → The plan: 11 of 53 (20.8%)
+    Records → Valid records: 46 of 63 (73%)
+    Valid records → Records: 4 of 57 (7%)
+    Valid records → Transactions: 9 of 52 (17.3%)
+    Work → The plan: 38 of 53 (71.7%)
+    Work → Work in flight: 39 of 81 (48.1%)
+    Work → Owner questions: 11 of 30 (36.7%)
+    Work in flight → Knowledge: 1 of 36 (2.8%)
+    Work in flight → The plan: 5 of 53 (9.4%)
+    Work in flight → Records: 6 of 57 (10.5%)
+    Work in flight → Transactions: 1 of 52 (1.9%)
+    Work in flight → Valid records: 4 of 63 (6.3%)
+    Work in flight → Owner questions: 29 of 30 (96.7%)
+    Owner questions → Command kit: 4 of 32 (12.5%)
+    Owner questions → Knowledge: 1 of 36 (2.8%)
+    Owner questions → Records: 6 of 57 (10.5%)
+    Owner questions → Valid records: 5 of 63 (7.9%)
+  split       candidates, a consumer importing under a quarter of a dependency's names: Fixed data questions of Command kit (9.4%); Fixed data questions of The library's front door (0.5%); Command kit of The library's front door (2.1%); Command kit of Reaching a shared library (2.1%); Command kit of Records (1.8%); Commands of The library's front door (6.3%); Commands of Decisions (7.9%); Commands of Notes (20%); Commands of Knowledge (5.6%); Commands of Transactions (3.8%); Commands of Work (11.4%); Commands of Owner questions (3.3%); The library's front door of Decisions (10.5%); The library's front door of Transactions (7.7%); The library's front door of Valid records (4.8%); Health of Records (10.5%); Health of Valid records (7.9%); Health of Work (12.5%); Decisions of Command kit (12.5%); Decisions of The library's front door (2.6%); Decisions of Records (7%); Decisions of Transactions (3.8%); Decisions of Valid records (7.9%); The librarian of The library's front door (3.2%); The librarian of Decisions (15.8%); Notes of Commands (21.4%); Notes of The library's front door (4.2%); Notes of Knowledge (22.2%); Notes of Records (21.1%); Notes of Transactions (1.9%); Notes of Valid records (7.9%); Rounds of The library's front door (2.1%); Rounds of Decisions (7.9%); Ranked search of Records (1.8%); The plan of Records (8.8%); The plan of Valid records (9.5%); Opening a project of Health (2.9%); Opening a project of Knowledge (22.2%); Opening a project of Reaching a shared library (19.1%); Opening a project of Records (17.5%); Opening a project of Work (2.3%); Reaching a shared library of Opening a project (6.1%); Reaching a shared library of Transactions (5.8%); Projects of Reaching a shared library (17%); Projects of Transactions (1.9%); Records of The plan (20.8%); Valid records of Records (7%); Valid records of Transactions (17.3%); Work in flight of Knowledge (2.8%); Work in flight of The plan (9.4%); Work in flight of Records (10.5%); Work in flight of Transactions (1.9%); Work in flight of Valid records (6.3%); Owner questions of Command kit (12.5%); Owner questions of Knowledge (2.8%); Owner questions of Records (10.5%); Owner questions of Valid records (7.9%)
+  technical   no top-level node named for a technical layer
+  unplaced    none
+
+Guidance (leads for a story author to weigh, not readings)
+  merge-or-nest: The plan and Records change together at lift 4.1 across The plan and Records
+  merge-or-nest: The plan and Work change together at lift 3.83 across The plan and Work
+  merge-or-nest: The library's front door and Records change together at lift 3.72 across The library's front door and Records
+  merge-or-nest: The library's front door and Work change together at lift 2.98 across The library's front door and Work
+  merge-or-nest: The library's front door and Rounds change together at lift 2.66 across The library's front door and Knowledge
+  merge-or-nest: Commands and Notes change together at lift 2.6 across Commands and Knowledge
+  merge-or-nest: The library's front door and Transactions change together at lift 2.48 across The library's front door and Records
+  merge-or-nest: The library's front door and The librarian change together at lift 2.33 across The library's front door and Knowledge
+  merge-or-nest: Valid records and Owner questions change together at lift 2.29 across Records and Work
+  merge-or-nest: The library's front door and Decisions change together at lift 2 across The library's front door and Knowledge

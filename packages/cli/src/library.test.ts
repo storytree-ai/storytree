@@ -5,14 +5,14 @@ import { userInfo } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { CONTRACT_DEFINITION } from "@storytree/library";
+import { connect, CONTRACT_DEFINITION } from "@storytree/library";
 import { LIBRARY_FAMILIES } from "@storytree/library/commands";
 import { claim, openActivityLog } from "@storytree/session-management";
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
 import { family } from "./mount.js";
-import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
+import { BuiltCommand, dropTestProjects, inWorld, testServerUrl, uniqueProjectName, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 
@@ -542,6 +542,40 @@ test("3.14 `library edit` and `retire`, run by a session holding an increment, h
       assert.match(read.stdout, new RegExp(`${edge.id}.*\\n.*retire: read some other way`));
     } finally {
       await log.close();
+    }
+  });
+});
+
+test("3.14 `library edit --project <another>`, run by a session holding an increment in that project's library on a branch, holds a change to a record planned before it as a pending change on that increment, the live record left alone, run from a folder whose project is not that one (ADR-0966, ADR-1348 D3)", async () => {
+  await inWorld(command, async (world) => {
+    const name = uniqueProjectName();
+    const server = await connect({ url: testServerUrl() });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      await (await world.library()).markFactory();
+      const built = await server.openProject(name);
+      await built.recordFactory(world.project);
+      const arc = await built.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+      const story = await built.addStory({ title: "Sign up" });
+      const form = await built.addCapability({ story: story.id, title: "Form" });
+      const increment = await built.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Red then green" });
+      assert.equal((await claim({ log, library: built, project: built.name, session: "caller", harness: "claude-code", branch: "claude/address-form" }, increment.id, "driving the address form")).ok, true);
+      const live = await built.get(form.id);
+
+      const edited = await world.run(["library", "edit", form.id, "--description", "Where they type it", "--project", built.name], { CLAUDE_CODE_SESSION_ID: "caller" });
+
+      assert.equal(edited.code, 0, edited.stderr);
+      assert.match(edited.stdout, new RegExp(`pending on increment ${increment.id}`), edited.stdout);
+      assert.deepEqual(await built.get(form.id), live, "the live record is left alone");
+      const pending = ((await built.get(increment.id))?.fields as { pending?: { record: string; after?: unknown }[] }).pending;
+      assert.deepEqual(pending?.map(({ record, after }) => [record, after]), [[form.id, { description: "Where they type it" }]]);
+    } finally {
+      try {
+        await log.close();
+        await server.close();
+      } finally {
+        await dropTestProjects([name]);
+      }
     }
   });
 });

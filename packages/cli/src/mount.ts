@@ -140,7 +140,8 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
         if (declared.agentOnly !== undefined && commandSession() === undefined) throw new Refusal(`Run storytree ${face.family} ${face.name} from the agent's shell: ${declared.agentOnly}.`);
         const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey(), out: (text) => context.out(text), surfaces, parts, hostVerbs, projectRecords: () => projectRecords(), claims: () => context.claims(), testedNumbers: async (capability) => testedNumbersOf(context.cwd, await context.library(), capability), placeFiles: async (paths) => placeFilesOf(context.cwd, await context.library(), paths), pluginInFactory, levelsBehind: async (story, parent) => levelsBehindOf(context.cwd, await context.library(), story, parent) };
         const opened = declared.callerless ? { ...place, ...soleSession() } as CommandCaller & CommandPlace : { ...place, ...await context.activityContext() };
-        const caller = !declared.writes || declared.callerless ? opened : { ...opened, library: await writtenLibrary(opened.library, named) };
+        const written = !declared.writes || declared.callerless ? undefined : await writtenLibrary(opened.library, named);
+        const caller = written === undefined ? opened : { ...opened, library: written, claims: () => context.claims(written.name) };
         const answer = await declared.act(input, declared.writes ? writing(caller, context) : caller, WORDS);
         if (answer.raw) return { text: answer.text, raw: true };
         const next: Next[] = (answer.next ?? []).map((step) => ({ command: WORDS.say(step), why: step.why }));

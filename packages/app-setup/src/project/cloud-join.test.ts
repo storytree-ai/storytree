@@ -8,6 +8,7 @@ import { connect, type Storytree } from "@storytree/library";
 import { createTestRole, dropTestRoles, testRoleUrl, withTestClient } from "@storytree/library/testing/pg";
 import { ACTIVITY_DATABASE, forgetProjectActivity } from "@storytree/session-management";
 import { machineNames } from "@storytree/session-management/machines";
+import { changeSharedTables } from "@storytree/session-management/testing/shared-tables";
 import { findProject, machineOf, PROJECT_FILE, TRUNKS_DATABASE, trunksOn } from "@storytree/project-and-caller";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { dropTestProjects, projectDatabase, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
@@ -36,8 +37,8 @@ test("6.18 · Joining a project signed in as the cloud sessions' role, under inf
       await createTestRole(cloud, { createdb: false });
       const names = { database, cloud, project };
       await withTestClient((client) => client.query(grantsFile("cloud-session-grants.sql", names)), database);
-      await withTestClient((client) => client.query(grantsFile("cloud-session-trunks-grants.sql", names)), TRUNKS_DATABASE);
-      await withTestClient((client) => client.query(grantsFile("cloud-session-activity-grants.sql", names)), ACTIVITY_DATABASE);
+      await changeSharedTables(TRUNKS_DATABASE, (client) => client.query(grantsFile("cloud-session-trunks-grants.sql", names)));
+      await changeSharedTables(ACTIVITY_DATABASE, (client) => client.query(grantsFile("cloud-session-activity-grants.sql", names)));
 
       const [containerHome, folder] = [path.join(dir, "container-home"), path.join(dir, "home", "user", "app")];
       mkdirSync(folder, { recursive: true });
@@ -53,18 +54,18 @@ test("6.18 · Joining a project signed in as the cloud sessions' role, under inf
     });
   } finally {
     await Promise.allSettled([onBox.close(), inCloud?.close()]);
-    await withTestClient(async (client) => {
+    await changeSharedTables(TRUNKS_DATABASE, async (client) => {
       await client.query(`DROP OWNED BY "${cloud}"`);
       await client.query("DELETE FROM trunks WHERE project = $1", [project]);
       await client.query("ALTER TABLE trunks DISABLE ROW LEVEL SECURITY");
-    }, TRUNKS_DATABASE);
-    await withTestClient(async (client) => {
+    });
+    await changeSharedTables(ACTIVITY_DATABASE, async (client) => {
       await client.query(`DROP OWNED BY "${cloud}"`);
       for (const table of ["activity", "transcript_records", "transcript_readings", "session_beats"]) {
         await client.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
         await client.query(`ALTER TABLE ${table} DISABLE ROW LEVEL SECURITY`);
       }
-    }, ACTIVITY_DATABASE);
+    });
     await dropTestProjects([project]);
     await dropTestRoles([cloud]);
   }

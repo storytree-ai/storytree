@@ -150,3 +150,5 @@ Capabilities it only re-parents (2, 12, 13, 14, 15, 21, 23, 24, 26, 27, 28, 29, 
 
 - On main: `storytree code-measures tree story_754e87e7d531 --tree docs/design/library-tree-redo/proposal-2/tree.json`.
 - The "after the refactor" column needs the refactor's imports. The refactor increment reads it on its own branch with this same tree file, its paths updated to the moved folders.
+
+In the evidence bucket for #1173, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `1173/library-tree-proposal-2.png`.

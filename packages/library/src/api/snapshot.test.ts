@@ -1,10 +1,12 @@
 // Capability 1 · Project libraries
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { connect as dial, createServer, type AddressInfo, type Socket } from "node:net";
 import { test } from "node:test";
 
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { connect, RestoreRefusedError, type Library, type ProjectSnapshot, type Storytree } from "../index.js";
+import { connect as connectWithSeams } from "../project/storytree.js";
 
 async function withServer(projects: readonly string[], body: (storytree: Storytree) => Promise<void>): Promise<void> {
   const storytree = await connect({ url: testServerUrl() });
@@ -131,6 +133,54 @@ test("1.30 a snapshot carries the media kept beside the project's records, and a
     await library.close();
     await restored.close();
   });
+});
+
+test("1.34 a snapshot carries the project's embedding cache as plain data keyed by model and content hash, and a search in the project it is restored into embeds only the query", async () => {
+  const [name, copy] = [uniqueProjectName(), uniqueProjectName()];
+  const model = "test/snapshot-cache";
+  const asked: string[] = [];
+  const server = await connectWithSeams({ url: testServerUrl() }, {
+    vectorCache: null,
+    embedder: async () => ({ model, async embed(texts: readonly string[]) {
+      asked.push(...texts);
+      return texts.map((text) => text === "kettle question" ? Float32Array.of(1, 1 / 1024) : Float32Array.of(text.includes("Alpha") ? 3 : 0, text.length));
+    } }),
+  });
+  try {
+    const project = await server.openProject(name);
+    const alpha = await project.knowledge.defineTerm({ term: "Alpha", meaning: "The element heats the water." });
+    const long = Array.from({ length: 6 }, (_, i) => `Paragraph ${i}: ${"the relay clicks and the kettle settles. ".repeat(14)}`).join("\n\n");
+    const beta = await project.knowledge.defineTerm({ term: "Beta", meaning: long });
+    const before = await project.knowledge.rank("kettle question");
+    const embedded = asked.filter((text) => text !== "kettle question");
+    assert.ok(embedded.length >= 3, `the long note spans several chunks, got ${embedded.length} texts embedded`);
+    assert.deepEqual(before.hits.map(({ note }) => note.id).sort(), [alpha.id, beta.id].sort());
+    await project.close();
+
+    const snapshot = await server.snapshot(name);
+    const contentHash = (text: string) => createHash("sha256").update(text).digest("hex");
+    assert.deepEqual(
+      (snapshot.embeddings ?? []).map(({ model: by, key }) => `${by} ${key}`).sort(),
+      embedded.map((text) => `${model} ${contentHash(text)}`).sort(),
+      "every vector the project cached, keyed by model and content hash",
+    );
+    assert.deepEqual(JSON.parse(JSON.stringify(snapshot)), snapshot, "still plain data, as a file holds it");
+
+    await server.restore(copy, JSON.parse(JSON.stringify(snapshot)) as ProjectSnapshot);
+    asked.length = 0;
+    const restored = await server.openProject(copy);
+    const after = await restored.knowledge.rank("kettle question");
+    assert.deepEqual(asked, ["kettle question"], "the restored project embeds only the query, no note text");
+    assert.equal(after.by, "meaning");
+    assert.deepEqual(after.hits.map(({ note, score }) => [note.id, score]), before.hits.map(({ note, score }) => [note.id, score]), "the same vectors came back");
+    await restored.close();
+  } finally {
+    try {
+      await server.close();
+    } finally {
+      await dropTestDatabases([`storytree_${name}`, `storytree_${copy}`]);
+    }
+  }
 });
 
 async function slowLink(delayMs: number): Promise<{ url: string; close(): Promise<void> }> {

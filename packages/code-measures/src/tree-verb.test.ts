@@ -188,6 +188,27 @@ test("5.15 · storytree code-measures tree <story> --tree <file> reads the file'
   });
 });
 
+test("5.15 · storytree code-measures tree <story> --tree <file> reads the file's retargets: a retargeted import's types cross to its new file", async (t) => {
+  const tree = treeVerb();
+  const folder = checkout(t, SPLIT_FILES);
+  const proposal = path.join(folder, "proposal.json");
+  const at = (file: string) => `${PACKAGE}/src/${file}`;
+  writeFileSync(proposal, JSON.stringify({
+    nodes: [
+      { id: "U", title: "Users", files: [at("use.ts"), at("a.ts"), at("c.ts"), at("e.ts")] },
+      { id: "T", title: "Types", files: [at("types.ts")] },
+      { id: "P", title: "Pages", files: [at("pages/types.ts")] },
+    ],
+    retargets: [{ file: at("use.ts"), from: at("types.ts"), to: at("pages/types.ts"), names: ["Page"] }],
+  }));
+  await withLibrary(async (library) => {
+    await library.addStory({ title: "Tree fixture" });
+    const context: VerbContext = { folder, project: library.name, session: "s", library };
+    const card = JSON.parse((await tree.act({ story: "Tree fixture", tree: proposal, json: true }, context, WORDS)).text) as Scorecard;
+    assert.deepEqual(card.readings.boundaries.map(({ from, to, types }) => [`${from}→${to}`, types]), [["U→P", ["Page"]], ["U→T", ["Queue"]]]);
+  });
+});
+
 test("5.15 · a proposed tree file whose splits or retargets are not of their shapes is refused as misuse, naming the list", async (t) => {
   const tree = treeVerb();
   const folder = checkout(t);

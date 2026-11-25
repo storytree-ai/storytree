@@ -489,6 +489,43 @@ test("5.15 · a split file's importers land on each part holding names they use,
   ], "Types now exports Mark alone; Pages' part exports Page and makePage");
 });
 
+test("5.15 · imports neither into nor out of a split file are read as they were", () => {
+  const card = scorecardOf({
+    tree: SPLIT_TREE,
+    units: [],
+    imports: [...SPLIT_IMPORTS, { from: at("r.ts"), to: at("y.ts"), used: ["other"], types: [] }],
+    exports: SPLIT_EXPORTS,
+    refactor: { splits: [{ file: at("types.ts"), into: { [at("pages/types.ts")]: ["Page", "makePage"], [at("queues/types.ts")]: ["Queue", "Mark"] } }] },
+  });
+  assert.deepEqual(boundariesOf(card), [
+    ["P→Y", []],
+    ["Q→Y", []],
+    ["R→P", ["Page"]],
+    ["R→Y", []],
+  ]);
+});
+
+test("5.15 · with no exports given, a split file's exported names are read from the imports into it, so a split leaving one in no part is still refused", () => {
+  const files = [
+    source("types.ts", ["export interface Page { readonly page: number }", "export interface Queue { readonly queue: number }", "export const makePage = 1;"]),
+    source("r.ts", ['import type { Page } from "./types.js";', "export const r: Page | undefined = undefined;"]),
+  ];
+  assert.throws(
+    () => scorecardOf({
+      tree: SPLIT_TREE,
+      units: [],
+      imports: importsOf(files),
+      refactor: { splits: [{ file: at("types.ts"), into: { [at("pages/types.ts")]: ["Page"], [at("queues/types.ts")]: ["Queue"] } }] },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof VerbRefusal, `a refusal, not ${String(error)}`);
+      assert.match(error.message, /packages\/p\/src\/types\.ts/);
+      assert.match(error.message, /\bmakePage\b/);
+      return true;
+    },
+  );
+});
+
 test("5.15 · a split leaving one of the file's exported names in no part is refused, naming the file and each name left out", () => {
   assert.throws(
     () => scorecardOf({

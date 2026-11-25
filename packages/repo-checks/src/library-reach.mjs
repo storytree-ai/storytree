@@ -2,7 +2,7 @@
 
 import path from "node:path";
 
-import { locateLibrary, readLibrary } from "@storytree/project-and-caller";
+import { locateLibrary, readExperiment, readLibrary } from "@storytree/project-and-caller";
 import { connect } from "@storytree/library";
 import { DataDirInUseError, start } from "@storytree/local-postgres";
 
@@ -16,8 +16,12 @@ export async function stopStartedLibrary() {
   await server?.stop();
 }
 
-export async function withLibrary(read, command, project = PROJECT) {
+export async function withLibrary(read, command, project) {
   const home = path.dirname(appHome().pgdata);
+  if (project === undefined) {
+    const arm = readExperiment(home);
+    project = arm === undefined ? PROJECT : `x-${arm.name}-${arm.arm}`;
+  }
   const where = locateLibrary({ home, dataDir: appHome().pgdata });
   let options = where.found ? where.connect : undefined;
   if (options === undefined && readLibrary(home).location === "local") {

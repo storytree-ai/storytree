@@ -50,7 +50,7 @@ export interface Context {
   library(): Promise<Library>;
   server(): Promise<Storytree>;
   writer(): WriteOptions;
-  claims(): Promise<Claim[]>;
+  claims(project?: string): Promise<Claim[]>;
   activityContext(): Promise<ClaimContext & { readonly server?: Storytree }>;
   claimContext(): Promise<ClaimContext>;
   journey(): Promise<JourneyRuntime>;
@@ -92,7 +92,7 @@ export async function run(argv: readonly string[], given: Io): Promise<number> {
       out: (text) => io.out(render({ text })),
       library: () => opened.library(),
       server: () => opened.server(),
-      claims: () => opened.claims(),
+      claims: (project) => opened.claims(project),
       activityContext: () => opened.activityContext(),
       claimContext: () => opened.claimContext(),
       writer: () => (writer ??= { ...commandWriter(), ...opened.outsideRead() }),
@@ -432,12 +432,11 @@ class Opened {
     return this.#server();
   }
 
-  async claims(): Promise<Claim[]> {
-    const where = this.#routed();
+  async claims(project: string = this.#routed().project): Promise<Claim[]> {
     const { openActivityLog, readClaims } = await import("@storytree/session-management");
     const log = await openActivityLog(await this.#server());
     try {
-      return await readClaims(log, where.project);
+      return await readClaims(log, project);
     } finally {
       await log.close();
     }

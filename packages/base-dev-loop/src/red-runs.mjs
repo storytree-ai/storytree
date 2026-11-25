@@ -16,7 +16,7 @@ export function recordReds(root, { tests = [], unloaded = [] }) {
   };
   const head = git("rev-parse", "HEAD");
   const lines = failed.map((row) => `${JSON.stringify({ at, head, ...row })}\n`).join("");
-  const common = head === "" ? "" : git("rev-parse", "--path-format=absolute", "--git-common-dir");
+  const common = head === "" || git("symbolic-ref", "-q", "HEAD") === "" ? "" : git("rev-parse", "--path-format=absolute", "--git-common-dir");
   for (const file of [path.join(root, ".pgtest", "red-runs.jsonl"), ...(common === "" ? [] : [path.join(common, "storytree", "red-runs.jsonl")])]) {
     mkdirSync(path.dirname(file), { recursive: true });
     appendFileSync(file, lines);

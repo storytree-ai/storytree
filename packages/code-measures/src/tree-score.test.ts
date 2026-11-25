@@ -266,7 +266,7 @@ test("5.11 · of the imports between siblings, the share landing on the imported
       'export const key = "k";',
       "export const other = [version, secret, one, two, plain, deep];",
     ]),
-    source("k/index.ts", ['export { key } from "./keys.js";']),
+    source("k/index.ts", ['export * from "./keys.js";']),
     source("k/deep/index.ts", ["export const deep = 3;"]),
     source("v/api.ts", ['export { make, type Value } from "./impl.js";', "export const version = 1;", 'export const label = "v";']),
     source("v/impl.ts", [
@@ -277,7 +277,7 @@ test("5.11 · of the imports between siblings, the share landing on the imported
       "export const secret = other;",
       "export default function fallback(): void {}",
     ]),
-    source("v/index.ts", ['export * from "./api.js";']),
+    source("v/index.ts", ['export { version } from "./api.js";']),
     source("m/index.mts", ["export const one = 1;"]),
     source("m/index.ts", ["export const one = 1;", "export const two = 2;"]),
     source("n/plain.ts", ["export const plain = 1;"]),
@@ -311,10 +311,10 @@ test("5.11 · of the imports between siblings, the share landing on the imported
     ],
   );
   assert.deepEqual([...entries.nodes].sort((a, b) => a.id.localeCompare(b.id)), [
-    { id: "K", entry: at("k/index.ts"), exported: 1, behind: 3 },
+    { id: "K", entry: at("k/index.ts"), exported: 2, behind: 3 },
     { id: "M", entry: at("m/index.mts"), exported: 1, behind: 2 },
     { id: "N", entry: null, exported: 0, behind: 1 },
-    { id: "S", entry: at("k/index.ts"), exported: 1, behind: 12 },
+    { id: "S", entry: at("k/index.ts"), exported: 2, behind: 12 },
     { id: "V", entry: at("v/api.ts"), exported: 4, behind: 5 },
   ], "behind counts the files other than the entry: Values' label, exported only by its entry, is not behind it");
 });

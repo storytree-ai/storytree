@@ -1,0 +1,356 @@
+{
+  "proposal": "Redone tree proposal 2 for the library story (story_754e87e7d531): domain-first, each domain levelized by its imports (increment_14a13d90ff17, arc_c465ed702824, ADR-1403).",
+  "readme": "README.md beside this file",
+  "files": "today's paths, so `storytree code-measures tree story_754e87e7d531 --tree docs/design/library-tree-redo/proposal-2/tree.json` grades it on main; README.md names what the refactor moves",
+  "nodes": [
+    {
+      "id": "records",
+      "title": "36 · Records",
+      "says": "What every record is, whatever its domain: the store and its history, the envelope, validation against the kinds each domain declares, versions and upgrades, plugin kinds, and the references between records.",
+      "entry": "packages/library/src/schema/index.ts",
+      "files": []
+    },
+    {
+      "id": "transactions",
+      "parent": "records",
+      "title": "2 · Library transactions",
+      "entry": "packages/library/src/transactions/index.ts",
+      "files": [
+        "packages/library/src/transactions/behaviour-suite.ts",
+        "packages/library/src/transactions/index.ts",
+        "packages/library/src/transactions/memory.ts",
+        "packages/library/src/transactions/pg.ts",
+        "packages/library/src/transactions/records.ts",
+        "packages/library/src/transactions/types.ts",
+        "packages/library/src/transactions/waits.ts"
+      ]
+    },
+    {
+      "id": "record-rules",
+      "parent": "records",
+      "title": "3 · Record rules",
+      "entry": "packages/library/src/schema/index.ts",
+      "files": [
+        "packages/library/src/schema/index.ts",
+        "packages/library/src/schema/records.ts",
+        "packages/library/src/schema/errors.ts",
+        "packages/library/src/schema/upgrades.ts",
+        "packages/library/src/schema/plugin-kinds.ts",
+        "packages/library/src/schema/code-distance.ts",
+        "packages/library/src/schema/types.ts",
+        "packages/library/src/references.ts",
+        "packages/library/src/creation-order.ts"
+      ]
+    },
+    {
+      "id": "words",
+      "title": "16 · Command words",
+      "entry": "packages/library/src/verbs/verb.ts",
+      "files": [
+        "packages/library/src/verbs/verb.ts",
+        "packages/library/src/schema/activity-line.ts"
+      ]
+    },
+    {
+      "id": "decisions",
+      "title": "31 · Decisions",
+      "entry": "packages/library/src/decisions/index.ts",
+      "files": [
+        "packages/library/src/decisions/index.ts"
+      ]
+    },
+    {
+      "id": "decision-log",
+      "parent": "decisions",
+      "title": "13 · Decision log",
+      "entry": "packages/library/src/decisions/decision-log.ts",
+      "files": [
+        "packages/library/src/decisions/decision-log.ts"
+      ]
+    },
+    {
+      "id": "decision-edits",
+      "parent": "decisions",
+      "title": "22 · Decision edits",
+      "entry": "packages/library/src/decisions/supersede.ts",
+      "files": [
+        "packages/library/src/decisions/supersede.ts",
+        "packages/library/src/decisions/corrections.ts"
+      ]
+    },
+    {
+      "id": "decision-commands",
+      "parent": "decisions",
+      "title": "37 · Decision commands",
+      "entry": "packages/library/src/decisions/adr.ts",
+      "files": [
+        "packages/library/src/decisions/adr.ts"
+      ]
+    },
+    {
+      "id": "knowledge",
+      "title": "33 · Knowledge",
+      "entry": "packages/library/src/knowledge/index.ts",
+      "files": [
+        "packages/library/src/knowledge/index.ts"
+      ]
+    },
+    {
+      "id": "search",
+      "parent": "knowledge",
+      "title": "14 · Ranked search",
+      "entry": "packages/library/src/knowledge/embedding.ts",
+      "files": [
+        "packages/library/src/knowledge/embedding-model.ts",
+        "packages/library/src/knowledge/embedding.ts",
+        "packages/library/src/knowledge/embeddings.ts",
+        "packages/library/src/knowledge/whole-words.ts"
+      ]
+    },
+    {
+      "id": "artifacts",
+      "parent": "knowledge",
+      "title": "6 · Knowledge artifacts",
+      "entry": "packages/library/src/knowledge/knowledge.ts",
+      "files": [
+        "packages/library/src/knowledge/knowledge.ts",
+        "packages/library/src/knowledge/kinds.ts",
+        "packages/library/src/knowledge/memory-upgrade.ts",
+        "packages/library/src/knowledge/similarity.ts",
+        "packages/library/src/knowledge/front-covers.ts",
+        "packages/library/src/schema/schedule.ts"
+      ]
+    },
+    {
+      "id": "librarian",
+      "parent": "knowledge",
+      "title": "35 · The librarian",
+      "entry": "packages/library/src/librarian/index.ts",
+      "files": [
+        "packages/library/src/librarian/index.ts",
+        "packages/library/src/librarian/notes.ts"
+      ]
+    },
+    {
+      "id": "links",
+      "parent": "librarian",
+      "title": "21 · Links",
+      "entry": "packages/library/src/librarian/links/index.ts",
+      "files": [
+        "packages/library/src/librarian/links/index.ts",
+        "packages/library/src/librarian/links/links.ts"
+      ]
+    },
+    {
+      "id": "catalogue",
+      "parent": "librarian",
+      "title": "23 · Catalogue",
+      "entry": "packages/library/src/librarian/catalogue/index.ts",
+      "files": [
+        "packages/library/src/librarian/catalogue/catalogue.ts",
+        "packages/library/src/librarian/catalogue/index.ts"
+      ]
+    },
+    {
+      "id": "graduation",
+      "parent": "librarian",
+      "title": "24 · Graduation",
+      "entry": "packages/library/src/librarian/graduation/index.ts",
+      "files": [
+        "packages/library/src/librarian/graduation/graduation.ts",
+        "packages/library/src/librarian/graduation/index.ts"
+      ]
+    },
+    {
+      "id": "rounds",
+      "parent": "librarian",
+      "title": "26 · Rounds",
+      "entry": "packages/library/src/librarian/rounds/index.ts",
+      "files": [
+        "packages/library/src/librarian/rounds/host.ts",
+        "packages/library/src/librarian/rounds/index.ts",
+        "packages/library/src/librarian/rounds/rounds.ts",
+        "packages/library/src/librarian/rounds/tools.ts"
+      ]
+    },
+    {
+      "id": "voice",
+      "title": "38 · Owner's voice",
+      "entry": "packages/library/src/work/owner-questions.ts",
+      "files": []
+    },
+    {
+      "id": "questions",
+      "parent": "voice",
+      "title": "12 · Owner questions",
+      "entry": "packages/library/src/work/owner-questions.ts",
+      "files": [
+        "packages/library/src/work/owner-questions.ts"
+      ]
+    },
+    {
+      "id": "told",
+      "parent": "voice",
+      "title": "39 · Feedback and FYIs",
+      "entry": "packages/library/src/commands/fyi.ts",
+      "files": [
+        "packages/library/src/commands/fyi.ts"
+      ]
+    },
+    {
+      "id": "work",
+      "title": "32 · Plan and work",
+      "entry": "packages/library/src/work/index.ts",
+      "files": [
+        "packages/library/src/work/index.ts"
+      ]
+    },
+    {
+      "id": "plan",
+      "parent": "work",
+      "title": "4 · Work model",
+      "entry": "packages/library/src/work/work-model.ts",
+      "files": [
+        "packages/library/src/work/work-model.ts",
+        "packages/library/src/work/pr-cutover.ts",
+        "packages/library/src/work/pending-changes.ts",
+        "packages/library/src/schema/story-survey.ts"
+      ]
+    },
+    {
+      "id": "waits",
+      "parent": "work",
+      "title": "11 · Waits",
+      "entry": "packages/library/src/work/waits.ts",
+      "files": [
+        "packages/library/src/work/waits.ts",
+        "packages/library/src/work/wait-writes.ts"
+      ]
+    },
+    {
+      "id": "flight",
+      "parent": "work",
+      "title": "10 · Work in flight",
+      "entry": "packages/library/src/work/work-in-flight.ts",
+      "files": [
+        "packages/library/src/work/work-in-flight.ts",
+        "packages/library/src/work/plan-hold.ts"
+      ]
+    },
+    {
+      "id": "health",
+      "title": "5 · Health record",
+      "entry": "packages/library/src/health/index.ts",
+      "files": [
+        "packages/library/src/health/health-record.ts",
+        "packages/library/src/health/index.ts"
+      ]
+    },
+    {
+      "id": "projects",
+      "title": "34 · Projects",
+      "entry": "packages/library/src/project/index.ts",
+      "files": [
+        "packages/library/src/project/index.ts"
+      ]
+    },
+    {
+      "id": "server",
+      "parent": "projects",
+      "title": "28 · Shared server",
+      "entry": "packages/library/src/project/server.ts",
+      "files": [
+        "packages/library/src/project/connection-error.ts",
+        "packages/library/src/project/reads.ts",
+        "packages/library/src/project/server.ts",
+        "packages/library/src/project/names.ts",
+        "packages/library/src/project/seed-connection.ts"
+      ]
+    },
+    {
+      "id": "address",
+      "parent": "projects",
+      "title": "15 · Connection by address",
+      "entry": "packages/library/src/project/address.ts",
+      "files": [
+        "packages/library/src/project/address.ts",
+        "packages/library/src/project/websocket.ts"
+      ]
+    },
+    {
+      "id": "factory",
+      "parent": "projects",
+      "title": "29 · Factory and product",
+      "entry": "packages/library/src/project/factory.ts",
+      "files": [
+        "packages/library/src/project/factory.ts",
+        "packages/library/src/project/switches.ts"
+      ]
+    },
+    {
+      "id": "libraries",
+      "parent": "projects",
+      "title": "1 · Project libraries",
+      "entry": "packages/library/src/project/storytree.ts",
+      "files": [
+        "packages/library/src/project/storytree.ts",
+        "packages/library/src/project/record-cache.ts",
+        "packages/library/src/project/schema-merged.ts",
+        "packages/library/src/project/schema.ts",
+        "packages/library/src/project/snapshot.ts"
+      ]
+    },
+    {
+      "id": "outside",
+      "parent": "projects",
+      "title": "30 · Outside writers",
+      "entry": "packages/library/src/project/outside-writer.ts",
+      "files": [
+        "packages/library/src/project/outside-writer.ts"
+      ]
+    },
+    {
+      "id": "doors",
+      "title": "40 · Library doors",
+      "entry": "packages/library/src/index.ts",
+      "files": [
+        "packages/library/src/index.ts"
+      ]
+    },
+    {
+      "id": "data",
+      "parent": "doors",
+      "title": "27 · Fixed data questions",
+      "entry": "packages/library/src/data/data-questions.ts",
+      "files": [
+        "packages/library/src/data/data-questions.ts",
+        "packages/library/src/data/commands.ts"
+      ]
+    },
+    {
+      "id": "api",
+      "parent": "doors",
+      "title": "7 · Library API",
+      "entry": "packages/library/src/api/index.ts",
+      "files": [
+        "packages/library/src/api/index.ts",
+        "packages/library/src/api/library.ts",
+        "packages/library/src/api/printable.ts"
+      ]
+    },
+    {
+      "id": "commands",
+      "parent": "doors",
+      "title": "17 · The library's commands",
+      "entry": "packages/library/src/commands/index.ts",
+      "files": [
+        "packages/library/src/commands/index.ts",
+        "packages/library/src/commands/elsewhere.ts",
+        "packages/library/src/commands/media.ts",
+        "packages/library/src/commands/notes.ts",
+        "packages/library/src/commands/ranked.ts",
+        "packages/library/src/commands/stale-edit.ts"
+      ]
+    }
+  ]
+}

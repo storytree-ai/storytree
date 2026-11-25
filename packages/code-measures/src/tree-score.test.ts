@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { VerbRefusal } from "@storytree/library/verbs";
 
 import { planTreeOf, proposedTreeOf, type Tree } from "./tree.js";
+import * as treeStructure from "./tree-structure.js";
 import { importsOf, treeStructureOf, type Import, type NodeStructure, type TreeStructure } from "./tree-structure.js";
 import type { SourceText } from "./index.js";
 
@@ -209,5 +210,190 @@ test("5.8 · each boundary, an import edge from one node to another, lists the t
     ["Y→X", ["Colour", "Shape"]],
     ["Z→X", ["Shape"]],
     ["Z→Y", ["Thing"]],
+  ]);
+});
+
+const DEEP: Tree = {
+  nodes: [
+    { id: "P", title: "Pages" },
+    { id: "Q", title: "Queues" },
+    { id: "A", title: "Alpha", parent: "P" },
+    { id: "B", title: "Beta", parent: "P" },
+    { id: "A1", title: "Inner alpha", parent: "A" },
+    { id: "Q1", title: "First queue", parent: "Q" },
+  ],
+  ownerOf: Object.fromEntries(([["p.ts", "P"], ["a.ts", "A"], ["a1.ts", "A1"], ["a1b.ts", "A1"], ["b.ts", "B"], ["q.ts", "Q"], ["q1.ts", "Q1"]] as [string, string][]).map(([file, id]) => [`${SOURCE}/${file}`, id])),
+  unplaced: [`${SOURCE}/loose.ts`],
+};
+
+test("5.10 · each import between two placed files counts at the depth its ends' nodes meet, 0 when they share no ancestor, a node's own depth when both ends sit in it or one holds the other, listed by depth ascending with no empty depth", () => {
+  const imports = edges([
+    ["a.ts", "q1.ts"],
+    ["a1.ts", "a1b.ts"],
+    ["a.ts", "b.ts"],
+    ["q.ts", "p.ts"],
+    ["a1.ts", "b.ts"],
+    ["p.ts", "a.ts"],
+    ["loose.ts", "a.ts"],
+    ["a.ts", "outside.ts"],
+  ]);
+  const structure = treeStructureOf(DEEP, imports) as TreeStructure & { meetDepths?: unknown };
+  assert.deepEqual(structure.meetDepths, [
+    { depth: 0, imports: 2 },
+    { depth: 1, imports: 3 },
+    { depth: 3, imports: 1 },
+  ]);
+});
+
+interface Entries {
+  readonly share: number | null;
+  readonly through: number;
+  readonly total: number;
+  readonly offenders: readonly { from: string; to: string; sibling: string }[];
+  readonly nodes: readonly { id: string; entry: string | null; exported: number; behind: number }[];
+}
+
+test("5.11 · of the imports between siblings, the share landing on the imported sibling's entry, a proposed node's entry else its shallowest index file, each other one named with its files; each imported sibling reads its entry's exported names against those behind it", () => {
+  const files = [
+    source("k/keys.ts", [
+      'import { version } from "../v/api.js";',
+      'import { secret } from "../v/impl.js";',
+      'import { one } from "../m/index.mts";',
+      'import { two } from "../m/index.js";',
+      'import { plain } from "../n/plain.js";',
+      'import { deep } from "./deep/index.js";',
+      'import "./index.js";',
+      'export const key = "k";',
+      "export const other = [version, secret, one, two, plain, deep];",
+    ]),
+    source("k/index.ts", ['export { key } from "./keys.js";']),
+    source("k/deep/index.ts", ["export const deep = 3;"]),
+    source("v/api.ts", ['export { make, type Value } from "./impl.js";', "export const version = 1;"]),
+    source("v/impl.ts", [
+      'import { key } from "../k/index.js";',
+      'import { other } from "../k/keys.js";',
+      "export function make(): string { return key; }",
+      "export interface Value { readonly v: number }",
+      "export const secret = other;",
+      "export default function fallback(): void {}",
+    ]),
+    source("v/index.ts", ['export * from "./api.js";']),
+    source("m/index.mts", ["export const one = 1;"]),
+    source("m/index.ts", ["export const one = 1;", "export const two = 2;"]),
+    source("n/plain.ts", ["export const plain = 1;"]),
+    source("t/tool.ts", ['import { version } from "../v/api.js";', "export const tool = version;"]),
+  ];
+  const plan = planTreeOf([], files.map(({ path }) => ({ path })));
+  const at = (file: string) => `${SOURCE}/${file}`;
+  const proposal = {
+    nodes: [
+      { id: "S", title: "Store" },
+      { id: "K", title: "Keys", parent: "S", files: [at("k/keys.ts"), at("k/deep/index.ts")] },
+      { id: "K1", title: "Key entry", parent: "K", files: [at("k/index.ts")] },
+      { id: "V", title: "Values", parent: "S", entry: at("v/api.ts"), files: [at("v/api.ts"), at("v/impl.ts"), at("v/index.ts")] },
+      { id: "M", title: "Marks", parent: "S", files: [at("m/index.mts"), at("m/index.ts")] },
+      { id: "N", title: "Names", parent: "S", files: [at("n/plain.ts")] },
+      { id: "T", title: "Tools", files: [at("t/tool.ts")] },
+    ],
+  };
+  const tree = proposedTreeOf(proposal, plan);
+  const { entries } = treeStructureOf(tree, importsOf(files)) as TreeStructure & { entries?: Entries };
+  assert.ok(entries !== undefined, "an entries reading");
+  assert.deepEqual({ share: entries.share, through: entries.through, total: entries.total }, { share: 3 / 8, through: 3, total: 8 });
+  assert.deepEqual(
+    [...entries.offenders].map(({ from, to, sibling }) => [from, to, sibling]).sort((a, b) => a.join().localeCompare(b.join())),
+    [
+      [at("k/keys.ts"), at("m/index.ts"), "M"],
+      [at("k/keys.ts"), at("n/plain.ts"), "N"],
+      [at("k/keys.ts"), at("v/impl.ts"), "V"],
+      [at("t/tool.ts"), at("v/api.ts"), "S"],
+      [at("v/impl.ts"), at("k/keys.ts"), "K"],
+    ],
+  );
+  assert.deepEqual([...entries.nodes].sort((a, b) => a.id.localeCompare(b.id)), [
+    { id: "K", entry: at("k/index.ts"), exported: 1, behind: 3 },
+    { id: "M", entry: at("m/index.mts"), exported: 1, behind: 2 },
+    { id: "N", entry: null, exported: 0, behind: 1 },
+    { id: "S", entry: at("k/index.ts"), exported: 1, behind: 11 },
+    { id: "V", entry: at("v/api.ts"), exported: 3, behind: 5 },
+  ]);
+});
+
+test("5.11 · with no import between siblings the entry share reads none", () => {
+  const { entries } = treeStructureOf(DEEP, edges([["a1.ts", "a.ts"], ["p.ts", "b.ts"]])) as TreeStructure & { entries?: Entries };
+  assert.deepEqual(entries, { share: null, through: 0, total: 0, offenders: [], nodes: [] });
+});
+
+interface Reuse {
+  readonly consumer: string;
+  readonly dependency: string;
+  readonly used: number;
+  readonly exported: number;
+  readonly share: number | null;
+}
+
+test("5.12 · each consumer and dependency node pair reads the share of the dependency's own exported names the consumer imports, a namespace import or export * counting all of a file's names and a default import counting default; a pair under a quarter is named a split candidate", () => {
+  const files = [
+    source("d/one.ts", ["export const a = 1;", "export const b = 2;", "export function c(): number { return 3; }"]),
+    source("d/two.ts", ['import { a } from "./one.js";', "export const e = a;", "export interface F { readonly f: number }", "export default 6;"]),
+    source("e/four.ts", ["export const p = 1;", "export const q = 2;", "export const r = 3;", "export const s = 4;"]),
+    source("c1/one.ts", ['import { a } from "../d/one.js";', 'import { p } from "../e/four.js";', "export const x = a + p;"]),
+    source("c1/two.ts", ['import { a } from "../d/one.js";', "export const y = a;"]),
+    source("c2/use.ts", ['import * as one from "../d/one.js";', 'import six from "../d/two.js";', "export const z = one.a + six;"]),
+    source("c3/barrel.ts", ['export * from "../d/one.js";', 'import type { F } from "../d/two.js";', "export const w: F | undefined = undefined;"]),
+  ];
+  const tree = flat({ D: ["d/one.ts", "d/two.ts"], E: ["e/four.ts"], C1: ["c1/one.ts", "c1/two.ts"], C2: ["c2/use.ts"], C3: ["c3/barrel.ts"] });
+  const structure = treeStructureOf(tree, importsOf(files)) as TreeStructure & { reuse?: readonly Reuse[]; splitCandidates?: readonly { consumer: string; dependency: string }[] };
+  assert.deepEqual(structure.reuse, [
+    { consumer: "C1", dependency: "D", used: 1, exported: 6, share: 1 / 6 },
+    { consumer: "C1", dependency: "E", used: 1, exported: 4, share: 0.25 },
+    { consumer: "C2", dependency: "D", used: 4, exported: 6, share: 4 / 6 },
+    { consumer: "C3", dependency: "D", used: 4, exported: 6, share: 4 / 6 },
+  ]);
+  assert.equal((treeStructure as Record<string, unknown>).SPLIT_SHARE, 0.25);
+  assert.deepEqual((structure.splitCandidates ?? []).map(({ consumer, dependency }) => [consumer, dependency]), [["C1", "D"]], "C1 uses one of D's six names; C1's one of E's four is a quarter, not under it");
+});
+
+const GATED: Tree = {
+  nodes: [
+    { id: "P", title: "Pages" },
+    { id: "Q", title: "Queues" },
+    { id: "P1", title: "First page", parent: "P" },
+    { id: "P2", title: "Second page", parent: "P" },
+    { id: "Q1", title: "First queue", parent: "Q" },
+  ],
+  ownerOf: Object.fromEntries(([["p.ts", "P"], ["p1.ts", "P1"], ["p2.ts", "P2"], ["q1.ts", "Q1"]] as [string, string][]).map(([file, id]) => [`${SOURCE}/${file}`, id])),
+  unplaced: [],
+};
+
+test("5.13 · the sibling-cycle gate reads fail when a cycle stands among siblings nested under a parent, and pass when imports only run between a node and its own parent both ways", () => {
+  const gate = (imports: Import[]) => (treeStructureOf(GATED, imports) as TreeStructure & { cycleGate?: unknown }).cycleGate;
+  assert.equal(gate(edges([["p1.ts", "p2.ts"], ["p2.ts", "p1.ts"], ["p1.ts", "q1.ts"]])), "fail");
+  assert.equal(gate(edges([["p1.ts", "p2.ts"], ["p.ts", "p1.ts"], ["p1.ts", "p.ts"], ["p1.ts", "q1.ts"]])), "pass");
+});
+
+test("5.14 · top-level nodes whose title, after its number, holds a technical-layer word as a whole word in any case are flagged with the word; a nested node or a word inside another word is not", () => {
+  const tree: Tree = {
+    nodes: [
+      { id: "schemas", title: "1 · Schemas" },
+      { id: "belt", title: "Utility belt" },
+      { id: "ground", title: "Common ground" },
+      { id: "helpers", title: "helpers" },
+      { id: "misc", title: "MISC" },
+      { id: "typewriter", title: "Typewriter" },
+      { id: "domain", title: "Domain" },
+      { id: "constants", title: "Constants", parent: "domain" },
+      { id: "nested-util", title: "Util", parent: "domain" },
+    ],
+    ownerOf: {},
+    unplaced: [],
+  };
+  const { technicalNames } = treeStructureOf(tree, []) as TreeStructure & { technicalNames?: readonly { id: string; word: string }[] };
+  assert.deepEqual([...(technicalNames ?? [])].sort((a, b) => a.id.localeCompare(b.id)), [
+    { id: "belt", word: "utility" },
+    { id: "ground", word: "common" },
+    { id: "helpers", word: "helpers" },
+    { id: "misc", word: "misc" },
+    { id: "schemas", word: "schemas" },
   ]);
 });

@@ -68,3 +68,25 @@ test("4.26 · the reds a run keeps in a worktree are also added to its clone's s
   const shared = readFileSync(path.join(clone, ".git", "storytree", "red-runs.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
   assert.deepEqual(shared.map(({ head, file, test }) => ({ head, file, test })), [{ head: git(worktree, "rev-parse", "HEAD"), file: "a.test.mjs", test: "9.1 · fails" }]);
 });
+
+test("4.36 · a worktree on no branch keeps its reds in its own log and adds nothing to its clone's shared copy", async (t) => {
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "red-runs-detached-")));
+  t.after(() => removeTemp(dir));
+  const clone = path.join(dir, "clone");
+  const worktree = path.join(dir, "worktree");
+  const git = (cwd, ...args) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd, encoding: "utf8" }).stdout.trim();
+  mkdirSync(clone);
+  git(clone, "init", "-q");
+  git(clone, "commit", "-q", "--allow-empty", "-m", "base");
+  git(clone, "worktree", "add", "-q", "--detach", worktree);
+  const { recordReds } = await import("./red-runs.mjs");
+
+  recordReds(worktree, { tests: [{ file: "hidden.test.mjs", name: "9.7 · hidden acceptance fails", result: "fail" }] });
+  const own = readFileSync(path.join(worktree, ".pgtest", "red-runs.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
+  assert.deepEqual(own.map(({ head, file, test }) => ({ head, file, test })), [{ head: git(worktree, "rev-parse", "HEAD"), file: "hidden.test.mjs", test: "9.7 · hidden acceptance fails" }]);
+  let shared = "";
+  try {
+    shared = readFileSync(path.join(clone, ".git", "storytree", "red-runs.jsonl"), "utf8");
+  } catch {}
+  assert.ok(!shared.includes("9.7 · hidden acceptance fails"), shared);
+});

@@ -365,8 +365,8 @@ export async function incrementFields(target: string, { capabilities, machine, e
   };
 }
 
-async function sharedCapability(target: string, capabilities: readonly string[], { library, log, project, quietMs, caller }: Call): Promise<string | undefined> {
-  const claims = await readClaims(log, project, { quietMs });
+async function sharedCapability(target: string, capabilities: readonly string[], { library, log, quietMs, caller }: Call): Promise<string | undefined> {
+  const claims = await readClaims(log, library.name, { quietMs });
   const others = claims.filter((claim) => claim.session !== caller.session && claim.holder === "live" && claim.increment !== undefined && claim.increment !== target);
   for (const claim of others) {
     const listed = ((await library.get(claim.increment!))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];

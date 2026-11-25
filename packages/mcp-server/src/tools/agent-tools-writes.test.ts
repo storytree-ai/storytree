@@ -14,7 +14,7 @@ import { nameThisMachine } from "@storytree/session-management/machines";
 import { recordFriction, route } from "@storytree/session-management/friction";
 import type { ToolExtension } from "./index.js";
 import { CARD_WORD_BUDGET, cardWords } from "../instructions/habits.js";
-import { readClaims } from "@storytree/session-management";
+import { claim, readClaims } from "@storytree/session-management";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
 import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
 import { git, withTempDir, writeMarker } from "@storytree/project-and-caller/testing/folders";
@@ -1139,6 +1139,34 @@ test("10.10 edit_plan refuses an increment's capabilities list a capability alre
   });
 });
 
+test("10.10 edit_plan with project <another> refuses an increment's capabilities list a capability already on the list of an increment another live session holds in that project's library, naming it and its holder, with nothing written, called from a folder whose project is not that one (ADR-1348 D3)", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    const productName = uniqueProjectName();
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await library.markFactory();
+      const product = await storytree.openProject(productName);
+      await product.recordFactory(project);
+      const arc = (await product.createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up" })).id;
+      const story = await product.addStory({ title: "Sign up" });
+      const form = await product.addCapability({ story: story.id, title: "Form" });
+      const theirs = await product.addIncrement({ arc, title: "Email form", objective: "Build it", body: "Red then green", capabilities: [form.id] } as never);
+      const mine = await product.addIncrement({ arc, title: "Form copy", objective: "Reword it", body: "Red then green" });
+      assert.equal((await claim({ log, library: product, project: productName, session: "claude-1", harness: "claude-code" }, theirs.id, "driving the email form")).ok, true);
+      await withAgent(folder, codex("codex-1"), async (agent) => {
+        const history = await product.history({ id: mine.id });
+        const refused = await agent.call("edit_plan", { id: mine.id, capabilities: [form.id], project: productName });
+        assert.equal(refused.isError, true, refused.text);
+        assert.match(refused.text, new RegExp(`${form.id} is already on the capabilities list of ${theirs.id}, which .*session claude-1 holds \\(driving the email form\\)`));
+        assert.deepEqual(await product.history({ id: mine.id }), history, "nothing was written");
+      });
+    } finally {
+      await storytree.close();
+      await dropTestProjects([productName]);
+    }
+  });
+});
+
 test("10.19 edit_plan takes a capability off an increment's list though one it keeps is on the list of another live session's claimed increment: only the capabilities an edit adds are checked (ADR-0949 D2)", async () => {
   await withProject(async ({ folder, library }) => {
     let arc = "";
@@ -1260,6 +1288,35 @@ test("9.9 edit_plan and retire_from_plan, under an increment's claim, hold a cha
         [edge, undefined, "the link reads the form some other way"],
       ]);
     });
+  });
+});
+
+test("9.9 edit_plan with project <another>, under an increment's claim in that project's library on a branch, holds a change to a record planned before it as a pending change on that increment, leaving the live record alone, called from a folder whose project is not that one (ADR-0966 D1, ADR-1348 D3)", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    const productName = uniqueProjectName();
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await library.markFactory();
+      const product = await storytree.openProject(productName);
+      await product.recordFactory(project);
+      const arc = (await product.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" })).id;
+      const story = await product.addStory({ title: "Sign up" });
+      const form = await product.addCapability({ story: story.id, title: "Form" });
+      const increment = (await product.addIncrement({ arc, title: "Address form", objective: "Rename it", body: "Red then green" })).id;
+      assert.equal((await claim({ log, library: product, project: productName, session: "claude-1", harness: "claude-code", branch: "claude/address-form" }, increment, "driving the address form")).ok, true);
+      const live = await product.get(form.id);
+      await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+        const edited = await agent.call("edit_plan", { id: form.id, description: "Where they type it", project: productName });
+        assert.equal(edited.isError, false, edited.text);
+        assert.match(edited.text, new RegExp(`pending on increment ${increment}`), edited.text);
+      });
+      assert.deepEqual(await product.get(form.id), live, "the live capability is left alone");
+      const pending = ((await product.get(increment))?.fields as { pending?: { record: string; after?: unknown }[] }).pending;
+      assert.deepEqual(pending?.map(({ record, after }) => [record, after]), [[form.id, { description: "Where they type it" }]]);
+    } finally {
+      await storytree.close();
+      await dropTestProjects([productName]);
+    }
   });
 });
 
@@ -1832,5 +1889,40 @@ test("9.48 · Given another live session claims a capability, when plan_contract
       const own = idOf(await holder.call("plan_contract", { capability, title: "Rejects a blank address" }));
       assert.deepEqual(await contracts(), [kept, own].sort(), "the holder's own contract is planned");
     });
+  });
+});
+
+test("9.48 · Given another live session claims a capability in another project's library, when plan_contract, edit_plan or retire_from_plan with project <another> writes a contract on it, called from a folder whose project is not that one, then the tool is refused naming the holder's session and the capability, and nothing is written (ADR-1348 D3)", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    const productName = uniqueProjectName();
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      await library.markFactory();
+      const product = await storytree.openProject(productName);
+      await product.recordFactory(project);
+      const story = await product.addStory({ title: "Sign up" });
+      const capability = (await product.addCapability({ story: story.id, title: "Email form" })).id;
+      const kept = (await product.addContract({ capability, title: "Accepts a valid address" })).id;
+      assert.equal((await claim({ log, library: product, project: productName, session: "claude-1", harness: "claude-code" }, capability, "rewording the form's contracts")).ok, true);
+      const contracts = async (): Promise<string[]> => (await product.list("contract")).map(({ id }) => id).sort();
+      const keptHistory = await product.history({ id: kept });
+
+      await withAgent(folder, claudeCode("claude-2"), async (other) => {
+        for (const [tool, input] of [
+          ["plan_contract", { capability, title: "Rejects a blank address", project: productName }],
+          ["edit_plan", { id: kept, title: "Accepts any address", project: productName }],
+          ["retire_from_plan", { id: kept, reason: "overtaken", project: productName }],
+        ] as const) {
+          const refused = await other.call(tool, input);
+          assert.equal(refused.isError, true, `${tool} by another session is refused: ${refused.text}`);
+          assert.match(refused.text, new RegExp(`is on capability ${capability}, and live session claude-1 holds it`), `${tool}: ${refused.text}`);
+        }
+      });
+      assert.deepEqual(await contracts(), [kept], "no contract was planned");
+      assert.deepEqual(await product.history({ id: kept }), keptHistory, "the contract was neither edited nor retired");
+    } finally {
+      await storytree.close();
+      await dropTestProjects([productName]);
+    }
   });
 });

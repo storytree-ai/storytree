@@ -8,6 +8,7 @@ import { groupingOf, pairsOf, readCoChange, RUNS, topOf, type Grouping, type Pai
 import { commitOf } from "./read.js";
 import { kindOf } from "./source.js";
 import { planTreeOf, proposedTreeOf, type ProposedNode, type Tree, type TreeNode } from "./tree.js";
+import { refactored, type Refactor, type Retarget, type Split } from "./tree-refactor.js";
 import { exportsOf, importsOf, treeStructureOf, type Import, type TreeStructure } from "./tree-structure.js";
 
 export const MERGE_LIFT = 2;
@@ -54,8 +55,9 @@ function leadsOf(tree: Tree, pairs: readonly Pair[]): Lead[] {
   return leads;
 }
 
-export function scorecardOf({ tree, units, imports, exports }: { tree: Tree; units: readonly { files: readonly string[] }[]; imports: readonly Import[]; exports?: ReadonlyMap<string, readonly string[]> }): Scorecard {
-  const structure = treeStructureOf(tree, imports, exports);
+export function scorecardOf({ tree, units, imports, exports, refactor }: { tree: Tree; units: readonly { files: readonly string[] }[]; imports: readonly Import[]; exports?: ReadonlyMap<string, readonly string[]>; refactor?: Refactor }): Scorecard {
+  const shaped = refactor === undefined ? { imports, exports } : refactored(imports, exports, refactor);
+  const structure = treeStructureOf(tree, shaped.imports, shaped.exports);
   const pairs = pairsOf(units, tree.ownerOf);
   return {
     nodes: tree.nodes,
@@ -108,7 +110,19 @@ export function scorecardText(card: Scorecard): string {
   return lines.join("\n");
 }
 
-async function proposalAt(folder: string, file: string): Promise<{ nodes: ProposedNode[] }> {
+const strings = (value: unknown): boolean => Array.isArray(value) && value.every((one) => typeof one === "string");
+
+const isSplit = (one: unknown): boolean => {
+  const { file, into } = (one ?? {}) as { file?: unknown; into?: unknown };
+  return typeof file === "string" && typeof into === "object" && into !== null && !Array.isArray(into) && Object.values(into).every(strings);
+};
+
+const isRetarget = (one: unknown): boolean => {
+  const { file, from, to, names } = (one ?? {}) as { file?: unknown; from?: unknown; to?: unknown; names?: unknown };
+  return typeof file === "string" && typeof from === "string" && (to === undefined || typeof to === "string") && (names === undefined || strings(names));
+};
+
+async function proposalAt(folder: string, file: string): Promise<{ nodes: ProposedNode[] } & Refactor> {
   let read: unknown;
   try {
     read = JSON.parse(await readFile(path.resolve(folder, file), "utf8"));
@@ -118,7 +132,10 @@ async function proposalAt(folder: string, file: string): Promise<{ nodes: Propos
   const nodes = (read as { nodes?: unknown } | null)?.nodes;
   const named = (node: unknown): boolean => typeof (node as { id?: unknown } | null)?.id === "string" && typeof (node as { title?: unknown }).title === "string";
   if (!Array.isArray(nodes) || !nodes.every(named)) throw new VerbRefusal(`The proposed tree ${file} is not {"nodes": [{"id", "title", "parent"?, "entry"?, "files"?, "capabilities"?}, …]}.`, { misuse: true });
-  return { nodes: nodes as ProposedNode[] };
+  const { splits, retargets } = read as { splits?: unknown; retargets?: unknown };
+  if (splits !== undefined && !(Array.isArray(splits) && splits.every(isSplit))) throw new VerbRefusal(`The proposed tree ${file}'s splits are not [{"file", "into": {"<part>": [names]}}, …].`, { misuse: true });
+  if (retargets !== undefined && !(Array.isArray(retargets) && retargets.every(isRetarget))) throw new VerbRefusal(`The proposed tree ${file}'s retargets are not [{"file", "from", "to"?, "names"?: [names]}, …].`, { misuse: true });
+  return { nodes: nodes as ProposedNode[], ...(splits === undefined ? {} : { splits: splits as Split[] }), ...(retargets === undefined ? {} : { retargets: retargets as Retarget[] }) };
 }
 
 export async function scorecardAt({ folder, library, story, proposal }: { readonly folder: string; readonly library: Pick<Library, "projectTree">; readonly story: string; readonly proposal?: string }): Promise<Scorecard> {
@@ -133,11 +150,12 @@ export async function scorecardAt({ folder, library, story, proposal }: { readon
     surveyed.capabilities.map(({ id, title }) => ({ id, title, ...(parentOf.has(id) ? { parent: parentOf.get(id)! } : {}) })),
     [...surveyed.capabilities.flatMap(({ id, files }) => files.map((file) => ({ path: file.path, capability: id }))), ...surveyed.unclaimed.map((file) => ({ path: file.path }))].filter(isSource),
   );
-  const tree = proposal === undefined ? planned : proposedTreeOf(await proposalAt(folder, proposal), planned);
+  const proposed = proposal === undefined ? undefined : await proposalAt(folder, proposal);
+  const tree = proposed === undefined ? planned : proposedTreeOf(proposed, planned);
   const paths = [...Object.keys(planned.ownerOf), ...planned.unplaced];
   const [files, history] = await Promise.all([
     Promise.all(paths.map(async (file) => ({ path: file, text: await readFile(path.join(folder, file), "utf8").catch(() => "") }))),
     commitOf(folder, undefined).then((commit) => readCoChange(folder, commit)),
   ]);
-  return scorecardOf({ tree, units: history.kept, imports: importsOf(files), exports: exportsOf(files) });
+  return scorecardOf({ tree, units: history.kept, imports: importsOf(files), exports: exportsOf(files), ...(proposed === undefined ? {} : { refactor: proposed }) });
 }

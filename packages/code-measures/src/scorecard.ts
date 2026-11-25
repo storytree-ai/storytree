@@ -8,7 +8,7 @@ import { groupingOf, pairsOf, readCoChange, RUNS, topOf, type Grouping, type Pai
 import { commitOf } from "./read.js";
 import { kindOf } from "./source.js";
 import { planTreeOf, proposedTreeOf, type ProposedNode, type Tree, type TreeNode } from "./tree.js";
-import { importsOf, treeStructureOf, type Boundary, type Cycle, type Depth, type Import, type NodeStructure } from "./tree-structure.js";
+import { exportsOf, importsOf, treeStructureOf, type Import, type TreeStructure } from "./tree-structure.js";
 
 export const MERGE_LIFT = 2;
 export const FAMILY_LIFT = 1;
@@ -19,11 +19,7 @@ export type Lead =
 
 export interface Scorecard {
   readonly nodes: readonly TreeNode[];
-  readonly readings: {
-    readonly nodes: readonly NodeStructure[];
-    readonly cycles: readonly Cycle[];
-    readonly depths: readonly Depth[];
-    readonly boundaries: readonly Boundary[];
+  readonly readings: TreeStructure & {
     readonly pairs: readonly Pair[];
     readonly grouping: Grouping;
     readonly unplaced: readonly string[];
@@ -58,8 +54,8 @@ function leadsOf(tree: Tree, pairs: readonly Pair[]): Lead[] {
   return leads;
 }
 
-export function scorecardOf({ tree, units, imports }: { tree: Tree; units: readonly { files: readonly string[] }[]; imports: readonly Import[] }): Scorecard {
-  const structure = treeStructureOf(tree, imports);
+export function scorecardOf({ tree, units, imports, exports }: { tree: Tree; units: readonly { files: readonly string[] }[]; imports: readonly Import[]; exports?: ReadonlyMap<string, readonly string[]> }): Scorecard {
+  const structure = treeStructureOf(tree, imports, exports);
   const pairs = pairsOf(units, tree.ownerOf);
   return {
     nodes: tree.nodes,
@@ -76,7 +72,8 @@ export function scorecardText(card: Scorecard): string {
   const titles = new Map(card.nodes.map(({ id, title }) => [id, title]));
   const title = (id: string | null): string => (id === null ? "the top level" : titles.get(id) ?? id);
   const top = topOf(card.nodes);
-  const { nodes, cycles, depths, boundaries, pairs, grouping, unplaced } = card.readings;
+  const { nodes, cycles, cycleGate, depths, meetDepths, boundaries, entries, reuse, splitCandidates, technicalNames, pairs, grouping, unplaced } = card.readings;
+  const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? "" : "s"}`;
   const spread = (name: string, read: Grouping["mq"], shown: (value: number) => string) => `${name} ${shown(read.value)} (mean ${shown(read.mean)}, 95th percentile ${shown(read.p95)} over ${RUNS} random groupings of the same sizes)`;
   const lines = [
     "Readings",
@@ -86,12 +83,20 @@ export function scorecardText(card: Scorecard): string {
     ...pairs.map(({ a, b, support, lift, jaccard }) => `    ${title(a)} and ${title(b)}: support ${support}, lift ${two(lift)}, Jaccard ${two(jaccard)}`),
     "  nodes       level among siblings, instability, common reuse:",
     ...nodes.map(({ id, level, instability, commonReuse }) => `    ${title(id)}: level ${level}, instability ${orNone(instability)}, common reuse ${orNone(commonReuse, percent)}`),
-    `  cycles      ${cycles.length === 0 ? "none among siblings" : "import cycles among siblings:"}`,
-    ...cycles.map(({ parent, members }) => `    under ${title(parent)}: ${members.map(title).join(", ")}`),
+    `  cycle gate  ${cycleGate}: ${cycles.length === 0 ? "no import cycle among siblings at any level" : cycles.map(({ parent, members }) => `under ${title(parent)}, ${members.map(title).join(", ")}`).join("; ")}`,
     "  depths",
     ...depths.map(({ depth, nodes: count, edges }) => `    depth ${depth}: ${count} node${count === 1 ? "" : "s"}, ${edges} sibling import edge${edges === 1 ? "" : "s"}`),
     `  boundaries  ${boundaries.length === 0 ? "none" : "import edges between nodes, with the types crossing each:"}`,
     ...boundaries.map(({ from, to, types }) => `    ${title(from)} → ${title(to)}: ${types.length === 0 ? "no types" : types.join(", ")}`),
+    `  meet depth  imports by the depth their two ends' nodes meet at, deeper better: ${meetDepths.length === 0 ? "none" : meetDepths.map(({ depth, imports }) => `depth ${depth}: ${plural(imports, "import")}`).join(", ")}`,
+    `  entries     ${entries.share === null ? "no import between siblings" : `${entries.through} of ${entries.total} imports between siblings (${percent(entries.share)}) land on the imported sibling's entry${entries.offenders.length === 0 ? "" : "; the rest, by file:"}`}`,
+    ...entries.offenders.map(({ from, to, sibling }) => `    ${from} → ${to} (into ${title(sibling)})`),
+    ...(entries.nodes.length === 0 ? [] : ["  entry size  each imported sibling's entry, its exported names against those of every file behind it:"]),
+    ...entries.nodes.map(({ id, entry, exported, behind }) => `    ${title(id)}: entry ${entry ?? "none"}, ${plural(exported, "exported name")} against ${behind} behind it`),
+    `  reuse       ${reuse.length === 0 ? "none" : "share of each dependency's exported names its consumer imports:"}`,
+    ...reuse.map(({ consumer, dependency, used, exported, share }) => `    ${title(consumer)} → ${title(dependency)}: ${used} of ${exported} (${orNone(share, percent)})`),
+    `  split       ${splitCandidates.length === 0 ? "no consumer imports under a quarter of a dependency's names" : `candidates, a consumer importing under a quarter of a dependency's names: ${splitCandidates.map(({ consumer, dependency, share }) => `${title(consumer)} of ${title(dependency)} (${orNone(share, percent)})`).join("; ")}`}`,
+    `  technical   ${technicalNames.length === 0 ? "no top-level node named for a technical layer" : `top-level nodes named for a technical layer: ${technicalNames.map(({ id, word }) => `${title(id)} (${word})`).join(", ")}`}`,
     `  unplaced    ${unplaced.length === 0 ? "none" : `${unplaced.length} source file${unplaced.length === 1 ? "" : "s"} in no node:`}`,
     ...unplaced.map((file) => `    ${file}`),
     "",
@@ -112,7 +117,7 @@ async function proposalAt(folder: string, file: string): Promise<{ nodes: Propos
   }
   const nodes = (read as { nodes?: unknown } | null)?.nodes;
   const named = (node: unknown): boolean => typeof (node as { id?: unknown } | null)?.id === "string" && typeof (node as { title?: unknown }).title === "string";
-  if (!Array.isArray(nodes) || !nodes.every(named)) throw new VerbRefusal(`The proposed tree ${file} is not {"nodes": [{"id", "title", "parent"?, "files"?, "capabilities"?}, …]}.`, { misuse: true });
+  if (!Array.isArray(nodes) || !nodes.every(named)) throw new VerbRefusal(`The proposed tree ${file} is not {"nodes": [{"id", "title", "parent"?, "entry"?, "files"?, "capabilities"?}, …]}.`, { misuse: true });
   return { nodes: nodes as ProposedNode[] };
 }
 
@@ -134,5 +139,5 @@ export async function scorecardAt({ folder, library, story, proposal }: { readon
     Promise.all(paths.map(async (file) => ({ path: file, text: await readFile(path.join(folder, file), "utf8").catch(() => "") }))),
     commitOf(folder, undefined).then((commit) => readCoChange(folder, commit)),
   ]);
-  return scorecardOf({ tree, units: history.kept, imports: importsOf(files) });
+  return scorecardOf({ tree, units: history.kept, imports: importsOf(files), exports: exportsOf(files) });
 }

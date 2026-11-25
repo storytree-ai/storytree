@@ -5,6 +5,7 @@ export interface TreeNode {
   readonly id: string;
   readonly title: string;
   readonly parent?: string;
+  readonly entry?: string;
 }
 
 export interface Tree {
@@ -17,6 +18,7 @@ export interface ProposedNode {
   readonly id: string;
   readonly title: string;
   readonly parent?: string;
+  readonly entry?: string;
   readonly files?: readonly string[];
   readonly capabilities?: readonly number[];
 }
@@ -26,7 +28,7 @@ const numberOf = (title: string): number | undefined => {
   return found === null ? undefined : Number(found[1]);
 };
 
-const nodeOf = ({ id, title, parent }: TreeNode): TreeNode => ({ id, title, ...(parent === undefined ? {} : { parent }) });
+const nodeOf = ({ id, title, parent, entry }: TreeNode): TreeNode => ({ id, title, ...(parent === undefined ? {} : { parent }), ...(entry === undefined ? {} : { entry }) });
 
 export function planTreeOf(capabilities: readonly TreeNode[], files: readonly { path: string; capability?: string }[]): Tree {
   const ownerOf: Record<string, string> = {};

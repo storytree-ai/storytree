@@ -50,7 +50,7 @@ test("4.46 · a plan-reading check run from a home naming an experiment arm, giv
   const address = new URL(url);
   const password = decodeURIComponent(address.password);
   address.password = "";
-  const experiment = `e${randomBytes(4).toString("hex")}`;
+  const experiment = `t-${randomBytes(4).toString("hex")}`;
   const arm = "map-off";
   writeFileSync(path.join(home, "settings.json"), JSON.stringify({ library: { location: "postgres", address: address.href }, experiment: { name: experiment, arm } }));
   for (const [name, value] of [["STORYTREE_HOME", home], ["PGPASSWORD", password]]) {

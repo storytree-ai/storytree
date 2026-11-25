@@ -270,3 +270,78 @@ test("14.10 · a vector put while another connection holds the cache's write loc
     await removeTemp(folder);
   }
 });
+
+test("14.10 · a vector put while the cache's write lock is held past the 60 s wait resolves without an error and the vector is in Postgres", { timeout: 30_000 }, async (t) => {
+  const folder = await mkdtemp(path.join(tmpdir(), "storytree-vectors-"));
+  try {
+    await withCountedProject(async ({ pool }) => {
+      const file = path.join(folder, "vectors.sqlite");
+      const vectors = new PgVectors(pool, file, domain);
+      await vectors.put("held", new Map([["before-lock", Float32Array.of(1, 2)]]));
+      const { DatabaseSync } = await import("node:sqlite");
+      const holder = new DatabaseSync(file);
+      holder.exec("BEGIN IMMEDIATE");
+      t.mock.timers.enable({ apis: ["Date"], now: 0 });
+      const clock = setInterval(() => t.mock.timers.setTime(Date.now() + 10_000), 20);
+      try {
+        const value = Float32Array.of(7, 8);
+        await vectors.put("held", new Map([["past-deadline", value]]));
+        assert.ok(Date.now() >= 60_000, `the put returned at ${Date.now()} ms of mocked time, before the 60 s wait ran out`);
+        assert.equal(holder.isTransaction, true, "the other connection still holds the write lock when put returns");
+        assert.deepEqual(await new PgVectors(pool).get("held", ["past-deadline"]), new Map([["past-deadline", value]]));
+      } finally {
+        clearInterval(clock);
+        t.mock.timers.reset();
+        holder.close();
+      }
+    });
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("14.10 · a cache opened while another connection's read lock refuses its WAL switch is opened again until it is in WAL mode, and its vectors are read locally", { timeout: 30_000 }, async (t) => {
+  const folder = await mkdtemp(path.join(tmpdir(), "storytree-vectors-"));
+  try {
+    await withCountedProject(async ({ pool }) => {
+      const file = path.join(folder, "vectors.sqlite");
+      const value = Float32Array.of(3, 9);
+      await new PgVectors(pool, file, domain).put("unswitched", new Map([["kept", value]]));
+      const { DatabaseSync } = await import("node:sqlite");
+      const rollback = new DatabaseSync(file);
+      assert.deepEqual({ ...rollback.prepare("PRAGMA journal_mode = DELETE").get() }, { journal_mode: "delete" });
+      rollback.close();
+      const holder = new DatabaseSync(file);
+      const later = globalThis.setTimeout;
+      let refusals = 0;
+      const waits = t.mock.method(globalThis, "setTimeout", ((callback: () => void) => {
+        refusals += 1;
+        if (refusals === 2) {
+          holder.exec("ROLLBACK");
+          holder.close();
+        }
+        return later(callback, 0);
+      }) as unknown as typeof setTimeout);
+      try {
+        holder.exec("BEGIN");
+        holder.prepare("SELECT count(*) FROM embedding_v2").get();
+        const remote = { query() { throw new Error("the vector must be read from the local cache: this reader never queries Postgres"); } };
+        const read = await new PgVectors(remote as never, file, domain).get("unswitched", ["kept"]);
+        waits.mock.restore();
+        assert.equal(holder.isOpen, false, `the read returned after ${refusals} refused opens, while the read lock was still held: it opened the cache out of WAL mode instead of opening it again`);
+        assert.deepEqual(read, new Map([["kept", value]]));
+        const after = new DatabaseSync(file);
+        try {
+          assert.deepEqual({ ...after.prepare("PRAGMA journal_mode").get() }, { journal_mode: "wal" });
+        } finally {
+          after.close();
+        }
+      } finally {
+        waits.mock.restore();
+        if (holder.isOpen) holder.close();
+      }
+    });
+  } finally {
+    await removeTemp(folder);
+  }
+});

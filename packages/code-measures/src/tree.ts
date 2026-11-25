@@ -1,6 +1,8 @@
 // Capability 5 · Capability tree scorecard
 import { VerbRefusal } from "@storytree/library/verbs";
 
+import type { Refactor } from "./tree-refactor.js";
+
 export interface TreeNode {
   readonly id: string;
   readonly title: string;
@@ -40,7 +42,9 @@ export function planTreeOf(capabilities: readonly TreeNode[], files: readonly { 
   return { nodes: capabilities.map(nodeOf), ownerOf, unplaced };
 }
 
-export function proposedTreeOf(proposal: { readonly nodes: readonly ProposedNode[] }, plan: Tree): Tree {
+export function proposedTreeOf(proposal: { readonly nodes: readonly ProposedNode[] } & Refactor, plan: Tree): Tree {
+  const splits = proposal.splits ?? [];
+  const gone = new Set(splits.filter(({ file, into }) => !Object.hasOwn(into, file)).map(({ file }) => file));
   const byNumber = new Map<number, string[]>();
   for (const [path, capability] of Object.entries(plan.ownerOf)) {
     const node = plan.nodes.find(({ id }) => id === capability);
@@ -49,13 +53,13 @@ export function proposedTreeOf(proposal: { readonly nodes: readonly ProposedNode
   }
   const ownerOf: Record<string, string> = {};
   for (const node of proposal.nodes) {
-    const taken = new Set([...(node.files ?? []), ...(node.capabilities ?? []).flatMap((number) => byNumber.get(number) ?? [])]);
+    const taken = new Set([...(node.files ?? []), ...(node.capabilities ?? []).flatMap((number) => byNumber.get(number) ?? [])].filter((path) => !gone.has(path)));
     for (const path of taken) {
       const was = ownerOf[path];
       if (was !== undefined) throw new VerbRefusal(`The proposed tree gives ${path} to two nodes, ${was} and ${node.id}: give each file to one node.`);
       ownerOf[path] = node.id;
     }
   }
-  const storyFiles = [...Object.keys(plan.ownerOf), ...plan.unplaced];
-  return { nodes: proposal.nodes.map(nodeOf), ownerOf, unplaced: storyFiles.filter((path) => ownerOf[path] === undefined) };
+  const storyFiles = new Set([...Object.keys(plan.ownerOf), ...plan.unplaced, ...splits.flatMap(({ into }) => Object.keys(into)), ...(proposal.retargets ?? []).flatMap(({ to }) => (to === undefined ? [] : [to]))]);
+  return { nodes: proposal.nodes.map(nodeOf), ownerOf, unplaced: [...storyFiles].filter((path) => !gone.has(path) && ownerOf[path] === undefined) };
 }

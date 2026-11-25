@@ -190,3 +190,5 @@ all mechanical: moves, import paths and contract homes. The two real code change
   import reading for every number in the scorecard.
 - The scorer: `code-measures tree` with increment_abc46882a433's readings, on the plan and on `tree.json`.
   The node fields `was`, `why` and `schema` are notes for the reader; the scorer ignores them.
+
+In the evidence bucket for #1175, linked from the pull request body (ADR-1234; deleted after 90 days or when its arc closes): `1175/tree.png`.

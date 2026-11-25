@@ -1,0 +1,401 @@
+Readings
+  grouping    TurboMQ 2 (mean 0.84, 95th percentile 0.99 over 500 random groupings of the same sizes)
+              co-change inside groups 33.3% (mean 19.9%, 95th percentile 26.3% over 500 random groupings of the same sizes)
+  pairs       node pairs changing together at support 5 or more, by lift:
+    Factory circle and Opening a project: support 5, lift 12.92, Jaccard 0.38
+    Decisions and Notes: support 5, lift 6.12, Jaccard 0.23
+    Decisions and Knowledge commands: support 6, lift 5.81, Jaccard 0.23
+    Knowledge and Knowledge commands: support 7, lift 5.43, Jaccard 0.26
+    Knowledge and Notes: support 5, lift 4.89, Jaccard 0.21
+    Arcs and increments and Waits: support 12, lift 4.19, Jaccard 0.29
+    Knowledge commands and Notes: support 10, lift 4.08, Jaccard 0.3
+    Plan structure and Work: support 7, lift 3.83, Jaccard 0.19
+    Library API and Work: support 8, lift 2.98, Jaccard 0.15
+    Library commands and Knowledge commands: support 16, lift 2.88, Jaccard 0.31
+    Library API and Rounds: support 5, lift 2.66, Jaccard 0.1
+    Library API and Transactions: support 8, lift 2.48, Jaccard 0.15
+    Library API and Decisions: support 5, lift 2.33, Jaccard 0.09
+    Arcs and increments and Work: support 5, lift 2.27, Jaccard 0.11
+    Library API and Knowledge: support 6, lift 2.23, Jaccard 0.11
+    Library API and Opening a project: support 6, lift 1.86, Jaccard 0.11
+    Library commands and Notes: support 8, lift 1.82, Jaccard 0.15
+    Record kinds and Transactions: support 6, lift 1.58, Jaccard 0.09
+    Record kinds and Work: support 5, lift 1.58, Jaccard 0.08
+    Library API and Knowledge commands: support 10, lift 1.55, Jaccard 0.16
+    Library API and Record kinds: support 23, lift 1.45, Jaccard 0.27
+    Library API and Notes: support 7, lift 1.37, Jaccard 0.11
+    Notes and Record kinds: support 8, lift 1.33, Jaccard 0.11
+    Plan structure and Record kinds: support 14, lift 1.3, Jaccard 0.18
+    Library API and Health record: support 8, lift 1.24, Jaccard 0.12
+    Library API and Library commands: support 14, lift 1.21, Jaccard 0.18
+    Library API and Plan structure: support 11, lift 1.2, Jaccard 0.15
+    Health record and Record kinds: support 8, lift 1.05, Jaccard 0.11
+    Knowledge commands and Record kinds: support 8, lift 1.05, Jaccard 0.11
+    Library commands and Record kinds: support 14, lift 1.03, Jaccard 0.16
+    Library API and Arcs and increments: support 11, lift 1, Jaccard 0.14
+    Arcs and increments and Plan structure: support 6, lift 0.8, Jaccard 0.09
+    Arcs and increments and Record kinds: support 9, lift 0.69, Jaccard 0.1
+    Library commands and Arcs and increments: support 6, lift 0.63, Jaccard 0.08
+  nodes       level among siblings, instability, common reuse:
+    Records: level 1, instability 0, common reuse 100%
+    Record kinds: level 2, instability 0.06, common reuse 46.7%
+    Transactions: level 1, instability 0, common reuse 100%
+    Project libraries: level 2, instability 0.2, common reuse 75%
+    Connections: level 2, instability 0.2, common reuse 25%
+    Factory circle: level 3, instability 0.6, common reuse 50%
+    Outside writers: level 3, instability 0.67, common reuse 0%
+    The plan: level 2, instability 0.5, common reuse 100%
+    Plan structure: level 1, instability 0.25, common reuse 66.7%
+    Branch plan changes: level 2, instability 0.75, common reuse 0%
+    Work: level 3, instability 0.5, common reuse 0%
+    Arcs and increments: level 2, instability 0.86, common reuse 0%
+    Waits: level 1, instability 0.33, common reuse 0%
+    Owner exchange: level 1, instability 0.5, common reuse 0%
+    Health record: level 4, instability 0.5, common reuse 0%
+    Knowledge: level 2, instability 0.2, common reuse 100%
+    Notes: level 2, instability 0.8, common reuse 0%
+    Ranked search: level 1, instability 0.33, common reuse 100%
+    Decisions: level 1, instability 0.25, common reuse 100%
+    Library API: level 5, instability 0.53, common reuse 88.9%
+    Opening a project: level 1, instability 0.89, common reuse 0%
+    Data questions: level 1, instability 0, common reuse 0%
+    Library commands: level 6, instability 1, common reuse none
+    Command declarations: level 1, instability 0.5, common reuse 0%
+    Knowledge commands: level 2, instability 0.86, common reuse 0%
+    Record and owner commands: level 2, instability 0.75, common reuse 0%
+    The librarian: level 6, instability 1, common reuse none
+    Links: level 1, instability 0.5, common reuse 0%
+    Catalogue: level 1, instability 0.5, common reuse 0%
+    Graduation: level 1, instability 0.5, common reuse 0%
+    Rounds: level 2, instability 0.86, common reuse 0%
+  cycle gate  pass: no import cycle among siblings at any level
+  depths
+    depth 1: 8 nodes, 17 sibling import edges
+    depth 2: 23 nodes, 18 sibling import edges
+  boundaries  import edges between nodes, with the types crossing each:
+    Library API → Data questions: Counts, KindCount, RecentChange, TitleHit
+    Library API → Decisions: DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision
+    Library API → Health record: AnnotatedCapability, AnnotatedContract, AnnotatedEdge, AnnotatedStory, AnnotatedTree, CapabilityStatus, CapabilityWhy, ChangedOnMain, EarlierVerdict, FlakeSeen, HealthColumn, HealthColumnName, HealthEntry, HealthOptions, HealthReason, HealthSource, HealthState, HealthWorkItem, NamedOnMain, NodeHealth, OpenWait, PendingRun, SkipKind, VerifiedVerdict
+    Library API → Knowledge: NarrowingDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, PhraseKind, PhraseOptions, PhrasePage, RankOptions, Ranked, Related, RelatedHit, RelatedOptions
+    Library API → Opening a project: ConnectOptions, OpenOptions, OwnDatabaseOptions, Project, Storytree
+    Library API → Record kinds: Agent, FieldEdit, FieldsOf, KnowledgeKind, Line, LineKind, LinesSince, NewLine, PluginRecordKind, PluginUpgradeStep, RecordType, SchemaRecord, WriteOptions
+    Library API → Records: ConnectionProblem, FactoryLink, ProjectSnapshot, Reached, SnapshotEvent, SnapshotMedia, SnapshotRecord
+    Library API → Transactions: HistoryEntry, HistoryFilter, RecordEnvelope
+    Library API → Work: Anchor, AnchorEdit, AnchorGaps, ArcEdit, ArcNode, ArcState, ArcView, BoardArcView, BoardIncrement, CapabilityEdit, CloseInput, ContractEdit, ContractWriteOptions, DayWindow, Disposition, EdgeEdit, EdgeNode, Hold, Holds, ImportedPluginPlan, IncrementEdit, IncrementStatus, MappedPackage, MappedStories, MovedToEdges, NewArc, NewCapability, NewContract, NewEdge, NewIncrement, NewQuestion, NewStory, NoteWait, OpenListing, ParkedOn, Pended, PendingChange, PlanChange, PluginPlan, PluginPlanCapability, PluginPlanHeld, PrCutover, QuestionLease, Settlement, StoreLink, StoryEdit, SurveyOptions, WaitFor, WorkSurvey
+    Branch plan changes → Plan structure: CapabilityNode, EdgeNode, ProjectTree, StoryNode
+    Branch plan changes → Record kinds: FieldsOf, SchemaRecord, WriteOptions
+    Branch plan changes → Transactions: HistoryEntry
+    Catalogue → Library API: Library, Note, WriteOptions
+    Catalogue → The librarian: Reference
+    Command declarations → Library API: Library, Storytree
+    Command declarations → Connections: no types
+    Command declarations → Record kinds: WriteOptions
+    Library commands → Library API: KnowledgeKind, Library, PendingChange, PhraseKind, PlanChange, RecordType, SchemaRecord, WriteOptions
+    Library commands → Command declarations: DoorWords, VerbContext, VerbFamily
+    Library commands → Knowledge: no types
+    Library commands → Knowledge commands: Found, NoteRead, NoteToolContext, Presenter
+    Library commands → Record and owner commands: no types
+    Library commands → Transactions: no types
+    Library commands → Work: PlanEdit
+    Connections → Transactions: PoolWaits
+    Decisions → Record kinds: Expected, FieldsOf, SchemaRecord, WriteOptions
+    Decisions → Transactions: HistoryEntry
+    Factory circle → Project libraries: no types
+    Factory circle → Record kinds: CreateOptions, FieldEdit, FieldsOf, LibrarySchema, RecordType, SchemaRecord, WriteOptions
+    Factory circle → Transactions: HistoryEntry, HistoryFilter, ListFilter, Transactions
+    Graduation → Library API: Library, Note, WriteOptions
+    Graduation → The librarian: no types
+    Health record → Record kinds: FieldsOf, RecordType, SchemaRecord, WriteOptions
+    Health record → Work: Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, Holds, ParkedOn, ProjectTree, StoryNode
+    Arcs and increments → Branch plan changes: AppliedPending, Pended, PendingChange, PlanChange, SettledPending, StalePending, UnappliedPending
+    Arcs and increments → Knowledge: no types
+    Arcs and increments → Owner exchange: NewQuestion, Prep, QuestionDeviation, QuestionEdit, QuestionLease, Score, Settlement, WouldBeAnswer
+    Arcs and increments → Plan structure: ProjectTree
+    Arcs and increments → Record kinds: FieldsOf, SchemaRecord, WriteOptions
+    Arcs and increments → Waits: ClaimReading, Hold, Holds, NoteWait, Wait, WaitFor, WaitWrite
+    Knowledge → Decisions: NewDecision
+    Knowledge → Notes: Findable, NarrowingDecision, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, PhraseKind, PhraseOptions, PhrasePage, PlanKind, RankOptions, Ranked, Ranking
+    Knowledge → Record kinds: SchemaRecord, WriteOptions
+    Knowledge → Ranked search: Embedder, EmbedderSource, Related, RelatedHit, RelatedOptions, VectorDomain, VectorStore
+    Knowledge commands → Library API: KnowledgeKind, Library, NewLine, Note, NoteEdit, PhraseKind, Reached, SchemaRecord, WriteOptions
+    Knowledge commands → Command declarations: Verb, VerbAnswer, VerbContext, VerbFamily, VerbInputs
+    Knowledge commands → Library commands: HeldClaim
+    Knowledge commands → Decisions: DecisionView
+    Knowledge commands → Knowledge: Findable, NarrowingDecision, NoteType, PlanKind, Ranked
+    Knowledge commands → Record kinds: no types
+    The librarian → Library API: Library, Note
+    The librarian → Catalogue: NewNote
+    The librarian → Decisions: no types
+    The librarian → Graduation: GraduationKind, MemoryItem, ProcessGaps
+    The librarian → Links: BrokenEdge
+    The librarian → Rounds: RoundDue, ToolAnswer, ToolCall, Worklist, WorklistOptions
+    Links → Library API: Library, Note, Related, SchemaRecord, WriteOptions
+    Links → The librarian: Reference
+    Notes → Decisions: ArchivedDecisionLink, DecisionLinkBacklog, DecisionLinkChanges, DecisionLinkSpan, DecisionNumberPlan, DecisionView, NarrowsMove, NewDecision, SupersessionPairs
+    Notes → Record kinds: Expected, FieldsOf, KnowledgeKind, RecordType, SchemaRecord, WriteOptions
+    Notes → Ranked search: EmbedderSource, Related, RelatedOptions, SimilarityDoc, VectorStore
+    Notes → Transactions: RecordEnvelope
+    Opening a project → Connections: ServerAccess, WaitBounds
+    Opening a project → Factory circle: Reached, SystemSwitches
+    Opening a project → Health record: no types
+    Opening a project → Knowledge: EmbedderSource, VectorDomain
+    Opening a project → Project libraries: ProjectSnapshot, SchemaMerged
+    Opening a project → Record kinds: PluginRecordKind
+    Opening a project → Transactions: Transactions
+    Opening a project → Work: no types
+    Outside writers → Connections: ServerAccess
+    Outside writers → Project libraries: no types
+    Owner exchange → Knowledge: no types
+    Owner exchange → Record kinds: Expected, FieldsOf, RecordType, SchemaRecord, WriteOptions
+    Plan structure → Record kinds: FieldsOf, SchemaRecord, WriteOptions
+    Project libraries → Transactions: EditInput, HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, RetireInput, RevertInput, RevertWritesInput, RevertedWrite, SaveInput, Transactions
+    Record and owner commands → Library API: Library
+    Record and owner commands → Command declarations: VerbContext, VerbFamily
+    Record and owner commands → Data questions: TitleHit
+    Record kinds → Transactions: HistoryEntry, HistoryFilter, ListFilter, OutsideRead, RecordEnvelope, RevertedWrite, Transactions
+    Records → Connections: ConnectionProblem
+    Records → Factory circle: FactoryLink, Reached
+    Records → Outside writers: OutsideWriter
+    Records → Project libraries: ProjectSnapshot, SnapshotEvent, SnapshotMedia, SnapshotRecord
+    Records → Transactions: no types
+    Rounds → Library API: Library, Related, SchemaRecord, WriteOptions
+    Rounds → Catalogue: MarkedWrite, NewNote
+    Rounds → Decisions: no types
+    Rounds → Graduation: MemoryItem, ProcessGaps
+    Rounds → The librarian: no types
+    Rounds → Links: BrokenEdge
+    Ranked search → Record kinds: SchemaRecord
+    Waits → Record kinds: FieldsOf, SchemaRecord, WriteOptions
+    Work → Arcs and increments: ArcEdit, ArcState, ArcView, BoardArcView, BoardIncrement, CloseInput, DayWindow, Disposition, IncrementEdit, IncrementStatus, NewArc, NewIncrement, OpenListing, ParkOptions, ParkedOn, Pended, PendingChange, PlanChange, PlanEdit, SurveyOptions, WorkSurvey
+    Work → Owner exchange: DeviationBand, NewQuestion, Prep, QuestionDeviation, QuestionEdit, QuestionLease, Score, Settlement, Verdict, WouldBeAnswer
+    Work → Plan structure: Anchor, AnchorEdit, AnchorGaps, ArcNode, CapabilityEdit, CapabilityNode, ContractEdit, ContractNode, ContractWriteOptions, EdgeEdit, EdgeNode, ImportedPluginPlan, MappedPackage, MappedStories, MovedToEdges, NewCapability, NewContract, NewEdge, NewStory, PluginPlan, PluginPlanCapability, PluginPlanHeld, PrCutover, ProjectTree, StoreLink, StoryEdit, StoryNode
+    Work → Waits: Hold, Holds, NoteWait, WaitFor
+  meet depth  imports by the depth their two ends' nodes meet at, deeper better: depth 0: 104 imports, depth 1: 87 imports, depth 2: 57 imports
+  entries     46 of 140 imports between siblings (32.9%) land on the imported sibling's entry; the rest, by file:
+    packages/library/src/project/storytree.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/project/address.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/project/record-cache.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/project/connection-error.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/project/names.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/project/factory.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/project/switches.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/project/schema.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/project/schema-merged.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/project/snapshot.ts (into Records)
+    packages/library/src/project/storytree.ts → packages/library/src/project/server.ts (into Records)
+    packages/library/src/work/pending-changes.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/work/pending-changes.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/work/pending-changes.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/work/pending-changes.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/work/pending-changes.ts → packages/library/src/work/work-model.ts (into Plan structure)
+    packages/library/src/work/plan-hold.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/work/plan-hold.ts → packages/library/src/work/pending-changes.ts (into The plan)
+    packages/library/src/work/plan-hold.ts → packages/library/src/work/work-model.ts (into The plan)
+    packages/library/src/work/pr-cutover.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/work/work-model.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/work/work-model.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/work/work-model.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/knowledge/kinds.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/knowledge/embedding-model.ts (into Ranked search)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/knowledge/embedding.ts (into Ranked search)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/knowledge/similarity.ts (into Ranked search)
+    packages/library/src/knowledge/knowledge.ts → packages/library/src/knowledge/whole-words.ts (into Ranked search)
+    packages/library/src/knowledge/memory-upgrade.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/knowledge/memory-upgrade.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/health/health-record.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/health/health-record.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/health/health-record.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/api/library.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/api/library.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/api/library.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/index.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/index.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/index.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/index.ts → packages/library/src/decisions/index.ts (into Knowledge)
+    packages/library/src/knowledge/front-covers.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/knowledge/front-covers.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/knowledge/front-covers.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/decisions/corrections.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/librarian/rounds/tools.ts → packages/library/src/decisions/index.ts (into Knowledge)
+    packages/library/src/work/wait-writes.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/work/wait-writes.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/work/wait-writes.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/work/pending-changes.ts (into The plan)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/work/owner-questions.ts (into Owner exchange)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/work/waits.ts (into Waits)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/work/wait-writes.ts (into Waits)
+    packages/library/src/work/work-in-flight.ts → packages/library/src/work/work-model.ts (into The plan)
+    packages/library/src/work/waits.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/work/waits.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/work/owner-questions.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/work/owner-questions.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/work/owner-questions.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/decisions/adr.ts → packages/library/src/verbs/verb.ts (into Command declarations)
+    packages/library/src/decisions/adr.ts → packages/library/src/decisions/decision-log.ts (into Knowledge)
+    packages/library/src/decisions/adr.ts → packages/library/src/decisions/supersede.ts (into Knowledge)
+    packages/library/src/decisions/decision-log.ts → packages/library/src/creation-order.ts (into Records)
+    packages/library/src/decisions/decision-log.ts → packages/library/src/references.ts (into Records)
+    packages/library/src/decisions/decision-log.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/decisions/decision-log.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/decisions/supersede.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/knowledge/embedding.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/verbs/verb.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/verbs/verb.ts → packages/library/src/project/connection-error.ts (into Records)
+    packages/library/src/commands/elsewhere.ts → packages/library/src/verbs/verb.ts (into Command declarations)
+    packages/library/src/commands/fyi.ts → packages/library/src/verbs/verb.ts (into Command declarations)
+    packages/library/src/commands/index.ts → packages/library/src/transactions/index.ts (into Records)
+    packages/library/src/commands/media.ts → packages/library/src/verbs/verb.ts (into Command declarations)
+    packages/library/src/commands/notes.ts → packages/library/src/schema/index.ts (into Records)
+    packages/library/src/commands/notes.ts → packages/library/src/verbs/verb.ts (into Command declarations)
+    packages/library/src/commands/ranked.ts → packages/library/src/verbs/verb.ts (into Command declarations)
+    packages/library/src/commands/stale-edit.ts → packages/library/src/verbs/verb.ts (into Command declarations)
+    packages/library/src/data/commands.ts → packages/library/src/data/data-questions.ts (into Library API)
+    packages/library/src/data/commands.ts → packages/library/src/verbs/verb.ts (into Command declarations)
+    packages/library/src/project/factory.ts → packages/library/src/project/names.ts (into Project libraries)
+    packages/library/src/project/outside-writer.ts → packages/library/src/project/address.ts (into Connections)
+    packages/library/src/project/outside-writer.ts → packages/library/src/project/connection-error.ts (into Connections)
+    packages/library/src/project/outside-writer.ts → packages/library/src/project/names.ts (into Project libraries)
+    packages/library/src/project/outside-writer.ts → packages/library/src/project/server.ts (into Connections)
+    packages/library/src/work/index.ts → packages/library/src/work/pr-cutover.ts (into The plan)
+    packages/library/src/work/index.ts → packages/library/src/work/work-model.ts (into The plan)
+    packages/library/src/librarian/index.ts → packages/library/src/decisions/index.ts (into Knowledge)
+  entry size  each imported sibling's entry, its exported names against those of every file behind it:
+    Records: entry packages/library/src/project/index.ts, 19 exported names against 182 behind it
+    Record kinds: entry packages/library/src/schema/index.ts, 40 exported names against 57 behind it
+    Transactions: entry packages/library/src/transactions/index.ts, 30 exported names against 52 behind it
+    Project libraries: entry none, 0 exported names against 17 behind it
+    Connections: entry none, 0 exported names against 43 behind it
+    The plan: entry none, 0 exported names against 68 behind it
+    Plan structure: entry none, 0 exported names against 53 behind it
+    Work: entry packages/library/src/work/index.ts, 88 exported names against 102 behind it
+    Waits: entry none, 0 exported names against 26 behind it
+    Owner exchange: entry none, 0 exported names against 29 behind it
+    Health record: entry packages/library/src/health/index.ts, 32 exported names against 34 behind it
+    Knowledge: entry packages/library/src/knowledge/index.ts, 42 exported names against 101 behind it
+    Ranked search: entry none, 0 exported names against 30 behind it
+    Decisions: entry packages/library/src/decisions/index.ts, 25 exported names against 26 behind it
+    Library API: entry packages/library/src/index.ts, 187 exported names against 29 behind it
+    Command declarations: entry none, 0 exported names against 24 behind it
+    Links: entry packages/library/src/librarian/links/index.ts, 5 exported names against 5 behind it
+    Catalogue: entry packages/library/src/librarian/catalogue/index.ts, 5 exported names against 5 behind it
+    Graduation: entry packages/library/src/librarian/graduation/index.ts, 9 exported names against 9 behind it
+  reuse       share of each dependency's exported names its consumer imports:
+    Library API → Data questions: 5 of 6 (83.3%)
+    Library API → Decisions: 4 of 26 (15.4%)
+    Library API → Health record: 27 of 34 (79.4%)
+    Library API → Knowledge: 18 of 46 (39.1%)
+    Library API → Opening a project: 6 of 7 (85.7%)
+    Library API → Record kinds: 26 of 57 (45.6%)
+    Library API → Records: 16 of 19 (84.2%)
+    Library API → Transactions: 4 of 52 (7.7%)
+    Library API → Work: 62 of 88 (70.5%)
+    Branch plan changes → Plan structure: 5 of 53 (9.4%)
+    Branch plan changes → Record kinds: 8 of 57 (14%)
+    Branch plan changes → Transactions: 1 of 52 (1.9%)
+    Catalogue → Library API: 3 of 190 (1.6%)
+    Catalogue → The librarian: 6 of 39 (15.4%)
+    Command declarations → Library API: 2 of 190 (1.1%)
+    Command declarations → Connections: 1 of 43 (2.3%)
+    Command declarations → Record kinds: 1 of 57 (1.8%)
+    Library commands → Library API: 12 of 190 (6.3%)
+    Library commands → Command declarations: 6 of 24 (25%)
+    Library commands → Knowledge: 4 of 46 (8.7%)
+    Library commands → Knowledge commands: 17 of 19 (89.5%)
+    Library commands → Record and owner commands: 7 of 8 (87.5%)
+    Library commands → Transactions: 2 of 52 (3.8%)
+    Library commands → Work: 10 of 88 (11.4%)
+    Connections → Transactions: 3 of 52 (5.8%)
+    Decisions → Record kinds: 9 of 57 (15.8%)
+    Decisions → Transactions: 2 of 52 (3.8%)
+    Factory circle → Project libraries: 1 of 17 (5.9%)
+    Factory circle → Record kinds: 8 of 57 (14%)
+    Factory circle → Transactions: 4 of 52 (7.7%)
+    Graduation → Library API: 3 of 190 (1.6%)
+    Graduation → The librarian: 2 of 39 (5.1%)
+    Health record → Record kinds: 11 of 57 (19.3%)
+    Health record → Work: 11 of 88 (12.5%)
+    Arcs and increments → Branch plan changes: 15 of 15 (100%)
+    Arcs and increments → Knowledge: 1 of 46 (2.2%)
+    Arcs and increments → Owner exchange: 29 of 29 (100%)
+    Arcs and increments → Plan structure: 2 of 53 (3.8%)
+    Arcs and increments → Record kinds: 10 of 57 (17.5%)
+    Arcs and increments → Waits: 26 of 26 (100%)
+    Knowledge → Decisions: 2 of 26 (7.7%)
+    Knowledge → Notes: 25 of 35 (71.4%)
+    Knowledge → Record kinds: 2 of 57 (3.5%)
+    Knowledge → Ranked search: 11 of 30 (36.7%)
+    Knowledge commands → Library API: 9 of 190 (4.7%)
+    Knowledge commands → Command declarations: 7 of 24 (29.2%)
+    Knowledge commands → Library commands: 6 of 27 (22.2%)
+    Knowledge commands → Decisions: 1 of 26 (3.8%)
+    Knowledge commands → Knowledge: 10 of 46 (21.7%)
+    Knowledge commands → Record kinds: 1 of 57 (1.8%)
+    The librarian → Library API: 3 of 190 (1.6%)
+    The librarian → Catalogue: 3 of 5 (60%)
+    The librarian → Decisions: 0 of 26 (0%)
+    The librarian → Graduation: 9 of 9 (100%)
+    The librarian → Links: 5 of 5 (100%)
+    The librarian → Rounds: 10 of 18 (55.6%)
+    Links → Library API: 5 of 190 (2.6%)
+    Links → The librarian: 6 of 39 (15.4%)
+    Notes → Decisions: 17 of 26 (65.4%)
+    Notes → Record kinds: 16 of 57 (28.1%)
+    Notes → Ranked search: 13 of 30 (43.3%)
+    Notes → Transactions: 1 of 52 (1.9%)
+    Opening a project → Connections: 9 of 43 (20.9%)
+    Opening a project → Factory circle: 7 of 9 (77.8%)
+    Opening a project → Health record: 1 of 34 (2.9%)
+    Opening a project → Knowledge: 8 of 46 (17.4%)
+    Opening a project → Project libraries: 11 of 17 (64.7%)
+    Opening a project → Record kinds: 3 of 57 (5.3%)
+    Opening a project → Transactions: 3 of 52 (5.8%)
+    Opening a project → Work: 2 of 88 (2.3%)
+    Outside writers → Connections: 4 of 43 (9.3%)
+    Outside writers → Project libraries: 1 of 17 (5.9%)
+    Owner exchange → Knowledge: 1 of 46 (2.2%)
+    Owner exchange → Record kinds: 11 of 57 (19.3%)
+    Plan structure → Record kinds: 11 of 57 (19.3%)
+    Project libraries → Transactions: 14 of 52 (26.9%)
+    Record and owner commands → Library API: 1 of 190 (0.5%)
+    Record and owner commands → Command declarations: 4 of 24 (16.7%)
+    Record and owner commands → Data questions: 2 of 6 (33.3%)
+    Record kinds → Transactions: 9 of 52 (17.3%)
+    Records → Connections: 6 of 43 (14%)
+    Records → Factory circle: 3 of 9 (33.3%)
+    Records → Outside writers: 2 of 4 (50%)
+    Records → Project libraries: 7 of 17 (41.2%)
+    Records → Transactions: 1 of 52 (1.9%)
+    Rounds → Library API: 4 of 190 (2.1%)
+    Rounds → Catalogue: 5 of 5 (100%)
+    Rounds → Decisions: 0 of 26 (0%)
+    Rounds → Graduation: 7 of 9 (77.8%)
+    Rounds → The librarian: 1 of 39 (2.6%)
+    Rounds → Links: 5 of 5 (100%)
+    Ranked search → Record kinds: 1 of 57 (1.8%)
+    Waits → Record kinds: 7 of 57 (12.3%)
+    Work → Arcs and increments: 34 of 47 (72.3%)
+    Work → Owner exchange: 11 of 29 (37.9%)
+    Work → Plan structure: 38 of 53 (71.7%)
+    Work → Waits: 5 of 26 (19.2%)
+  split       candidates, a consumer importing under a quarter of a dependency's names: Library API of Decisions (15.4%); Library API of Transactions (7.7%); Branch plan changes of Plan structure (9.4%); Branch plan changes of Record kinds (14%); Branch plan changes of Transactions (1.9%); Catalogue of Library API (1.6%); Catalogue of The librarian (15.4%); Command declarations of Library API (1.1%); Command declarations of Connections (2.3%); Command declarations of Record kinds (1.8%); Library commands of Library API (6.3%); Library commands of Knowledge (8.7%); Library commands of Transactions (3.8%); Library commands of Work (11.4%); Connections of Transactions (5.8%); Decisions of Record kinds (15.8%); Decisions of Transactions (3.8%); Factory circle of Project libraries (5.9%); Factory circle of Record kinds (14%); Factory circle of Transactions (7.7%); Graduation of Library API (1.6%); Graduation of The librarian (5.1%); Health record of Record kinds (19.3%); Health record of Work (12.5%); Arcs and increments of Knowledge (2.2%); Arcs and increments of Plan structure (3.8%); Arcs and increments of Record kinds (17.5%); Knowledge of Decisions (7.7%); Knowledge of Record kinds (3.5%); Knowledge commands of Library API (4.7%); Knowledge commands of Library commands (22.2%); Knowledge commands of Decisions (3.8%); Knowledge commands of Knowledge (21.7%); Knowledge commands of Record kinds (1.8%); The librarian of Library API (1.6%); The librarian of Decisions (0%); Links of Library API (2.6%); Links of The librarian (15.4%); Notes of Transactions (1.9%); Opening a project of Connections (20.9%); Opening a project of Health record (2.9%); Opening a project of Knowledge (17.4%); Opening a project of Record kinds (5.3%); Opening a project of Transactions (5.8%); Opening a project of Work (2.3%); Outside writers of Connections (9.3%); Outside writers of Project libraries (5.9%); Owner exchange of Knowledge (2.2%); Owner exchange of Record kinds (19.3%); Plan structure of Record kinds (19.3%); Record and owner commands of Library API (0.5%); Record and owner commands of Command declarations (16.7%); Record kinds of Transactions (17.3%); Records of Connections (14%); Records of Transactions (1.9%); Rounds of Library API (2.1%); Rounds of Decisions (0%); Rounds of The librarian (2.6%); Ranked search of Record kinds (1.8%); Waits of Record kinds (12.3%); Work of Waits (19.2%)
+  technical   no top-level node named for a technical layer
+  unplaced    none
+
+Guidance (leads for a story author to weigh, not readings)
+  merge-or-nest: Factory circle and Opening a project change together at lift 12.92 across Records and Library API
+  merge-or-nest: Decisions and Knowledge commands change together at lift 5.81 across Knowledge and Library commands
+  merge-or-nest: Knowledge and Knowledge commands change together at lift 5.43 across Knowledge and Library commands
+  merge-or-nest: Knowledge commands and Notes change together at lift 4.08 across Library commands and Knowledge
+  merge-or-nest: Plan structure and Work change together at lift 3.83 across The plan and Work
+  merge-or-nest: Library API and Work change together at lift 2.98 across Library API and Work
+  merge-or-nest: Library API and Rounds change together at lift 2.66 across Library API and The librarian
+  merge-or-nest: Library API and Transactions change together at lift 2.48 across Library API and Records
+  merge-or-nest: Library API and Decisions change together at lift 2.33 across Library API and Knowledge
+  merge-or-nest: Library API and Knowledge change together at lift 2.23 across Library API and Knowledge

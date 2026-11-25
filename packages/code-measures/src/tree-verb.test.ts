@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { mounted, type DoorWords, type Verb, type VerbContext, type VerbInputs } from "@storytree/library/verbs";
+import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbInputs } from "@storytree/library/verbs";
 import { withLibrary } from "@storytree/library/testing/pg";
 import { removeTemp } from "@storytree/test-waits";
 
@@ -73,7 +73,7 @@ test("5.9 · the printed scorecard puts the readings first and the leads under a
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 const PACKAGE = "packages/tree-fixture";
 
-function checkout(t: TestContext): string {
+function checkout(t: TestContext, files: Readonly<Record<string, string>> = {}): string {
   const folder = mkdtempSync(path.join(tmpdir(), "tree-verb-"));
   t.after(() => removeTemp(folder));
   const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=Tree test", "-c", "user.email=tree@example.test", "-c", "commit.gpgsign=false", ...args], { cwd: folder, encoding: "utf8" }).trim();
@@ -85,6 +85,7 @@ function checkout(t: TestContext): string {
   write("package.json", '{ "name": "fixture", "private": true }\n');
   write(`${PACKAGE}/package.json`, '{ "name": "@ws/tree-fixture", "exports": { ".": "./src/a.ts" } }\n');
   for (const name of ["a", "c", "e"]) write(`${PACKAGE}/src/${name}.ts`, `export const ${name} = 0;\n`);
+  for (const [file, text] of Object.entries(files)) write(`${PACKAGE}/src/${file}`, text);
   git("add", "-A");
   git("commit", "-q", "-m", "base");
   const change = (round: number, names: readonly string[]) => {
@@ -157,5 +158,61 @@ test("5.9 · storytree code-measures tree <story> without --tree grades the plan
       [[reading.id, null], [drafts.id, reading.id]].sort(([a], [b]) => String(a).localeCompare(String(b))),
     );
     assert.deepEqual([...card.readings.unplaced].sort(), ["a", "c", "e"].map((name) => `${PACKAGE}/src/${name}.ts`), "no test reaches them, so the owner rule gives them no capability");
+  });
+});
+
+const SPLIT_FILES = {
+  "types.ts": "export interface Page { readonly page: number }\nexport interface Queue { readonly queue: number }\n",
+  "use.ts": 'import type { Page, Queue } from "./types.js";\nexport const use: [Page, Queue] | undefined = undefined;\n',
+};
+
+test("5.15 · storytree code-measures tree <story> --tree <file> reads the file's splits: a split file's types crossing a boundary land on the parts that hold them", async (t) => {
+  const tree = treeVerb();
+  const folder = checkout(t, SPLIT_FILES);
+  const proposal = path.join(folder, "proposal.json");
+  const at = (file: string) => `${PACKAGE}/src/${file}`;
+  writeFileSync(proposal, JSON.stringify({
+    nodes: [
+      { id: "U", title: "Users", files: [at("use.ts"), at("a.ts"), at("c.ts"), at("e.ts")] },
+      { id: "P", title: "Pages", files: [at("pages/types.ts")] },
+      { id: "Q", title: "Queues", files: [at("queues/types.ts")] },
+    ],
+    splits: [{ file: at("types.ts"), into: { [at("pages/types.ts")]: ["Page"], [at("queues/types.ts")]: ["Queue"] } }],
+  }));
+  await withLibrary(async (library) => {
+    await library.addStory({ title: "Tree fixture" });
+    const context: VerbContext = { folder, project: library.name, session: "s", library };
+    const card = JSON.parse((await tree.act({ story: "Tree fixture", tree: proposal, json: true }, context, WORDS)).text) as Scorecard;
+    assert.deepEqual(card.readings.boundaries.map(({ from, to, types }) => [`${from}→${to}`, types]), [["U→P", ["Page"]], ["U→Q", ["Queue"]]]);
+    assert.deepEqual(card.readings.unplaced, [], "the split file left the tree; its parts are taken");
+  });
+});
+
+test("5.15 · a proposed tree file whose splits or retargets are not of their shapes is refused as misuse, naming the list", async (t) => {
+  const tree = treeVerb();
+  const folder = checkout(t);
+  const at = (file: string) => `${PACKAGE}/src/${file}`;
+  const nodes = [{ id: "U", title: "Users", files: [at("a.ts"), at("c.ts"), at("e.ts")] }];
+  const malformed = [
+    { splits: [{ file: at("a.ts"), into: [at("a/one.ts")] }] },
+    { splits: [{ file: at("a.ts"), into: { [at("a/one.ts")]: "a" } }] },
+    { splits: { file: at("a.ts") } },
+    { retargets: [{ file: at("a.ts"), to: at("c.ts") }] },
+    { retargets: [{ file: at("a.ts"), from: at("c.ts"), names: "c" }] },
+    { retargets: [{ file: at("a.ts"), from: at("c.ts"), to: 3 }] },
+  ];
+  await withLibrary(async (library) => {
+    await library.addStory({ title: "Tree fixture" });
+    const context: VerbContext = { folder, project: library.name, session: "s", library };
+    for (const [which, extra] of malformed.entries()) {
+      const proposal = path.join(folder, `proposal-${which}.json`);
+      writeFileSync(proposal, JSON.stringify({ nodes, ...extra }));
+      await assert.rejects(tree.act({ story: "Tree fixture", tree: proposal, json: true }, context, WORDS), (error: unknown) => {
+        assert.ok(error instanceof VerbRefusal, `a refusal for ${JSON.stringify(extra)}, not ${String(error)}`);
+        assert.equal(error.misuse, true, `misuse for ${JSON.stringify(extra)}`);
+        assert.match(error.message, new RegExp(Object.keys(extra)[0]!), `the malformed list is named for ${JSON.stringify(extra)}`);
+        return true;
+      });
+    }
   });
 });

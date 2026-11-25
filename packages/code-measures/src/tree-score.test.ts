@@ -7,6 +7,7 @@ import { planTreeOf, proposedTreeOf, type Tree } from "./tree.js";
 import * as treeStructure from "./tree-structure.js";
 import { importsOf, treeStructureOf, type Import, type NodeStructure, type TreeStructure } from "./tree-structure.js";
 import type { SourceText } from "./index.js";
+import { scorecardOf, type Scorecard } from "./scorecard.js";
 
 const READING = "capability_000000000001";
 const WRITING = "capability_000000000002";
@@ -400,4 +401,184 @@ test("5.14 · top-level nodes whose title, after its number, holds a technical-l
     { id: "misc", word: "misc" },
     { id: "schemas", word: "schemas" },
   ]);
+});
+
+const at = (file: string): string => `${SOURCE}/${file}`;
+
+test("5.15 · a proposed tree's split file leaves the tree unless it is one of its parts, owned by no node even through its capability, and each part and each retarget's new file is a story file, named unplaced when no node takes it", () => {
+  const plan = planTreeOf(CAPABILITIES, FILES);
+  const proposed = proposedTreeOf({
+    nodes: [
+      { id: "reading", title: "Reading", capabilities: [1] },
+      { id: "writing", title: "Writing", capabilities: [2], files: [at("write/text.ts"), at("orphan.ts")] },
+      { id: "drafting", title: "Drafting", capabilities: [3] },
+    ],
+    splits: [
+      { file: at("write.ts"), into: { [at("write/text.ts")]: ["write"], [at("write/files.ts")]: ["save"] } },
+      { file: at("read.ts"), into: { [at("read.ts")]: ["read"], [at("read/peek.ts")]: ["peek"] } },
+    ],
+    retargets: [{ file: at("drafts/draft.ts"), from: at("write/files.ts"), to: at("drafts/store.ts") }],
+  }, plan);
+  assert.deepEqual(shape(proposed), {
+    nodes: [
+      ["drafting", "Drafting", null],
+      ["reading", "Reading", null],
+      ["writing", "Writing", null],
+    ],
+    ownerOf: {
+      [at("read.ts")]: "reading",
+      [at("write/text.ts")]: "writing",
+      [at("orphan.ts")]: "writing",
+      [at("drafts/draft.ts")]: "drafting",
+      [at("drafts/index.ts")]: "drafting",
+    },
+    unplaced: [at("drafts/store.ts"), at("read/peek.ts"), at("write/files.ts")],
+  });
+});
+
+const SPLIT_TREE: Tree = {
+  nodes: [
+    { id: "P", title: "Pages" },
+    { id: "Q", title: "Queues" },
+    { id: "R", title: "Readers" },
+    { id: "T", title: "Types" },
+    { id: "Y", title: "Logs" },
+  ],
+  ownerOf: Object.fromEntries(([
+    ["p.ts", "P"], ["pages/types.ts", "P"], ["q.ts", "Q"], ["queues/types.ts", "Q"], ["r.ts", "R"], ["types.ts", "T"], ["y.ts", "Y"],
+  ] as [string, string][]).map(([file, id]) => [at(file), id])),
+  unplaced: [],
+};
+
+const SPLIT_IMPORTS: Import[] = [
+  { from: at("p.ts"), to: at("types.ts"), used: ["Page", "makePage"], types: ["Page"] },
+  { from: at("q.ts"), to: at("types.ts"), used: ["Mark", "Queue"], types: ["Mark", "Queue"] },
+  { from: at("r.ts"), to: at("types.ts"), used: ["Page"], types: ["Page"] },
+  { from: at("types.ts"), to: at("y.ts"), used: ["log"], types: [] },
+];
+
+const SPLIT_EXPORTS = new Map<string, readonly string[]>([
+  [at("p.ts"), []], [at("q.ts"), []], [at("r.ts"), []],
+  [at("types.ts"), ["Page", "makePage", "Queue", "Mark"]],
+  [at("y.ts"), ["log", "other"]],
+]);
+
+const boundariesOf = (card: Scorecard) => card.readings.boundaries.map(({ from, to, types }) => [`${from}→${to}`, [...types]]);
+
+test("5.15 · a split file's importers land on each part holding names they use, with the types among them, every part carries the file's own imports, and the file exports only the names a part gives it", () => {
+  const card = scorecardOf({
+    tree: SPLIT_TREE,
+    units: [],
+    imports: SPLIT_IMPORTS,
+    exports: SPLIT_EXPORTS,
+    refactor: { splits: [{ file: at("types.ts"), into: { [at("pages/types.ts")]: ["Page", "makePage"], [at("queues/types.ts")]: ["Queue"], [at("types.ts")]: ["Mark"] } }] },
+  });
+  assert.deepEqual(boundariesOf(card), [
+    ["P→Y", []],
+    ["Q→T", ["Mark"]],
+    ["Q→Y", []],
+    ["R→P", ["Page"]],
+    ["T→Y", []],
+  ]);
+  assert.deepEqual(card.readings.reuse, [
+    { consumer: "P", dependency: "Y", used: 1, exported: 2, share: 1 / 2 },
+    { consumer: "Q", dependency: "T", used: 1, exported: 1, share: 1 },
+    { consumer: "Q", dependency: "Y", used: 1, exported: 2, share: 1 / 2 },
+    { consumer: "R", dependency: "P", used: 1, exported: 2, share: 1 / 2 },
+    { consumer: "T", dependency: "Y", used: 1, exported: 2, share: 1 / 2 },
+  ], "Types now exports Mark alone; Pages' part exports Page and makePage");
+});
+
+test("5.15 · a split leaving one of the file's exported names in no part is refused, naming the file and each name left out", () => {
+  assert.throws(
+    () => scorecardOf({
+      tree: SPLIT_TREE,
+      units: [],
+      imports: SPLIT_IMPORTS,
+      exports: SPLIT_EXPORTS,
+      refactor: { splits: [{ file: at("types.ts"), into: { [at("pages/types.ts")]: ["Page"], [at("queues/types.ts")]: ["Queue"] } }] },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof VerbRefusal, `a refusal, not ${String(error)}`);
+      assert.match(error.message, /packages\/p\/src\/types\.ts/);
+      assert.match(error.message, /\bmakePage\b/);
+      assert.match(error.message, /\bMark\b/);
+      return true;
+    },
+  );
+});
+
+const CYCLE_TREE = flat({ A: ["a.ts"], B: ["b.ts"], C: ["c.ts"], D: ["d.ts"] });
+
+const CYCLE_IMPORTS: Import[] = [
+  { from: at("a.ts"), to: at("b.ts"), used: ["Bee", "beta"], types: ["Bee"] },
+  { from: at("b.ts"), to: at("a.ts"), used: ["alpha"], types: [] },
+  { from: at("d.ts"), to: at("a.ts"), used: ["alpha"], types: [] },
+];
+
+const CYCLE_EXPORTS = new Map<string, readonly string[]>([
+  [at("a.ts"), ["alpha"]], [at("b.ts"), ["Bee", "beta"]], [at("c.ts"), ["gamma"]], [at("d.ts"), []],
+]);
+
+test("5.15 · a retarget moves an import's names, all or those named, with their types, to a new file that then exports them, or drops them with no new file; a cycle it breaks is gone", () => {
+  const before = scorecardOf({ tree: CYCLE_TREE, units: [], imports: CYCLE_IMPORTS, exports: CYCLE_EXPORTS });
+  assert.equal(before.readings.cycleGate, "fail");
+  const card = scorecardOf({
+    tree: CYCLE_TREE,
+    units: [],
+    imports: CYCLE_IMPORTS,
+    exports: CYCLE_EXPORTS,
+    refactor: {
+      retargets: [
+        { file: at("b.ts"), from: at("a.ts"), to: at("c.ts") },
+        { file: at("a.ts"), from: at("b.ts"), to: at("c.ts"), names: ["Bee"] },
+        { file: at("d.ts"), from: at("a.ts") },
+      ],
+    },
+  });
+  assert.deepEqual(boundariesOf(card), [
+    ["A→B", []],
+    ["A→C", ["Bee"]],
+    ["B→C", []],
+  ]);
+  assert.deepEqual(card.readings.cycles, []);
+  assert.equal(card.readings.cycleGate, "pass");
+  assert.deepEqual(card.readings.reuse, [
+    { consumer: "A", dependency: "B", used: 1, exported: 2, share: 1 / 2 },
+    { consumer: "A", dependency: "C", used: 1, exported: 3, share: 1 / 3 },
+    { consumer: "B", dependency: "C", used: 1, exported: 3, share: 1 / 3 },
+  ], "c.ts exports gamma, alpha and Bee; b.ts keeps both its names");
+});
+
+test("5.15 · retargets apply after the splits, one after another, so a retarget may move an import of a part, or one an earlier retarget made", () => {
+  const card = scorecardOf({
+    tree: SPLIT_TREE,
+    units: [],
+    imports: SPLIT_IMPORTS,
+    exports: SPLIT_EXPORTS,
+    refactor: {
+      splits: [{ file: at("types.ts"), into: { [at("pages/types.ts")]: ["Page", "makePage"], [at("queues/types.ts")]: ["Queue", "Mark"] } }],
+      retargets: [
+        { file: at("r.ts"), from: at("pages/types.ts"), to: at("queues/types.ts") },
+        { file: at("r.ts"), from: at("queues/types.ts"), to: at("y.ts") },
+      ],
+    },
+  });
+  assert.deepEqual(boundariesOf(card), [
+    ["P→Y", []],
+    ["Q→Y", []],
+    ["R→Y", ["Page"]],
+  ]);
+});
+
+test("5.15 · a retarget of an import that does not exist is refused, naming the importing file and the file it names", () => {
+  assert.throws(
+    () => scorecardOf({ tree: CYCLE_TREE, units: [], imports: CYCLE_IMPORTS, exports: CYCLE_EXPORTS, refactor: { retargets: [{ file: at("c.ts"), from: at("a.ts"), to: at("d.ts") }] } }),
+    (error: unknown) => {
+      assert.ok(error instanceof VerbRefusal, `a refusal, not ${String(error)}`);
+      assert.match(error.message, /packages\/p\/src\/c\.ts/);
+      assert.match(error.message, /packages\/p\/src\/a\.ts/);
+      return true;
+    },
+  );
 });

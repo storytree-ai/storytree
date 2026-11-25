@@ -1,5 +1,5 @@
 // Capability 31 · Decisions
-export { checkClauseSupersession, checkFrontCover, decisionEdgeTargets, DecisionLog, justifiedEdit, partlySupersedes, prunedEdit, restoredEdit, withClauses } from "./decision-log.js";
+export { addedEdges, checkClauseSupersession, checkFrontCover, decisionEdgeTargets, DecisionLog, justifiedEdit, partlySupersedes, prunedEdit, restoredEdit, withClauses } from "./decision-log.js";
 export type { ArchivedDecisionLink, ArchivedLink, ClauseSupersession, DecisionLinkBacklog, DecisionLinkChanges, DecisionLinkCounts, DecisionLinkDay, DecisionLinkSpan, DecisionNumberPlan, DecisionStatus, DecisionView, NarrowsMove, NewDecision, SupersessionPair, SupersessionPairs } from "./decision-log.js";
 export { annotate, correct } from "./corrections.js";
 export type { Annotation, Correction } from "./corrections.js";

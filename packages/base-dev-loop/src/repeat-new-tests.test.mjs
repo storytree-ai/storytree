@@ -46,7 +46,8 @@ test("6.1 · the tests a change adds are its numbered tests whose titles open on
     "b.test.mjs": null,
     "c.test.mjs": `import { test } from "node:test";\ntest("3.1 · moved", () => {\n  movingBody();\n});\ntest("3.2 · also new", () => {});\n`
       + `test("3.3 · moved twin", () => {\n  movingBody();\n});\ntest("3.4 · new, with a moved test's body", () => {\n  movingBody();\n});\n`
-      + `test("3.5 · it\\u2019s \\"escaped\\"", () => {});\n`,
+      + `test("3.5 · it\\u2019s \\"escaped\\"", () => {});\n`
+      + `const reading = (line) => /^His voice session's reading$/.test(line);\ntest("3.6 · below a regex holding a quote", () => { reading('x'); });\n`,
     "src/c.mjs": `export const c = 2;\ntest("4.1 · not a test file", () => {});\n`,
   });
   git("add", "-A");
@@ -56,7 +57,7 @@ test("6.1 · the tests a change adds are its numbered tests whose titles open on
 
   assert.deepEqual(changeNewTests(dir).map(({ file, test }) => `${file} › ${test}`).sort(),
     ["a.test.mjs › 1.2 · new", "c.test.mjs › 3.2 · also new", "c.test.mjs › 3.4 · new, with a moved test's body",
-      "c.test.mjs › 3.5 · it\u2019s \"escaped\"", "d.test.mjs › 5.1 · uncommitted"]);
+      "c.test.mjs › 3.5 · it\u2019s \"escaped\"", "c.test.mjs › 3.6 · below a regex holding a quote", "d.test.mjs › 5.1 · uncommitted"]);
 });
 
 test("6.2 · each new test runs five times through the test entry, old tests never; a failure among the repeats fails the run naming it flaky, and no new test runs nothing", (t) => {

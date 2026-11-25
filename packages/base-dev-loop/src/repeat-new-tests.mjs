@@ -8,7 +8,7 @@ export const TIMES = 5;
 
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
 const NUMBERED = /^\d+\.\d+/;
-const INERT = /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1|(?=\/)(?<=(?:^|[(,=:[!&|?{};+\-*%~^]|\breturn|\btypeof|\bcase)[ \t]*)\/(?:\\.|\[(?:\\.|[^\]\\\r\n])*\]|[^/\\\r\n[])+\/[a-z]*/gm;
+const INERT = /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1|(?=\/)(?<=(?:^|=>|[(,=:[!&|?{};+\-*%~^]|\breturn|\btypeof|\bcase)[ \t]*)\/(?:\\.|\[(?:\\.|[^\]\\\r\n])*\]|[^/\\\r\n[])+\/[a-z]*/gm;
 const CALLED = /\b(?:test|it)(?:\.only)?\s*\(\s*$/;
 const COOKED = { n: "\n", t: "\t", r: "\r", b: "\b", f: "\f", v: "\v", 0: "\0" };
 

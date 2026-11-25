@@ -360,7 +360,7 @@ export function treeStructureOf(tree: Tree, imports: readonly Import[], exports?
       through,
       total: across.length,
       offenders,
-      nodes: [...entryOf].map(([id, entry]) => ({ id, entry, exported: entry === null ? 0 : namesIn([entry]).size, behind: namesIn(filesOf(id, true)).size })),
+      nodes: [...entryOf].map(([id, entry]) => ({ id, entry, exported: entry === null ? 0 : namesIn([entry]).size, behind: namesIn(filesOf(id, true).filter((file) => file !== entry)).size })),
     },
     reuse,
     splitCandidates: reuse.filter(({ share }) => share !== null && share < SPLIT_SHARE),

@@ -1,4 +1,4 @@
-// Capability 3 · Record rules
+// Capability 4 · The plan
 
 export type SurveyedFile = {
   readonly path: string;

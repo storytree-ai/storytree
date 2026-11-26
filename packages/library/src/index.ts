@@ -8,28 +8,21 @@ export { knowledgeGuidance, LinkLoopError, referenceEdgesOf, SupersessionLoopErr
 export { DependencyLoopError, MissingReferenceError } from "./records/index.js";
 export { NumberTakenError } from "./records/index.js";
 export type { Counts, KindCount, RecentChange, TitleHit } from "./data/data-questions.js";
-export { ANCHOR_ID, anchorGaps, beforeCutover, CONTRACT_DEFINITION, CONTRACT_PLACEMENT, LifecycleError, LONG_CONTRACT_TITLE, planGuidance, pullSaid, RetireRefusedError, WaitLoopError } from "./work/index.js";
+export { ANCHOR_ID, anchorGaps, beforeCutover, CONTRACT_DEFINITION, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE, planGuidance, pullSaid } from "./plan/index.js";
+export { LifecycleError, RetireRefusedError, WaitLoopError } from "./work/index.js";
 export { CONTRACT_PROOFS, STORE_LINK_DIRECTIONS, MissingUpgradeError, NewerSchemaError, NEW_LINE, OWNER_TIME_ZONE, parseSchedule, pluginSchema, SchemaError, UnknownTypeError } from "./records/index.js";
 
 export type { Agent, FieldsOf, KnowledgeKind, Line, LineKind, LinesSince, NewLine, PluginRecordKind, PluginUpgradeStep, Precheck, RecordType, ScheduleRule, SchemaRecord, WriteOptions } from "./records/index.js";
-export type { CodeEdge, EdgeFile, FileImport, PartClash, SharedStore, StoreTable, StorySurvey, SurveyedFile, SurveyedPart, SurveyedParts, SurveyedTest } from "./schema/story-survey.js";
+export type { CodeEdge, EdgeFile, FileImport, PartClash, SharedStore, StoreTable, StorySurvey, SurveyedFile, SurveyedPart, SurveyedParts, SurveyedTest } from "./plan/story-survey.js";
 export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./records/index.js";
 export type {
   ArcEdit,
-  ArcNode,
   ArcState,
   ArcView,
   BoardArcView,
   BoardIncrement,
-  CapabilityEdit,
   CloseInput,
   DayWindow,
-  ContractEdit,
-  ContractWriteOptions,
-  EdgeEdit,
-  EdgeNode,
-  MovedToEdges,
-  NewEdge,
   Disposition,
   Hold,
   Holds,
@@ -42,9 +35,22 @@ export type {
   IncrementStatus,
   NewArc,
   ParkedOn,
+  NewIncrement,
+  Pended,
+  PendingChange,
+  PlanChange,
+} from "./work/index.js";
+export type {
+  ArcNode,
+  CapabilityEdit,
+  ContractEdit,
+  ContractWriteOptions,
+  EdgeEdit,
+  EdgeNode,
+  MovedToEdges,
+  NewEdge,
   NewCapability,
   NewContract,
-  NewIncrement,
   MappedPackage,
   PluginPlan,
   PluginPlanCapability,
@@ -52,16 +58,13 @@ export type {
   PluginPlanHeld,
   MappedStories,
   NewStory,
-  Pended,
-  PendingChange,
-  PlanChange,
   StoreLink,
   StoryEdit,
   Anchor,
   AnchorEdit,
   PrCutover,
   AnchorGaps,
-} from "./work/index.js";
+} from "./plan/index.js";
 export { listedNotice, listedSaid, type OpenListing } from "./work/index.js";
 export type {
   AnnotatedCapability,

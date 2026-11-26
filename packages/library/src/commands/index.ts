@@ -4,7 +4,8 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type SchemaRecord, type WriteOptions } from "../index.js";
-import { editPlanRecord, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, PR_CUTOVER_ID, refuseHeldPlanWrite, type PlanEdit } from "../work/index.js";
+import { PR_CUTOVER_ID } from "../plan/index.js";
+import { editPlanRecord, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, refuseHeldPlanWrite, type PlanEdit } from "../work/index.js";
 import { fieldValue, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { FYI_FAMILY } from "./fyi.js";

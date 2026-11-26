@@ -66,7 +66,8 @@
         "packages/library/src/records/rules/schedule.ts",
         "packages/library/src/records/rules/activity-line.ts",
         "packages/library/src/records/rules/references.ts",
-        "packages/library/src/records/rules/creation-order.ts"
+        "packages/library/src/records/rules/creation-order.ts",
+        "packages/library/src/records/rules/fields.ts"
       ],
       "entry": "packages/library/src/records/rules/index.ts",
       "was": [
@@ -79,11 +80,13 @@
       "id": "r1-plan",
       "title": "The plan",
       "files": [
-        "packages/library/src/work/work-model.ts",
-        "packages/library/src/work/pr-cutover.ts",
-        "packages/library/src/schema/story-survey.ts"
+        "packages/library/src/plan/index.ts",
+        "packages/library/src/plan/schema.ts",
+        "packages/library/src/plan/work-model.ts",
+        "packages/library/src/plan/pr-cutover.ts",
+        "packages/library/src/plan/story-survey.ts"
       ],
-      "entry": "packages/library/src/work/work-model.ts",
+      "entry": "packages/library/src/plan/index.ts",
       "schema": [
         "story",
         "capability",

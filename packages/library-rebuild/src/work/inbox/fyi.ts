@@ -8,5 +8,5 @@ export interface NewFyi {
 }
 
 export async function recordFyi(records: SchemaRecords, fyi: NewFyi, options: WriteOptions = {}): Promise<SchemaRecord<"fyi">> {
-  return await records.create("fyi", { ...fyi, at: new Date().toISOString(), by: options.actor ?? "the library" }, options);
+  return await records.create("fyi", { ...fyi, at: new Date().toISOString(), by: options.actor ?? "unknown" }, options);
 }

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import pg, { type Pool } from "pg";
 
-import { Knowledge } from "../../knowledge/notes/index.js";
+import { convertMemories, Knowledge } from "../../knowledge/notes/index.js";
 import { defaultEmbedder, modelsFolder, PgVectors, vectorServerIdentity, type EmbedderSource } from "../../knowledge/search/index.js";
 import { LIBRARY_SCHEMA, pluginSchema, SchemaRecords, type PluginRecordKind } from "../../storage/rules/index.js";
 import { PgBackend, PgTransactions, Store } from "../../storage/store/index.js";
@@ -172,6 +172,7 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
       }
     }
     const records = new ProjectRecords(transactions, schema, factory === undefined ? undefined : new SchemaRecords(factory.transactions, schema), open.system);
+    await convertMemories(records, transactions);
     let circle: FactoryCircle<Project> | undefined;
     const project: Project = {
       name,

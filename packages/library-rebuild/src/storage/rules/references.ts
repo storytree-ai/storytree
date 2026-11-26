@@ -64,3 +64,17 @@ export function findLoop(start: string, next: readonly string[], dependsOn: (id:
   }
   return undefined;
 }
+
+export interface Reference {
+  readonly field: string;
+  readonly to: string;
+  readonly expected: string;
+  readonly kinds: readonly string[];
+}
+
+export async function checkReferences(records: SchemaRecords, references: readonly Reference[]): Promise<void> {
+  for (const { field, to, expected, kinds } of references) {
+    const target = await liveRecord(records, to);
+    if (target === null || !kinds.includes(target.type)) throw new MissingReferenceError(field, to, expected, target?.type);
+  }
+}

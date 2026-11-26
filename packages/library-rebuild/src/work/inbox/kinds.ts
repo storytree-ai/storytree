@@ -16,9 +16,9 @@ export const INBOX_KINDS = {
   fyi: z.object({
     title: z.string().min(1),
     what: z.string(),
-    at: z.iso.datetime(),
+    at: z.string(),
     about: z.string(),
-    by: z.string().min(1),
-    heardAt: z.iso.datetime().optional(),
+    by: z.string(),
+    heardAt: z.string().optional(),
   }).strict(),
 };

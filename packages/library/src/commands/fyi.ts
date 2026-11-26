@@ -33,7 +33,7 @@ const list = verb({
     const unheard = await context.library.unheardFyis();
     if (unheard.length === 0) return { text: "No FYIs waiting to be heard." };
     const lines = unheard.map(({ id, fields }) => `  ${fields.at.slice(0, 16).replace("T", " ")}  ${id}  ${fields.title}\n      ${fields.what.split(/\r?\n/, 1)[0]} (about ${fields.about}, by ${fields.by})`);
-    return { text: [`FYIs waiting to be heard, oldest first (${unheard.length}):`, ...lines].join("\n"), next: [{ command: "fyi heard <id> [<id> …]", why: "once the owner has heard them" }] };
+    return { text: [`FYIs waiting to be heard, oldest first (${unheard.length}):`, ...lines].join("\n") };
   },
 });
 

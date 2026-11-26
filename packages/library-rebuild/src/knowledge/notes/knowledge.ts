@@ -113,7 +113,7 @@ export class Knowledge {
     if (current.type === "measure") this.#versioned(stored, candidate);
     if (current.type === "decision") edit["justifications"] = await this.#justified(candidate, stored, edit);
     const get = (target: string) => this.#records.get(target);
-    await checkReferences(get, gained(referencesOf(current.type, candidate), referencesOf(current.type, stored)));
+    await checkReferences(this.#records, gained(referencesOf(current.type, candidate), referencesOf(current.type, stored)));
     await checkLoops(id, candidate, get);
     return (await this.#records.edit(id, edit as NoteEdit, {
       ...options,
@@ -196,7 +196,7 @@ export class Knowledge {
     if (kind === "decision") await this.#justified(shaped, {}, shaped);
     const get = (target: string) => this.#records.get(target);
     const before = replacing === undefined ? [] : referencesOf(replacing.type, replacing.fields);
-    await checkReferences(get, gained(referencesOf(kind, shaped), before));
+    await checkReferences(this.#records, gained(referencesOf(kind, shaped), before));
     if (replacing !== undefined) await checkLoops(replacing.id, shaped, get);
     const id = replacing?.id ?? `${kind}_${randomBytes(6).toString("hex")}`;
     if (kind !== "research" || replacing?.type === "research") return await this.#records.create(kind, shaped as never, { ...options, id });

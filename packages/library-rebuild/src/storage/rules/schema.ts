@@ -4,7 +4,7 @@ import { z } from "zod";
 import { HEALTH_KINDS } from "../../health/kinds.js";
 import { DECISION_KINDS, DECISION_MARKED } from "../../knowledge/decisions/kinds.js";
 import { NOTE_KINDS, NOTE_MARKED, NOTE_REFUSALS, NOTE_UPGRADES, NOTE_VERSIONS } from "../../knowledge/notes/kinds.js";
-import { PLAN_KINDS } from "../../plan/kinds.js";
+import { PLAN_KINDS, PLAN_UPGRADES, PLAN_VERSIONS } from "../../plan/kinds.js";
 import { ARC_KINDS, ARC_UPGRADES, ARC_VERSIONS } from "../../work/arcs/kinds.js";
 import { INBOX_KINDS } from "../../work/inbox/kinds.js";
 
@@ -18,6 +18,7 @@ export const SCHEMA_VERSIONS: { readonly [T in RecordType]: number } = {
   ...(Object.fromEntries(Object.keys(RECORD_SCHEMAS).map((type) => [type, 1])) as { [T in RecordType]: number }),
   ...ARC_VERSIONS,
   ...NOTE_VERSIONS,
+  ...PLAN_VERSIONS,
 };
 
 export interface UpgradeStep {
@@ -39,7 +40,7 @@ export interface LibrarySchema {
 export const LIBRARY_SCHEMA: LibrarySchema = {
   versions: SCHEMA_VERSIONS,
   schemas: RECORD_SCHEMAS,
-  upgrades: [...ARC_UPGRADES, ...NOTE_UPGRADES],
+  upgrades: [...ARC_UPGRADES, ...PLAN_UPGRADES, ...NOTE_UPGRADES],
   refused: NOTE_REFUSALS,
   marked: [...NOTE_MARKED, ...DECISION_MARKED],
 };

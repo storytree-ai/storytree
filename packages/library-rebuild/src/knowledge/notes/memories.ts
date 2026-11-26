@@ -34,7 +34,7 @@ export async function convertMemories(records: SchemaRecords, transactions: Tran
     try {
       const kind = classified.kind as RecordType;
       records.check(kind, classified.fields);
-      await checkReferences((id) => records.get(id), referencesOf(kind, classified.fields));
+      await checkReferences(records, referencesOf(kind, classified.fields));
       await records.create(kind, classified.fields as never, { id: memory.id, actor: MEMORY_UPGRADE_ACTOR });
     } catch (error) {
       console.warn(`memory ${JSON.stringify(memory.id)} is not converted to a ${classified.kind}: ${(error as Error).message}; ${kept}`);

@@ -38,7 +38,7 @@ const MASTS = [
 ] as const;
 
 function refuse(ctx: z.RefinementCtx, field: string, message: string): void {
-  ctx.addIssue({ code: "custom", path: [field], message });
+  ctx.addIssue({ code: "custom", path: [field], message, params: { reason: true } });
 }
 
 export function frictionState(fields: { readonly route?: unknown; readonly dischargedBy?: unknown }): "open" | "routed" | "resolved" | "dismissed" {

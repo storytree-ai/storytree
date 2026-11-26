@@ -306,7 +306,7 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
   });
 });
 
-test("4.27 `arc waits --audit` lists the owner actions that need attention, oldest read first, each with every reason: a note saying not yet while nothing holds it, a note naming an increment closed since it was last read again, no why, no rank, a parked arc, or not read again in seven days", async () => {
+test("4.27 `arc waits --audit` lists the owner actions that need attention, oldest read first, each with every reason: a note saying not yet while nothing holds it, a note naming an increment closed since it was last read again, no why, no rank, a parked arc, or not read again in seven days; its text says how to rewrite one, and it offers no `arc increment wait` as a next step (friction_5cc9608469a8)", async () => {
   const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
   const increment = (id: string, title: string, status = "proposal") => ({ id, fields: { title, status } });
   const owner = (note: string, more: Record<string, unknown> = { why: "it closes a live exposure", rank: 1, reviewed: day(0) }) => [{ releaser: "owner", note, holds: true, ...more }];
@@ -340,7 +340,9 @@ test("4.27 `arc waits --audit` lists the owner actions that need attention, olde
   await inWorld(command, async (world) => {
     const verb = arcs.verbs.find((one) => one.name === "waits")!;
     const answer = await verb.act(parseArgs(["--audit"], ["audit"], world.folder), { cwd: world.folder, activityContext: async () => ({ library }) } as unknown as Context);
-    assert.deepEqual(answer.text.split("\n"), [
+    const rewrite = "arc increment wait <increment> --for owner";
+    assert.ok(answer.text.includes(rewrite), answer.text);
+    assert.deepEqual(answer.text.split("\n").filter((line) => !line.includes(rewrite)), [
       "4 actions of yours need attention, oldest read first:",
       "  - increment_000000000004  Drop the old org, on arc_security  Security hygiene: it has no why; it has no rank; it has never been read again",
       "      Drop the old organisation",
@@ -351,7 +353,7 @@ test("4.27 `arc waits --audit` lists the owner actions that need attention, olde
       "  - increment_000000000007  Tidy the org, on arc_later  Later: its arc is parked",
       "      #1  Tidy the GitHub organisation (why: it closes a live exposure)",
     ]);
-    assert.ok(answer.next?.some((step) => step.command.includes("arc increment wait <increment> --for owner")), JSON.stringify(answer.next));
+    assert.ok(!(answer.next ?? []).some((step) => step.command.startsWith("arc increment wait")), JSON.stringify(answer.next));
 
     const tidy = { arcViews: async () => views.slice(0, 1).map((view) => ({ ...view, increments: view.increments.slice(0, 1) })), holds: async () => holds };
     const none = await verb.act(parseArgs(["--audit"], ["audit"], world.folder), { cwd: world.folder, activityContext: async () => ({ library: tidy }) } as unknown as Context);

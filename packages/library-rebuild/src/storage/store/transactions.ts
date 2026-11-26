@@ -98,6 +98,8 @@ export interface Projection {
 }
 
 export interface ListFilter {
+  readonly after?: string;
+  readonly phrase?: { readonly text: string; readonly fields?: readonly string[] };
   readonly ids?: readonly string[];
   readonly names?: string;
   readonly where?: FieldValues;

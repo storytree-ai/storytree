@@ -137,6 +137,12 @@ class PgBackend implements Backend {
     const where = ["type = ANY($1::text[])"];
     const bind = (value: unknown): string => `$${values.push(value)}`;
     if (filter.ids !== undefined) where.push(`id = ANY(${bind(filter.ids)}::text[])`);
+    if (filter.after !== undefined) where.push(`id COLLATE "C" > ${bind(filter.after)}`);
+    if (filter.phrase !== undefined) {
+      const named = filter.phrase.fields === undefined ? "" : ` AND f.key = ANY(${bind(filter.phrase.fields)}::text[])`;
+      where.push(`EXISTS (SELECT 1 FROM jsonb_each(fields) AS f WHERE jsonb_typeof(f.value) = 'string'${named}
+        AND strpos(f.value #>> '{}', ${bind(filter.phrase.text)}) > 0)`);
+    }
     if (filter.where !== undefined) where.push(`fields @> ${bind(JSON.stringify(filter.where))}::jsonb`);
     if (filter.names !== undefined) {
       const named = bind(JSON.stringify(filter.names));

@@ -57,6 +57,8 @@ class MemoryBackend implements Backend {
     const found = [...this.#records.values()]
       .filter((record) => types.includes(record.type))
       .filter((record) => filter.ids === undefined || filter.ids.includes(record.id))
+      .filter((record) => filter.after === undefined || record.id > filter.after)
+      .filter((record) => filter.phrase === undefined || holds(record, filter.phrase))
       .filter((record) => Object.entries(filter.where ?? {}).every(([field, value]) => isDeepStrictEqual(record.fields[field], value)))
       .filter((record) => names === undefined || Object.values(record.fields).some((value) => value === names || (Array.isArray(value) && value.includes(names))))
       .sort((a, b) => (a.id < b.id ? -1 : 1))
@@ -76,4 +78,9 @@ class MemoryBackend implements Backend {
     const kept = filter.newest !== undefined ? found.slice(-filter.newest) : found.slice(0, filter.oldest);
     return structuredClone(kept);
   }
+}
+
+function holds(record: RecordEnvelope, phrase: NonNullable<ListFilter["phrase"]>): boolean {
+  return Object.entries(record.fields).some(([field, value]) =>
+    typeof value === "string" && (phrase.fields === undefined || phrase.fields.includes(field)) && value.includes(phrase.text));
 }

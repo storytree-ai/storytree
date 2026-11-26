@@ -1,12 +1,12 @@
-// Capability 13 · Decision log
+// Capability 31 · Decisions
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { byCreation, MemoryTransactions, NumberTakenError, SchemaError, SchemaRecords, type Transactions } from "../records/index.js";
-import { LIBRARY_SCHEMA } from "../schema/index.js";
-import { connect } from "../project/index.js";
-import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { Knowledge, SupersessionLoopError } from "../knowledge/index.js";
+import { byCreation, MemoryTransactions, NumberTakenError, SchemaError, SchemaRecords, type Transactions } from "../../records/index.js";
+import { LIBRARY_SCHEMA } from "../../schema/index.js";
+import { connect } from "../../project/index.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
+import { Knowledge, SupersessionLoopError } from "../index.js";
 
 interface Library {
   readonly knowledge: Knowledge;
@@ -74,7 +74,7 @@ for (const backend of [memory, postgres]) {
     });
   };
 
-  contract("13.1", "decisions recorded at once from separate connections get distinct numbers, each higher than any before, never reused", async ({ knowledge, other, records, transactions }) => {
+  contract("31.2", "decisions recorded at once from separate connections get distinct numbers, each higher than any before, never reused", async ({ knowledge, other, records, transactions }) => {
     const first = await knowledge.recordDecision(DECIDE);
     assert.equal(first.fields.number, 1, "a project's first decision is number 1");
 
@@ -102,7 +102,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), history, "refused number edits write nothing");
   });
 
-  contract("13.5", "storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs", async ({ records, transactions, knowledge }) => {
+  contract("31.6", "storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs", async ({ records, transactions, knowledge }) => {
     const own = new Knowledge(records, "storytree");
     const imported = await records.create("decision", { ...DECIDE, number: 1, text: "Summary.\nFull record: ADR-0621 in 0.2." });
     const unnumbered = await transactions.save({ id: "legacy-decision", type: "decision", version: 1, fields: { title: "Legacy import", text: "Full record: ADR-0169 in 0.2." } });
@@ -146,7 +146,7 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(own.numberDecision(imported.id, 622), /already/);
   });
 
-  contract("13.5", "simultaneous repairs cannot share a number or repair the same decision twice", async ({ records }) => {
+  contract("31.6", "simultaneous repairs cannot share a number or repair the same decision twice", async ({ records }) => {
     const own = new Knowledge(records, "storytree");
     const a = await records.create("decision", { ...DECIDE, number: 1, text: "Full record: ADR-0621" });
     const b = await records.create("decision", { ...DECIDE, number: 2, text: "Full record: ADR-0621" });
@@ -162,7 +162,7 @@ for (const backend of [memory, postgres]) {
     assert.equal((await records.history({ id: c.id })).length, 2);
   });
 
-  contract("13.6", "storytree switches once to a stored floor; concurrent decisions exceed it and every held number", async ({ records, transactions, knowledge }) => {
+  contract("31.7", "storytree switches once to a stored floor; concurrent decisions exceed it and every held number", async ({ records, transactions, knowledge }) => {
     const own = new Knowledge(records, "storytree");
     const other = new Knowledge(new SchemaRecords(transactions, LIBRARY_SCHEMA), "storytree");
     const before = await transactions.history();
@@ -196,7 +196,7 @@ for (const backend of [memory, postgres]) {
     assert.equal((await own.recordDecision({ ...DECIDE, number: 5000 })).fields.number, 5000, "health never reserves a decision number");
   });
 
-  contract("13.8", "founding books preview in creation order, preserve history, skip Full record decisions and finish once", async ({ records, transactions, knowledge }) => {
+  contract("31.9", "founding books preview in creation order, preserve history, skip Full record decisions and finish once", async ({ records, transactions, knowledge }) => {
     const own = new Knowledge(records, "storytree");
     const first = await records.create("decision", { ...DECIDE, number: 1 }, { id: "founding-z" });
     const second = await records.create("decision", { ...DECIDE, number: 2 }, { id: "founding-a" });
@@ -235,7 +235,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), completed);
   });
 
-  contract("13.8", "concurrent founding moves cannot share numbers or move a book twice", async ({ records, transactions }) => {
+  contract("31.9", "concurrent founding moves cannot share numbers or move a book twice", async ({ records, transactions }) => {
     const own = new Knowledge(records, "storytree");
     const other = new Knowledge(new SchemaRecords(transactions, LIBRARY_SCHEMA), "storytree");
     const book = await records.create("decision", { ...DECIDE, number: 1 });
@@ -244,7 +244,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await records.history({ id: book.id })).map((entry) => entry.record.fields.number), [1, 663]);
   });
 
-  contract("13.7", "Full record bulk repair previews by default, reports refusals, and skips completed repairs", async ({ records, transactions, knowledge }) => {
+  contract("31.8", "Full record bulk repair previews by default, reports refusals, and skips completed repairs", async ({ records, transactions, knowledge }) => {
     const own = new Knowledge(records, "storytree");
     const imported = await records.create("decision", { ...DECIDE, number: 1, text: "Full record: ADR-0621" });
     const founding = await records.create("decision", { ...DECIDE, number: 2 });
@@ -277,7 +277,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), after, "repeat apply writes nothing");
   });
 
-  contract("13.5", "health history cannot reserve a Full record repair in preview or under the write lock", async ({ records, transactions }) => {
+  contract("31.6", "health history cannot reserve a Full record repair in preview or under the write lock", async ({ records, transactions }) => {
     const own = new Knowledge(records, "storytree");
     const imported = await records.create("decision", { ...DECIDE, number: 1, text: "Full record: ADR-0621" });
     await transactions.save({ id: "health-number", type: "health", fields: { number: 621 } });
@@ -286,7 +286,7 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(own.recordDecision({ ...DECIDE, number: 1 }), NumberTakenError, "the repaired decision's old number remains reserved");
   });
 
-  contract("13.5", "repair refuses numbers non-health records ever held, including a collision arriving after preview", async ({ records, transactions }) => {
+  contract("31.6", "repair refuses numbers non-health records ever held, including a collision arriving after preview", async ({ records, transactions }) => {
     const own = new Knowledge(records, "storytree");
     const imported = await records.create("decision", { ...DECIDE, number: 1, text: "Full record: ADR-0621" });
     await transactions.save({ id: "old-kind", type: "legacy", fields: { number: 621 } });
@@ -310,7 +310,7 @@ for (const backend of [memory, postgres]) {
     assert.equal((await history({ id: later.id })).length, 1, "atomic refusal wrote no repair");
   });
 
-  contract("13.2", "a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused", async ({ knowledge, records, transactions }) => {
+  contract("31.3", "a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused", async ({ knowledge, records, transactions }) => {
     const story = await records.create("story", { title: "Visitor can sign up" });
     const old = await knowledge.recordDecision({ ...DECIDE, frontCoverOf: story.id });
     assert.equal((await knowledge.decision(old.id))?.status, "accepted");
@@ -336,7 +336,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), history, "nothing was written");
   });
 
-  contract("13.9", "decisions() gives every live decision's view in one reading, oldest first, as decision(id) does", async ({ knowledge }) => {
+  contract("31.10", "decisions() gives every live decision's view in one reading, oldest first, as decision(id) does", async ({ knowledge }) => {
     const old = await knowledge.recordDecision(DECIDE);
     const next = await knowledge.recordDecision({ ...DECIDE, title: "Send through SES", supersedes: [old.id], justifications: { [old.id]: "SES replaces Mailgun." } });
     const open = await knowledge.recordDecision({ ...DECIDE, title: "Queue the mail", status: "proposed" });
@@ -348,7 +348,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(status, { [old.id]: "superseded", [next.id]: "accepted", [open.id]: "proposed" });
   });
 
-  contract("13.3", "status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one", async ({ knowledge, records, transactions }) => {
+  contract("31.4", "status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one", async ({ knowledge, records, transactions }) => {
     const history = await transactions.history();
     await assert.rejects(
       knowledge.recordDecision({ title: "No status", text: "?" } as never),
@@ -378,7 +378,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(upgraded?.type === "decision" && upgraded.fields.status, "accepted", "what was recorded as decided reads accepted");
   });
 
-  contract("13.4", "a decision may carry one composed statement, read as stale once the decision's text changed after it, and the full text is always readable", async ({ knowledge }) => {
+  contract("31.5", "a decision may carry one composed statement, read as stale once the decision's text changed after it, and the full text is always readable", async ({ knowledge }) => {
     const decision = await knowledge.recordDecision(DECIDE);
     assert.equal((await knowledge.decision(decision.id))?.composed, undefined, "none until one is composed");
 
@@ -400,7 +400,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(await knowledge.composeStatement("decision_000000000000", "?"), null);
   });
 
-  contract("13.11", "a decision carried over from 0.2 is stamped brought-across, pointing at its 0.2 record and the basis 0.2 gave, in place of the owner's words", async ({ knowledge, records, transactions }) => {
+  contract("31.12", "a decision carried over from 0.2 is stamped brought-across, pointing at its 0.2 record and the basis 0.2 gave, in place of the owner's words", async ({ knowledge, records, transactions }) => {
     const stamp = { scribedBy: "cli@main", at: "2026-11-05" };
     const carried = await knowledge.recordDecision({
       ...DECIDE,
@@ -423,7 +423,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), history, "nothing was written");
   });
 
-  contract("13.15", "a supersedesClauses entry names a live decision and clauses D<n>, or nothing is written; one naming no clause is partial and leaves the decision current", async ({ knowledge, transactions }) => {
+  contract("31.16", "a supersedesClauses entry names a live decision and clauses D<n>, or nothing is written; one naming no clause is partial and leaves the decision current", async ({ knowledge, transactions }) => {
     const scoped = await knowledge.recordDecision(DECIDE);
     const partly = await knowledge.recordDecision({ ...DECIDE, title: "Mail from a queue" });
     const term = await knowledge.defineTerm({ term: "Mail", meaning: "Email." });
@@ -443,7 +443,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), history, "nothing was written");
   });
 
-  contract("13.18", "a decision given a new narrows, recorded or edited, is refused naming supersedesClauses, and nothing is written", async ({ knowledge, transactions }) => {
+  contract("31.19", "a decision given a new narrows, recorded or edited, is refused naming supersedesClauses, and nothing is written", async ({ knowledge, transactions }) => {
     const narrowed = await knowledge.recordDecision(DECIDE);
     const other = await knowledge.recordDecision({ ...DECIDE, title: "Send through SES" });
     const history = await transactions.history();
@@ -452,7 +452,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), history, "nothing was written");
   });
 
-  contract("13.19", "a decision recorded with a link, supersedes or supersedesClauses entry to a decision and no justification for that target is refused, naming justification, the target and the justifications to pass, with nothing written; recorded with one it is stored, and a link to a definition needs none", async ({ knowledge, records, transactions }) => {
+  contract("31.31", "a decision recorded with a link, supersedes or supersedesClauses entry to a decision and no justification for that target is refused, naming justification, the target and the justifications to pass, with nothing written; recorded with one it is stored, and a link to a definition needs none", async ({ knowledge, records, transactions }) => {
     const target = await knowledge.recordDecision(DECIDE);
     const other = await knowledge.recordDecision({ ...DECIDE, title: "Send through SES" });
     const term = await knowledge.defineTerm({ term: "Mail", meaning: "Email." });

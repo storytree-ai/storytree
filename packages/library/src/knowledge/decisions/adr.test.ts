@@ -1,4 +1,4 @@
-// Capability 13 · Decision log
+// Capability 31 · Decisions
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,17 +7,17 @@ import { test, type TestContext } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { VerbRefusal, type DoorWords } from "../verbs/verb.js";
+import { VerbRefusal, type DoorWords } from "../../verbs/verb.js";
 
-import { connect, type Library } from "../index.js";
-import { connect as connectProject } from "../project/index.js";
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { LIBRARY_FAMILIES, type LibraryVerbContext } from "../commands/index.js";
+import { connect, type Library } from "../../index.js";
+import { connect as connectProject } from "../../project/index.js";
+import { testServerUrl, uniqueProjectName } from "../../testing/pg.js";
+import { LIBRARY_FAMILIES, type LibraryVerbContext } from "../../commands/index.js";
 import { ADR_FAMILY } from "./index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("13.10 · the library declares the `adr` family the command line lists 4th: a pulled decision pushed back unedited writes nothing and never asks for the writer, and an edited title writes that field alone", async (t) => {
+test("31.11 · the library declares the `adr` family the command line lists 4th: a pulled decision pushed back unedited writes nothing and never asks for the writer, and an edited title writes that field alone", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   const folder = mkdtempSync(path.join(tmpdir(), "library-adr-"));
@@ -53,7 +53,7 @@ test("13.10 · the library declares the `adr` family the command line lists 4th:
   assert.equal(asked, 1);
 });
 
-test("13.11 · `adr new --basis brought-across` takes the 0.2 record it points at and the basis 0.2 gave, and refuses the label without them", async (t) => {
+test("31.12 · `adr new --basis brought-across` takes the 0.2 record it points at and the basis 0.2 gave, and refuses the label without them", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {
@@ -105,7 +105,7 @@ async function storedFields(library: Library, id: string): Promise<Record<string
   return (await library.get(id))?.fields as Record<string, unknown> | undefined;
 }
 
-test("13.16 · moveNarrowsToClauses and `adr move-narrows` move each stored narrows onto a supersedesClauses entry, its clauses those the narrowing text names beside the narrowed decision's ADR number, partial where it names none, leaving no narrows; a second run writes nothing", async (t) => {
+test("31.17 · moveNarrowsToClauses and `adr move-narrows` move each stored narrows onto a supersedesClauses entry, its clauses those the narrowing text names beside the narrowed decision's ADR number, partial where it names none, leaving no narrows; a second run writes nothing", async (t) => {
   const { library, records, context, verbOf } = await adrWorld(t);
   const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "D1. Queue. D2. Retry. D3. Bounce." });
   const log = await library.recordDecision({ status: "accepted", title: "Mail is logged", text: "D1. Log. D4. Keep a year." });
@@ -132,7 +132,7 @@ test("13.16 · moveNarrowsToClauses and `adr move-narrows` move each stored narr
   assert.equal(command?.narrows, undefined);
 });
 
-test("13.17 · supersessionPairs and `adr pairs` flag a clause-scoped supersedes with no in-place note naming it and an in-place note with no edge behind it, failing while any is flagged; a pair whose superseding decision was recorded before 2026-11-20 is counted as backlog", async (t) => {
+test("31.18 · supersessionPairs and `adr pairs` flag a clause-scoped supersedes with no in-place note naming it and an in-place note with no edge behind it, failing while any is flagged; a pair whose superseding decision was recorded before 2026-11-20 is counted as backlog", async (t) => {
   const { library, records, context, verbOf } = await adrWorld(t);
   const decide = (title: string, text: string, more: object = {}) => library.recordDecision({ status: "accepted", title, text, ...more });
   const note = async (id: string, line: string): Promise<void> => {
@@ -182,7 +182,7 @@ test("13.17 · supersessionPairs and `adr pairs` flag a clause-scoped supersedes
   }
 });
 
-test("13.20 · `adr new --why <target>=<text>` writes each decision link's and supersession's justification, split on the first =; `adr new` linking or superseding a decision with no --why for it is refused naming justification and the target, with nothing written", async (t) => {
+test("31.27 · `adr new --why <target>=<text>` writes each decision link's and supersession's justification, split on the first =; `adr new` linking or superseding a decision with no --why for it is refused naming justification and the target, with nothing written", async (t) => {
   const { library, context, verbOf } = await adrWorld(t);
   const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
   const hand = await library.recordDecision({ status: "accepted", title: "Mail by hand", text: "By hand." });
@@ -201,7 +201,7 @@ test("13.20 · `adr new --why <target>=<text>` writes each decision link's and s
   });
 });
 
-test("13.21 · `adr pull` shows a decision's justifications as an editable front-matter line keyed by target, and `adr push` writes an edited one back", async (t) => {
+test("31.28 · `adr pull` shows a decision's justifications as an editable front-matter line keyed by target, and `adr push` writes an edited one back", async (t) => {
   const { library, context, verbOf } = await adrWorld(t);
   const folder = mkdtempSync(path.join(tmpdir(), "library-adr-why-"));
   t.after(() => removeTemp(folder));
@@ -220,7 +220,7 @@ test("13.21 · `adr pull` shows a decision's justifications as an editable front
   assert.deepEqual(((await library.decision(linking.id))?.record.fields as { justifications?: unknown }).justifications, { [queue.id]: "Follow it for the queue a retry waits in." });
 });
 
-test("13.22 · decisionLinkBacklog and `adr backlog` count the old-shape decision links, stored with no justification, and the decisions holding them, never failing on them; a justified link or a link to a story is not counted, and an old-shape decision's text still edits", async (t) => {
+test("31.29 · decisionLinkBacklog and `adr backlog` count the old-shape decision links, stored with no justification, and the decisions holding them, never failing on them; a justified link or a link to a story is not counted, and an old-shape decision's text still edits", async (t) => {
   const { library, records, context, verbOf } = await adrWorld(t);
   const story = await library.addStory({ title: "Mail" });
   const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
@@ -246,7 +246,7 @@ test("13.22 · decisionLinkBacklog and `adr backlog` count the old-shape decisio
   assert.deepEqual(await library.decisionLinkBacklog(), { links: 3, decisions: 2, targets }, "and still counted");
 });
 
-test("13.25 · decisionLinkBacklog's targets and `adr backlog --by-target` list each decision old-shape links point at with its number, title and count, most links in first and ties by number, counting no justified link and no link to a story; the plain `adr backlog` keeps its two counts", async (t) => {
+test("31.21 · decisionLinkBacklog's targets and `adr backlog --by-target` list each decision old-shape links point at with its number, title and count, most links in first and ties by number, counting no justified link and no link to a story; the plain `adr backlog` keeps its two counts", async (t) => {
   const { library, records, context, verbOf } = await adrWorld(t);
   const story = await library.addStory({ title: "Mail" });
   const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
@@ -274,7 +274,7 @@ test("13.25 · decisionLinkBacklog's targets and `adr backlog --by-target` list 
   );
 });
 
-test("13.23 · `adr prune` archives a decision link with who, when and why and its justification, so links, `library links` and the backlog no longer show it, `adr pruned` lists it, and `adr restore` puts it back with its justification, or --why for one that had none; a prune with no reason or no such link is refused", async (t) => {
+test("31.30 · `adr prune` archives a decision link with who, when and why and its justification, so links, `library links` and the backlog no longer show it, `adr pruned` lists it, and `adr restore` puts it back with its justification, or --why for one that had none; a prune with no reason or no such link is refused", async (t) => {
   const { library, records, context, verbOf } = await adrWorld(t);
   const links = LIBRARY_FAMILIES.find((family) => family.name === "library")!.verbs.find((one) => "name" in one.command && one.command.name === "links")!;
   const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
@@ -313,7 +313,7 @@ test("13.23 · `adr prune` archives a decision link with who, when and why and i
   assert.deepEqual([back.links, back.justifications], [[queue.id], { [queue.id]: "Follow it for how bounces would queue." }]);
 });
 
-test("13.28 · `adr prune` and `adr restore` move one decision link even when the decision's other links or supersedes name a retired or missing record: they re-check only the ids the edit adds, and a restore whose own target was retired is refused naming it, with nothing written; a prune offers no `adr restore` as a next step (friction_ac40fa2d0e47)", async (t) => {
+test("31.24 · `adr prune` and `adr restore` move one decision link even when the decision's other links or supersedes name a retired or missing record: they re-check only the ids the edit adds, and a restore whose own target was retired is refused naming it, with nothing written; a prune offers no `adr restore` as a next step (friction_ac40fa2d0e47)", async (t) => {
   const { library, records, context, verbOf } = await adrWorld(t);
   const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
   const gone = await library.recordDecision({ status: "accepted", title: "Mail by pigeon", text: "Fly it." });
@@ -352,7 +352,7 @@ test("13.28 · `adr prune` and `adr restore` move one decision link even when th
   assert.deepEqual(((await library.get(linking.id))?.fields as { links?: string[] }).links, [gone.id, missing]);
 });
 
-test("13.24 · decision(id) carries supersededInPart, each accepted decision superseding it in named clauses with those clauses and an old-shape narrows with none, its status kept as stored; `adr pull` prints them and the records linking in as read-only superseded-in-part and linked-from lines, and `adr push` of the pulled file writes nothing", async (t) => {
+test("31.20 · decision(id) carries supersededInPart, each accepted decision superseding it in named clauses with those clauses and an old-shape narrows with none, its status kept as stored; `adr pull` prints them and the records linking in as read-only superseded-in-part and linked-from lines, and `adr push` of the pulled file writes nothing", async (t) => {
   const { library, records, context, verbOf } = await adrWorld(t);
   const folder = mkdtempSync(path.join(tmpdir(), "library-adr-in-part-"));
   t.after(() => removeTemp(folder));
@@ -388,7 +388,7 @@ test("13.24 · decision(id) carries supersededInPart, each accepted decision sup
   assert.deepEqual((await library.changesSince(cursor)).changes, []);
 });
 
-test("13.27 · decisionLinkChanges and `adr changes` count, per UTC day and in total, decision links pruned, restored (not also added), justified, corrected and added and the decisions touched, never a link to a story or a text edit; --by keeps one writer's writes, a span with none says so, and pruned matches the archive", async (t) => {
+test("31.23 · decisionLinkChanges and `adr changes` count, per UTC day and in total, decision links pruned, restored (not also added), justified, corrected and added and the decisions touched, never a link to a story or a text edit; --by keeps one writer's writes, a span with none says so, and pruned matches the archive", async (t) => {
   const { library, records, context, verbOf } = await adrWorld(t);
   const a = { actor: "session:s" };
   const b = { actor: "session:t" };

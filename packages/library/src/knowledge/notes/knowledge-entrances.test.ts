@@ -121,7 +121,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await knowledge.relatedNotes(founding.id), [inside, replacement]);
   });
 
-  contract("13.26", "a front cover naming anything but a live story or capability is refused, and nothing is written", async ({ knowledge, records, transactions }) => {
+  contract("31.22", "a front cover naming anything but a live story or capability is refused, and nothing is written", async ({ knowledge, records, transactions }) => {
     const story = await records.create("story", { title: "Visitor can sign up" });
     const capability = await records.create("capability", { title: "Email form", story: story.id, proposed: true });
     const arc = await records.create("arc", { title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });

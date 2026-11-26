@@ -18,6 +18,7 @@ type FieldEdit = {
 export interface WriteOptions {
   readonly actor?: string;
   readonly signal?: AbortSignal;
+  readonly outsideRead?: () => Promise<readonly string[]>;
 }
 
 export interface CreateOptions extends WriteOptions {
@@ -39,7 +40,7 @@ export class SchemaRecords {
     const shaped = fields as Record<string, unknown>;
     this.check(type, shaped);
     const id = options.id ?? `${type}_${randomBytes(6).toString("hex")}`;
-    const saved = await this.#transactions.save({ id, type, version: this.#schema.versions[type]!, fields: shaped, ...writing(options) });
+    const saved = await this.#transactions.save({ id, type, version: this.#schema.versions[type]!, fields: shaped, ...(await writing(options)) });
     return saved as SchemaRecord<T>;
   }
 
@@ -78,7 +79,7 @@ export class SchemaRecords {
     const edited = await this.#transactions.edit({
       id,
       fields,
-      ...writing(options),
+      ...(await writing(options)),
       ...(options.reason === undefined ? {} : { reason: options.reason }),
       upgrade: (stored) => {
         if (!Object.hasOwn(this.#schema.versions, stored.type)) throw new UnknownTypeError(stored.type, stored.id);
@@ -115,7 +116,7 @@ export class SchemaRecords {
   }
 
   async retire(id: string, reason: string, options: WriteOptions = {}): Promise<void> {
-    await this.#transactions.retire({ id, reason, ...writing(options) });
+    await this.#transactions.retire({ id, reason, ...(await writing(options)) });
   }
 
   async history(filter?: HistoryFilter): Promise<HistoryEntry[]> {
@@ -157,8 +158,13 @@ export class SchemaRecords {
   }
 }
 
-function writing(options: WriteOptions): WriteOptions {
-  return { ...(options.actor === undefined ? {} : { actor: options.actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) };
+async function writing(options: WriteOptions): Promise<{ actor?: string; signal?: AbortSignal; outsideRead?: () => readonly string[] }> {
+  const read = options.outsideRead === undefined ? undefined : await options.outsideRead();
+  return {
+    ...(options.actor === undefined ? {} : { actor: options.actor }),
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
+    ...(read === undefined ? {} : { outsideRead: () => read }),
+  };
 }
 
 function dotted(type: string): boolean {

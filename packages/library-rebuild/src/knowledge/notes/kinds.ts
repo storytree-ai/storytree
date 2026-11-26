@@ -13,6 +13,23 @@ export const NOTE_KINDS = {
     meaning: z.string().min(1),
     links: z.array(z.string()).optional(),
   }).strict(),
+  principle: z.object({
+    title: z.string().min(1),
+    description: z.string(),
+    statement: z.string(),
+    why: z.string(),
+    howToApply: z.string(),
+  }).strict(),
+  agent: z.object({
+    title: z.string().min(1),
+    description: z.string(),
+    oneLine: z.string(),
+    role: z.string(),
+    outcome: z.string(),
+    context: z.array(z.string()),
+    tools: z.string(),
+    workflow: z.string(),
+  }).strict(),
   check: z.object({
     question: z.string().min(1),
     enforces: z.array(z.string()),

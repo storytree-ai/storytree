@@ -1,10 +1,12 @@
 // Capability 14 · Ranked search
-import type { FieldsOf, SchemaRecord, SchemaRecords, WriteOptions } from "../../storage/rules/index.js";
+import { RECORD_SCHEMAS, type FieldsOf, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../storage/rules/index.js";
 import {
   defaultEmbedder,
   findPhrase,
   MemoryVectors,
+  NOTE_TYPES,
   RankedSearch,
+  searchableText,
   type Findable,
   type KnowledgeKind,
   type Note,
@@ -58,6 +60,12 @@ export class Knowledge {
 
   async rankAll(query: string, options?: RankOptions): Promise<Ranked<Findable>> {
     return await this.#search.rankAll(query, options);
+  }
+
+  async search(query: string): Promise<Note[]> {
+    const words = query.toLowerCase();
+    const notes = await this.#records.list(NOTE_TYPES.filter((kind): kind is NoteType => Object.hasOwn(RECORD_SCHEMAS, kind)));
+    return notes.filter((note) => searchableText(note).toLowerCase().includes(words));
   }
 
   async findPhrase(phrase: string, options?: PhraseOptions): Promise<PhrasePage> {

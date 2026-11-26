@@ -1,31 +1,14 @@
 // Capability 3 · Hooks
-import path from "node:path";
-
 import { editIn, refusalAnswer } from "./edit-gate.js";
 import { shellWrites } from "./shell-writes.js";
+import { isTestCode, isTestFile } from "./test-paths.js";
+
+export { isTestCode } from "./test-paths.js";
 
 export const TEST_GUARD = "--test-guard";
 
 export const TEST_WRITER = "test-writer";
 export const BUILDER = "builder";
-
-const TEST_PATH = /(^|\/)(tests?|__tests__)\/|(^|\/)test_[^/]*\.py$|_test\.(py|go)$|(^|\/)conftest\.py$|\.(test|spec)\.[^/]+$/;
-
-const TEST_CODE = /(^|\/)(tests?|__tests__|testing|fixtures)\/|(^|\/)test_[^/]*\.py$|_test\.(py|go)$|(^|\/)conftest\.py$|\.(test|spec)\.[^/]+$/;
-
-function within(file: string, folder: string | undefined): string {
-  const relative = folder === undefined ? file : path.relative(folder, file);
-  const inside = folder !== undefined && relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
-  return (inside ? relative : file).replaceAll("\\", "/");
-}
-
-export function isTestFile(file: string, folder: string): boolean {
-  return TEST_PATH.test(within(file, folder));
-}
-
-export function isTestCode(file: string, folder?: string): boolean {
-  return TEST_CODE.test(within(file, folder));
-}
 
 export function testGuard(harness: string, input: unknown, flags: readonly string[]): string | undefined {
   const mode = flags[flags.indexOf(TEST_GUARD) + 1];

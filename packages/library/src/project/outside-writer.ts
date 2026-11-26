@@ -1,11 +1,9 @@
 // Capability 30 · Outside writers
 import type { ClientBase } from "pg";
 
-import { addressServer } from "./address.js";
+import { addressServer, type ConnectOptions } from "./address.js";
 import { ConnectionError } from "./connection-error.js";
-import { projectDatabase } from "./names.js";
-import { localServer, type ServerAccess } from "./server.js";
-import type { ConnectOptions } from "./storytree.js";
+import { localServer, projectDatabase, type ServerAccess } from "./server.js";
 
 export interface OutsideWriter {
   readonly role: string;

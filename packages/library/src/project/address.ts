@@ -9,8 +9,24 @@ import pg from "pg";
 
 import { ConnectionError, sqlState } from "./connection-error.js";
 import { databaseUrl, isLoopback, localServer, type ServerAccess, type Transport, type WaitBounds } from "./server.js";
-import type { ConnectOptions } from "./storytree.js";
 import { postgresForm, webSocketTransport } from "./websocket.js";
+
+export type ConnectOptions = (
+  | {
+      readonly url: string;
+      readonly connectTimeoutMs?: number;
+      readonly address?: undefined;
+    }
+  | {
+      readonly address: string;
+      readonly connectTimeoutMs?: number;
+      readonly url?: undefined;
+    }
+) & {
+  readonly statementTimeoutMs?: number;
+  readonly waitMs?: number;
+  readonly onWait?: (what: string) => void;
+};
 
 export const PASSWORD_KEY = "postgres";
 

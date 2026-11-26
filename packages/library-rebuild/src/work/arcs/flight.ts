@@ -159,8 +159,8 @@ interface HoldsData {
 }
 
 const DISPOSITIONS: readonly string[] = ["landed", "failed", "withdrawn"];
-const ANSWERED = /\b(?:voice\.note_[0-9a-f]{12}|question_[0-9a-f]{12})\b/;
-const ASKS = /\bquestion_[0-9a-f]{12}\b/;
+const ANSWERED = /\b(?:voice\.note_[0-9a-f]{12}|question_[0-9a-f]{12})\b/g;
+const ASKS = /\bquestion_[0-9a-f]{12}\b/g;
 
 export function listedSaid(other: OpenListing): string {
   return `${other.increment} ("${other.title}", on arc ${other.arc}) already lists ${other.capabilities.join(", ")}`;
@@ -630,8 +630,11 @@ export class WorkInFlight {
         const friction = await liveOf(this.#records, "friction", id);
         if (friction !== null && friction.fields.dischargedBy === undefined) await this.#records.edit(id, { state: "resolved", dischargedBy: stamp }, writer(options));
       }
-      const { title, body } = increment.fields;
-      if (telling && outcome.pr === undefined && outcome.note !== undefined && ANSWERED.test(body) && !ASKS.test(outcome.note)) {
+      const { title, body, links = [] } = increment.fields;
+      const named = new Set([...(body.match(ANSWERED) ?? []), ...links]);
+      const answered = [...named].some((id) => new RegExp(`^${ANSWERED.source}$`).test(id));
+      const asksAnew = (outcome.note?.match(ASKS) ?? []).some((question) => !named.has(question));
+      if (telling && outcome.pr === undefined && outcome.note !== undefined && answered && !asksAnew) {
         await recordFyi(this.#records, { title: `What your answer found: ${title}`, what: outcome.note, about: increment.id }, options);
       }
     } else await this.#reopen(increment, (fields) => fields["state"] === "routed", options);

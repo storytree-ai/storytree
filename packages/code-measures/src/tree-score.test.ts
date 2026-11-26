@@ -619,3 +619,74 @@ test("5.15 · a retarget of an import that does not exist is refused, naming the
     },
   );
 });
+
+interface Inversion {
+  readonly parent: string | null;
+  readonly from: string;
+  readonly to: string;
+  readonly fanIn: { readonly from: number; readonly to: number };
+  readonly imports: readonly { readonly from: string; readonly to: string; readonly types: readonly string[] }[];
+}
+
+type Outside = readonly { readonly story: string; readonly to: string }[];
+
+const inversionsOf = (tree: Tree, imports: readonly Import[], outside?: Outside): Inversion[] | undefined => {
+  const read = (treeStructureOf as (tree: Tree, imports: readonly Import[], exports?: undefined, outside?: Outside) => TreeStructure & { inversions?: readonly Inversion[] })(tree, imports, undefined, outside).inversions;
+  return read === undefined ? undefined : [...read]
+    .map((one) => ({ ...one, imports: [...one.imports].sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to)) }))
+    .sort((a, b) => String(a.parent).localeCompare(String(b.parent)) || a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
+};
+
+const UNDER: Tree = {
+  nodes: [
+    { id: "P", title: "Pages" },
+    { id: "A", title: "Alpha", parent: "P" },
+    { id: "B", title: "Beta", parent: "P" },
+    { id: "B1", title: "Beta one", parent: "B" },
+    { id: "B2", title: "Beta two", parent: "B" },
+    { id: "Q", title: "Queues" },
+    { id: "R", title: "Rest" },
+  ],
+  ownerOf: Object.fromEntries(([["p.ts", "P"], ["a.ts", "A"], ["a2.ts", "A"], ["b.ts", "B"], ["b1.ts", "B1"], ["b2.ts", "B2"], ["q.ts", "Q"], ["r.ts", "R"]] as [string, string][]).map(([file, id]) => [`${SOURCE}/${file}`, id])),
+  unplaced: [],
+};
+
+test("5.16 · an import edge between siblings in a sibling cycle, from the more widely imported to the less, is named under its parent with both fan-ins and the node-to-node imports beneath it with their types; its reverse edge is not; a fan-in counts the distinct other nodes owning a file importing into its subtree, its parent included, not files and not nodes inside it", () => {
+  const imports: Import[] = [
+    ...edges([["a.ts", "b.ts"], ["a2.ts", "b.ts"], ["b2.ts", "a.ts"], ["b.ts", "b1.ts"], ["q.ts", "b1.ts"], ["r.ts", "b.ts"], ["p.ts", "b.ts"]]),
+    { from: `${SOURCE}/b1.ts`, to: `${SOURCE}/a.ts`, types: ["Page"] },
+  ];
+  assert.deepEqual(inversionsOf(UNDER, imports), [{
+    parent: "P",
+    from: "B",
+    to: "A",
+    fanIn: { from: 4, to: 2 },
+    imports: [
+      { from: "B1", to: "A", types: ["Page"] },
+      { from: "B2", to: "A", types: [] },
+    ],
+  }], "Beta is imported by Alpha, Queues, Rest and Pages (its parent's own file), not by its own Beta one; Alpha by Beta one and Beta two; only Beta → Alpha is named");
+});
+
+test("5.16 · an edge between siblings outside any cycle, or in a cycle between siblings imported equally widely, is not named", () => {
+  const tree = flat({ X: ["x.ts"], Y: ["y.ts"], Z: ["z.ts"], W: ["w.ts"], C: ["c.ts"], D: ["d.ts", "d2.ts"] });
+  const imports = edges([["x.ts", "y.ts"], ["z.ts", "x.ts"], ["w.ts", "x.ts"], ["c.ts", "d.ts"], ["d.ts", "c.ts"]]);
+  assert.deepEqual(inversionsOf(tree, imports), [], "X (fan-in 2) → Y (fan-in 1) is in no cycle; C and D each have fan-in 1");
+});
+
+test("5.16 · a node's fan-in counts each other story whose files import into it once, so an equal cycle becomes an inversion once other stories import one end", () => {
+  const tree = flat({ X: ["x.ts"], Y: ["y.ts"], Z: ["z.ts"], W: ["w.ts"], C: ["c.ts"], D: ["d.ts", "d2.ts"] });
+  const imports = edges([["x.ts", "y.ts"], ["z.ts", "x.ts"], ["w.ts", "x.ts"], ["c.ts", "d.ts"], ["d.ts", "c.ts"]]);
+  const outside = [
+    { story: "story_one", to: `${SOURCE}/d.ts` },
+    { story: "story_one", to: `${SOURCE}/d2.ts` },
+    { story: "story_two", to: `${SOURCE}/d2.ts` },
+  ];
+  assert.deepEqual(inversionsOf(tree, imports, outside), [{
+    parent: null,
+    from: "D",
+    to: "C",
+    fanIn: { from: 3, to: 1 },
+    imports: [{ from: "D", to: "C", types: [] }],
+  }], "D is imported by C and two other stories, the first through two files; C by D alone");
+});

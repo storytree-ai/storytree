@@ -3,7 +3,7 @@ import path from "node:path";
 
 import pg, { type Pool } from "pg";
 
-import { Knowledge } from "../../knowledge/notes/index.js";
+import { convertMemories, Knowledge } from "../../knowledge/notes/index.js";
 import { defaultEmbedder, modelsFolder, PgVectors, VECTOR_TABLES, vectorServerIdentity, type EmbedderSource } from "../../knowledge/search/index.js";
 import { SchemaRecords } from "../../storage/rules/index.js";
 import { PgTransactions, STORE_TABLES, type HistoryEntry, type RecordEnvelope, type Transactions } from "../../storage/store/index.js";
@@ -77,6 +77,7 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
       const identity = rows[0]!.identity;
       const transactions = new PgTransactions(pool);
       const records = new SchemaRecords(transactions);
+      await convertMemories(records, transactions);
       const vectors = new PgVectors(pool, vectorCache, { server: vectorServerIdentity(pool), database, identity });
       const knowledge = new Knowledge(records, name, { embedder, vectors });
       return { name, identity, pool, transactions, records, knowledge, close: () => end(pool) };

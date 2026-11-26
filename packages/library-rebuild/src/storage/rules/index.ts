@@ -1,6 +1,7 @@
 // Capability 3 · Data schema
 export { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError, type FieldProblem } from "./errors.js";
-export { SchemaRecords, type CreateOptions, type SchemaRecord, type WriteOptions } from "./records.js";
+export { SchemaRecords, type CreateOptions, type EditOptions, type SchemaRecord, type WriteOptions } from "./records.js";
+export { checkReferences, MissingReferenceError, type Reference } from "./references.js";
 export {
   LIBRARY_SCHEMA,
   pluginSchema,

@@ -14,6 +14,7 @@ export const DECISION_KINDS = {
     title: z.string().min(1),
     text: z.string().min(1),
     links: z.array(z.string()).optional(),
+    frontCoverOf: z.string().optional(),
     status: z.enum(["proposed", "accepted"]),
     number: z.number().int().optional(),
     supersedes: z.array(z.string()).optional(),
@@ -23,3 +24,5 @@ export const DECISION_KINDS = {
     loadBearing: z.boolean().optional(),
   }).strict(),
 };
+
+export const DECISION_MARKED: readonly string[] = ["decision"];

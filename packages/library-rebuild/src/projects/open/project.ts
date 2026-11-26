@@ -2,14 +2,15 @@
 import type { Pool } from "pg";
 
 import type { Knowledge } from "../../knowledge/notes/index.js";
-import type { FieldsOf, SchemaRecord, WriteOptions } from "../../storage/rules/index.js";
+import type { WorkModel } from "../../plan/index.js";
 import type { Transactions } from "../../storage/store/index.js";
 import type { Reached } from "./circle.js";
 import type { ProjectLineage } from "./lineage.js";
 import type { ProjectRecords } from "./records.js";
 
-export interface ProjectWork {
-  addStory(story: FieldsOf<"story">, options?: WriteOptions): Promise<SchemaRecord<"story">>;
+interface Holds {
+  readonly waits: Readonly<Record<string, readonly unknown[]>>;
+  readonly heldOn: Readonly<Record<string, string[]>>;
 }
 
 export interface Project {
@@ -19,13 +20,10 @@ export interface Project {
   readonly transactions: Transactions;
   readonly records: ProjectRecords;
   readonly knowledge: Knowledge;
-  readonly work: ProjectWork;
+  readonly work: WorkModel;
+  readonly flight: { holds(): Promise<Holds> };
   readonly lineage: ProjectLineage;
   reach(name: string): Promise<Project>;
   reachAll(): Promise<Reached<Project>[]>;
   close(): Promise<void>;
-}
-
-export function workOf(records: ProjectRecords): ProjectWork {
-  return { addStory: (story, options) => records.create("story", story, options) };
 }

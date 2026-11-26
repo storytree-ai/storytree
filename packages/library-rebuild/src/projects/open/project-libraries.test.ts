@@ -738,6 +738,36 @@ test("29.6 a project opened with system switches leaves each switched-off role, 
   });
 });
 
+test("30.4 a project opened with a plugin's kinds writes and reads them, its system switches and its factory beside; opened without them, a record of that kind reads dormant, as stored, in no list, and a write of it is refused (ADR-1178 D3)", async () => {
+  const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
+  const note = { kind: "voice.note", version: 1, fields: { type: "object", properties: { words: { type: "string" } }, required: ["words"] }, writers: ["storytree_voice"] };
+  const voice = "voice.note" as RecordType;
+  await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
+    const made = await storytree.openProject(factory);
+    await made.lineage.markFactory();
+    await made.close();
+    const before = await storytree.openProject(product);
+    await before.lineage.recordFactory(factory);
+    await before.close();
+
+    const mounted = await storytree.openProject(product, { kinds: [note], system: { off: ["roles"], on: [] } });
+    const written = await mounted.records.create(voice, { words: "park the globe idea" } as FieldsOf<RecordType>);
+    assert.deepEqual(written.fields, { words: "park the globe idea" });
+    const read = await mounted.records.get(written.id);
+    assert.deepEqual([read?.fields, read?.dormant], [{ words: "park the globe idea" }, undefined], "read back live, not dormant");
+    assert.deepEqual((await mounted.records.list(voice)).map((each) => each.id), [written.id]);
+    await assert.rejects(mounted.records.create(voice, { said: "no words" } as FieldsOf<RecordType>), { name: "SchemaError" }, "fields outside the declared shape are refused");
+    await mounted.close();
+
+    const unmounted = await storytree.openProject(product);
+    const stored = await unmounted.records.get(written.id);
+    assert.deepEqual([stored?.fields, stored?.dormant], [{ words: "park the globe idea" }, true], "without the plugin it reads as stored, marked dormant");
+    assert.deepEqual(await unmounted.records.list(voice), [], "and is in no list");
+    await assert.rejects(unmounted.records.create(voice, { words: "another" } as FieldsOf<RecordType>), { name: "UnknownTypeError" });
+    await unmounted.close();
+  });
+});
+
 test("29.7 from a factory or any product naming it, a project reaches each library of that factory's circle by name, refuses one outside it, and lists the circle naming each project it cannot open (ADR-1348 D2)", async () => {
   const [factory, first, second, hidden, outside] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   const ours = [factory, first, second, hidden, outside];

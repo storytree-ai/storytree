@@ -1,6 +1,6 @@
 // Capability 2 · Library transactions
 export { MemoryTransactions } from "./memory.js";
-export { PgBackend, PgTransactions, STORE_TABLES } from "./pg.js";
+export { PgBackend, PgTransactions, STORE_TABLES, WRITE_LOCK } from "./pg.js";
 export {
   LaterWriterError,
   project,

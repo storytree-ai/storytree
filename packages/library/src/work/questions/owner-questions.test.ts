@@ -1,4 +1,4 @@
-// Capability 12 · Owner questions
+// Capability 12 · Owner's inbox
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

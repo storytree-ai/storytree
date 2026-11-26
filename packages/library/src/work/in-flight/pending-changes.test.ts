@@ -1,4 +1,4 @@
-// Capability 10 · Work in flight
+// Capability 10 · Arcs and increments
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

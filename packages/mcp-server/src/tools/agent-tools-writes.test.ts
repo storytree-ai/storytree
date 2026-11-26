@@ -1014,6 +1014,53 @@ test("9.45 plan_capability and edit_plan take a parent whose code, read from the
   });
 });
 
+test("9.45 plan_capability and edit_plan run from a git worktree read that worktree's branch: a parent whose folder with its own entry file is committed on the branch, not on main, takes the nest there, though from main both are refused", async () => {
+  await withProject(async ({ folder, library }) => {
+    const shop = (root: string) => path.join(root, "packages/shop");
+    mkdirSync(path.join(shop(folder), "src"), { recursive: true });
+    writeFileSync(path.join(shop(folder), "package.json"), JSON.stringify({ name: "@x/shop", type: "module" }));
+    writeFileSync(path.join(shop(folder), "src/claim.ts"), "export const add = () => 1;\n");
+    writeFileSync(path.join(shop(folder), "src/claims.test.ts"), 'import { add } from "./claim.js";\ntest("1.1 a claim holds", () => add());\n');
+    git(folder, "init", "-b", "main");
+    git(folder, "add", ".");
+    git(folder, "-c", "commit.gpgsign=false", "commit", "-m", "Shop with flat claims");
+    const lane = path.join(path.dirname(folder), "lane");
+    git(folder, "worktree", "add", "-b", "claude/cart", lane);
+    mkdirSync(path.join(shop(lane), "src/cart"), { recursive: true });
+    writeFileSync(path.join(shop(lane), "src/cart/index.ts"), "export const add = () => 1;\n");
+    writeFileSync(path.join(shop(lane), "src/claims.test.ts"), 'import { add } from "./cart/index.js";\ntest("1.1 a claim holds", () => add());\n');
+    git(lane, "add", ".");
+    git(lane, "-c", "commit.gpgsign=false", "commit", "-m", "Claims gets src/cart with its own index.ts");
+    const parentOf = async (id: string) => ((await library.get(id))?.fields as { parent?: string } | undefined)?.parent;
+
+    let story = "";
+    let claims = "";
+    let receipts = "";
+    await withAgent(folder, claudeCode("claude-main"), async (agent) => {
+      story = idOf(await agent.call("plan_story", { title: "Shop", ...FOUNDED }));
+      claims = idOf(await agent.call("plan_capability", { story, title: "Claims", ...FOUNDED }));
+      receipts = idOf(await agent.call("plan_capability", { story, title: "Receipts", ...FOUNDED }));
+      for (const refused of [
+        await agent.call("plan_capability", { story, title: "Cart lines", parent: claims, ...FOUNDED }),
+        await agent.call("edit_plan", { id: receipts, parent: claims }),
+      ]) {
+        assert.equal(refused.isError, true, refused.text);
+        assert.match(refused.text, /entry file/, `main's claims code is one flat file: ${refused.text}`);
+      }
+      assert.equal(await parentOf(receipts), undefined);
+    });
+
+    await withAgent(lane, claudeCode("claude-lane"), async (agent) => {
+      const child = await agent.call("plan_capability", { story, title: "Cart lines", parent: claims, ...FOUNDED });
+      assert.equal(child.isError, false, child.text);
+      assert.equal(await parentOf(idOf(child)), claims, "planned under claims, whose src/cart/index.ts the worktree's branch adds");
+      const moved = await agent.call("edit_plan", { id: receipts, parent: claims });
+      assert.equal(moved.isError, false, moved.text);
+      assert.equal(await parentOf(receipts), claims, "nested under claims from the worktree");
+    });
+  });
+});
+
 test("9.45 edit_plan's parent for a capability planned before the increment the session holds on a branch is applied at once to the live plan, not held as a pending change, and its reply says so", async () => {
   await withProject(async ({ folder, library }) => {
     git(folder, "init", "-b", "claude/cart-lines");

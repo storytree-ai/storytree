@@ -1,0 +1,5 @@
+Story "The library" (story_754e87e7d531): reported not checked, verified passing
+  Capability "34 · Project storage" (capability_eb32cc9a47ca): reported not checked, verified passing; healthy; nobody holds it
+    About: Where a project's library is kept, as one part reached through its entry file (packages/library/src/project/index.ts): opening a project's library on a server, connecting by address, the shared server, snapshots, factory and product, and outside writers.
+    Decisions: founded on "Project storage is one part behind one entry file" (decision_b5a627bad7d2, ADR-1384).
+    Contract "34.1 · Through the project entry, two projects on one server each read only their own records" (contract_297d4507d7c5): reported not checked, verified passing; proved by a test criterion: records read back and the refusal are returned values a test can see against a throwaway Postgres

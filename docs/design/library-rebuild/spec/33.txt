@@ -1,0 +1,5 @@
+Story "The library" (story_754e87e7d531): reported not checked, verified passing
+  Capability "33 · Notes and search" (capability_676f4635c79d): reported not checked, verified passing; healthy; nobody holds it
+    About: The library's notes and how they are found, as one part reached through its entry file (packages/library/src/knowledge/index.ts): knowledge artifacts, their front covers and entrances, word search and ranked search.
+    Decisions: founded on "Notes and search are one part behind one entry file" (decision_560635929d5a, ADR-1383).
+    Contract "33.1 · Through the notes-and-search entry, a saved note is found by its words and a front cover is listed on its capability" (contract_a6084b8ad716): reported not checked, verified passing; proved by a test criterion: search results and front covers are returned values a test can see

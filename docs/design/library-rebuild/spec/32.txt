@@ -1,0 +1,5 @@
+Story "The library" (story_754e87e7d531): reported not checked, verified passing
+  Capability "32 · Questions and work" (capability_bad20464da96): reported not checked, verified passing; healthy; nobody holds it
+    About: The plan's structure and the work on it as one part, reached through its entry file (packages/library/src/work/index.ts): stories, capabilities and contracts, arcs and increments, their waits and holds, and the owner's questions. It holds the work model, work in flight, waits and owner questions.
+    Decisions: founded on "Questions and work are one part behind one entry file" (decision_9d21691fca99, ADR-1382).
+    Contract "32.1 · Through the work entry, planned work held on a question is released when it is settled" (contract_e692d7817cc9): reported not checked, verified passing; proved by a test criterion: the increment's hold and the tree are returned values a test can see

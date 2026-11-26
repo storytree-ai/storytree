@@ -1,0 +1,8 @@
+Story "The library" (story_754e87e7d531): reported not checked, verified passing
+  Capability "9 · Knowledge entrances" (capability_13b04e769a4b): reported not checked, verified passing; healthy; nobody holds it
+    About: Every story and capability has its own shelf of front-cover decisions, and a decision can be a front cover of one of them at most. Artifacts link only to other artifacts, so the only way from the work into the knowledge is through a front cover.
+    Decisions: founded on "Every story and capability has a shelf of front covers" (decision_914f96703a84, ADR-0627); also "Decisions about the whole project sit on no shelf" (decision_e73cd3e83fa5, ADR-0631), "7 · Library entrypoints: founding book" (decision_e3661ebef646, ADR-0692).
+    Contract "9.1 · A decision can be the front cover of a story or a capability, and `frontCovers(nodeId)` returns that node's live covers, founding (oldest) first, and nothing else." (contract_8652a47a98ee): reported not checked, verified passing; proved by a test criterion: A test can set a decision as a node's front cover and check the covers returned, oldest first.
+    Contract "9.3 · An artifact that links to a story, capability, contract, arc or health entry is refused, and nothing is written. Artifacts link only to other artifacts." (contract_6ca10bd28ddc): reported not checked, verified passing; proved by a test criterion: A test can link an artifact to a story or health entry and check the refusal with nothing written.
+  Edge (edge_b0bdf8c20847): "9 · Knowledge entrances" depends on "4 · Work model"
+  Edge (edge_b7b7553633e9): "9 · Knowledge entrances" depends on "6 · Knowledge artifacts"

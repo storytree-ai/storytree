@@ -1,0 +1,258 @@
+story_754e87e7d531  [story]  schema 1
+Created: 2026-09-25T20:40:47.697Z
+Updated: 2026-11-07T21:53:37.494Z
+
+risk: {
+  "depth": {
+    "read": "2026-11-03",
+    "value": 3,
+    "reason": "flags: additive schema, credentials, destructive schema, record writes"
+  },
+  "radius": {
+    "read": "2026-11-03",
+    "value": 4,
+    "reason": "18 packages downstream; invited users, inherited from packages/app",
+    "audience": "invited",
+    "downstream": 18
+  }
+}
+text: **Approved** by the owner on 2026-09-26. The tree below is ADR-0621 in storytree 0.2's decision log
+(`storytree-ai/storytree02`). Names and scope come from that record; change them there first.
+Capability 9 was added on 2026-09-26 by ADR-0627 in the same log. On 2026-09-27 ADR-0640 grew
+capability 6 by eight knowledge kinds and added capabilities 10 to 13, for what ADR-0633 brought
+back from 0.2: increments, waits, the owner's questions and the decision log.
+
+**Rule for building it: port behaviour, not code.** Storytree 0.2's `packages/library` and
+`packages/storage-protocol` are the behavioural reference. Nothing is copied from them wholesale.
+
+**How each capability is proven.** Red→green. Each capability's tests are written and committed
+first, and seen failing (`red(<capability>): …`). Then the code that makes them pass is committed
+(`green(<capability>): …`). The git history is the evidence that the red came first.
+
+```mermaid
+flowchart BT
+  P["1 · Project libraries"]
+  R["2 · Library transactions"]
+  F["3 · Data schema"]
+  W["4 · Work model"]
+  H["5 · Health record"]
+  K["6 · Knowledge artifacts"]
+  D["7 · Library API"]
+  C["8 · Cloud connection (GCP)"]
+  E["9 · Knowledge entrances"]
+  I["10 · Work in flight"]
+  WT["11 · Waits"]
+  Q["12 · Owner questions"]
+  L["13 · Decision log"]
+  R --> P
+  F --> R
+  W --> F
+  K --> F
+  H --> W
+  D --> W
+  D --> H
+  D --> K
+  D --> P
+  C --> P
+  E --> W
+  E --> K
+  D --> E
+  I --> W
+  WT --> I
+  Q --> I
+  L --> K
+  D --> I
+  D --> WT
+  D --> Q
+  D --> L
+```
+
+Build order: 1 → 2 → 3 → (4, 6) → 5 → 7, then 8, then 9, then (6's eight kinds, 10), then (11,
+12), then 13.
+
+## The API later stories program against
+
+A sketch, not a promise of exact signatures. The shape is fixed by the contracts above.
+
+```ts
+const storytree = await connect({ url: "postgres://localhost:5432/postgres" }); // 1 (or a cloud config, 8)
+await storytree.listProjects();                        // ["my-website"]
+const lib = await storytree.openProject("my-website"); // 1: created the first time
+const kept = await storytree.snapshot("my-website");      // 1: records and history, to keep as a file
+await storytree.restore("my-website-copy", kept);        // 1: only into an empty project
+
+const story = await lib.addStory({ title: "Visitor can sign up" }, { actor: "person:Sam" }); // 4, 7
+const arc   = await lib.createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] }); // 4, 10
+const cap   = await lib.addCapability({ title: "Email form", story: story.id });      // 4
+const k     = await lib.addContract({ title: "Rejects a bad email", capability: cap.id });
+await lib.editContract(k.id, { title: "Rejects an email with no @" }); // 7: correct the plan in place
+await lib.reportHealth(k.id, "passing", { by: "agent" });   // 5: what the agent says
+await lib.recordVerified(k.id, "failing", { by: "storytree" }); // 5: what storytree saw
+const cover = await lib.recordDecision({ title: "Send through Mailgun", text: "Simplest API", status: "accepted", frontCoverOf: cap.id }); // 9, 13
+await lib.defineTerm({ term: "Verified domain", meaning: "A domain Mailgun may send from", links: [cover.id] }); // 6: inside the cover
+await lib.frontCovers(cap.id);   // 9: the capability's shelf
+
+const inc = await lib.addIncrement({ arc: arc.id, title: "Email form", objective: "Build it", body: "…", touches: [cap.id] }); // 10
+await lib.advanceIncrement(inc.id, "active");                                            // 10
+const q = await lib.raiseQuestion({ arc: arc.id, title: "Which mailer?", stakes: "…", statement: "…", context: "…", options: "…" }); // 12
+await lib.editIncrement(inc.id, { heldOn: [q.id] });
+await lib.heldOnQuestion(inc.id);                              // 12: [q.id] until he answers
+await lib.settleQuestion(q.id, { answer: "Mailgun", decision: cover.id });
+await lib.closeIncrement(inc.id, { pr: "#12", disposition: "landed" }); // 10
+await lib.arcView(arc.id);                                     // 10: closed, with its log
+await lib.waitHolds(inc.id);                                   // 11: the blockers still holding
+await lib.decision(cover.id);                                  // 13: status, supersession, composed statement
+await lib.get(story.id);          // 7: the whole live record, on its current schema
+await lib.list("story");         // 7: all live stories, in id order
+await lib.history({ id: story.id }); // 7: every original write, including its actor when supplied
+await lib.projectTree();          // 4 + 5: what the forest reads
+await lib.changesSince(cursor);   // 7: what just changed
+await storytree.close();
+```
+title: The library
+description: Where one project's records live, how they are stored and how they are kept honest: the plan of work, how healthy each piece is, and what the project has learned.
+
+Its storage is Postgres, on this computer The local database, its own story; the keys a user gives storytree are Keys' own story, which it calls. Its curation tooling serves the librarian-curator's pass at a landing. Every other story reads and writes it only through its API; people and agents reach it through the map view, the work board and the agent tools. Its code lives in packages/library. (ADR-1066, ADR-1075, ADR-1076, ADR-1077)
+
+- "The library's capability tree" (decision_ab42aa0b7279): The library is built as eight capabilities, with one database per project on a local Postgres.
+- "The library's revised tree: eight more knowledge kinds, work in flight, waits, owner questions and the decision log" (decision_9ec9a13fbeb4): The library keeps its nine capabilities; the knowledge artifacts capability grows by eight kinds, and four are added,...
+- "The librarian is a story of its own: six capabilities, on for 0.3's own library first" (decision_5a637443cab7): The librarian keeps a project's library honest as a library, and is a story of its own with six capabilities.
+- "The local database: founding book (ADR-0805 D2)" (decision_b1cea1029b68): Starting and stopping a local Postgres from embedded binaries is a story of its own, in packages/local-postgres (stor...
+Its capabilities:
+- "9 · Knowledge entrances" (capability_13b04e769a4b)
+  - "Every story and capability has a shelf of front covers" (decision_914f96703a84)
+  - "Decisions about the whole project sit on no shelf" (decision_e73cd3e83fa5)
+  - "7 · Library entrypoints: founding book" (decision_e3661ebef646)
+- "23 · Catalogue" (capability_36bcae448803)
+  - "23 · Catalogue: founding book (proposed, approved; 0.2's `edit-first-curation`)" (decision_da37f3db9903)
+- "26 · Rounds" (capability_389fd5e3722d)
+  - "26 · Rounds: founding book (proposed, approved; 0.2's `pre-merge-librarian-pass`)" (decision_fae3dd7b8ffa)
+- "24 · Graduation" (capability_53fd994f7b4c)
+  - "24 · Graduation: founding book (proposed, approved; 0.2's ADR-0095)" (decision_229b50334c5b)
+- "14 · Ranked search" (capability_556e276756c9)
+  - "Library search ranks by meaning with a local embedding model (Hindsight parked)" (decision_59f6c07aedc4)
+  - "Ranked search runs bge-small in process, keeps vectors by chunk hash in the project's Postgres, and falls back to words" (decision_153f390ff901)
+  - "Library search embeds with Snowflake's arctic-embed-s, switched without a measurement" (decision_e9a49b4882aa)
+- "2 · Library transactions" (capability_5a80222c88c4)
+  - "2 · Library transactions: founding book (ADR-0621 D1)" (decision_59bc36372634)
+- "1 · Project libraries" (capability_5e0362aae607)
+  - "1 · Project libraries: founding book (ADR-0621 D3)" (decision_a821017e746d)
+- "12 · Owner questions" (capability_5f1ce148e63a)
+  - "12 · Owner questions: founding book (12-a)" (decision_861e6fa952db)
+- "30 · Outside writers" (capability_5fbd06d55aaf)
+- "33 · Notes and search" (capability_676f4635c79d)
+  - "Notes and search are one part behind one entry file" (decision_560635929d5a)
+- "27 · Fixed data questions" (capability_73c014cf4352)
+  - "Fixed queries inside the library, declared as library commands, never SQL a caller writes" (decision_e3a28140d18a)
+- "7 · Library API" (capability_75d059640d9d)
+  - "7 · Library API: founding book (ADR-0621 D1 and D5)" (decision_d23dbdb96a2b)
+- "13 · Decision log" (capability_78d6e026f902)
+  - "13 · Decision log: founding book (13-a)" (decision_9d11b2ad1587)
+- "16 · The command schema" (capability_984398616605)
+  - "The library holds the command schema; each host keeps its mounting code" (decision_7b7672ce4cd5)
+- "29 · Factory and product" (capability_994788b989f5)
+- "21 · Links" (capability_a19bf216935b)
+  - "21 · Links: founding book (proposed, approved with ADR-0644)" (decision_0c5d8fd4535c)
+- "3 · Data schema" (capability_a1d4fadbec3e)
+  - "3 · Data schema: founding book (ADR-0621 D1; ADR-0636 a1)" (decision_5b9ef03b8a42)
+  - "A process's schedule is stored as its words, read by one parser; its last run is an activity-log line" (decision_82ad2af0876b)
+- "15 · Connection by address" (capability_a6d2887aed63)
+  - "A library reached by address takes its password as the `postgres` key, never from the address" (decision_a13bd6993376)
+- "10 · Work in flight" (capability_a7f068502213)
+  - "10 · Work in flight: founding book (10-b)" (decision_5f30662977ae)
+- "22 · Decision corrections" (capability_b7a12a2b7273)
+  - "22 · Decision log: founding book (proposed, approved)" (decision_394cc68a71c6)
+- "6 · Knowledge artifacts" (capability_baaeecb42577)
+  - "ADR-0650: 0.3's library has no memory type, and its knowledge records are called artifacts" (decision_c9ba244fd3d6)
+- "32 · Questions and work" (capability_bad20464da96)
+  - "Questions and work are one part behind one entry file" (decision_9d21691fca99)
+- "31 · Decisions" (capability_c5b8fdaaeea1)
+  - "The decision register is one part behind one entry file" (decision_b674ae602858)
+- "11 · Waits" (capability_d632ff0454c0)
+  - "11 · Waits: founding book (11-b)" (decision_4731de1d51ef)
+  - "A wait can be for the owner or an outside event, with a note; an idle claim does not hide free work" (decision_3a532f9c7d25)
+- "17 · The library's commands" (capability_dce9495fcaed)
+- "4 · Work model" (capability_dd486ffa5b02)
+  - "4 · Work model: founding book (ADR-0621 D2)" (decision_e360a095c406)
+- "35 · The librarian" (capability_e1dd321b2bf0)
+  - "The librarian is one part behind one entry file" (decision_6072aa3d9614)
+- "34 · Project storage" (capability_eb32cc9a47ca)
+  - "Project storage is one part behind one entry file" (decision_b5a627bad7d2)
+- "5 · Health record" (capability_f27ac2abb10b)
+  - "5 · Health record: founding book (ADR-0621 D1 and D5)" (decision_26d8e2e52df5)
+  - "Capability cards say proposed, healthy, unhealthy or untested: proposed is a flag the agent switches off, then CI on main decides health" (decision_a18c5e1d110b)
+- "28 · Shared server" (capability_fed0a0ed238f)
+Open increments naming it:
+- "Library refactor step 1: the picked tree's three sibling cycle sets close before any file moves" (increment_fd1944e53d79)
+Named by:
+- arc "The flaky test "4.50 [memory] an edge planned before an active increment takes a pending retirement or edit like a capability: the live edge stays until the landing, the branch's plan drops or shows it, and the landing applies it through the edge's editor" passes reliably" (arc_00a23ee8b16a)
+- arc "The library's rules live in one place and agree" (arc_015c1620578f)
+- arc "The shared library costs little to read" (arc_0ab31fd59c88)
+- arc "Parked arcs wake on a date by themselves" (arc_0bad01d1f073)
+- arc "Capabilities have a written boundary rule: one is one, not two" (arc_0eabed91c3f3)
+- arc "A rebuild pilot measures whether the library rebuilt from its contracts is leaner and cheaper to change" (arc_16222b0d3ba6)
+- arc "Library test 7.7 asserts only about its own database" (arc_187369431689)
+- arc "Storytree 0.3's own library: its stories and decisions, before cutover" (arc_23442c993f25)
+- arc "Cloud SQL sign-in, kept in the back pocket" (arc_238ac88fdb14)
+- arc "Close the trust-boundary failures found by the Mint security review" (arc_28e67e229273)
+- arc "The flaky test "28.12 every byte a library connection receives, its handshake included, is counted against the reader that asked: the process's named reader, or the one a call runs as; and each connection is named for the process's reader" passes reliably" (arc_37ed560a2182)
+- arc "A machine-wide cache of remote data is always keyed by its source" (arc_3a90a1bdfd1f)
+- arc "No build trusts a certificate of ours: the Mint library's certificate moves to our own machines" (arc_3e97218d0bd3)
+- arc "A one-line field written from a file holds no trailing line break" (arc_40206c289bc0)
+- arc "The app keeps up: no noticeable lag, stale before slow" (arc_4d5ae4174a9c)
+- arc "Friction reports say where they stand: open, routed, resolved or dismissed" (arc_4fc7c2285496)
+- arc "Health you can trust at a glance" (arc_5180ec6f2563)
+- arc "Capability links match the code: inside a story, and through manifests" (arc_51ab04705541)
+- arc "A hosted library connection is a plugin; the base keeps local and Postgres by address" (arc_53fcfd12c686)
+- arc "Waits the owner can read: owner actions and outside events carry a note" (arc_55690068e797)
+- arc "The flaky test "28.5 a library call still refused a connection slot at its wait bound fails with the server's reason" passes reliably" (arc_56a00f5cc370)
+- arc "A factory's own routines: scheduled process records the session manager runs" (arc_58bfeead11d5)
+- arc "What waits on the owner reads the same by voice and at the terminal" (arc_5b91c79742f9)
+- arc "Claims you can trust: increments and capabilities only, measured from evidence" (arc_63fbe8dc3016)
+- arc "Deeper modules where the code keeps changing: the 2026-10-10 architecture review" (arc_6d521663981c)
+- arc "Story-rule checks read only what is reliable" (arc_97e73bc61e82)
+- arc "Capabilities nest as deep as the code's own levels, the library's first" (arc_9e962f8fbb9a)
+- arc "Harden the library: records stay trustworthy and edits can be undone" (arc_a8c8a19ed172)
+- arc "The library's shape is measured, three independent tree proposals are graded, and the owner's pick is refactored and re-measured" (arc_c465ed702824)
+- arc "The health worklist skips capabilities an open increment already lists" (arc_cc984ce0b026)
+- arc "The library's factory-and-product and outside-writer capabilities read tested" (arc_cd60ffc7571c)
+- arc "The flaky test "14.10 · independent processes write one cache concurrently and a fresh process reuses every vector" passes reliably" (arc_ce7179b64644)
+- arc "The arc surface opens fresh in a second: closed arcs read by date, no from-zero history read" (arc_e236b3308422)
+- feedback "feedback_d310e248aaef" (feedback_d310e248aaef)
+Linked from:
+  increment_0394d2ad31f3  [increment]  Capability tree mock, round 6A: a flowchart in the map's clothes
+  increment_0749608d2723  [increment]  show_plan's oversized story view keeps the capability nesting
+  increment_0a1b29857a0d  [increment]  Capability tree mock, round 8: lay territories out by their links (interfaces on the coast), measur…
+  increment_1a8ea22a3038  [increment]  Move storytree's own library to Cloud SQL and connect the Mint box
+  increment_1fabb848b597  [increment]  Background reads are batched: no per-arc or per-session fan-out
+  increment_2d42a416bc46  [increment]  Record the librarian's real links: six capabilities to Library API, and its caller in the MCP server
+  increment_2e7db9a9e5f4  [increment]  Capability tree mock, round 5: no walls; dashed borders that open where a solid road enters
+  increment_355de70ab9c4  [increment]  Stone mock, reworked: one roomy island laid out by dependency, then look-reviewed until it looks ni…
+  increment_3662249ca206  [increment]  A wait for the owner or an outside event, with a note: library and agent tool
+  increment_39784ac109f1  [increment]  Capability tree map, polish round 1 of 3
+  increment_4439b85d3e62  [increment]  Capability tree mock, round 10: shared roads (a network that branches inland, not a ring round the …
+  increment_4eca2c3db966  [increment]  3D mock 1: the real island with drystone walls and stone gates
+  increment_50e61209eaf7  [increment]  The adr commands move to the library core's decision log
+  increment_5847f3d90d9a  [increment]  Capability tree map, polish round 2 of 3
+  increment_5a0cfa824c70  [increment]  Code survey derives links inside a story from imports, and from manifest loads
+  increment_5a6f05cbb8d2  [increment]  Capability tree map, polish round 3 of 3
+  increment_66bc675dc787  [increment]  3D mock 2: the real island with timber fences and farm gates
+  increment_7110371d3553  [increment]  Sea lane options: how links between islands are drawn, joined to the island
+  increment_73cc0eadfed9  [increment]  Island height mock: 9, 5 and 3 units side by side
+  increment_841d720e4fb7  [increment]  Capability tree mock, round 6C: a cartographer's map, free hand
+  increment_879ff3473ba5  [increment]  Friction is its own story, in its own package
+  increment_8c638d03937e  [increment]  Capability tree mock, round 11: quiet roads, open land only at the mouth, wider territories, a litt…
+  increment_b9ef202f2da6  [increment]  Capability tree mock, round 7: links as overlay lines through territories, on the real selected-sto…
+  increment_bb7c95345dec  [increment]  A friction report carries its state, and landing its remedy resolves it
+  increment_bee2b78f94e6  [increment]  3D mock 3: the real island with hedgerows and wooden gates
+  increment_c39e838b0fb8  [increment]  Islands 3 units thick on the sheet; the port without its jetty
+  increment_c624183d629a  [increment]  Research: how storytree's library compares with agent memory systems, and how to harden it
+  increment_d14a67b93b8a  [increment]  Capability tree mock, round 4: walled towns inset in unchanged territories, roads between, one gate…
+  increment_db061d49efb3  [increment]  Capability tree mock, round 6B: a warm circuit-board theme, free hand
+  increment_df83fbf55cf9  [increment]  The librarian is The library's curation tooling, and says so
+  increment_e374d27da66e  [increment]  Capability tree mock, round 13: room round the knot, a network-scored layout, the tree on the map
+  increment_ebb59b22216f  [increment]  Capability tree mock, round 3: the map's own territory shapes, gates between neighbours, corridors …
+  increment_f204c0909030  [increment]  Sea lane mock: a port at the coast, pale-blue shipping lines
+  increment_f402bbeb5051  [increment]  Capability tree mock, round 9: roads to towns (no arrowheads, open land round the island and at the…
+  increment_f97f7874f2c7  [increment]  One live reading per page, starting from what is kept
+  increment_fd40e384c677  [increment]  Retire the increment's ready step: proposal, active, closed

@@ -1,0 +1,12 @@
+Story "The library" (story_754e87e7d531): reported not checked, verified passing
+  Capability "24 · Graduation" (capability_53fd994f7b4c): reported not checked, verified passing; healthy; held by Claude Code 84b4e8a8-ed5a-4efc-b504-bc5a83494f0e: Library refactor step 1: close the picked tree's cycle sets
+    About: Promotes a durable lesson from an agent harness's own memory into a proper kind of library artifact; the memories themselves stay outside the library. Its functions are built and kept, but graduation is not needed for the MVP. (ADR-0650)
+    Decisions: founded on "24 · Graduation: founding book (proposed, approved; 0.2's ADR-0095)" (decision_229b50334c5b, ADR-0696).
+    Contract "24.1 · The worklist lists each memory in the memory folders that is new, changed since it was parked, or parked more than 60 days ago. A memory parked unchanged within its 60 days is not listed." (contract_67e8525ac8c6): reported not checked, verified passing; proved by a test criterion: A test can set memory files new, changed or long parked and check which ones the worklist lists.
+    Contract "24.2 · `park(memory, reason)` keeps the reason, the date and what the memory said when it was parked, beside the memory folder, never in the library." (contract_e20261e11be9): reported not checked, verified passing; proved by a test criterion: A test can park a memory and read the reason, date and content kept beside the memory folder.
+    Contract "24.3 · `graduate(memory, kind, fields)` writes the lesson as a principle, process or definition, and only then deletes the memory. A write the library refuses leaves the memory where it was, and any other kind is refused." (contract_ff73d4bfad9d): reported not checked, verified passing; proved by a test criterion: A test can graduate a memory and check the note written then the file deleted, or kept when refused.
+    Contract "24.4 · The worklist lists each process that names none of the tools served, and each tool served that no process names." (contract_a50db42d7dec): reported not checked, verified passing; proved by a test criterion: A test can compare process texts with the served tools and check the worklist lists each unmatched side.
+  Edge (edge_6480250a132c): "24 · Graduation" depends on "23 · Catalogue"
+  Edge (edge_eae843b746b5): "24 · Graduation" depends on "7 · Library API"
+  Edge (edge_329292e86f34): "24 · Graduation" depends on "21 · Links"
+  Edge (edge_b27dd540479b): "26 · Rounds" depends on "24 · Graduation"

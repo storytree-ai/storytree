@@ -57,3 +57,8 @@ Changes beyond re-pointed imports, for the blind reviewer. Every title, contract
    imported from `./plan-hold.js`, as frozen.
 9. `work/work.test.ts` (32.1, from `work/work.test.ts`): only the comment is dropped; its imports
    (`../testing/pg.js`, `./index.js`, the work entry) already resolve in the new tree.
+10. No test was added beyond the frozen oracle. Two places where the code goes past what a carried test proves,
+    for the blind reviewer: 10.42's amended statement (spec/10.txt: the FYI is skipped only for a question the
+    body and links did not already name) is met by the code (8b914f67, after the code review asked for it), but
+    the frozen 10.42 test does not run the links branch; and `WorkInFlight.releaseOnVerdict` (10.44, 10.45) runs
+    under no test on this branch until the health increment carries item 7's tests.

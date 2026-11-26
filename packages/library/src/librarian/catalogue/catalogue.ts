@@ -1,14 +1,15 @@
 // Capability 23 · Catalogue
-import type { Library, Note, WriteOptions } from "../../index.js";
+import type { Note } from "../../knowledge/index.js";
+import type { WriteOptions } from "../../records/index.js";
 
-import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Reference } from "../notes.js";
+import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Reference, type LibrarianLibrary } from "../notes.js";
 
 export interface NewNote {
   readonly note: Note;
   readonly lookalikes: Note[];
 }
 
-export async function retire(library: Library, id: string, reason: string, writer?: WriteOptions): Promise<void> {
+export async function retire(library: LibrarianLibrary, id: string, reason: string, writer?: WriteOptions): Promise<void> {
   await noteOf(library, id);
   const pointers = (await pointersTo(library)).filter((reference) => reference.to === id);
   if (pointers.length > 0) {
@@ -18,7 +19,7 @@ export async function retire(library: Library, id: string, reason: string, write
   await library.retire(id, reason, writer);
 }
 
-export async function newNotes(library: Library, cursor: number, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<NewNote[]> {
+export async function newNotes(library: LibrarianLibrary, cursor: number, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<NewNote[]> {
   const notes = await read;
   const created = new Set((await library.history({ since: cursor, types: typesOf(notes) })).filter((change) => change.action === "created").map((change) => change.recordId));
   const written = notes.filter((candidate) => created.has(candidate.id));
@@ -45,7 +46,7 @@ export interface MarkedWrite {
 
 const REVIEWED: readonly string[] = ["agent", "principle"];
 
-export async function markedWrites(library: Library, cursor: number): Promise<MarkedWrite[]> {
+export async function markedWrites(library: LibrarianLibrary, cursor: number): Promise<MarkedWrite[]> {
   return (await library.history({ since: cursor, types: REVIEWED })).flatMap((entry) => entry.outsideRead === undefined ? [] : [{
     id: entry.recordId,
     type: entry.type,
@@ -58,7 +59,7 @@ export async function markedWrites(library: Library, cursor: number): Promise<Ma
   }]);
 }
 
-async function pointersTo(library: Library): Promise<Reference[]> {
+async function pointersTo(library: LibrarianLibrary): Promise<Reference[]> {
   const [notes, views] = await Promise.all([allNotes(library), library.arcViews()]);
   const references = notes.flatMap(referencesOf);
   for (const view of views) {

@@ -1,11 +1,12 @@
 // Capability 21 · Links
-import type { Library, Note, Related, SchemaRecord, WriteOptions } from "../../index.js";
+import type { Note, Related } from "../../knowledge/index.js";
+import type { SchemaRecord, WriteOptions } from "../../records/index.js";
 
-import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Reference } from "../notes.js";
+import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Reference, type LibrarianLibrary } from "../notes.js";
 
 const UNLINKED = { friction: "friction", resteer: "a re-steer" } as const;
 
-export async function link(library: Library, from: string, to: string, writer?: WriteOptions, why?: string): Promise<Note | SchemaRecord<"question">> {
+export async function link(library: LibrarianLibrary, from: string, to: string, writer?: WriteOptions, why?: string): Promise<Note | SchemaRecord<"question">> {
   const question = await library.get(from);
   if (question?.type === "question") {
     const links = (question as SchemaRecord<"question">).fields.links ?? [];
@@ -29,7 +30,7 @@ export async function link(library: Library, from: string, to: string, writer?: 
   return linked;
 }
 
-export async function unrestedDecisions(library: Library, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<SchemaRecord<"decision">[]> {
+export async function unrestedDecisions(library: LibrarianLibrary, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<SchemaRecord<"decision">[]> {
   const notes = await read;
   const restedOn = new Set(notes.flatMap((note) => note.fields.links ?? []));
   const accepted = new Set((await library.decisions()).filter(({ status }) => status === "accepted").map(({ record }) => record.id));
@@ -37,7 +38,7 @@ export async function unrestedDecisions(library: Library, read: Promise<readonly
     note.type === "decision" && note.fields.frontCoverOf === undefined && !restedOn.has(note.id) && accepted.has(note.id));
 }
 
-export async function relatedUnlinked(library: Library, cursor: number, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<Related[]> {
+export async function relatedUnlinked(library: LibrarianLibrary, cursor: number, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<Related[]> {
   const notes = await read;
   const written = new Set((await library.history({ since: cursor, types: typesOf(notes) })).map((change) => change.recordId));
   return library.relatedEach(notes.filter((note) => written.has(note.id)).map((note) => note.id), { unlinked: true });
@@ -45,7 +46,7 @@ export async function relatedUnlinked(library: Library, cursor: number, read: Pr
 
 export type BrokenEdge = Reference;
 
-export async function brokenEdges(library: Library, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<BrokenEdge[]> {
+export async function brokenEdges(library: LibrarianLibrary, read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<BrokenEdge[]> {
   const notes = await read;
   const live = new Set(notes.map((note) => note.id));
   const covers = notes.flatMap(frontCoverOf);

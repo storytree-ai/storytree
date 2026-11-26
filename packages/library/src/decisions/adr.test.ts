@@ -7,12 +7,12 @@ import { test, type TestContext } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { VerbRefusal, type DoorWords, type VerbContext } from "../verbs/verb.js";
+import { VerbRefusal, type DoorWords } from "../verbs/verb.js";
 
 import { connect, type Library } from "../index.js";
 import { connect as connectProject } from "../project/index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { LIBRARY_FAMILIES } from "../commands/index.js";
+import { LIBRARY_FAMILIES, type LibraryVerbContext } from "../commands/index.js";
 import { ADR_FAMILY } from "./index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
@@ -37,7 +37,7 @@ test("13.10 · the library declares the `adr` family the command line lists 4th:
   const verbOf = (name: string) => adr.verbs.find((one) => "name" in one.command && one.command.name === name)!;
   const decision = await library.recordDecision({ title: "Mail by queue", text: "Send mail from a queue.", status: "proposed" });
   let asked = 0;
-  const context = { library, project: "p", session: "s", folder, get writer() { asked++; return { actor: "session:s" }; } } as VerbContext;
+  const context = { library, project: "p", session: "s", folder, get writer() { asked++; return { actor: "session:s" }; } } as LibraryVerbContext;
 
   await verbOf("pull").act({ decision: decision.id, out: "adr.md" }, context, WORDS);
   const before = (await library.changesSince(0)).cursor;
@@ -65,7 +65,7 @@ test("13.11 · `adr new --basis brought-across` takes the 0.2 record it points a
   });
   const library = await storytree.openProject(project);
   const create = ADR_FAMILY.verbs.find((one) => "name" in one.command && one.command.name === "new")!;
-  const context = { library, project: "p", session: "s", folder: process.cwd(), writer: { actor: "session:s" } } as VerbContext;
+  const context = { library, project: "p", session: "s", folder: process.cwd(), writer: { actor: "session:s" } } as LibraryVerbContext;
   const decision = { title: "Claims are forced", text: "0.2's claim, carried over.", status: "accepted", basis: "brought-across" };
 
   const { cursor } = await library.changesSince(0);
@@ -94,7 +94,7 @@ async function adrWorld(t: TestContext) {
   });
   const library = await storytree.openProject(project);
   const { records } = await lower.openProject(project);
-  const context = { library, project: "p", session: "s", folder: process.cwd(), writer: { actor: "session:s" } } as VerbContext;
+  const context = { library, project: "p", session: "s", folder: process.cwd(), writer: { actor: "session:s" } } as LibraryVerbContext;
   const verbOf = (name: string) => ADR_FAMILY.verbs.find((one) => "name" in one.command && one.command.name === name)!;
   return { library, records, context, verbOf };
 }
@@ -392,7 +392,7 @@ test("13.27 · decisionLinkChanges and `adr changes` count, per UTC day and in t
   const { library, records, context, verbOf } = await adrWorld(t);
   const a = { actor: "session:s" };
   const b = { actor: "session:t" };
-  const other = { ...context, writer: b } as VerbContext;
+  const other = { ...context, writer: b } as LibraryVerbContext;
   const story = await library.addStory({ title: "Mail" }, a);
   const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." }, a);
   const log = await library.recordDecision({ status: "accepted", title: "Mail is logged", text: "Log it." }, a);

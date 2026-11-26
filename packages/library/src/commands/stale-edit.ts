@@ -1,10 +1,10 @@
 // Capability 17 · The library's commands
-import type { Library, WriteOptions } from "../index.js";
+import type { SchemaRecords, WriteOptions } from "../records/index.js";
 import { VerbRefusal } from "../verbs/verb.js";
 
 export const RECENT_MS = 15 * 60 * 1000;
 
-export async function refuseStaleEdit(library: Pick<Library, "history">, id: string, writer: WriteOptions, read: string | undefined, now = Date.now()): Promise<void> {
+export async function refuseStaleEdit(library: Pick<SchemaRecords, "history">, id: string, writer: WriteOptions, read: string | undefined, now = Date.now()): Promise<void> {
   const seen = read === undefined ? undefined : Number(read);
   if (seen !== undefined && !(Number.isSafeInteger(seen) && seen > 0)) throw new VerbRefusal(`--read is a history entry's seq, a whole number above 0, not ${JSON.stringify(read)}`, { misuse: true });
   const newest = (await library.history({ id })).at(-1);

@@ -2,7 +2,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
+import type { Library } from "../index.js";
 import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
+
+type MediaContext = VerbContext<Library>;
 
 const TYPES: Readonly<Record<string, string>> = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml",
@@ -28,7 +31,7 @@ const attach = verb({
     replace: { kind: "switch", describe: "keep these bytes in place of other bytes already kept under the name" },
   },
   writes: true,
-  async act({ record, file, name, type, replace }, context: VerbContext) {
+  async act({ record, file, name, type, replace }, context: MediaContext) {
     const from = path.resolve(context.folder, file);
     let bytes: Buffer;
     try {
@@ -56,7 +59,7 @@ const list = verb({
   command: { family: "media", name: "list", summary: "the files kept beside a record, with their type, size and hash", usage: "media list <record>" },
   tool: { name: "list_media", description: "The files kept in the library beside a record, by name, with each one's media type, size, SHA-256 and when it was added." },
   inputs: { record: { kind: "text", word: 0, describe: "the record's id" } },
-  async act({ record }, context: VerbContext) {
+  async act({ record }, context: MediaContext) {
     const files = await context.library.media(record);
     if (files.length === 0) return { text: `${record} holds no media.` };
     const lines = files.map((one) => `  ${one.name}  ${one.type}  ${one.size} bytes  ${one.sha256.slice(0, 12)}  added ${one.addedAt.slice(0, 16).replace("T", " ")}${one.addedBy === undefined ? "" : ` by ${one.addedBy}`}`);
@@ -76,7 +79,7 @@ const get = verb({
     name: { kind: "text", word: 1, describe: "the name the file is kept under" },
     out: { kind: "text", describe: "where to save it, a path from this folder" },
   },
-  async act({ record, name, out }, context: VerbContext) {
+  async act({ record, name, out }, context: MediaContext) {
     const file = await context.library.mediaFile(record, name);
     if (file === null) {
       const held = (await context.library.media(record)).map((one) => one.name);
@@ -94,7 +97,7 @@ export const mediaGuidance: readonly string[] = [
   "Keep a file worth keeping in the library: `attach_media` keeps an approved look or an input a build or test reads (never evidence) beside the note that cites it; `list_media` names a note's files and `fetch_media` saves one back.",
 ];
 
-export const MEDIA_FAMILY: VerbFamily = {
+export const MEDIA_FAMILY: VerbFamily<MediaContext> = {
   name: "media",
   summary: "durable media kept beside the records that cite them: attach, list, get",
   order: 3.6,

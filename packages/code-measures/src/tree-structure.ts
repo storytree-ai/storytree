@@ -56,9 +56,23 @@ export interface Reuse {
   readonly share: number | null;
 }
 
+export interface Inversion {
+  readonly parent: string | null;
+  readonly from: string;
+  readonly to: string;
+  readonly fanIn: { readonly from: number; readonly to: number };
+  readonly imports: readonly Boundary[];
+}
+
+export interface OutsideImport {
+  readonly story: string;
+  readonly to: string;
+}
+
 export interface TreeStructure {
   readonly nodes: readonly NodeStructure[];
   readonly cycles: readonly Cycle[];
+  readonly inversions: readonly Inversion[];
   readonly cycleGate: "pass" | "fail";
   readonly depths: readonly Depth[];
   readonly meetDepths: readonly MeetDepth[];
@@ -219,7 +233,7 @@ function stronglyConnected(members: readonly string[], edges: ReadonlyMap<string
   return sets;
 }
 
-export function treeStructureOf(tree: Tree, imports: readonly Import[], exports?: ReadonlyMap<string, readonly string[]>): TreeStructure {
+export function treeStructureOf(tree: Tree, imports: readonly Import[], exports?: ReadonlyMap<string, readonly string[]>, outside: readonly OutsideImport[] = []): TreeStructure {
   const ids = new Set(tree.nodes.map(({ id }) => id));
   const parentOf = new Map(tree.nodes.flatMap(({ id, parent }) => (parent !== undefined && ids.has(parent) ? [[id, parent] as const] : [])));
   const chainOf = (id: string): string[] => {
@@ -254,12 +268,45 @@ export function treeStructureOf(tree: Tree, imports: readonly Import[], exports?
     const parent = parentOf.get(id) ?? null;
     groups.set(parent, [...(groups.get(parent) ?? []), id]);
   }
+  const fanIns = new Map<string, number>();
+  const fanInOf = (id: string): number => {
+    const kept = fanIns.get(id);
+    if (kept !== undefined) return kept;
+    const inside = (node: string): boolean => chains.get(node)!.includes(id);
+    const importers = new Set(owned.flatMap(({ fromNode, toNode }) => (!inside(fromNode) && inside(toNode) ? [fromNode] : [])));
+    const stories = new Set(outside.flatMap(({ story, to }) => {
+      const owner = tree.ownerOf[to];
+      return owner !== undefined && chains.has(owner) && inside(owner) ? [story] : [];
+    }));
+    fanIns.set(id, importers.size + stories.size);
+    return importers.size + stories.size;
+  };
+  const beneath = (from: string, to: string): Boundary[] => {
+    const found = new Map<string, { from: string; to: string; types: Set<string> }>();
+    for (const { fromNode, toNode, mine, sibling, types = [] } of met) {
+      if (mine !== from || sibling !== to) continue;
+      const key = `${fromNode}\u0000${toNode}`;
+      const pair = found.get(key) ?? { from: fromNode, to: toNode, types: new Set<string>() };
+      for (const name of types) pair.types.add(name);
+      found.set(key, pair);
+    }
+    return [...found.values()].map(({ from, to, types }) => ({ from, to, types: [...types].sort() })).sort((a, b) => a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
+  };
+
   const cycles: Cycle[] = [];
+  const inversions: Inversion[] = [];
   const level = new Map<string, number>();
   for (const [parent, members] of groups) {
     const sets = stronglyConnected(members, siblingEdges);
     const setOf = new Map(sets.flatMap((set, which) => set.map((id) => [id, which] as const)));
-    for (const set of sets) if (set.length > 1) cycles.push({ parent, members: set });
+    for (const set of sets) {
+      if (set.length < 2) continue;
+      cycles.push({ parent, members: set });
+      for (const from of set) for (const to of siblingEdges.get(from) ?? []) {
+        if (!set.includes(to) || fanInOf(from) <= fanInOf(to)) continue;
+        inversions.push({ parent, from, to, fanIn: { from: fanInOf(from), to: fanInOf(to) }, imports: beneath(from, to) });
+      }
+    }
     const setLevel = new Map<number, number>();
     for (const [which, set] of sets.entries()) {
       let highest = 0;
@@ -352,6 +399,7 @@ export function treeStructureOf(tree: Tree, imports: readonly Import[], exports?
   return {
     nodes,
     cycles,
+    inversions,
     cycleGate: cycles.length === 0 ? "pass" : "fail",
     depths: [...byDepth.values()].sort((a, b) => a.depth - b.depth),
     meetDepths: [...meetCounts].map(([depth, count]) => ({ depth, imports: count })).sort((a, b) => a.depth - b.depth),

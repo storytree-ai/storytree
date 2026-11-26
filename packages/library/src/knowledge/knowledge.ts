@@ -241,11 +241,17 @@ export class Knowledge {
     }
     const written = await this.#records.create(kind, fields as FieldsOf<K>, options);
     if (kind === "research") await this.#offerResearch(written as SchemaRecord<"research">, options);
+    if (kind === "experiment" && (written as SchemaRecord<"experiment">).fields.frozen !== undefined) await this.#offerFrozenPlan(written as SchemaRecord<"experiment">, options);
     return written;
   }
 
   async #offerResearch({ id, fields }: SchemaRecord<"research">, options?: WriteOptions): Promise<void> {
     const fyi = { title: `Research report: ${fields.title}`, what: fields.description, about: id, by: options?.actor ?? "storytree", at: new Date().toISOString() };
+    await this.#records.create("fyi", fyi, options);
+  }
+
+  async #offerFrozenPlan({ id, fields }: SchemaRecord<"experiment">, options?: WriteOptions): Promise<void> {
+    const fyi = { title: `Plan frozen: ${fields.title} (no results yet)`, what: fields.description, about: id, by: options?.actor ?? "storytree", at: new Date().toISOString() };
     await this.#records.create("fyi", fyi, options);
   }
 
@@ -268,8 +274,10 @@ export class Knowledge {
     return refiled;
   }
 
-  editNote(id: string, fields: NoteEdit, options?: EditOptions): Promise<Note | null> {
-    return this.#editNote(id, fields, options, (_stored, edit) => edit);
+  async editNote(id: string, fields: NoteEdit, options?: EditOptions): Promise<Note | null> {
+    const edited = await this.#editNote(id, fields, options, (_stored, edit) => edit);
+    if (edited?.type === "experiment" && "frozen" in fields && fields.frozen !== undefined) await this.#offerFrozenPlan(edited as SchemaRecord<"experiment">, options);
+    return edited;
   }
 
   async #editNote(id: string, fields: NoteEdit, options: EditOptions | undefined, checked: (stored: object, edit: NoteEdit) => NoteEdit): Promise<Note | null> {

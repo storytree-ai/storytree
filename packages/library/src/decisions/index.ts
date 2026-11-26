@@ -3,6 +3,6 @@ export { addedEdges, checkClauseSupersession, checkFrontCover, decisionEdgeTarge
 export type { ArchivedDecisionLink, ArchivedLink, ClauseSupersession, DecisionLinkBacklog, DecisionLinkChanges, DecisionLinkCounts, DecisionLinkDay, DecisionLinkSpan, DecisionNumberPlan, DecisionStatus, DecisionView, NarrowsMove, NewDecision, SupersessionPair, SupersessionPairs } from "./decision-log.js";
 export { annotate, correct } from "./corrections.js";
 export type { Annotation, Correction } from "./corrections.js";
-export { DecisionRefusal, editDecision, recordDecision, supersede } from "./supersede.js";
-export type { Successor } from "./supersede.js";
+export { DecisionRefusal, editDecision, justificationSaid, recordDecision, supersede, supersededLines } from "./supersede.js";
+export type { DecisionLibrary, Successor } from "./supersede.js";
 export { ADR_FAMILY } from "./adr.js";

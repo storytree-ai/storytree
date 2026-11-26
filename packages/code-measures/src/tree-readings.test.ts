@@ -61,3 +61,18 @@ test("5.13 · the printed scorecard's cycle gate line reads pass when no cycle s
   assert.match(gate, /\bpass\b/i);
   assert.doesNotMatch(gate, /\bfail\b/i);
 });
+
+test("5.16 · the printed scorecard's inverted line, under Readings before Guidance, names each inversion under its parent by title with both fan-ins and the imports beneath it with their types, other stories' importers counted", () => {
+  const imports = importsOf(FILES).map((edge) => (edge.from === at("p2/two.ts") ? { ...edge, types: ["Page"] } : edge));
+  const card = (scorecardOf as (input: Parameters<typeof scorecardOf>[0] & { outside?: readonly { story: string; to: string }[] }) => ReturnType<typeof scorecardOf>)({ tree: TREE, units: [], imports, outside: [{ story: "story_other", to: at("p2/two.ts") }] });
+  const inverted = lineOf(readingsOf(scorecardText(card)), /^ {2}inverted\b/);
+  assert.match(inverted, /under 2 · Pages, Second page \(fan-in 2\) → First page \(fan-in 1\)/, "Second page is imported by First page and another story, First page by Second page alone");
+  assert.match(inverted, /Second page → First page: Page/, "the import beneath it with its type");
+  assert.doesNotMatch(inverted, /First page \(fan-in 1\) → Second page/, "the reverse edge, from the less widely imported, is not named");
+});
+
+test("5.16 · the printed scorecard's inverted line reads none when no edge in a sibling cycle runs from the more widely imported sibling", () => {
+  const inverted = lineOf(readingsOf(scorecardText(scorecardOf({ tree: TREE, units: [], imports: importsOf(FILES) }))), /^ {2}inverted\b/);
+  assert.match(inverted, /\bnone\b/, "First page and Second page, in a cycle, are each imported by the other alone");
+  assert.doesNotMatch(inverted, /fan-in/);
+});

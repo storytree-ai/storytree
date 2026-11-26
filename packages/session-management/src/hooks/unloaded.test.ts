@@ -1,6 +1,8 @@
 // Capability 3 · Hooks
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 import * as hookStart from "./at-once.js";
@@ -75,5 +77,33 @@ test("3.66 an unloaded hook refuses nothing without --test-guard, nor a Read, no
     }
     assert.equal(refuse(argv, "not json", missingLibrary), undefined, `${harness}: unreadable input`);
     assert.equal(refuse(argv, "", missingLibrary), undefined, `${harness}: empty input`);
+  }
+});
+
+function hookExit(argv: readonly string[], input: string): { status: number | null; stderr: string } {
+  const script = `const { refuseUnloaded } = await import(${JSON.stringify(new URL("./at-once.ts", import.meta.url).href)}); await refuseUnloaded(Object.assign(new Error(${JSON.stringify(missingLibrary.message)}), { code: "ERR_MODULE_NOT_FOUND" }));`;
+  const run = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script, "storytree-hook.ts", ...argv], { cwd: path.dirname(fileURLToPath(import.meta.url)), input, encoding: "utf8", timeout: 60_000 });
+  return { status: run.status, stderr: run.stderr };
+}
+
+test("3.66 a hook process that cannot load exits 2 with the reason on stderr for an edit under --test-guard, and exits 1 on the failed import for a Read or without the flag", () => {
+  const edit = call("claude-code", "Edit", { file_path: path.join(folder, "src", "cart.ts"), old_string: "a", new_string: "b" }, "builder");
+  const refused = hookExit(["claude-code", "--test-guard", "by-agent"], edit);
+  assert.equal(refused.status, 2, refused.stderr);
+  assert.ok(refused.stderr.includes(missingLibrary.message), refused.stderr);
+  assert.match(refused.stderr, /test guard could not load/i);
+
+  const codex = hookExit(["codex", "--test-guard", "by-agent"], call("codex", "apply_patch", patch, "builder"));
+  assert.equal(codex.status, 2, codex.stderr);
+  assert.ok(codex.stderr.includes(missingLibrary.message), codex.stderr);
+
+  for (const [what, argv, input] of [
+    ["a Read", ["claude-code", "--test-guard", "by-agent"], call("claude-code", "Read", { file_path: path.join(folder, "src", "cart.ts") }, "builder")],
+    ["no flag", ["claude-code"], edit],
+  ] as const) {
+    const through = hookExit(argv, input);
+    assert.equal(through.status, 1, `${what}: ${through.stderr}`);
+    assert.ok(through.stderr.includes(missingLibrary.message), `${what}: the failed import is rethrown: ${through.stderr}`);
+    assert.doesNotMatch(through.stderr, /test guard could not load/i, what);
   }
 });

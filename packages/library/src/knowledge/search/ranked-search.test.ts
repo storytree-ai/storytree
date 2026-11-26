@@ -1,12 +1,12 @@
-// Capability 14 · Ranked search
+// Capability 14 · Search
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { connect } from "../project/index.js";
-import { MemoryTransactions, SchemaRecords } from "../records/index.js";
-import { LIBRARY_SCHEMA } from "../schema/index.js";
-import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { Knowledge, MemoryVectors, type Embedder, type EmbedderSource } from "./index.js";
+import { connect } from "../../project/index.js";
+import { MemoryTransactions, SchemaRecords } from "../../records/index.js";
+import { LIBRARY_SCHEMA } from "../../schema/index.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
+import { Knowledge, MemoryVectors, type Embedder, type EmbedderSource } from "../index.js";
 
 const MEANINGS: Record<string, string> = { email: "mail", mailer: "mail", mail: "mail", sender: "mail", ship: "ship", deploy: "ship", deploys: "ship", release: "ship" };
 const WIDTH = 4096;

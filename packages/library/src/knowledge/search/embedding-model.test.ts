@@ -1,4 +1,4 @@
-// Capability 14 · Ranked search
+// Capability 14 · Search
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { access, mkdir, mkdtemp, writeFile } from "node:fs/promises";

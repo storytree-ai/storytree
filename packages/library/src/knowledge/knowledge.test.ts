@@ -1,4 +1,4 @@
-// Capability 33 · Notes and search
+// Capability 33 · Knowledge
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

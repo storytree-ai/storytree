@@ -1,11 +1,11 @@
-// Capability 14 · Ranked search
+// Capability 14 · Search
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { MemoryTransactions, SchemaRecords } from "../records/index.js";
-import { LIBRARY_SCHEMA } from "../schema/index.js";
-import { withCountedProject } from "../testing/pg.js";
-import { Knowledge } from "./index.js";
+import { MemoryTransactions, SchemaRecords } from "../../records/index.js";
+import { LIBRARY_SCHEMA } from "../../schema/index.js";
+import { withCountedProject } from "../../testing/pg.js";
+import { Knowledge } from "../index.js";
 
 async function exercise(knowledge: Knowledge, records: SchemaRecords): Promise<void> {
   const phrase = "Exact %_\\ 'phrase'";

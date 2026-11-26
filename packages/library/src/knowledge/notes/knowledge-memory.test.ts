@@ -1,14 +1,14 @@
-// Capability 6 · Knowledge artifacts
+// Capability 6 · Notes
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { waitUntil } from "@storytree/test-waits";
 
-import { connect } from "../project/index.js";
-import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type RecordEnvelope, type RecordType, type Transactions } from "../records/index.js";
-import { LIBRARY_SCHEMA, SCHEMA_VERSIONS } from "../schema/index.js";
-import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { Knowledge, type Note } from "./index.js";
+import { connect } from "../../project/index.js";
+import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type RecordEnvelope, type RecordType, type Transactions } from "../../records/index.js";
+import { LIBRARY_SCHEMA, SCHEMA_VERSIONS } from "../../schema/index.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
+import { Knowledge, type Note } from "../index.js";
 
 interface Library {
   readonly knowledge: Knowledge;

@@ -38,7 +38,11 @@ Changes beyond re-pointed imports, for the blind reviewer. Every title, contract
    and the `readAt` helper; the fixtures and helpers these two tests do not use (`WORK`, `TODAY`, `BARE_ARC`, `ASK`,
    `report`, `frictionOf`, `laterThan`, `createInOrder`) are left out. It imports `HealthRecord` from
    `../../health/index.js`, so it does not load until health lands on the held branch: its red run fails on that
-   missing module, expected, not on this increment's code.
+   missing module, expected, not on this increment's code. The health increment waits on this one, so the file
+   came off this branch before landing, to keep the held branch green: 10.44 and 10.45 are carried by the health
+   increment (increment_e37477f2eb48), which copies them as described here (a copy is in this increment's commit
+   887fbdc4, `packages/library-rebuild/src/work/arcs/verdict-release.test.ts`). This increment built the work in
+   flight side they drive, `WorkInFlight.releaseOnVerdict`.
 8. `work/arcs/plan-hold.test.ts` (from `work/plan-hold.test.ts`): the frozen file opened the front door's
    `connect` (`../index.js`) and drove its `Library` (`createArc`, `addStory`, `addCapability`, `addEdge`,
    `addContract`, `addIncrement`, `editIncrement`, `advanceIncrement`, `get`) and passed it to `editPlanRecord` and

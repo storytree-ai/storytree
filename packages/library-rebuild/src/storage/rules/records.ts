@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 
 import { z } from "zod";
 
-import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, Transactions } from "../store/index.js";
+import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, SaveInput, Transactions } from "../store/index.js";
 import { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError, type FieldProblem } from "./errors.js";
 import { LIBRARY_SCHEMA, type FieldsOf, type LibrarySchema, type RecordType } from "./schema.js";
 
@@ -25,6 +25,8 @@ export interface CreateOptions extends WriteOptions {
   readonly id?: string;
 }
 
+export type EditOptions = WriteOptions & { readonly checkCurrent?: (record: SchemaRecord) => void };
+
 type Filter = Omit<ListFilter, "projection">;
 
 export class SchemaRecords {
@@ -37,11 +39,31 @@ export class SchemaRecords {
   }
 
   async create<T extends RecordType>(type: T, fields: FieldsOf<T>, options: CreateOptions = {}): Promise<SchemaRecord<T>> {
+    const saved = await this.#transactions.save(await this.#saving(type, fields, options));
+    return saved as SchemaRecord<T>;
+  }
+
+  async createAll<T extends RecordType>(records: readonly { type: T; fields: FieldsOf<T>; options?: Omit<CreateOptions, "signal"> }[], signal?: AbortSignal): Promise<SchemaRecord<T>[]> {
+    const inputs: SaveInput[] = [];
+    for (const { type, fields, options = {} } of records) inputs.push(await this.#saving(type, fields, options));
+    return (await this.#transactions.saveAll(inputs, signal)) as SchemaRecord<T>[];
+  }
+
+  async #saving(type: RecordType, fields: object, options: CreateOptions): Promise<SaveInput> {
     const shaped = fields as Record<string, unknown>;
     this.check(type, shaped);
     const id = options.id ?? `${type}_${randomBytes(6).toString("hex")}`;
-    const saved = await this.#transactions.save({ id, type, version: this.#schema.versions[type]!, fields: shaped, ...(await writing(options)) });
-    return saved as SchemaRecord<T>;
+    return { id, type, version: this.#schema.versions[type]!, fields: shaped, ...writing(options), ...(await this.#mark(type, options)) };
+  }
+
+  async #mark(type: string | undefined, options: WriteOptions): Promise<Pick<SaveInput, "outsideRead">> {
+    if (options.outsideRead === undefined || type === undefined || !(this.#schema.marked ?? []).includes(type)) return {};
+    const read = [...(await options.outsideRead())];
+    return read.length === 0 ? {} : { outsideRead: () => read };
+  }
+
+  async #typeOf(id: string, options: WriteOptions): Promise<string | undefined> {
+    return options.outsideRead === undefined ? undefined : (await this.#transactions.get(id))?.type;
   }
 
   async get(id: string): Promise<SchemaRecord | null> {
@@ -75,14 +97,17 @@ export class SchemaRecords {
     }) as never;
   }
 
-  async edit(id: string, fields: FieldEdit, options: WriteOptions = {}): Promise<SchemaRecord | null> {
+  async edit(id: string, fields: FieldEdit, options: EditOptions = {}): Promise<SchemaRecord | null> {
     const edited = await this.#transactions.edit({
       id,
       fields,
-      ...(await writing(options)),
+      ...writing(options),
+      ...(await this.#mark(await this.#typeOf(id, options), options)),
       upgrade: (stored) => {
         if (!Object.hasOwn(this.#schema.versions, stored.type)) throw new UnknownTypeError(stored.type, stored.id);
-        return this.current(stored);
+        const current = this.current(stored);
+        options.checkCurrent?.(current);
+        return current;
       },
       validate: (candidate) => this.check(candidate.type as RecordType, candidate.fields),
     });
@@ -90,6 +115,8 @@ export class SchemaRecords {
   }
 
   check(type: RecordType, fields: Record<string, unknown>): void {
+    const refused = this.#schema.refused ?? {};
+    if (Object.hasOwn(refused, type)) throw new SchemaError(type, [{ field: undefined, problem: refused[type]! }]);
     if (!Object.hasOwn(this.#schema.schemas, type)) throw new UnknownTypeError(type);
     const schema = this.#schema.schemas[type]!;
     const shape = schema instanceof z.ZodObject ? schema.shape : {};
@@ -104,7 +131,7 @@ export class SchemaRecords {
       if (issue.code === "unrecognized_keys" && issue.path.length === 0) continue;
       const field = issue.path[0] === undefined ? undefined : String(issue.path[0]);
       const value = field === undefined ? fields : fields[field];
-      if (field !== undefined && value === undefined) {
+      if (!(issue.code === "custom" && issue.params?.["reason"] === true) && field !== undefined && value === undefined) {
         problems.push({ field, problem: `missing required field ${JSON.stringify(field)}` });
       } else {
         const textForList = issue.code === "invalid_type" && issue.expected === "array" && typeof value === "string";
@@ -115,7 +142,7 @@ export class SchemaRecords {
   }
 
   async retire(id: string, reason: string, options: WriteOptions = {}): Promise<void> {
-    await this.#transactions.retire({ id, reason, ...(await writing(options)) });
+    await this.#transactions.retire({ id, reason, ...writing(options), ...(await this.#mark(await this.#typeOf(id, options), options)) });
   }
 
   async history(filter?: HistoryFilter): Promise<HistoryEntry[]> {
@@ -157,13 +184,8 @@ export class SchemaRecords {
   }
 }
 
-async function writing(options: WriteOptions): Promise<{ actor?: string; signal?: AbortSignal; outsideRead?: () => readonly string[] }> {
-  const read = options.outsideRead === undefined ? undefined : await options.outsideRead();
-  return {
-    ...(options.actor === undefined ? {} : { actor: options.actor }),
-    ...(options.signal === undefined ? {} : { signal: options.signal }),
-    ...(read === undefined ? {} : { outsideRead: () => read }),
-  };
+function writing(options: WriteOptions): Omit<WriteOptions, "outsideRead"> {
+  return { ...(options.actor === undefined ? {} : { actor: options.actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) };
 }
 
 function dotted(type: string): boolean {

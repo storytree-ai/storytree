@@ -9,7 +9,7 @@ import type { VectorStore } from "./vectors.js";
 const KNOWLEDGE_KINDS = [
   "principle", "guardrail", "pattern", "process", "agent", "friction", "resteer", "techstack", "check", "research", "experiment", "escape", "drill", "measure",
 ] as const;
-export const NOTE_KINDS = ["decision", "definition", ...KNOWLEDGE_KINDS] as const;
+const NOTE_KINDS = ["decision", "definition", ...KNOWLEDGE_KINDS] as const;
 const PLAN_KINDS = ["story", "capability", "contract", "arc", "increment"] as const;
 const HISTORY_KINDS: readonly string[] = ["resteer", "friction"];
 

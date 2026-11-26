@@ -1,13 +1,13 @@
-// Capability 4 · The plan
+// Capability 10 · Arcs and increments
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { connect } from "../index.js";
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { connect } from "../../index.js";
+import { testServerUrl, uniqueProjectName } from "../../testing/pg.js";
 import * as planHold from "./plan-hold.js";
 import { editPlanRecord } from "./plan-hold.js";
 
-test("4.36 · a plan edit made from a session holding an increment on a branch waits on it as a pending change until its branch merges, the live record unchanged; one made from a session holding none, an increment claimed on no branch or the main line, or to a record the increment planned, is applied live", async (t) => {
+test("10.62 · a plan edit made from a session holding an increment on a branch waits on it as a pending change until its branch merges, the live record unchanged; one made from a session holding none, an increment claimed on no branch or the main line, or to a record the increment planned, is applied live", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {
@@ -48,7 +48,7 @@ test("4.36 · a plan edit made from a session holding an increment on a branch w
   assert.equal(planned && "edited" in planned ? (planned.edited.fields as { description?: string }).description : undefined, "Sent by mail", "one the increment planned is edited live");
 });
 
-test("4.55 · Given another live session claims a capability, directly or on its claimed increment's list, when another session (not a person) adds, edits or retires a contract on it, then the write is refused unwritten, naming the holder and the capability and to wait on its claim; the holder's own write is accepted", async (t) => {
+test("10.64 · Given another live session claims a capability, directly or on its claimed increment's list, when another session (not a person) adds, edits or retires a contract on it, then the write is refused unwritten, naming the holder and the capability and to wait on its claim; the holder's own write is accepted", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {
@@ -104,7 +104,7 @@ test("4.55 · Given another live session claims a capability, directly or on its
   assert.equal(await titleOf(onForm.id), "3.1 · Accepts a postal address");
 });
 
-test("4.56 · Given another live session claims a capability, directly or on its claimed increment's list, when another session (not a person) edits a contract to move it onto that capability (its capability, or an edge whose from is it), then the edit is refused unwritten, naming the holder and the capability and to wait on its claim; the holder's own move is accepted", async (t) => {
+test("10.65 · Given another live session claims a capability, directly or on its claimed increment's list, when another session (not a person) edits a contract to move it onto that capability (its capability, or an edge whose from is it), then the edit is refused unwritten, naming the holder and the capability and to wait on its claim; the holder's own move is accepted", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {

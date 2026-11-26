@@ -1,13 +1,13 @@
-// Capability 4 · The plan
+// Capability 10 · Arcs and increments
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { connect } from "../project/index.js";
-import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type SchemaRecord, type Transactions } from "../records/index.js";
-import { LIBRARY_SCHEMA } from "../schema/index.js";
-import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { WorkModel } from "../plan/index.js";
-import { WorkInFlight } from "./index.js";
+import { connect } from "../../project/index.js";
+import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type SchemaRecord, type Transactions } from "../../records/index.js";
+import { LIBRARY_SCHEMA } from "../../schema/index.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
+import { WorkModel } from "../../plan/index.js";
+import { WorkInFlight } from "../index.js";
 
 interface Library {
   readonly work: WorkModel;
@@ -67,7 +67,7 @@ for (const backend of [memory, postgres]) {
       }
     });
   };
-  contract("4.28", "an active increment takes a pending change to a story, capability or contract it did not plan, leaving the live record alone; a second change merges; one another open increment holds is refused naming it", async ({ work, flight, records, transactions }) => {
+  contract("10.54", "an active increment takes a pending change to a story, capability or contract it did not plan, leaving the live record alone; a second change merges; one another open increment holds is refused naming it", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
@@ -109,7 +109,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.pendChange("increment_000000000000", { record: form.id, retire: "x" }), null);
   });
 
-  contract("4.29", "an increment's branch reads the plan with its pending changes laid over, every other reader the live plan; a pending change whose record has changed since it was read is named stale with the entry that moved it", async ({ work, flight, transactions }) => {
+  contract("10.55", "an increment's branch reads the plan with its pending changes laid over, every other reader the live plan; a pending change whose record has changed since it was read is named stale with the entry that moved it", async ({ work, flight, transactions }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const other = await work.addStory({ title: "Visitor can sign in" });
@@ -147,7 +147,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.stalePending("increment_000000000000"), null);
   });
 
-  contract("4.30", "pending changes apply through the editors when the increment lands, marked with the pull request; stale or refused ones are parked as residue on its arc; applying again applies nothing twice", async ({ work, flight, records, transactions }) => {
+  contract("10.56", "pending changes apply through the editors when the increment lands, marked with the pull request; stale or refused ones are parked as residue on its arc; applying again applies nothing twice", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "1 · Email form", story: story.id });
@@ -185,7 +185,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.applyPending("increment_000000000000", "#41"), null);
   });
 
-  contract("4.30", "a landed close applies the pending changes first; a change already applied under the same mark, as after a crash part-way, counts as applied, not stale", async ({ work, flight, records }) => {
+  contract("10.56", "a landed close applies the pending changes first; a change already applied under the same mark, as after a crash part-way, counts as applied, not stale", async ({ work, flight, records }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
@@ -203,7 +203,7 @@ for (const backend of [memory, postgres]) {
     assert.equal((await flight.arcView(arc.id))?.increments.length, 1, "no residue: the half-applied change was already applied");
   });
 
-  contract("4.30", "a second change pended to a record on top of the increment's own earlier apply applies at the next merge, not counted applied while the record stays as it was", async ({ work, flight, records }) => {
+  contract("10.56", "a second change pended to a record on top of the increment's own earlier apply applies at the next merge, not counted applied while the record stays as it was", async ({ work, flight, records }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "1 · Email form", story: story.id });
@@ -218,7 +218,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(((await records.get(form.id)) as SchemaRecord<"capability">).fields.title, "1 · Address and name form", "the second change applied");
   });
 
-  contract("4.34", "an apply cut off part-way, as a hook's deadline cuts it, leaves pending only the changes it had not applied; the gate reads none it applied as stale, and the next apply finishes the rest", async ({ work, flight, records }) => {
+  contract("10.60", "an apply cut off part-way, as a hook's deadline cuts it, leaves pending only the changes it had not applied; the gate reads none it applied as stale, and the next apply finishes the rest", async ({ work, flight, records }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "1 · Email form", story: story.id });
@@ -253,7 +253,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(((await records.get(increment.id)) as SchemaRecord<"increment">).fields.pending, undefined, "nothing is left pending");
   });
 
-  contract("4.30", "a live write since a pending edit was read stales it only when it moved a field the edit sets: marking the capability built leaves its pending description to apply at the landing", async ({ work, flight, records, transactions }) => {
+  contract("10.56", "a live write since a pending edit was read stales it only when it moved a field the edit sets: marking the capability built leaves its pending description to apply at the landing", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id, description: "Where they type it" });
@@ -278,7 +278,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(((await records.get(form.id)) as SchemaRecord<"capability">).fields.description, "Typed elsewhere", "never applied over the newer value");
   });
 
-  contract("4.31", "an increment closed failed or withdrawn drops its pending changes, its history saying so, and the live plan is left as it was", async ({ work, flight, records, transactions }) => {
+  contract("10.57", "an increment closed failed or withdrawn drops its pending changes, its history saying so, and the live plan is left as it was", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
@@ -293,7 +293,7 @@ for (const backend of [memory, postgres]) {
     }
   });
 
-  contract("4.33", "an open increment drops one pending change by its record, with a reason, its history saying so and the live plan left as it was; a record it holds no change for, or a closed increment, is refused with nothing written", async ({ work, flight, records, transactions }) => {
+  contract("10.59", "an open increment drops one pending change by its record, with a reason, its history saying so and the live plan left as it was; a record it holds no change for, or a closed increment, is refused with nothing written", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
@@ -321,7 +321,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(await flight.dropPending("increment_000000000000", form.id, "x"), null);
   });
 
-  contract("4.35", "a pending edit to a plugin's story, capability or contract is refused before it is staged, naming the plugin's plan file, with nothing written, while another story's record still pends", async ({ work, flight, records, transactions }) => {
+  contract("10.61", "a pending edit to a plugin's story, capability or contract is refused before it is staged, naming the plugin's plan file, with nothing written, while another story's record still pends", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc(ARC);
     const plugin = await work.importPluginPlan("voice", {
       story: { title: "Voice" },
@@ -346,7 +346,7 @@ for (const backend of [memory, postgres]) {
     assert.ok(await flight.pendChange(later.id, { record: form.id, fields: { description: "Where they type it" } }), "another story's record still pends");
   });
 
-  contract("4.50", "an edge planned before an active increment takes a pending retirement or edit like a capability: the live edge stays until the landing, the branch's plan drops or shows it, and the landing applies it through the edge's editor", async ({ work, flight, records, transactions }) => {
+  contract("10.63", "an edge planned before an active increment takes a pending retirement or edit like a capability: the live edge stays until the landing, the branch's plan drops or shows it, and the landing applies it through the edge's editor", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });
@@ -381,7 +381,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await work.dependsOn(link.id), [mail.id]);
   });
 
-  contract("4.32", "settling closed increments' leftover pending changes applies those of each that landed and drops those of each that did not, and finds nothing the second time", async ({ work, flight, records, transactions }) => {
+  contract("10.58", "settling closed increments' leftover pending changes applies those of each that landed and drops those of each that did not, and finds nothing the second time", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });
     const form = await work.addCapability({ title: "Email form", story: story.id });

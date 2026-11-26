@@ -5,10 +5,9 @@ import { isDeepStrictEqual } from "node:util";
 
 import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type Storytree, type WriteOptions } from "../index.js";
 import { PR_CUTOVER_ID } from "../plan/index.js";
-import { editPlanRecord, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, refuseHeldPlanWrite, type PlanEdit } from "../work/index.js";
+import { editPlanRecord, FYI_FAMILY, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, refuseHeldPlanWrite, type PlanEdit } from "../work/index.js";
 import { fieldValue, verb, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamily, type VerbInputs } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
-import { FYI_FAMILY } from "./fyi.js";
 import { MEDIA_FAMILY } from "./media.js";
 export { mediaGuidance } from "./media.js";
 import { ADR_FAMILY, editDecision, justificationSaid, recordDecision, supersededLines } from "../decisions/index.js";

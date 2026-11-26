@@ -1,13 +1,13 @@
-// Capability 11 · Waits
+// Capability 10 · Arcs and increments
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { connect } from "../project/index.js";
-import { MemoryTransactions, MissingReferenceError, SchemaRecords, type Transactions } from "../records/index.js";
-import { LIBRARY_SCHEMA } from "../schema/index.js";
-import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { WorkModel } from "../plan/index.js";
-import { WaitLoopError, WorkInFlight } from "./index.js";
+import { connect } from "../../project/index.js";
+import { MemoryTransactions, MissingReferenceError, SchemaRecords, type Transactions } from "../../records/index.js";
+import { LIBRARY_SCHEMA } from "../../schema/index.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
+import { WorkModel } from "../../plan/index.js";
+import { WaitLoopError, WorkInFlight } from "../index.js";
 
 interface Library {
   readonly work: WorkModel;
@@ -68,7 +68,7 @@ for (const backend of [memory, postgres]) {
     });
   };
 
-  contract("11.1", "an increment wait holds until the blocker closes as landed; a failed, withdrawn or missing blocker holds for good", async ({ work, flight, records }) => {
+  contract("10.48", "an increment wait holds until the blocker closes as landed; a failed, withdrawn or missing blocker holds for good", async ({ work, flight, records }) => {
     const arc = await flight.createArc({ title: "Sign-up", ...ARC });
     const other = await flight.createArc({ title: "Mail", ...ARC });
     const waiter = await flight.addIncrement({ arc: arc.id, title: "Welcome email", ...WORK });
@@ -103,7 +103,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await flight.waitHolds(waiter.id)).map(({ on }) => on), [bounces, domain]);
   });
 
-  contract("11.2", "an arc wait holds until that arc closes", async ({ work, flight }) => {
+  contract("10.49", "an arc wait holds until that arc closes", async ({ work, flight }) => {
     const launch = await flight.createArc({ title: "Launch", ...ARC });
     const mail = await flight.createArc({ title: "Mail", ...ARC });
     await flight.addWait(launch.id, mail.id, "launch needs mail");
@@ -124,7 +124,7 @@ for (const backend of [memory, postgres]) {
 
 
 
-  contract("11.4", "waitHolds(id) returns the blockers still holding, each with its reason", async ({ work, flight }) => {
+  contract("10.50", "waitHolds(id) returns the blockers still holding, each with its reason", async ({ work, flight }) => {
     const arc = await flight.createArc({ title: "Sign-up", ...ARC });
     const waiter = await flight.addIncrement({ arc: arc.id, title: "Form", ...WORK });
     assert.deepEqual(await flight.waitHolds(waiter.id), [], "no waits, nothing holds");
@@ -137,7 +137,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await flight.waitHolds("increment_000000000000"), [], "nothing holds what does not exist");
   });
 
-  contract("11.5", "holds() answers every arc's and open increment's holds in one reading, as waitHolds and heldOnQuestion do", async ({ work, flight }) => {
+  contract("10.51", "holds() answers every arc's and open increment's holds in one reading, as waitHolds and heldOnQuestion do", async ({ work, flight }) => {
     const mail = await flight.createArc({ title: "Mail", ...ARC });
     const launch = await flight.createArc({ title: "Launch", ...ARC });
     await flight.addWait(launch.id, mail.id, "launch needs mail");
@@ -159,7 +159,7 @@ for (const backend of [memory, postgres]) {
   });
 
 
-  contract("11.6", "an increment's wait for the owner holds until cleared, an outside event's until its check-back day, then reads passed", async ({ work, flight }) => {
+  contract("10.52", "an increment's wait for the owner holds until cleared, an outside event's until its check-back day, then reads passed", async ({ work, flight }) => {
     const arc = await flight.createArc({ title: "Installer", ...ARC });
     const install = await flight.addIncrement({ arc: arc.id, title: "Real install", ...WORK });
     const day = (offset: number): string => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
@@ -181,7 +181,7 @@ for (const backend of [memory, postgres]) {
     assert.equal((await flight.holds()).waitsFor?.[install.id], undefined);
   });
 
-  contract("11.12", "an increment waits on a capability's claim: it holds only while a live session holds that capability, and an increment wait still holds until its blocker lands", async ({ work, flight }) => {
+  contract("10.53", "an increment waits on a capability's claim: it holds only while a live session holds that capability, and an increment wait still holds until its blocker lands", async ({ work, flight }) => {
     const arc = await flight.createArc({ title: "Speed", ...ARC });
     const story = await work.addStory({ title: "Visitor sees the arcs" });
     const surface = await work.addCapability({ title: "Arc surface", story: story.id });

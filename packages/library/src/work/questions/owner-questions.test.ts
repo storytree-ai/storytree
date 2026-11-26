@@ -1,14 +1,14 @@
-// Capability 12 · Owner questions
+// Capability 12 · Owner's inbox
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { Knowledge } from "../knowledge/index.js";
-import { connect } from "../project/index.js";
-import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type Transactions } from "../records/index.js";
-import { LIBRARY_SCHEMA } from "../schema/index.js";
-import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { WorkModel } from "../plan/index.js";
-import { RetireRefusedError, WorkInFlight } from "./index.js";
+import { Knowledge } from "../../knowledge/index.js";
+import { connect } from "../../project/index.js";
+import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type Transactions } from "../../records/index.js";
+import { LIBRARY_SCHEMA } from "../../schema/index.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
+import { WorkModel } from "../../plan/index.js";
+import { RetireRefusedError, WorkInFlight } from "../index.js";
 
 interface Library {
   readonly work: WorkModel;

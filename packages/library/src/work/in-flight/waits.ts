@@ -1,5 +1,5 @@
-// Capability 11 · Waits
-import { type FieldsOf, liveRecord, type SchemaRecords } from "../records/index.js";
+// Capability 10 · Arcs and increments
+import { type FieldsOf, liveRecord, type SchemaRecords } from "../../records/index.js";
 
 export interface Hold {
   readonly on: string;

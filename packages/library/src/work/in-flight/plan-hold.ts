@@ -1,8 +1,8 @@
-// Capability 4 · The plan
-import type { SchemaRecord, SchemaRecords, WriteOptions } from "../records/index.js";
+// Capability 10 · Arcs and increments
+import type { SchemaRecord, SchemaRecords, WriteOptions } from "../../records/index.js";
 import type { PendingChange, PlanChange } from "./pending-changes.js";
 import type { WorkInFlight } from "./work-in-flight.js";
-import type { WorkModel } from "../plan/index.js";
+import type { WorkModel } from "../../plan/index.js";
 
 export type PlanEditors = Pick<SchemaRecords, "get">
   & Pick<WorkModel, "editStory" | "editCapability" | "editContract" | "editEdge">

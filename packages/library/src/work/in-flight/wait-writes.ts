@@ -1,5 +1,5 @@
-// Capability 10 · Work in flight
-import { byCreation, checkReference, type FieldsOf, liveRecord, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
+// Capability 10 · Arcs and increments
+import { byCreation, checkReference, type FieldsOf, liveRecord, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../records/index.js";
 import type { Wait, WaitFor } from "./waits.js";
 
 export class WaitLoopError extends Error {

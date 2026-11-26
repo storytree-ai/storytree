@@ -1,5 +1,6 @@
 // Capability 26 · Rounds
-import type { Library, WriteOptions } from "../../index.js";
+import type { WriteOptions } from "../../records/index.js";
+import type { LibrarianLibrary } from "../notes.js";
 import type { z } from "zod";
 
 interface ActivityLine {
@@ -18,7 +19,7 @@ interface LineAsk {
 }
 
 export interface ToolCall {
-  readonly library: Library;
+  readonly library: LibrarianLibrary;
   readonly log: { lines(project: string, filter: LineAsk): Promise<readonly ActivityLine[]> };
   readonly project: string;
   readonly caller: { readonly session: string; readonly harness?: string };

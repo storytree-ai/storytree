@@ -104,6 +104,13 @@ each resting on today's code in a way the refactor removes:
    domain. The refactor gives each command family the narrow interface it reads (a port its own domain
    declares, which `Library` satisfies). It also moves the holding-lines helpers (`HeldClaim`) out of the
    command registry into the kit. Any tree inherits this cycle until that is done. Today's tree has it too.
+   *Measured and closed later (steps 1 and 1b, 2026-11-26).* With the kit inside Commands the loop could
+   not close: Commands gathers the note, decision and work families, and they are built with the kit. On
+   the owner's answer to question_0532c9726e32 the kit left Commands for the top level as a lean
+   "Commands protocol" (`verbs/verb.ts`, shape only). Its write routing went to Shared library
+   (`project/where.ts`); `HeldClaim` and the holding lines went to Notes, the decision lines to
+   Decisions, not into the protocol; `elsewhere.ts` and `stale-edit.ts` went to Notes; the saved-query
+   engine (`data-questions.ts`) went to the front door. The cycle gate then names this set no more.
 2. *The plan and Records.* One barrel edge: `schema/index.ts` re-exports `story-survey.ts`. The refactor
    re-exports it from the plan's own entry.
 3. *Opening a project and Reaching a shared library.* One type: `address.ts` and `outside-writer.ts`

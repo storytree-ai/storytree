@@ -1,10 +1,11 @@
 // Capability 26 · Rounds
-import type { Library, Related, SchemaRecord } from "../../index.js";
+import type { Related } from "../../knowledge/index.js";
+import type { SchemaRecord } from "../../records/index.js";
 
 import { markedWrites, newNotes, type MarkedWrite, type NewNote } from "../catalogue/index.js";
 import { memoryWorklist, processGaps, type MemoryItem, type ProcessGaps } from "../graduation/index.js";
 import { brokenEdges, relatedUnlinked, unrestedDecisions, type BrokenEdge } from "../links/index.js";
-import { allNotes } from "../notes.js";
+import { allNotes, type LibrarianLibrary } from "../notes.js";
 
 export const CURATED: readonly string[] = ["decision", "question", "principle", "guardrail", "pattern", "process", "definition", "agent"];
 
@@ -45,14 +46,14 @@ export interface Worklist {
   readonly plugins?: PluginGuidance[];
 }
 
-export async function roundDue(library: Library, { since, pluginKinds }: { since?: number; pluginKinds?: readonly string[] }): Promise<RoundDue> {
+export async function roundDue(library: LibrarianLibrary, { since, pluginKinds }: { since?: number; pluginKinds?: readonly string[] }): Promise<RoundDue> {
   const plugins = pluginKinds === undefined ? {} : { plugins: await pluginsDue(library, since, pluginKinds) };
   if (since === undefined) return { graduation: true, rest: true, ...plugins };
   const curated = await library.history({ since, types: CURATED, oldest: 1 });
   return { graduation: true, rest: curated.length > 0, ...plugins };
 }
 
-async function pluginsDue(library: Library, since: number | undefined, pluginKinds: readonly string[]): Promise<string[]> {
+async function pluginsDue(library: LibrarianLibrary, since: number | undefined, pluginKinds: readonly string[]): Promise<string[]> {
   const due: string[] = [];
   for (const [plugin, kinds] of byPlugin(pluginKinds)) {
     if (since === undefined || (await library.history({ since, types: kinds, oldest: 1 })).length > 0) due.push(plugin);
@@ -69,7 +70,7 @@ function byPlugin(pluginKinds: readonly string[]): Map<string, string[]> {
   return plugins;
 }
 
-async function pluginGuidance(library: Library, due: readonly string[], pluginKinds: readonly string[]): Promise<PluginGuidance[]> {
+async function pluginGuidance(library: LibrarianLibrary, due: readonly string[], pluginKinds: readonly string[]): Promise<PluginGuidance[]> {
   if (due.length === 0) return [];
   const records = [...(await library.list("process")), ...(await library.list("agent"))] as SchemaRecord<"process" | "agent">[];
   const kindsOf = byPlugin(pluginKinds);
@@ -82,7 +83,7 @@ async function pluginGuidance(library: Library, due: readonly string[], pluginKi
   });
 }
 
-export async function worklist(library: Library, options: WorklistOptions): Promise<Worklist> {
+export async function worklist(library: LibrarianLibrary, options: WorklistOptions): Promise<Worklist> {
   const phase = async (name: string): Promise<void> => options.progress?.(name);
   await phase("graduation");
   const graduation = await memoryWorklist(options.memoryFolders ?? [], options.now === undefined ? {} : { now: options.now });

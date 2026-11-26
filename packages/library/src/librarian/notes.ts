@@ -1,5 +1,17 @@
 // Capability 35 · The librarian
-import { referenceEdgesOf, type Library, type Note } from "../index.js";
+import type { DecisionLibrary } from "../decisions/index.js";
+import { referenceEdgesOf, type Knowledge, type Note } from "../knowledge/index.js";
+import type { SchemaRecord, SchemaRecords, WriteOptions } from "../records/index.js";
+
+export interface LibrarianLibrary
+  extends Pick<Knowledge, "search" | "searchEach" | "editNote" | "defineTerm" | "writeKnowledge" | "relatedEach">,
+    Pick<DecisionLibrary, "inOneWrite" | "decision" | "decisions" | "recordDecision" | "get" | "list">,
+    Pick<SchemaRecords, "history"> {
+  retire(id: string, reason: string, options?: WriteOptions): Promise<void>;
+  editQuestion(id: string, fields: { readonly links?: readonly string[] }, options?: WriteOptions): Promise<SchemaRecord<"question"> | null>;
+  lapsedQuestions(at?: Date): Promise<SchemaRecord<"question">[]>;
+  arcViews(): Promise<readonly { readonly increments: readonly SchemaRecord<"increment">[]; readonly questions: readonly SchemaRecord<"question">[] }[]>;
+}
 
 export class LibrarianRefusal extends Error {
   constructor(message: string) {
@@ -8,7 +20,7 @@ export class LibrarianRefusal extends Error {
   }
 }
 
-export function allNotes(library: Library): Promise<Note[]> {
+export function allNotes(library: Pick<LibrarianLibrary, "search">): Promise<Note[]> {
   return library.search("");
 }
 
@@ -16,7 +28,7 @@ export function typesOf(notes: readonly Note[]): string[] {
   return [...new Set(notes.map((note) => note.type))];
 }
 
-export async function noteOf(library: Library, id: string): Promise<Note> {
+export async function noteOf(library: Pick<LibrarianLibrary, "search">, id: string): Promise<Note> {
   const note = (await allNotes(library)).find((candidate) => candidate.id === id);
   if (note === undefined) throw new LibrarianRefusal(`there is no live note ${id}`);
   return note;

@@ -3,6 +3,8 @@ import type { Library } from "../index.js";
 import { ANSWER_ROWS, type TitleHit } from "./data-questions.js";
 import { verb, VerbRefusal, type VerbContext } from "../verbs/verb.js";
 
+type LibraryContext = VerbContext<Library>;
+
 const SHOWN = 80;
 
 function cut(value: string | null): string {
@@ -21,7 +23,7 @@ export const count = verb({
   command: { family: "library", name: "count", summary: "how many live records of each kind and status, and the arcs with the most open increments", usage: "library count" },
   tool: NOT_A_TOOL,
   inputs: {},
-  async act(_inputs, context: VerbContext) {
+  async act(_inputs, context: LibraryContext) {
     const { kinds, openByArc } = await context.library.counts();
     const width = Math.max(0, ...kinds.map(({ kind }) => kind.length));
     const lines = kinds.map(({ kind, count, statuses }) => `  ${kind.padEnd(width)}  ${count}${statuses.length === 0 ? "" : `: ${statuses.map(({ status, count }) => `${status} ${count}`).join(", ")}`}`);
@@ -42,7 +44,7 @@ export const changes = verb({
     limit: { kind: "text", optional: true, describe: `how many to show, ${ANSWER_ROWS} at most` },
     actor: { kind: "text", optional: true, describe: "a writer, as history names them (session:<id> or person:<name>): every record they wrote, as one diff" },
   },
-  async act({ limit, actor }, context: VerbContext) {
+  async act({ limit, actor }, context: LibraryContext) {
     if (actor !== undefined) {
       if (limit !== undefined) throw new VerbRefusal("--actor shows every record the writer wrote, so it takes no --limit", { misuse: true });
       return writerDiff(actor, context.library);
@@ -89,7 +91,7 @@ export const find = verb({
     words: { kind: "text", word: 0, many: true, optional: true, blank: true, describe: "the title's words, or a decision's number" },
     history: { kind: "switch", describe: "list resteers, friction and superseded decisions too, after current state" },
   },
-  async act({ words, history }, context: VerbContext) {
+  async act({ words, history }, context: LibraryContext) {
     const given = words.flatMap((word) => word.split(/\s+/)).filter((word) => word !== "");
     if (given.length === 0) throw new VerbRefusal("this needs a title's words, or a decision's number", { misuse: true });
     const number = given.length === 1 ? decisionNumber(given[0]!) : undefined;

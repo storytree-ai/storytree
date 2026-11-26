@@ -3,33 +3,24 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type SchemaRecord, type WriteOptions } from "../index.js";
+import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type Storytree, type WriteOptions } from "../index.js";
 import { PR_CUTOVER_ID } from "../plan/index.js";
 import { editPlanRecord, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, refuseHeldPlanWrite, type PlanEdit } from "../work/index.js";
-import { fieldValue, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily } from "../verbs/verb.js";
+import { fieldValue, verb, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamily, type VerbInputs } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { FYI_FAMILY } from "./fyi.js";
 import { MEDIA_FAMILY } from "./media.js";
 export { mediaGuidance } from "./media.js";
-import { ADR_FAMILY, editDecision, recordDecision } from "../decisions/index.js";
+import { ADR_FAMILY, editDecision, justificationSaid, recordDecision, supersededLines } from "../decisions/index.js";
 import { ARTIFACT_KINDS, WRITTEN_KINDS } from "../knowledge/index.js";
-import { attachedTo, partsBeside } from "./notes.js";
+import { attachedTo, everyHolding, holdingLines, labelOf, NOTE_TOOLS as NOTES_TOOLS, partsBeside, recordLines, type HeldClaim, type NoteToolContext as NotesToolContext } from "./notes.js";
 import { LaterWriterError, StaleRevertError } from "../records/index.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
 import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
 export { contextIn, libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
 
-export interface HeldClaim {
-  readonly session: string;
-  readonly increment?: string | undefined;
-  readonly capability?: string | undefined;
-  readonly since: string;
-  readonly branch?: string | undefined;
-  readonly holder?: string | undefined;
-}
-
-export interface LibraryVerbContext extends VerbContext {
+export interface LibraryVerbContext extends VerbContext<Library, Pick<Storytree, "ownDatabase">> {
   claims(): Promise<readonly HeldClaim[]>;
   testedNumbers(capability: string): Promise<{ readonly tested: readonly string[]; readonly untested: readonly string[] }>;
   pluginInFactory?(plugin: string): Promise<boolean>;
@@ -37,12 +28,6 @@ export interface LibraryVerbContext extends VerbContext {
 }
 
 type Fields = Record<string, unknown>;
-
-function labelOf(fields: Readonly<Fields>): string {
-  const title = typeof fields.title === "string" ? fields.title : typeof fields.term === "string" ? fields.term : typeof fields.text === "string" ? fields.text : "";
-  const line = title.split(/\r?\n/, 1)[0] ?? "";
-  return line.length > 100 ? `${line.slice(0, 99)}…` : line;
-}
 
 function fieldsOf(given: Readonly<Record<string, string>>): Fields {
   return Object.fromEntries(Object.entries(given).map(([name, text]) => [name, fieldValue(name === "title" || name === "term" ? text.replace(/\r?\n$/, "") : text)]));
@@ -195,35 +180,6 @@ const phrase = verb({
   },
 });
 
-export interface PhraseHit {
-  readonly record: SchemaRecord<PhraseKind>;
-  readonly title: string;
-  readonly fields: readonly string[];
-}
-
-export async function everyHolding(library: Library, phrase: string, options: { kinds?: readonly PhraseKind[]; fields?: readonly string[] } = {}): Promise<PhraseHit[]> {
-  const hits: PhraseHit[] = [];
-  let after: string | undefined;
-  do {
-    const page = await library.findPhrase(phrase, { ...options, limit: 100, ...(after === undefined ? {} : { after }) });
-    for (const record of page.records) {
-      const fields = Object.entries(record.fields)
-        .filter(([key, value]) => (options.fields === undefined || options.fields.includes(key)) && typeof value === "string" && value.includes(phrase))
-        .map(([key]) => key)
-        .sort();
-      hits.push({ record, title: labelOf(record.fields), fields });
-    }
-    after = page.next;
-  } while (after !== undefined);
-  return hits;
-}
-
-export function holdingLines(phrase: string, hits: readonly PhraseHit[]): string {
-  if (hits.length === 0) return `No record holds ${JSON.stringify(phrase)} exactly.`;
-  const heading = `${hits.length} ${hits.length === 1 ? "record holds" : "records hold"} ${JSON.stringify(phrase)} exactly:`;
-  return [heading, ...hits.map(({ record, title, fields }) => `  ${record.id}  [${record.type}]  ${title}  (${fields.join(", ")})`)].join("\n");
-}
-
 const exact = verb({
   command: {
     family: "library",
@@ -344,11 +300,6 @@ const moveToEdges = verb({
   },
 });
 
-export function justificationSaid(fields: object, target: string, before: string): string {
-  const justification = (fields as { justifications?: Readonly<Record<string, string>> }).justifications?.[target];
-  return justification === undefined ? "" : `${before}${justification.split("\n").join(" / ")}`;
-}
-
 async function decisionLinks(library: Library, record: Stored): Promise<string[]> {
   if (record.type !== "decision") return [];
   const fields = record.fields as Fields;
@@ -363,19 +314,6 @@ function linkingLines(linking: readonly Stored[], id: string): string[] {
   return linking.map((record) => `  ${record.id}  [${record.type}]  ${labelOf(record.fields)}${justificationSaid(record.fields, id, "  ")}`);
 }
 
-export async function supersededLines(library: Library, record: { readonly id: string; readonly type: string }): Promise<string[]> {
-  const view = record.type === "decision" ? await library.decision(record.id) : null;
-  if (view === null) return [];
-  const adrOf = async (id: string): Promise<string> => {
-    const number = ((await library.get(id))?.fields as { readonly number?: unknown } | undefined)?.number;
-    return typeof number === "number" ? `ADR-${String(number).padStart(4, "0")}` : id;
-  };
-  return Promise.all([
-    ...view.supersededBy.map(async (id) => `Superseded by ${await adrOf(id)}`),
-    ...view.supersededInPart.map(async ({ decision, clauses }) => `Superseded in part by ${await adrOf(decision)}${clauses === undefined || clauses.length === 0 ? "" : ` (${clauses.join(", ")})`}`),
-  ]);
-}
-
 async function linkedFromLines(library: Library, record: Stored): Promise<string[]> {
   const linking = await library.linkingIn(record.id);
   return [...(await supersededLines(library, record)), ...(linking.length === 0 ? [] : ["Linked from:", ...linkingLines(linking, record.id)])];
@@ -388,11 +326,9 @@ function idsNamedBy(record: Stored): string[] {
 }
 
 export function wholeRecord(record: Stored): string {
-  const { pending, ...rest } = record.fields as Fields & { pending?: PendingChange[] };
-  const fields = Object.entries(rest).map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`);
+  const { pending } = record.fields as Fields & { pending?: PendingChange[] };
   const held = record.type === "increment" && pending !== undefined && pending.length > 0 ? pendingSaid(pending) : [];
-  const dormant = record.dormant === true ? "  dormant: its plugin is not mounted on this computer" : "";
-  return [`${record.id}  [${record.type}]  schema ${record.version}${dormant}`, `Created: ${record.createdAt}`, `Updated: ${record.updatedAt}`, "", ...fields, ...held].join("\n");
+  return [recordLines(record), ...held].join("\n");
 }
 
 const read = verb({
@@ -704,7 +640,12 @@ const undo = verb({
   },
 });
 
-export { NOTE_TOOLS, type Found, type NoteRead, type NoteToolContext, type Presenter } from "./notes.js";
+export { everyHolding, holdingLines, type Found, type HeldClaim, type NoteRead, type PhraseHit, type Presenter } from "./notes.js";
+export { justificationSaid, supersededLines } from "../decisions/index.js";
+
+export type NoteToolContext = NotesToolContext<Library, Pick<Storytree, "ownDatabase">>;
+
+export const NOTE_TOOLS: readonly Verb<VerbInputs, NoteToolContext>[] = NOTES_TOOLS;
 export { editPlanRecord, heldPending, heldSaid, holdPlanChange, refuseHeldPlanWrite } from "../work/index.js";
 
 export async function bareSaid(library: Library, capability: string | undefined, plan: string): Promise<string> {

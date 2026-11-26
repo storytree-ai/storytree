@@ -7,7 +7,7 @@ import { test } from "node:test";
 
 import type { Library } from "../index.js";
 import { LIBRARY_FAMILIES, type LibraryVerbContext } from "../commands/index.js";
-import type { DoorWords, VerbContext } from "../verbs/verb.js";
+import type { DoorWords } from "../verbs/verb.js";
 
 import { withLibrary } from "../testing/pg.js";
 import { librarianTools, type ToolAnswer, type ToolCall } from "../librarian/index.js";
@@ -118,7 +118,7 @@ test("13.13 a decision superseded by `adr new --supersedes` leaves `adr list --l
   await withLibrary(async (library) => {
     const { capability, cover } = await shelf(library);
     const words: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
-    const context = { library, project: library.name, session: "s", folder: ".", writer: { actor: "session:s" } } as VerbContext;
+    const context = { library, project: library.name, session: "s", folder: ".", writer: { actor: "session:s" } } as LibraryVerbContext;
     const adr = (name: string) => ADR_FAMILY.verbs.find((one) => "name" in one.command && one.command.name === name)!;
 
     await adr("new").act({ title: "Send through Postmark", text: "Postmark replaces Mailgun.", status: "accepted", supersedes: cover.id, why: [`${cover.id}=Postmark replaces Mailgun.`], decided: "2026-11-04" }, context, words);

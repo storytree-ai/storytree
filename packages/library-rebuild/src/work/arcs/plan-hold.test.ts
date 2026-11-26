@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { WorkModel } from "../../plan/index.js";
-import { connect, type Server } from "../../projects/open/index.js";
+import { connect, type Storytree } from "../../projects/open/index.js";
 import { testServerUrl, uniqueProjectName } from "../../testing/pg.js";
 import { WorkInFlight } from "./index.js";
 import * as planHold from "./plan-hold.js";
@@ -151,7 +151,7 @@ test("4.56 · Given another live session claims a capability, directly or on its
   assert.deepEqual(await placeOf(), { capability: form.id, edge: undefined });
 });
 
-async function openLibrary(storytree: Server, name: string) {
+async function openLibrary(storytree: Storytree, name: string) {
   const { records } = await storytree.openProject(name);
   const work = new WorkModel(records);
   const flight = new WorkInFlight(records, work);

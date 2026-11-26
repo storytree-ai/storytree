@@ -345,6 +345,57 @@ for (const backend of [memory, postgres]) {
     await knowledge.writeKnowledge("principle", { title: "A title", description: "One line", statement: "S", why: "W", howToApply: "H" } as never);
     assert.equal((await fyis()).length, 2, "another kind records none");
   });
+
+  contract("6.29", "an experiment written frozen, or edited to freeze it, records one FYI \"Plan frozen: <title> (no results yet)\" about it, by its writer; an unfrozen write, a refused one or the later outcome edit records none", async ({ knowledge, transactions }) => {
+    const fyis = async () => (await transactions.list("fyi")).map(({ fields }) => fields);
+    const experiment = {
+      title: "Twin build of nextjs-vite-rewrite",
+      description: "Does the Map help agents on a long multi-agent build?",
+      arms: [
+        { name: "map-reads-on", description: "The factory as it runs" },
+        { name: "map-reads-off", description: "The factory with Map reads denied" },
+      ],
+      hypotheses: ["Lanes with Map reads spend fewer tokens before their first edit"],
+      measures: ["Tokens per landed increment"],
+      criteria: { helps: "The on arm's pass share rises faster", noHelp: "The curves stay within 5 points", inconclusive: "Either arm stops before 20 merges" },
+      budget: "The owner's subscription",
+      stopRules: ["Stop at 14 days of wall clock"],
+    };
+    const frozen = "2026-10-17T03:00:00.000Z";
+
+    await assert.rejects(knowledge.writeKnowledge("experiment", { ...experiment, frozen, hypotheses: [] }), SchemaError);
+    await assert.rejects(knowledge.writeKnowledge("experiment", { ...experiment, frozen: "next week" } as never), SchemaError);
+    assert.deepEqual(await fyis(), [], "a refused write records no FYI");
+
+    const open = await knowledge.writeKnowledge("experiment", experiment, { actor: "session:lane" });
+    await knowledge.editNote(open.id, { budget: "Two weeks of the subscription" }, { actor: "session:lane" });
+    assert.deepEqual(await fyis(), [], "an unfrozen write or edit records no FYI");
+
+    const written = await knowledge.writeKnowledge("experiment", { ...experiment, title: "Written frozen", frozen }, { actor: "session:lane" });
+    const [fyi, ...more] = await fyis();
+    assert.deepEqual(more, [], "one FYI, not more");
+    assert.deepEqual(
+      { ...fyi, at: undefined },
+      { title: "Plan frozen: Written frozen (no results yet)", what: "Does the Map help agents on a long multi-agent build?", about: written.id, by: "session:lane", at: undefined },
+      "it is about the frozen plan, by its writer, and unheard",
+    );
+    assert.match(String(fyi?.at), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+
+    await knowledge.editNote(open.id, { frozen });
+    const afterFreeze = await fyis();
+    assert.equal(afterFreeze.length, 2, "freezing by an edit records one more");
+    assert.deepEqual(
+      { ...afterFreeze.find(({ about }) => about === open.id), at: undefined },
+      { title: "Plan frozen: Twin build of nextjs-vite-rewrite (no results yet)", what: "Does the Map help agents on a long multi-agent build?", about: open.id, by: "storytree", at: undefined },
+      "an edit with no actor names storytree as its writer",
+    );
+
+    await assert.rejects(knowledge.editNote(open.id, { frozen: "2026-10-18T03:00:00.000Z" }), /frozen/);
+    assert.equal((await fyis()).length, 2, "a refused re-freeze records none");
+    await knowledge.editNote(open.id, { outcome: "Inconclusive: the off arm stopped at 12 merges" }, { actor: "session:lane" });
+    await knowledge.editNote(written.id, { outcome: "The Map helped" });
+    assert.equal((await fyis()).length, 2, "the outcome edit records none");
+  });
 }
 
 for (const backend of [memory, postgres]) {

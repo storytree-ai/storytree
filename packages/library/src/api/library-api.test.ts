@@ -638,6 +638,51 @@ test("7.23 recordFyi keeps what the owner should know with its title, what happe
   });
 });
 
+test("7.31 recordFyi about a research or frozen experiment record replaces its unheard automatic FYI, so one FYI about it stays unheard, the hand-written one; once the automatic one was heard, or for an FYI about anything else, it is added", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const fieldsAbout = async (about: string) => (await lib.unheardFyis()).filter(({ fields }) => fields.about === about).map(({ fields }) => fields);
+
+    const research = await lib.writeKnowledge("research", { title: "Voice engines compared", description: "Three speech engines tried on the box", researched: "2026-11-05", findings: "One is fast enough" });
+    assert.equal((await fieldsAbout(research.id)).length, 1);
+    const onResearch = { title: "hand written", what: "Read the findings before choosing an engine", about: research.id, by: "session:lane", at: "2026-11-06T09:00:00.000Z" };
+    await lib.recordFyi(onResearch, { actor: "session:lane" });
+    assert.deepEqual(await fieldsAbout(research.id), [onResearch], "the hand-written FYI replaces the automatic one");
+
+    const experiment = await lib.writeKnowledge("experiment", {
+      title: "Twin build",
+      description: "Does the Map help agents?",
+      arms: [{ name: "on", description: "Map reads on" }, { name: "off", description: "Map reads off" }],
+      hypotheses: ["Lanes with Map reads spend fewer tokens"],
+      measures: ["Tokens per landed increment"],
+      criteria: { helps: "Fewer tokens", noHelp: "Within 5%", inconclusive: "An arm stops early" },
+      budget: "The owner's subscription",
+      stopRules: ["Stop at 14 days"],
+      frozen: "2026-11-05T03:00:00.000Z",
+    });
+    assert.equal((await fieldsAbout(experiment.id)).length, 1);
+    const onExperiment = { title: "hand written", what: "The plan is frozen; results come in two weeks", about: experiment.id, by: "session:lane", at: "2026-11-06T10:00:00.000Z" };
+    await lib.recordFyi(onExperiment);
+    assert.deepEqual(await fieldsAbout(experiment.id), [onExperiment], "the hand-written FYI replaces the frozen plan's automatic one");
+
+    const heardResearch = await lib.writeKnowledge("research", { title: "Speech engines again", description: "A second look", researched: "2026-11-06", findings: "Still one" });
+    const automatic = (await lib.unheardFyis()).filter(({ fields }) => fields.about === heardResearch.id).map(({ id }) => id);
+    assert.equal(automatic.length, 1);
+    await lib.markFyisHeard(automatic);
+    const afterHeard = { title: "hand written", what: "A second look is in", about: heardResearch.id, by: "session:lane", at: "2026-11-07T09:00:00.000Z" };
+    await lib.recordFyi(afterHeard);
+    assert.deepEqual(await fieldsAbout(heardResearch.id), [afterHeard]);
+    assert.equal((await lib.list("fyi")).filter(({ fields }) => (fields as { about: string }).about === heardResearch.id).length, 2, "after the automatic one was heard, the hand-written one is added beside it");
+
+    const first = { title: "One", what: "A pull request opened", about: "PR #3", by: "watcher", at: "2026-11-07T10:00:00.000Z" };
+    const second = { title: "Two", what: "It went red", about: "PR #3", by: "watcher", at: "2026-11-07T11:00:00.000Z" };
+    await lib.recordFyi(first);
+    await lib.recordFyi(second);
+    assert.deepEqual(await fieldsAbout("PR #3"), [first, second], "an FYI about anything else is added");
+  });
+});
+
 test("7.28 recordPin keeps an agent's pin as a pin record, its anchor on a capability, part, exported name or store, a preset icon, a short label, its evidence, a commit and when; fields that do not fit are refused with nothing written", async () => {
   const name = uniqueProjectName();
   await withStorytree([name], async (storytree) => {

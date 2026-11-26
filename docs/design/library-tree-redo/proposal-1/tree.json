@@ -235,13 +235,14 @@
       "title": "Decisions",
       "parent": "r1-knowledge",
       "files": [
-        "packages/library/src/decisions/adr.ts",
-        "packages/library/src/decisions/corrections.ts",
-        "packages/library/src/decisions/decision-log.ts",
-        "packages/library/src/decisions/index.ts",
-        "packages/library/src/decisions/supersede.ts"
+        "packages/library/src/knowledge/decisions/adr.ts",
+        "packages/library/src/knowledge/decisions/corrections.ts",
+        "packages/library/src/knowledge/decisions/decision-log.ts",
+        "packages/library/src/knowledge/decisions/index.ts",
+        "packages/library/src/knowledge/decisions/supersede.ts",
+        "packages/library/src/knowledge/decisions/schema.ts"
       ],
-      "entry": "packages/library/src/decisions/index.ts",
+      "entry": "packages/library/src/knowledge/decisions/index.ts",
       "schema": [
         "decision",
         "decisionNumbering"

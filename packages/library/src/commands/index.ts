@@ -10,8 +10,7 @@ import { fieldValue, verb, VerbRefusal, type DoorWords, type VerbContext, type V
 import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { MEDIA_FAMILY } from "./media.js";
 export { mediaGuidance } from "./media.js";
-import { ADR_FAMILY, editDecision, justificationSaid, recordDecision, supersededLines } from "../decisions/index.js";
-import { ARTIFACT_KINDS, attachedTo, everyHolding, holdingLines, labelOf, librariesNamed, libraryNamed, narrowedSaid, partsBeside, PROJECT_INPUT, PROJECTS_INPUT, rankedSearch, recordLines, refuseStaleEdit, unopenedSaid, WRITTEN_KINDS, type HeldClaim } from "../knowledge/index.js";
+import { ADR_FAMILY, ARTIFACT_KINDS, attachedTo, editDecision, everyHolding, holdingLines, justificationSaid, labelOf, librariesNamed, libraryNamed, narrowedSaid, partsBeside, PROJECT_INPUT, PROJECTS_INPUT, rankedSearch, recordDecision, recordLines, refuseStaleEdit, supersededLines, unopenedSaid, WRITTEN_KINDS, type HeldClaim } from "../knowledge/index.js";
 import { LaterWriterError, StaleRevertError } from "../records/index.js";
 import { RECORD_SCHEMAS } from "../schema/index.js";
 export { contextIn, libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "../knowledge/index.js";
@@ -642,7 +641,7 @@ const undo = verb({
 });
 
 export { everyHolding, holdingLines, NOTE_TOOLS, type Found, type HeldClaim, type NoteRead, type NoteToolContext, type PhraseHit, type Presenter } from "../knowledge/index.js";
-export { justificationSaid, supersededLines } from "../decisions/index.js";
+export { justificationSaid, supersededLines } from "../knowledge/index.js";
 export { editPlanRecord, heldPending, heldSaid, holdPlanChange, refuseHeldPlanWrite } from "../work/index.js";
 
 export async function bareSaid(library: Library, capability: string | undefined, plan: string): Promise<string> {

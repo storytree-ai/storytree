@@ -11,6 +11,7 @@ export type { FieldsOf, PluginRecordKind, PluginUpgradeStep, RecordType, SchemaR
 export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./storage/store/index.js";
 export type { ConnectOptions, ProjectSnapshot } from "./projects/open/index.js";
 export { ConnectionError, connectionString } from "./projects/shared/index.js";
+export { RetireRefusedError } from "./work/inbox/index.js";
 
 export interface Library extends Pick<WorkModel, "addStory" | "projectTree"> {
   readonly name: string;

@@ -3,7 +3,34 @@ import { isDeepStrictEqual } from "node:util";
 
 import { WorkModel, type ProjectTree } from "../../plan/index.js";
 import { liveOf, MissingReferenceError, referTo, SchemaError, type FieldsOf, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../storage/rules/index.js";
-import { openQuestions, raiseQuestion, recordFyi, retireQuestion, settleQuestion, type NewQuestion, type SettledQuestion, type Settlement } from "../inbox/index.js";
+import {
+  checkQuestion,
+  editQuestion,
+  lapsedQuestions,
+  linkNamedEvidence,
+  moveQuestion,
+  openQuestions,
+  predictQuestion,
+  prepQuestion,
+  questionDeviation,
+  questionPrediction,
+  raiseQuestion,
+  recordFyi,
+  renewQuestion,
+  retireQuestion,
+  retireUnheld,
+  scoreQuestion,
+  settleQuestion,
+  type NewQuestion,
+  type Prep,
+  type QuestionDeviation,
+  type QuestionEdit,
+  type QuestionLease,
+  type Score,
+  type SettledQuestion,
+  type Settlement,
+  type WouldBeAnswer,
+} from "../inbox/index.js";
 import { LifecycleError, WaitLoopError, type IncrementStatus } from "./errors.js";
 import {
   applyPending,
@@ -404,7 +431,56 @@ export class WorkInFlight {
   }
 
   async raiseQuestion(question: NewQuestion, options: WriteOptions = {}): Promise<SchemaRecord<"question">> {
-    return await raiseQuestion(this.#records, question, options);
+    return await raiseQuestion(this.#records, question, options, (arc) => {
+      if (parkedNow(arc.fields, new Date())) throw new RangeError(`${arc.id} is parked, so it takes no question: unpark it (arc unpark ${arc.id}) or raise it on an active arc`);
+    });
+  }
+
+  async checkQuestion(id: string, at: Date = new Date()): Promise<QuestionLease | null> {
+    return await checkQuestion(this.#records, id, at);
+  }
+
+  async renewQuestion(id: string, options: WriteOptions = {}): Promise<SchemaRecord<"question"> | null> {
+    return await renewQuestion(this.#records, id, options);
+  }
+
+  async editQuestion(id: string, fields: QuestionEdit, options: WriteOptions = {}): Promise<SchemaRecord<"question"> | null> {
+    return await editQuestion(this.#records, id, fields, options);
+  }
+
+  async linkNamedEvidence(id: string, options: WriteOptions = {}): Promise<SchemaRecord<"question"> | null> {
+    return await linkNamedEvidence(this.#records, id, options);
+  }
+
+  async moveQuestion(id: string, arc: string, reason: string, options: WriteOptions = {}): Promise<SchemaRecord<"question"> | null> {
+    const question = await liveOf(this.#records, "question", id);
+    const moved = await moveQuestion(this.#records, id, arc, reason, options, async (to) => (await this.arcView(to))?.state);
+    if (moved !== null && question !== null) await this.#release([], [question.fields.arc], options);
+    return moved;
+  }
+
+  async predictQuestion(id: string, answer: WouldBeAnswer, options: WriteOptions = {}): Promise<SchemaRecord<"prediction"> | null> {
+    return await predictQuestion(this.#records, id, answer, options);
+  }
+
+  async questionPrediction(id: string): Promise<SchemaRecord<"prediction"> | null> {
+    return await questionPrediction(this.#records, id);
+  }
+
+  async scoreQuestion(id: string, score: Score, options: WriteOptions = {}): Promise<SchemaRecord<"question"> | null> {
+    return await scoreQuestion(this.#records, id, score, options);
+  }
+
+  async prepQuestion(id: string, prep: Prep, options: WriteOptions = {}): Promise<SchemaRecord<"question"> | null> {
+    return await prepQuestion(this.#records, id, prep, options);
+  }
+
+  async questionDeviation(since: Date): Promise<QuestionDeviation> {
+    return await questionDeviation(this.#records, since);
+  }
+
+  async lapsedQuestions(at: Date = new Date()): Promise<SchemaRecord<"question">[]> {
+    return await lapsedQuestions(this.#records, at);
   }
 
   async settleQuestion(id: string, settlement: Settlement, options: WriteOptions = {}): Promise<SettledQuestion | null> {
@@ -430,6 +506,10 @@ export class WorkInFlight {
     const released = await retireQuestion(this.#records, id, reason, options);
     if (released !== null && question !== null) await this.#release([], [question.fields.arc], options);
     return released;
+  }
+
+  async retire(id: string, reason: string, options: WriteOptions = {}): Promise<void> {
+    await retireUnheld(this.#records, id, reason, options);
   }
 
   async createArc(arc: NewArc, options: WriteOptions & { readonly id?: string } = {}): Promise<SchemaRecord<"arc">> {
@@ -706,6 +786,7 @@ export class WorkInFlight {
       if ((await this.#records.get(id)) === null) throw new MissingReferenceError("links", id, "record");
     }
     for (const id of fields.remedies ?? []) await referTo(this.#records, "remedies", id, "friction");
+    for (const id of fields.heldOn ?? []) await referTo(this.#records, "heldOn", id, "question");
     const escape = fields.escape;
     if (escape !== undefined && escape !== "none") {
       if (escape.causedBy.startsWith("#") && escape.commit === undefined) {

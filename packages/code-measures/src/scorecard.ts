@@ -9,7 +9,7 @@ import { commitOf } from "./read.js";
 import { kindOf } from "./source.js";
 import { planTreeOf, proposedTreeOf, type ProposedNode, type Tree, type TreeNode } from "./tree.js";
 import { refactored, type Refactor, type Retarget, type Split } from "./tree-refactor.js";
-import { exportsOf, importsOf, treeStructureOf, type Import, type TreeStructure } from "./tree-structure.js";
+import { exportsOf, importsOf, treeStructureOf, type Import, type OutsideImport, type TreeStructure } from "./tree-structure.js";
 
 export const MERGE_LIFT = 2;
 export const FAMILY_LIFT = 1;
@@ -55,9 +55,9 @@ function leadsOf(tree: Tree, pairs: readonly Pair[]): Lead[] {
   return leads;
 }
 
-export function scorecardOf({ tree, units, imports, exports, refactor }: { tree: Tree; units: readonly { files: readonly string[] }[]; imports: readonly Import[]; exports?: ReadonlyMap<string, readonly string[]>; refactor?: Refactor }): Scorecard {
+export function scorecardOf({ tree, units, imports, exports, refactor, outside }: { tree: Tree; units: readonly { files: readonly string[] }[]; imports: readonly Import[]; exports?: ReadonlyMap<string, readonly string[]>; refactor?: Refactor; outside?: readonly OutsideImport[] }): Scorecard {
   const shaped = refactor === undefined ? { imports, exports } : refactored(imports, exports, refactor);
-  const structure = treeStructureOf(tree, shaped.imports, shaped.exports);
+  const structure = treeStructureOf(tree, shaped.imports, shaped.exports, outside);
   const pairs = pairsOf(units, tree.ownerOf);
   return {
     nodes: tree.nodes,
@@ -74,7 +74,7 @@ export function scorecardText(card: Scorecard): string {
   const titles = new Map(card.nodes.map(({ id, title }) => [id, title]));
   const title = (id: string | null): string => (id === null ? "the top level" : titles.get(id) ?? id);
   const top = topOf(card.nodes);
-  const { nodes, cycles, cycleGate, depths, meetDepths, boundaries, entries, reuse, splitCandidates, technicalNames, pairs, grouping, unplaced } = card.readings;
+  const { nodes, cycles, inversions, cycleGate, depths, meetDepths, boundaries, entries, reuse, splitCandidates, technicalNames, pairs, grouping, unplaced } = card.readings;
   const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? "" : "s"}`;
   const spread = (name: string, read: Grouping["mq"], shown: (value: number) => string) => `${name} ${shown(read.value)} (mean ${shown(read.mean)}, 95th percentile ${shown(read.p95)} over ${RUNS} random groupings of the same sizes)`;
   const lines = [
@@ -99,6 +99,7 @@ export function scorecardText(card: Scorecard): string {
     ...reuse.map(({ consumer, dependency, used, exported, share }) => `    ${title(consumer)} → ${title(dependency)}: ${used} of ${exported} (${orNone(share, percent)})`),
     `  split       ${splitCandidates.length === 0 ? "no consumer imports under a quarter of a dependency's names" : `candidates, a consumer importing under a quarter of a dependency's names: ${splitCandidates.map(({ consumer, dependency, share }) => `${title(consumer)} of ${title(dependency)} (${orNone(share, percent)})`).join("; ")}`}`,
     `  technical   ${technicalNames.length === 0 ? "no top-level node named for a technical layer" : `top-level nodes named for a technical layer: ${technicalNames.map(({ id, word }) => `${title(id)} (${word})`).join(", ")}`}`,
+    `  inverted    ${inversions.length === 0 ? "none: no edge in a sibling cycle runs from the more widely imported sibling" : `edges in a sibling cycle from the more widely imported sibling, by fan-in: ${inversions.map(({ parent, from, to, fanIn, imports }) => `under ${title(parent)}, ${title(from)} (fan-in ${fanIn.from}) → ${title(to)} (fan-in ${fanIn.to}) [${imports.map((one) => `${title(one.from)} → ${title(one.to)}: ${one.types.length === 0 ? "no types" : one.types.join(", ")}`).join("; ")}]`).join("; ")}`}`,
     `  unplaced    ${unplaced.length === 0 ? "none" : `${unplaced.length} source file${unplaced.length === 1 ? "" : "s"} in no node:`}`,
     ...unplaced.map((file) => `    ${file}`),
     "",
@@ -139,17 +140,25 @@ async function proposalAt(folder: string, file: string): Promise<{ nodes: Propos
 }
 
 export async function scorecardAt({ folder, library, story, proposal }: { readonly folder: string; readonly library: Pick<Library, "projectTree">; readonly story: string; readonly proposal?: string }): Promise<Scorecard> {
-  const { capabilityTreeProject } = await import("@storytree/map/read");
-  const plan = await library.projectTree();
+  const [{ branchPlan }, { codeSurveyReader, packageOf, surveyCodeName }] = await Promise.all([import("@storytree/map/read"), import("@storytree/map/code-survey")]);
+  const plan = await branchPlan(library, folder);
   const found = plan.stories.find((one) => one.id === story || one.title.toLowerCase() === story.toLowerCase());
   if (found === undefined) throw new VerbRefusal(`No story "${story}": give a story's id or its title.`, { misuse: true });
-  const surveyed = await capabilityTreeProject(library, folder, found.id);
-  const parentOf = new Map(found.capabilities.flatMap(({ id, parent }) => (parent === undefined ? [] : [[id, parent] as const])));
-  const isSource = (file: { path: string }): boolean => kindOf({ path: file.path, text: "" }) === "source";
+  const survey = await codeSurveyReader({ checkout: "current", codeName: () => surveyCodeName() }).read(folder, plan);
+  const read = survey[found.id];
+  const pathname = (file: string): string => read?.mapped !== undefined
+    ? `${read.mapped.folder.replaceAll("\\", "/").replace(/\/$/, "")}/${file}`
+    : path.posix.normalize(`packages/${packageOf(found)}/${file}`.replaceAll("\\", "/"));
+  const isSource = (file: string): boolean => kindOf({ path: file, text: "" }) === "source";
   const planned = planTreeOf(
-    surveyed.capabilities.map(({ id, title }) => ({ id, title, ...(parentOf.has(id) ? { parent: parentOf.get(id)! } : {}) })),
-    [...surveyed.capabilities.flatMap(({ id, files }) => files.map((file) => ({ path: file.path, capability: id }))), ...surveyed.unclaimed.map((file) => ({ path: file.path }))].filter(isSource),
+    found.capabilities.map(({ id, title, parent }) => ({ id, title, ...(parent === undefined ? {} : { parent }) })),
+    [...found.capabilities.map(({ id }) => id), undefined].flatMap((capability) => (read?.files ?? [])
+      .filter((file) => file.capability === capability)
+      .map((file) => ({ path: pathname(file.path), ...(capability === undefined ? {} : { capability }) }))).filter((file) => isSource(file.path)),
   );
+  const outside = plan.stories.filter(({ id }) => id !== found.id).flatMap(({ id }) => (survey[id]?.edges ?? [])
+    .filter((edge) => edge.story === found.id)
+    .flatMap((edge) => edge.files.flatMap((file) => (file.to === undefined ? [] : [{ story: id, to: pathname(file.to) }]))));
   const proposed = proposal === undefined ? undefined : await proposalAt(folder, proposal);
   const tree = proposed === undefined ? planned : proposedTreeOf(proposed, planned);
   const paths = [...Object.keys(planned.ownerOf), ...planned.unplaced];
@@ -157,5 +166,5 @@ export async function scorecardAt({ folder, library, story, proposal }: { readon
     Promise.all(paths.map(async (file) => ({ path: file, text: await readFile(path.join(folder, file), "utf8").catch(() => "") }))),
     commitOf(folder, undefined).then((commit) => readCoChange(folder, commit)),
   ]);
-  return scorecardOf({ tree, units: history.kept, imports: importsOf(files), exports: exportsOf(files), ...(proposed === undefined ? {} : { refactor: proposed }) });
+  return scorecardOf({ tree, units: history.kept, imports: importsOf(files), exports: exportsOf(files), outside, ...(proposed === undefined ? {} : { refactor: proposed }) });
 }

@@ -7,7 +7,7 @@ import { test } from "node:test";
 
 import { quietFor, waitUntil } from "@storytree/test-waits";
 
-import { withTestClient } from "../../testing/pg.js";
+import { withTestClient } from "../../../testing/pg.js";
 import { healthHistory, withCountedLibrary, withLibrary } from "../testing/pg.js";
 import { roundDue, worklist } from "../index.js";
 import type { ToolAnswer, ToolCall } from "./host.js";
@@ -260,7 +260,7 @@ test("26.10 a plugin's curation guidance is offered only when its own kinds were
 test("26.5 the librarian's subagent definition names every tool the librarian serves", () => {
   const served: string[] = [];
   librarianTools().registerTools!((name) => { served.push(name); });
-  const definition = readFileSync(new URL("../../../../../.claude/agents/librarian-curator.md", import.meta.url), "utf8");
+  const definition = readFileSync(new URL("../../../../../../.claude/agents/librarian-curator.md", import.meta.url), "utf8");
   assert.ok(served.length > 0);
   const tools = definition.split("\n").find((line) => line.startsWith("**Tools.**")) ?? "";
   const named = new Set(tools.match(/[\w-]+/g));

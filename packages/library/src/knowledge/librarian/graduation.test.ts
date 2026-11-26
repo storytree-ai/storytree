@@ -1,12 +1,12 @@
-// Capability 24 · Graduation
+// Capability 35 · The librarian
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { withLibrary } from "../testing/pg.js";
-import { graduate, memoryWorklist, park, processGaps } from "./index.js";
+import { withLibrary } from "./testing/pg.js";
+import { graduate, memoryWorklist, park, processGaps } from "./graduation.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -27,7 +27,7 @@ function memory(folder: string, name: string, lesson: string): string {
   return file;
 }
 
-test("24.1 the worklist lists each memory that is new, changed since it was parked, or parked more than 60 days ago", async () => {
+test("35.10 the worklist lists each memory that is new, changed since it was parked, or parked more than 60 days ago", async () => {
   await withMemoryFolder(async (folder) => {
     const now = new Date("2026-09-27T12:00:00Z");
     const fresh = memory(folder, "fresh", "Run the seed with the app closed.");
@@ -52,7 +52,7 @@ test("24.1 the worklist lists each memory that is new, changed since it was park
   });
 });
 
-test("24.2 park keeps the reason, the date and what the memory said beside the memory folder, never in the library", async () => {
+test("35.11 park keeps the reason, the date and what the memory said beside the memory folder, never in the library", async () => {
   await withMemoryFolder(async (folder) => {
     const file = memory(folder, "kept", "The owner reads the debrief first.");
     await park(file, "Only this user's habit.", { now: new Date("2026-09-27T12:00:00Z") });
@@ -65,7 +65,7 @@ test("24.2 park keeps the reason, the date and what the memory said beside the m
   });
 });
 
-test("24.3 graduate writes the lesson as a principle, process or definition and only then deletes the memory", async () => {
+test("35.12 graduate writes the lesson as a principle, process or definition and only then deletes the memory", async () => {
   await withLibrary(async (library) => {
     await withMemoryFolder(async (folder) => {
       const file = memory(folder, "measure", "Measure before leaving anything out.");
@@ -92,7 +92,7 @@ test("24.3 graduate writes the lesson as a principle, process or definition and 
   });
 });
 
-test("24.4 the worklist lists each process naming none of the tools served, and each tool no process names", async () => {
+test("35.13 the worklist lists each process naming none of the tools served, and each tool no process names", async () => {
   await withLibrary(async (library) => {
     const process = (title: string, surfaces: string) =>
       library.writeKnowledge("process", {

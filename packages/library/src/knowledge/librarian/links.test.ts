@@ -1,12 +1,12 @@
-// Capability 21 · Links
+// Capability 35 · The librarian
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Library, SchemaRecord } from "../../index.js";
 
-import { withLibrary } from "../testing/pg.js";
-import { worklist } from "../rounds/index.js";
-import { brokenEdges, link, unrestedDecisions } from "./index.js";
+import { withLibrary } from "./testing/pg.js";
+import { worklist } from "./rounds/index.js";
+import { brokenEdges, link, unrestedDecisions } from "./links.js";
 
 async function shelf(library: Library) {
   const story = await library.addStory({ title: "Visitor can sign up" });
@@ -19,7 +19,7 @@ function wholeProject(library: Library, title: string) {
   return library.recordDecision({ title, text: `${title}, for every part of the project.`, status: "accepted" });
 }
 
-test("21.1 link makes a note, or a question open or settled, rest on another note, keeping its other links, and linking again writes nothing; a question linking the plan is refused", async () => {
+test("35.2 link makes a note, or a question open or settled, rest on another note, keeping its other links, and linking again writes nothing; a question linking the plan is refused", async () => {
   await withLibrary(async (library) => {
     const { capability, cover } = await shelf(library);
     const tdd = await wholeProject(library, "Minimal viable TDD");
@@ -46,7 +46,7 @@ test("21.1 link makes a note, or a question open or settled, rest on another not
   });
 });
 
-test("21.2 a definition rests only on a decision, and friction or a re-steer on nothing: other links are refused, naming the rule", async () => {
+test("35.3 a definition rests only on a decision, and friction or a re-steer on nothing: other links are refused, naming the rule", async () => {
   await withLibrary(async (library) => {
     const decision = await wholeProject(library, "Arcs hold increments");
     const term = await library.defineTerm({ term: "increment", meaning: "One slice of work on an arc." });
@@ -69,7 +69,7 @@ test("21.2 a definition rests only on a decision, and friction or a re-steer on 
   });
 });
 
-test("21.3 the worklist names each accepted decision on no shelf that no note rests on, and drops it once one does", async () => {
+test("35.4 the worklist names each accepted decision on no shelf that no note rests on, and drops it once one does", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const spec = await wholeProject(library, "The MVP spec");
@@ -82,7 +82,7 @@ test("21.3 the worklist names each accepted decision on no shelf that no note re
   });
 });
 
-test("21.4 the worklist finds related but unlinked neighbours for live notes written since the cursor, including edits", async () => {
+test("35.5 the worklist finds related but unlinked neighbours for live notes written since the cursor, including edits", async () => {
   await withLibrary(async (library) => {
     const source = await wholeProject(library, "Verify Mailgun confirmation domains");
     const outgoing = await wholeProject(library, "Mailgun confirmation delivery");
@@ -112,7 +112,7 @@ test("21.4 the worklist finds related but unlinked neighbours for live notes wri
   });
 });
 
-test("21.5 the health report names each link or supersession pointing at a record no longer live, with both ends", async () => {
+test("35.6 the health report names each link or supersession pointing at a record no longer live, with both ends", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const definition = await library.defineTerm({ term: "Verified domain", meaning: "Mailgun needs a verified domain.", links: [cover.id] });
@@ -129,7 +129,7 @@ test("21.5 the health report names each link or supersession pointing at a recor
   });
 });
 
-test("21.5 the health report names a front cover naming a retired story or capability, with both ends, and no front cover of a live one", async () => {
+test("35.6 the health report names a front cover naming a retired story or capability, with both ends, and no front cover of a live one", async () => {
   await withLibrary(async (library) => {
     const story = await library.addStory({ title: "Visitor can pay" });
     const storyCover = await library.recordDecision({ title: "Take cards only", text: "Cards cover most visitors.", status: "accepted", frontCoverOf: story.id });
@@ -145,7 +145,7 @@ test("21.5 the health report names a front cover naming a retired story or capab
   });
 });
 
-test("21.5 the health report names a check's enforces edge pointing at a principle no longer live", async () => {
+test("35.6 the health report names a check's enforces edge pointing at a principle no longer live", async () => {
   await withLibrary(async (library) => {
     const principle = await library.writeKnowledge("principle", {
       title: "Send from a verified domain",

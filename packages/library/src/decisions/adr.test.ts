@@ -313,7 +313,7 @@ test("13.23 · `adr prune` archives a decision link with who, when and why and i
   assert.deepEqual([back.links, back.justifications], [[queue.id], { [queue.id]: "Follow it for how bounces would queue." }]);
 });
 
-test("13.28 · `adr prune` and `adr restore` move one decision link even when the decision's other links or supersedes name a retired or missing record, and a restore whose own target was retired is refused naming it, with nothing written", async (t) => {
+test("13.28 · `adr prune` and `adr restore` move one decision link even when the decision's other links or supersedes name a retired or missing record: they re-check only the ids the edit adds, and a restore whose own target was retired is refused naming it, with nothing written; a prune offers no `adr restore` as a next step (friction_ac40fa2d0e47)", async (t) => {
   const { library, records, context, verbOf } = await adrWorld(t);
   const queue = await library.recordDecision({ status: "accepted", title: "Mail by queue", text: "Queue it." });
   const gone = await library.recordDecision({ status: "accepted", title: "Mail by pigeon", text: "Fly it." });
@@ -325,7 +325,8 @@ test("13.28 · `adr prune` and `adr restore` move one decision link even when th
   await records.retire(gone.id, "withdrawn");
   await records.retire(post.id, "withdrawn");
 
-  await verbOf("prune").act({ decision: linking.id, target: queue.id, reason: "The queue rule moved." } as never, context, WORDS);
+  const pruneAnswer = await verbOf("prune").act({ decision: linking.id, target: queue.id, reason: "The queue rule moved." } as never, context, WORDS);
+  assert.ok(!(pruneAnswer.next ?? []).some((step) => step.command?.startsWith("adr restore")), JSON.stringify(pruneAnswer.next));
   const pruned = (await library.get(linking.id))?.fields as { links?: string[]; archivedLinks?: { to: string; field: string; justification?: string; reason: string }[] };
   assert.deepEqual(pruned.links, [gone.id, missing], "only the pruned link leaves links");
   assert.deepEqual(pruned.archivedLinks?.map(({ to, field, justification, reason }) => ({ to, field, justification, reason })), [{ to: queue.id, field: "links", justification: "Follow it for where a retry waits.", reason: "The queue rule moved." }]);

@@ -306,7 +306,7 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
   });
 });
 
-test("4.27 `arc waits --audit` lists the owner actions that need attention, oldest read first, each with every reason: a note saying not yet while nothing holds it, a note naming an increment closed since it was last read again, no why, no rank, a parked arc, or not read again in seven days", async () => {
+test("4.27 `arc waits --audit` lists the owner actions that need attention, oldest read first, each with every reason: a note saying not yet while nothing holds it, a note naming an increment closed since it was last read again, no why, no rank, a parked arc, or not read again in seven days; its text says how to rewrite one, and it offers no `arc increment wait` as a next step (friction_5cc9608469a8)", async () => {
   const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
   const increment = (id: string, title: string, status = "proposal") => ({ id, fields: { title, status } });
   const owner = (note: string, more: Record<string, unknown> = { why: "it closes a live exposure", rank: 1, reviewed: day(0) }) => [{ releaser: "owner", note, holds: true, ...more }];
@@ -350,8 +350,9 @@ test("4.27 `arc waits --audit` lists the owner actions that need attention, olde
       "      #1  Not yet: this opens once the push URL lands (why: it closes a live exposure)",
       "  - increment_000000000007  Tidy the org, on arc_later  Later: its arc is parked",
       "      #1  Tidy the GitHub organisation (why: it closes a live exposure)",
+      "arc increment wait <increment> --for owner [--note …] [--why …] [--rank <n>] rewrites one's note, why or rank; written again, it reads as read again today.",
     ]);
-    assert.ok(answer.next?.some((step) => step.command.includes("arc increment wait <increment> --for owner")), JSON.stringify(answer.next));
+    assert.ok(!(answer.next ?? []).some((step) => step.command.startsWith("arc increment wait")), JSON.stringify(answer.next));
 
     const tidy = { arcViews: async () => views.slice(0, 1).map((view) => ({ ...view, increments: view.increments.slice(0, 1) })), holds: async () => holds };
     const none = await verb.act(parseArgs(["--audit"], ["audit"], world.folder), { cwd: world.folder, activityContext: async () => ({ library: tidy }) } as unknown as Context);
@@ -436,6 +437,7 @@ test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose in
       "      #1  Point at the host once increment_0000000000aa lands (why: it unblocks the release)",
       "  - increment_000000000021  Re-read the proxy, on arc_release  Release: its note names increment_0000000000ab, which has closed since it was last read",
       "      #1  Point at the proxy once increment_0000000000ab lands (why: it unblocks the release)",
+      "arc increment wait <increment> --for owner [--note …] [--why …] [--rank <n>] rewrites one's note, why or rank; written again, it reads as read again today.",
     ]);
   });
 });

@@ -326,7 +326,7 @@ const prune = verb({
     if (reason === undefined || reason.trim() === "") throw new VerbRefusal("adr prune keeps why a link was pruned: give --reason <why>", { misuse: true });
     const id = (await viewOf(context.library, decision)).record.id;
     await refused(() => context.library.pruneLink(id, target, reason, context.writer));
-    return { text: `Pruned ${id}'s link to ${target}: archived, with its reason.`, next: [{ command: `adr restore ${id} ${target}`, why: "put it back" }] };
+    return { text: `Pruned ${id}'s link to ${target}: archived, with its reason.` };
   },
 });
 

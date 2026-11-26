@@ -522,7 +522,7 @@ test("17.9 · library undo <actor> writes every record one writer wrote back to 
   assert.match((await verbOf("undo").act({ actor: "session:nobody", reason: undefined }, context, WORDS)).text, /session:nobody wrote nothing to revert/);
 });
 
-test("17.10 · The library declares the fyi family: fyi new records an FYI, by the caller unless --by names another, fyi list lists the unheard ones oldest first, and fyi heard marks them heard so the list no longer shows them; none is a tool (ADR-1184 D3)", async (t) => {
+test("17.10 · The library declares the fyi family: fyi new records an FYI, by the caller unless --by names another, fyi list lists the unheard ones oldest first, offering no fyi heard as a next step (friction_6b3c03ad52db), and fyi heard marks them heard so the list no longer shows them; none is a tool (ADR-1184 D3)", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {
@@ -550,7 +550,9 @@ test("17.10 · The library declares the fyi family: fyi new records an FYI, by t
   assert.equal(((await library.get(id))?.fields as { by?: string } | undefined)?.by, "session:lane", "written by the caller");
   await verbOf("new").act({ title: "A routine was paused", what: "The nightly sweep is off", about: "process_000000000001", at: "2026-10-26T09:00:00.000Z", by: "routine:sweep" }, context, WORDS);
 
-  const listed = (await verbOf("list").act({}, context, WORDS)).text;
+  const answer = await verbOf("list").act({}, context, WORDS);
+  const listed = answer.text;
+  assert.ok(!(answer.next ?? []).some((step) => step.command?.startsWith("fyi heard")), JSON.stringify(answer.next));
   assert.ok(listed.indexOf("A routine was paused") < listed.indexOf("The exemptions list changed"), listed);
   assert.match(listed, /PR #31/);
 

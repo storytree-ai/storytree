@@ -760,8 +760,11 @@ function auditOf(views: readonly ArcView[], holds: Holds, at: Date): { text: str
     `      ${wait.rank === undefined ? "" : `#${wait.rank}  `}${wait.note}${wait.why === undefined ? "" : ` (why: ${wait.why})`}`,
   ]);
   return {
-    text: [`${found.length} ${found.length === 1 ? "action" : "actions"} of yours ${found.length === 1 ? "needs" : "need"} attention, oldest read first:`, ...lines].join("\n"),
-    next: [{ command: "arc increment wait <increment> --for owner [--note …] [--why …] [--rank <n>]", why: "rewrite its note, give it a why or a rank; written again, it reads as read again today" }],
+    text: [
+      `${found.length} ${found.length === 1 ? "action" : "actions"} of yours ${found.length === 1 ? "needs" : "need"} attention, oldest read first:`,
+      ...lines,
+      "arc increment wait <increment> --for owner [--note …] [--why …] [--rank <n>] rewrites one's note, why or rank; written again, it reads as read again today.",
+    ].join("\n"),
   };
 }
 

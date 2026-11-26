@@ -30,6 +30,9 @@ async function live(library: Library, id: string, why: string): Promise<Decision
 }
 
 export async function recordDecision(library: Library, decision: NewDecision, writer?: WriteOptions): Promise<Decision> {
+  if (decision.status === "proposed") {
+    throw new Error("a new decision is never written proposed (ADR-1232): what needs the owner's call is an open question, so raise it with question new; nothing was written");
+  }
   return await library.recordDecision(decision, writer);
 }
 

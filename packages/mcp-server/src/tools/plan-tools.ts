@@ -8,7 +8,7 @@ import { oversizedSaid } from "@storytree/arc-surface/verbs";
 import { unimportedPackages, unimportedSentence } from "@storytree/app-setup/project";
 import { elsewhereSaid, type MapNode } from "@storytree/map";
 import { readMap } from "@storytree/map/read";
-import { drawsItself, readCodeSurvey, storyTests, SURVEYED_LANGUAGES, testedNumbers as testedNumbersIn, untestedContracts } from "@storytree/map/code-survey";
+import { codeSurveyReader, drawsItself, storyTests, SURVEYED_LANGUAGES, testedNumbers as testedNumbersIn, untestedContracts } from "@storytree/map/code-survey";
 import { importsOf, machineOf, storytreeHome } from "@storytree/project-and-caller";
 import { readClaims } from "@storytree/session-management";
 import { readSessions } from "@storytree/session-management";
@@ -417,7 +417,7 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
 
 async function levelsBehind({ library, folder }: Call, story: string, parent: string): Promise<string[]> {
   const tree = await library.projectTree();
-  const survey = await readCodeSurvey(folder, { ...tree, stories: tree.stories.filter(({ id }) => id === story) });
+  const survey = await codeSurveyReader({ checkout: "current" }).read(folder, { ...tree, stories: tree.stories.filter(({ id }) => id === story) });
   const folders = (parts: readonly SurveyedPart[]): string[] => parts.flatMap((part) => [part.folder, ...folders(part.parts)]);
   return folders(survey[story]?.parts?.capabilities[parent] ?? []);
 }

@@ -28,8 +28,6 @@ export const STORE_TABLES = [
   "CREATE INDEX IF NOT EXISTS record_event_record ON record_event (record_id, seq)",
 ];
 
-const WRITE_LOCK = 7_301_000;
-
 type Queryable = Pick<Pool, "query">;
 
 interface RecordRow {
@@ -60,7 +58,7 @@ export class PgTransactions extends Store {
   }
 }
 
-class PgBackend implements Backend {
+export class PgBackend implements Backend {
   readonly #pool: Pool;
   readonly reader: Writer;
   #marks: Promise<boolean> | undefined;
@@ -76,7 +74,7 @@ class PgBackend implements Backend {
     try {
       await client.query("BEGIN");
       try {
-        await client.query("SELECT pg_advisory_xact_lock($1)", [WRITE_LOCK]);
+        await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
         signal?.throwIfAborted();
         const done = await work(this.#on(client));
         await client.query("COMMIT");

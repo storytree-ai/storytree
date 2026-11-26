@@ -1,8 +1,12 @@
 // Capability 2 · Library transactions
 export { MemoryTransactions } from "./memory.js";
-export { PgTransactions, STORE_TABLES } from "./pg.js";
+export { PgBackend, PgTransactions, STORE_TABLES } from "./pg.js";
 export {
   LaterWriterError,
+  project,
+  Store,
+  type Backend,
+  type Reader,
   type EditInput,
   type HistoryEntry,
   type HistoryFilter,

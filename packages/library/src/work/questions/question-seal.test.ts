@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
 
-import { LIBRARY_FAMILIES, NOTE_TOOLS, type LibraryVerbContext, type NoteToolContext } from "../commands/index.js";
-import { connect } from "../index.js";
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { mounted, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
+import { LIBRARY_FAMILIES, NOTE_TOOLS, type LibraryVerbContext, type NoteToolContext } from "../../commands/index.js";
+import { connect } from "../../index.js";
+import { testServerUrl, uniqueProjectName } from "../../testing/pg.js";
+import { mounted, type DoorWords, type Verb, type VerbInputs } from "../../verbs/verb.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 

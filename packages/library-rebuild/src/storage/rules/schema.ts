@@ -4,7 +4,7 @@ import { z } from "zod";
 import { HEALTH_KINDS } from "../../health/kinds.js";
 import { DECISION_KINDS } from "../../knowledge/decisions/kinds.js";
 import { NOTE_KINDS } from "../../knowledge/notes/kinds.js";
-import { PLAN_KINDS } from "../../plan/kinds.js";
+import { PLAN_KINDS, PLAN_UPGRADES, PLAN_VERSIONS } from "../../plan/kinds.js";
 import { ARC_KINDS, ARC_UPGRADES, ARC_VERSIONS } from "../../work/arcs/kinds.js";
 
 export const RECORD_SCHEMAS = { ...ARC_KINDS, ...PLAN_KINDS, ...HEALTH_KINDS, ...DECISION_KINDS, ...NOTE_KINDS };
@@ -16,6 +16,7 @@ export type FieldsOf<T extends RecordType> = z.infer<(typeof RECORD_SCHEMAS)[T]>
 export const SCHEMA_VERSIONS: { readonly [T in RecordType]: number } = {
   ...(Object.fromEntries(Object.keys(RECORD_SCHEMAS).map((type) => [type, 1])) as { [T in RecordType]: number }),
   ...ARC_VERSIONS,
+  ...PLAN_VERSIONS,
 };
 
 export interface UpgradeStep {
@@ -32,7 +33,7 @@ export interface LibrarySchema {
   readonly upgrades: readonly UpgradeStep[];
 }
 
-export const LIBRARY_SCHEMA: LibrarySchema = { versions: SCHEMA_VERSIONS, schemas: RECORD_SCHEMAS, upgrades: ARC_UPGRADES };
+export const LIBRARY_SCHEMA: LibrarySchema = { versions: SCHEMA_VERSIONS, schemas: RECORD_SCHEMAS, upgrades: [...ARC_UPGRADES, ...PLAN_UPGRADES] };
 
 export interface PluginUpgradeStep {
   readonly from: number;

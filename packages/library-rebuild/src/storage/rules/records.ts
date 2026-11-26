@@ -100,7 +100,7 @@ export class SchemaRecords {
     }
     const parsed = schema.safeParse(fields);
     for (const issue of parsed.error?.issues ?? []) {
-      if (issue.code === "unrecognized_keys") continue;
+      if (issue.code === "unrecognized_keys" && issue.path.length === 0) continue;
       const field = issue.path[0] === undefined ? undefined : String(issue.path[0]);
       const value = field === undefined ? fields : fields[field];
       if (field !== undefined && value === undefined) {
@@ -119,6 +119,10 @@ export class SchemaRecords {
 
   async history(filter?: HistoryFilter): Promise<HistoryEntry[]> {
     return await this.#transactions.history(filter);
+  }
+
+  async inOneWrite<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    return await this.#transactions.inOneWrite(work, signal);
   }
 
   readonly current = (record: RecordEnvelope): SchemaRecord => {
@@ -160,7 +164,7 @@ function dotted(type: string): boolean {
   return type.includes(".");
 }
 
-function unstorable(value: unknown): string | undefined {
+export function unstorable(value: unknown): string | undefined {
   if (typeof value === "string") {
     if (value.includes("\u0000")) return "a NUL character";
     if (/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(value)) return "a lone UTF-16 surrogate";

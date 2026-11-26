@@ -10,13 +10,14 @@
         "packages/library/src/api/index.ts",
         "packages/library/src/api/library.ts",
         "packages/library/src/api/printable.ts",
-        "packages/library/src/index.ts"
+        "packages/library/src/index.ts",
+        "packages/library/src/data/data-questions.ts"
       ],
       "entry": "packages/library/src/index.ts",
       "was": [
         7
       ],
-      "why": "The package root and the Library interface: the story's one entry, which composes every domain. Kept; references.ts and creation-order.ts leave it for Records."
+      "why": "The package root and the Library interface: the story's one entry, which composes every domain. Kept; references.ts and creation-order.ts leave it for Records. It also holds the saved-query engine (data-questions.ts), which it composes into the Library (step 1b, question_0532c9726e32)."
     },
     {
       "id": "r1-records",
@@ -180,7 +181,9 @@
         "packages/library/src/knowledge/similarity.ts",
         "packages/library/src/knowledge/front-covers.ts",
         "packages/library/src/commands/notes.ts",
-        "packages/library/src/commands/ranked.ts"
+        "packages/library/src/commands/ranked.ts",
+        "packages/library/src/commands/elsewhere.ts",
+        "packages/library/src/commands/stale-edit.ts"
       ],
       "entry": "packages/library/src/knowledge/knowledge.ts",
       "schema": [
@@ -344,7 +347,8 @@
         "packages/library/src/project/server.ts",
         "packages/library/src/project/reads.ts",
         "packages/library/src/project/connection-error.ts",
-        "packages/library/src/project/outside-writer.ts"
+        "packages/library/src/project/outside-writer.ts",
+        "packages/library/src/project/where.ts"
       ],
       "entry": "packages/library/src/project/address.ts",
       "was": [
@@ -360,39 +364,35 @@
       "title": "Commands",
       "files": [
         "packages/library/src/commands/index.ts",
-        "packages/library/src/commands/media.ts"
+        "packages/library/src/commands/media.ts",
+        "packages/library/src/commands/verbs.ts"
       ],
       "entry": "packages/library/src/commands/index.ts",
       "was": [
         17
       ],
-      "why": "Domain: the library's command families and the registry that gathers them. The registry's plan and note verbs are split out to their domains in the refactor."
+      "why": "Domain: the library's command families and the registry that gathers them. The registry's plan and note verbs are split out to their domains in the refactor. It also holds the ./verbs export (commands/verbs.ts): the protocol as other packages' families read it, the Library named as the context's library, beside the write routing."
     },
     {
       "id": "r1-cmd-kit",
-      "title": "Command kit",
-      "parent": "r1-commands",
+      "title": "Commands protocol",
       "files": [
-        "packages/library/src/verbs/verb.ts",
-        "packages/library/src/commands/elsewhere.ts",
-        "packages/library/src/commands/stale-edit.ts"
+        "packages/library/src/verbs/verb.ts"
       ],
       "entry": "packages/library/src/verbs/verb.ts",
       "was": [
-        16,
-        17
+        16
       ],
-      "why": "The verb shape every family uses, with the helpers every family shares (which project, stale edits): one source of truth for what a command is."
+      "why": "The one shape every command has, which every command family (the library's own and other packages') imports: what a verb is called with, its answer and refusal, its callers, and the verb and family types. Lean: no domain behaviour, and it imports nothing but Storage's write options. Lifted to the top level beside Storage on the owner's answer to question_0532c9726e32 (2026-11-26); the write routing it held went to Shared library (project/where.ts), and the reading across projects (elsewhere.ts) and the stale-edit refusal went to Notes."
     },
     {
       "id": "r1-cmd-data",
       "title": "Fixed data questions",
       "parent": "r1-commands",
       "files": [
-        "packages/library/src/data/commands.ts",
-        "packages/library/src/data/data-questions.ts"
+        "packages/library/src/data/commands.ts"
       ],
-      "entry": "packages/library/src/data/data-questions.ts",
+      "entry": "packages/library/src/data/commands.ts",
       "was": [
         27
       ],

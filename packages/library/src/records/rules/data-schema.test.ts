@@ -1,13 +1,13 @@
-// Capability 3 · Data schema
+// Capability 3 · Record rules
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { isDeepStrictEqual } from "node:util";
 
 import { z } from "zod";
 
-import { connect } from "../project/index.js";
-import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../testing/pg.js";
-import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
+import { connect } from "../../project/index.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../../testing/pg.js";
+import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../store/index.js";
 import {
   MissingUpgradeError,
   NewerSchemaError,

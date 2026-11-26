@@ -13,7 +13,7 @@ import pg from "pg";
 
 import { Knowledge } from "../knowledge/knowledge.js";
 import { chunksOf, renderNote } from "../knowledge/embedding.js";
-import type { SchemaRecord } from "../schema/index.js";
+import type { SchemaRecord } from "../records/index.js";
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 import { PgVectors, vectorServerIdentity } from "../knowledge/index.js";
 import { connect, type Storytree } from "./storytree.js";

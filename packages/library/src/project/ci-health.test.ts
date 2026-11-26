@@ -7,7 +7,7 @@ import { connect } from "@storytree/library";
 
 import { Knowledge } from "../knowledge/index.js";
 import { connect as connectProjects } from "./index.js";
-import { NumberTakenError } from "../transactions/index.js";
+import { NumberTakenError } from "../records/index.js";
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
 
 const GRANTS_FILES = ["ci-health", "library-host"];

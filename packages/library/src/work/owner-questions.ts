@@ -1,9 +1,6 @@
 // Capability 12 · Owner questions
-import { byCreation } from "../creation-order.js";
+import { byCreation, checkReference, checkReferences, type Expected, type FieldsOf, liveRecord, type RecordType, type SchemaRecord, type SchemaRecords, VERDICTS, type WriteOptions } from "../records/index.js";
 import { KNOWLEDGE_KINDS } from "../knowledge/index.js";
-import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
-import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import { VERDICTS, type FieldsOf, type RecordType } from "../schema/index.js";
 
 export type NewQuestion = Omit<FieldsOf<"question">, "lifecycle" | "answer" | "settledAt" | "settledBy" | "verifiedAt">;
 

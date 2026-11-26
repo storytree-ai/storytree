@@ -1,7 +1,7 @@
-// Capability 3 · Data schema
+// Capability 3 · Record rules
 import { fileURLToPath } from "node:url";
 import { codeDistance } from "./code-distance.js";
-import { SCHEMA_VERSIONS } from "./types.js";
+import { SCHEMA_VERSIONS } from "../../schema/types.js";
 
 const runningCodeDistance = import.meta.url === undefined
   ? () => undefined

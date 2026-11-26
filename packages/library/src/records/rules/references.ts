@@ -1,5 +1,6 @@
-// Capability 7 · Library API
-import { unstorable, type RecordType, type SchemaRecord, type SchemaRecords } from "./schema/index.js";
+// Capability 3 · Record rules
+import { unstorable, type SchemaRecord, type SchemaRecords } from "./records.js";
+import type { RecordType } from "../../schema/types.js";
 
 export class MissingReferenceError extends Error {
   readonly field: string;

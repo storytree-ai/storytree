@@ -1,4 +1,4 @@
-// Capability 3 · Data schema
+// Capability 3 · Record rules
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 

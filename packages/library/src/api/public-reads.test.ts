@@ -3,9 +3,8 @@ import { test } from "node:test";
 
 import { connect, NewerSchemaError, UnknownTypeError, type HistoryEntry, type HistoryFilter, type Library, type SchemaRecord } from "@storytree/library";
 import { connect as connectProject } from "../project/index.js";
-import { SchemaRecords } from "../schema/index.js";
+import { MemoryTransactions, SchemaRecords } from "../records/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { MemoryTransactions } from "../transactions/index.js";
 
 for (const backend of ["memory", "public postgres"] as const) {
   test(`7.5 [${backend}] get/list read live records whole and history keeps every original write`, async () => {

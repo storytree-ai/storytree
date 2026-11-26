@@ -1,4 +1,4 @@
-// Capability 2 · Library transactions
+// Capability 2 · The store
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";

@@ -6,10 +6,8 @@ import { isDeepStrictEqual } from "node:util";
 import { waitUntil } from "@storytree/test-waits";
 
 import { connect } from "../project/index.js";
-import { DependencyLoopError, MissingReferenceError } from "../references.js";
-import { SCHEMA_VERSIONS, SchemaError, SchemaRecords, type RecordType, type SchemaRecord } from "../schema/index.js";
+import { DependencyLoopError, MemoryTransactions, MissingReferenceError, SCHEMA_VERSIONS, SchemaError, SchemaRecords, type RecordEnvelope, type RecordType, type SchemaRecord, type Transactions } from "../records/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
 import { ANCHOR_ID, anchorGaps, WorkModel, type PluginPlan } from "./index.js";
 
 interface Library {

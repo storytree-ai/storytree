@@ -2,9 +2,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { SchemaRecords } from "../schema/index.js";
+import { MemoryTransactions, SchemaRecords } from "../records/index.js";
 import { withCountedProject } from "../testing/pg.js";
-import { MemoryTransactions } from "../transactions/index.js";
 import { Knowledge } from "./index.js";
 
 async function exercise(knowledge: Knowledge, records: SchemaRecords): Promise<void> {

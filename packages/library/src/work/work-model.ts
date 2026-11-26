@@ -2,10 +2,7 @@
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { byCreation } from "../creation-order.js";
-import { checkReference, checkReferences, couldBeId, DependencyLoopError, liveRecord } from "../references.js";
-import { SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
-import type { FieldsOf } from "../schema/index.js";
+import { byCreation, checkReference, checkReferences, couldBeId, DependencyLoopError, type FieldsOf, liveRecord, SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
 
 export type ContractProof = NonNullable<FieldsOf<"contract">["proof"]>;
 import { historyOf, PR_CUTOVER_ID, type PrCutover } from "./pr-cutover.js";

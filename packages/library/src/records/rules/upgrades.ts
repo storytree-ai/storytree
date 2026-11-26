@@ -1,5 +1,5 @@
-// Capability 3 · Data schema
-import { judgedState, RECORD_SCHEMAS, SCHEMA_VERSIONS, type LibrarySchema, type UpgradeStep } from "./types.js";
+// Capability 3 · Record rules
+import { judgedState, RECORD_SCHEMAS, SCHEMA_VERSIONS, type LibrarySchema, type UpgradeStep } from "../../schema/types.js";
 
 export const UPGRADES: readonly UpgradeStep[] = [
   {

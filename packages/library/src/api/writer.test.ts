@@ -5,9 +5,8 @@ import { connect, type Library } from "@storytree/library";
 import { HealthRecord } from "../health/index.js";
 import { Knowledge } from "../knowledge/index.js";
 import { connect as connectProject } from "../project/index.js";
-import { SchemaRecords } from "../schema/index.js";
+import { MemoryTransactions, SchemaRecords } from "../records/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { MemoryTransactions } from "../transactions/index.js";
 import { WorkInFlight, WorkModel } from "../work/index.js";
 
 for (const backend of ["memory", "postgres", "public postgres"] as const) {

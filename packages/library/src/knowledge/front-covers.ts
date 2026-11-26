@@ -1,8 +1,5 @@
 // Capability 9 · Knowledge entrances
-import { byCreation } from "../creation-order.js";
-import type { Expected } from "../references.js";
-import type { SchemaRecord, SchemaRecords } from "../schema/index.js";
-import type { RecordType } from "../schema/index.js";
+import { byCreation, type Expected, type RecordType, type SchemaRecord, type SchemaRecords } from "../records/index.js";
 
 export function artifactsOnly(types: readonly RecordType[]): Expected {
   return {

@@ -1,7 +1,5 @@
 // Capability 11 · Waits
-import { liveRecord } from "../references.js";
-import type { SchemaRecords } from "../schema/index.js";
-import type { FieldsOf } from "../schema/index.js";
+import { type FieldsOf, liveRecord, type SchemaRecords } from "../records/index.js";
 
 export interface Hold {
   readonly on: string;

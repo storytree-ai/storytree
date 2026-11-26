@@ -5,12 +5,10 @@ import { test } from "node:test";
 import { waitUntil } from "@storytree/test-waits";
 
 import { connect } from "../project/index.js";
-import { MissingReferenceError } from "../references.js";
-import { SCHEMA_VERSIONS, SchemaError, SchemaRecords, type SchemaRecord } from "../schema/index.js";
+import { MemoryTransactions, MissingReferenceError, SCHEMA_VERSIONS, SchemaError, SchemaRecords, type SchemaRecord, type Transactions } from "../records/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../testing/pg.js";
 import { HealthRecord } from "../health/index.js";
 import { Knowledge } from "../knowledge/index.js";
-import { MemoryTransactions, type Transactions } from "../transactions/index.js";
 import { LifecycleError, WaitLoopError, WorkInFlight, WorkModel, type ArcView, type NewIncrement } from "./index.js";
 
 interface Library {

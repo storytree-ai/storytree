@@ -1,7 +1,7 @@
 // Capability 14 · Ranked search
 import { createHash } from "node:crypto";
 
-import type { SchemaRecord } from "../schema/index.js";
+import type { SchemaRecord } from "../records/index.js";
 
 export interface Embedder {
   readonly model: string;

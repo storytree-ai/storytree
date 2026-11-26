@@ -3,10 +3,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { connect } from "../project/index.js";
-import { MissingReferenceError } from "../references.js";
-import { SchemaError, SchemaRecords, type SchemaRecord } from "../schema/index.js";
+import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type SchemaRecord, type Transactions } from "../records/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { MemoryTransactions, type Transactions } from "../transactions/index.js";
 import { WorkInFlight, WorkModel } from "./index.js";
 
 interface Library {

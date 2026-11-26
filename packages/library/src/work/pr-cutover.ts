@@ -1,5 +1,5 @@
 // Capability 4 · Work model
-import type { FieldsOf } from "../schema/index.js";
+import type { FieldsOf } from "../records/index.js";
 
 export type PrCutover = FieldsOf<"prCutover">;
 

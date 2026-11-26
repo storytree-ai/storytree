@@ -477,10 +477,10 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
   });
 
   for (const internal of [
-    "@storytree/library/src/transactions/pg.ts",
-    "@storytree/library/src/transactions/pg.js",
+    "@storytree/library/src/records/store/pg.ts",
+    "@storytree/library/src/records/store/pg.js",
     "@storytree/library/src/project/storytree.ts",
-    "@storytree/library/src/schema/records.ts",
+    "@storytree/library/src/records/rules/records.ts",
     "@storytree/library/src/testing/pg.ts",
     "@storytree/library/src/index.ts",
     "@storytree/library/package.json",

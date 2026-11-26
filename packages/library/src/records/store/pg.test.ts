@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { connect } from "../project/index.js";
-import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { connect } from "../../project/index.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
 import { transactionsBehaviourSuite } from "./behaviour-suite.js";
 import { PgTransactions } from "./pg.js";
 

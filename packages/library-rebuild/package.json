@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./connection-error": "./src/projects/shared/connection-error.ts",
+    "./librarian": "./src/knowledge/librarian/index.ts",
     "./outside-writer": "./src/projects/shared/outside-writer.ts",
     "./pr-cutover": "./src/plan/pr-cutover.ts",
     "./reads": "./src/projects/shared/reads.ts",

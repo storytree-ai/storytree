@@ -6,6 +6,7 @@ import type { WorkModel } from "./plan/index.js";
 import { connect as connectServer, type ConnectOptions, type OwnDatabaseOptions, type ProjectSnapshot } from "./projects/open/index.js";
 import type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./storage/store/index.js";
 import type { RecordType, SchemaRecord, WriteOptions } from "./storage/rules/index.js";
+import type { WorkInFlight } from "./work/arcs/index.js";
 
 export { MissingUpgradeError, NewerSchemaError, pluginSchema, SchemaError, UnknownTypeError } from "./storage/rules/index.js";
 export type { FieldsOf, PluginRecordKind, PluginUpgradeStep, RecordType, SchemaRecord, WriteOptions } from "./storage/rules/index.js";
@@ -54,7 +55,8 @@ export interface Changes {
   cursor: number;
 }
 
-export interface Library extends Pick<WorkModel, "addStory" | "addCapability" | "projectTree">, Pick<Knowledge, "recordDecision" | "defineTerm" | "decision" | "frontCovers" | "editNote"> {
+export interface Library extends Pick<WorkModel, "addStory" | "addCapability" | "projectTree">, Pick<Knowledge, "recordDecision" | "defineTerm" | "decision" | "frontCovers" | "editNote" | "writeKnowledge" | "search">,
+  Pick<WorkInFlight, "createArc" | "addIncrement" | "raiseQuestion" | "settleQuestion" | "editQuestion" | "arcViews" | "lapsedQuestions"> {
   readonly name: string;
   get(id: string): Promise<SchemaRecord | null>;
   list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]>;
@@ -77,7 +79,7 @@ export async function connect(options: ConnectOptions): Promise<Storytree> {
   const server = await connectServer(options);
   return {
     async openProject(name) {
-      const { records, work, knowledge, close } = await server.openProject(name);
+      const { records, work, flight, knowledge, close } = await server.openProject(name);
       return {
         name,
         addStory: (story, options) => work.addStory(story, options),
@@ -91,6 +93,15 @@ export async function connect(options: ConnectOptions): Promise<Storytree> {
         decision: (id) => knowledge.decision(id),
         frontCovers: (nodeId) => knowledge.frontCovers(nodeId),
         editNote: (id, fields, options) => knowledge.editNote(id, fields, options),
+        writeKnowledge: (kind, fields, options) => knowledge.writeKnowledge(kind, fields, options),
+        search: (query) => knowledge.search(query),
+        createArc: (arc, options) => flight.createArc(arc, options),
+        addIncrement: (increment, options) => flight.addIncrement(increment, options),
+        raiseQuestion: (question, options) => flight.raiseQuestion(question, options),
+        settleQuestion: (id, settlement, options) => flight.settleQuestion(id, settlement, options),
+        editQuestion: (id, fields, options) => flight.editQuestion(id, fields, options),
+        arcViews: (at) => flight.arcViews(at),
+        lapsedQuestions: (at) => flight.lapsedQuestions(at),
         retire: (id, reason, options) => records.retire(id, reason, options),
         inOneWrite: (work, options) => records.inOneWrite(work, options?.signal),
         changesSince: async (cursor) => {

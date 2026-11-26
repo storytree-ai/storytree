@@ -3,7 +3,7 @@ import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 import type { AnnotatedTree } from "@storytree/library";
-import { deafIfHandingOffAtOnce } from "@storytree/session-management/hook-start";
+import { deafIfHandingOffAtOnce, refuseUnloaded } from "@storytree/session-management/hook-start";
 
 export const declaredCapabilities = async (checkout: string, files: readonly string[], tree: AnnotatedTree, readText: (file: string) => string): Promise<ReadonlyMap<string, string>> => {
   const { capabilitiesOfFiles } = await import("@storytree/map/code-survey");
@@ -24,7 +24,7 @@ export const isCode = async (file: string): Promise<boolean> => {
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   deafIfHandingOffAtOnce();
-  const [{ default: hooks }, { mount }, { readPartsOff }] = await Promise.all([import("#parts/hooks"), import("@storytree/plugin-loader/switch"), import("@storytree/project-and-caller")]);
+  const [{ default: hooks }, { mount }, { readPartsOff }] = await Promise.all([import("#parts/hooks"), import("@storytree/plugin-loader/switch"), import("@storytree/project-and-caller")]).catch(refuseUnloaded);
   for (const hookCommand of mount(hooks, partsOff(readPartsOff)).mounted) hookCommand({ declaredCapabilities, readsCode, isCode });
 }
 

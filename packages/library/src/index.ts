@@ -1,7 +1,7 @@
 // Capability 7 · Library API. @storytree/library: the project library every later storytree story reads and writes, and the
 export { connect } from "./api/index.js";
 export type { AttachedMedia, Change, Changes, ChangesFilter, FeedbackNote, FeedbackRoute, FyiNote, Library, PinNote, MediaEntry, MediaFile, NewMedia, PluginRecords, Storytree } from "./api/index.js";
-export type { ConnectionProblem, ConnectOptions, FactoryLink, OpenOptions, Reached, OwnDatabaseOptions, ProjectSnapshot, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./project/index.js";
+export type { ConnectionProblem, ConnectOptions, FactoryLink, OpenOptions, Reached, OwnDatabaseOptions, ProjectSnapshot, SnapshotEmbedding, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./project/index.js";
 
 export { CONNECT_TIMEOUT_MS, ConnectionError, connectionString, explainConnectTimeout, ProjectGoneError, ProjectNameError, RestoreRefusedError, SEED_CONNECTION } from "./project/index.js";
 export { knowledgeGuidance, LinkLoopError, referenceEdgesOf, SupersessionLoopError } from "./knowledge/index.js";

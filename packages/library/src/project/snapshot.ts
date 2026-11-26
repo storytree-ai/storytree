@@ -36,6 +36,12 @@ export interface SnapshotMedia {
   bytes: string;
 }
 
+export interface SnapshotEmbedding {
+  model: string;
+  key: string;
+  vector: string;
+}
+
 export interface ProjectSnapshot {
   format: "storytree-project-snapshot";
   version: 1;
@@ -44,6 +50,7 @@ export interface ProjectSnapshot {
   records: SnapshotRecord[];
   history: SnapshotEvent[];
   media?: SnapshotMedia[];
+  embeddings?: SnapshotEmbedding[];
 }
 
 export class RestoreRefusedError extends Error {
@@ -112,6 +119,9 @@ export async function readSnapshot(pool: Pool, project: string): Promise<Project
              FROM media ORDER BY record_id COLLATE "C", name COLLATE "C"`,
         )).rows
         : [];
+      const embeddings = (await client.query<SnapshotEmbedding>(
+        `SELECT model, key, encode(vector, 'base64') AS vector FROM embedding ORDER BY model, key COLLATE "C"`,
+      )).rows;
       return {
         format: "storytree-project-snapshot",
         version: 1,
@@ -142,6 +152,9 @@ export async function readSnapshot(pool: Pool, project: string): Promise<Project
             ...(row.added_by === null ? {} : { addedBy: row.added_by }),
             bytes: row.bytes.replaceAll("\n", ""),
           })),
+        }),
+        ...(embeddings.length === 0 ? {} : {
+          embeddings: embeddings.map((row) => ({ model: row.model, key: row.key, vector: row.vector.replaceAll("\n", "") })),
         }),
       };
     } finally {
@@ -196,6 +209,15 @@ export async function writeSnapshot(pool: Pool, project: string, snapshot: Proje
       await client.query(
         "INSERT INTO media (record_id, name, type, size, sha256, bytes, added_at, added_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
         [file.recordId, file.name, file.type, file.size, file.sha256, bytes, file.addedAt, file.addedBy ?? null],
+      );
+    }
+    for (const batch of batches(snapshot.embeddings ?? [])) {
+      await client.query(
+        `INSERT INTO embedding (model, key, vector)
+         SELECT model, key, decode(vector, 'base64')
+           FROM jsonb_to_recordset($1::jsonb) AS v(model text, key text, vector text)
+         ON CONFLICT (model, key) DO NOTHING`,
+        [JSON.stringify(batch.map(({ model, key, vector }) => ({ model, key, vector })))],
       );
     }
     if (snapshot.history.length > 0) {

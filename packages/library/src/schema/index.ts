@@ -12,4 +12,3 @@ export { isTimeZone, OWNER_TIME_ZONE, parseSchedule, PRECHECKS } from "./schedul
 export type { Precheck, ScheduleRule } from "./schedule.js";
 export { NEW_LINE } from "./activity-line.js";
 export type { Agent, Line, LineKind, LinesSince, NewLine } from "./activity-line.js";
-export type { CodeEdge, EdgeFile, FileImport, PartClash, SharedStore, StoreTable, StorySurvey, SurveyedFile, SurveyedPart, SurveyedParts, SurveyedTest } from "./story-survey.js";

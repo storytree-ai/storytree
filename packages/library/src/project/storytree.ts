@@ -10,33 +10,18 @@ import { Knowledge, modelsFolder, PgVectors, pendingMemories, upgradeMemories, v
 import { pluginSchema, SchemaRecords, type PluginRecordKind } from "../schema/index.js";
 import { PgTransactions, takeWriteLock, type Transactions } from "../transactions/index.js";
 import { WorkInFlight, WorkModel } from "../work/index.js";
-import { addressServer } from "./address.js";
+import { addressServer, type ConnectOptions } from "./address.js";
 import { CachedTransactions } from "./record-cache.js";
 import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "./connection-error.js";
-import { assertProjectName, PROJECT_DATABASE_PREFIX, ProjectGoneError, projectDatabase } from "./names.js";
+import { assertProjectName, ProjectGoneError } from "./names.js";
 import { FactoryCircle, InheritedRecords, OutsideCircleError, ProjectLineage, type Reached } from "./factory.js";
 import { SwitchedRecords, type SystemSwitches } from "./switches.js";
 import { PROJECT_SCHEMA } from "./schema.js";
 import { schemaMerged, type SchemaMerged } from "./schema-merged.js";
 import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js";
-import { localServer, type ServerAccess, type WaitBounds } from "./server.js";
+import { localServer, PROJECT_DATABASE_PREFIX, projectDatabase, type ServerAccess, type WaitBounds } from "./server.js";
 
-export type ConnectOptions = (
-  | {
-      readonly url: string;
-      readonly connectTimeoutMs?: number;
-      readonly address?: undefined;
-    }
-  | {
-      readonly address: string;
-      readonly connectTimeoutMs?: number;
-      readonly url?: undefined;
-    }
-) & {
-  readonly statementTimeoutMs?: number;
-  readonly waitMs?: number;
-  readonly onWait?: (what: string) => void;
-};
+export type { ConnectOptions };
 
 export interface OpenOptions {
   readonly create?: boolean;

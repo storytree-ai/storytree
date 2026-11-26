@@ -1,7 +1,5 @@
 // Capability 1 · Project libraries
 
-export const PROJECT_DATABASE_PREFIX = "storytree_";
-
 const PROJECT_NAME = /^[a-z0-9](?:[a-z0-9]|-(?!-)){0,39}$/;
 
 export const PROJECT_NAME_RULE =
@@ -24,10 +22,6 @@ export function assertProjectName(name: unknown): asserts name is string {
   if (typeof name !== "string" || !PROJECT_NAME.test(name) || name.endsWith("-")) {
     throw new ProjectNameError(name);
   }
-}
-
-export function projectDatabase(name: string): string {
-  return PROJECT_DATABASE_PREFIX + name;
 }
 
 export class ProjectGoneError extends Error {

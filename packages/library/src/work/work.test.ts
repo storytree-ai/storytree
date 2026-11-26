@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { withCountedProject } from "../testing/pg.js";
-import { WorkInFlight, WorkModel } from "./index.js";
+import { WorkModel } from "../plan/index.js";
+import { WorkInFlight } from "./index.js";
 
 test("32.1 · through the work entry, an increment listing a planned capability, held on a question on its arc, waits on the owner; settling the question releases it, holds name no hold on it, and the plan's tree still carries the capability", async () => {
   await withCountedProject(async (project) => {

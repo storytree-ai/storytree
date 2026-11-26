@@ -9,7 +9,8 @@ import { MemoryTransactions, MissingReferenceError, SCHEMA_VERSIONS, SchemaError
 import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../testing/pg.js";
 import { HealthRecord } from "../health/index.js";
 import { Knowledge } from "../knowledge/index.js";
-import { LifecycleError, WaitLoopError, WorkInFlight, WorkModel, type ArcView, type NewIncrement } from "./index.js";
+import { WorkModel } from "../plan/index.js";
+import { LifecycleError, WaitLoopError, WorkInFlight, type ArcView, type NewIncrement } from "./index.js";
 
 interface Library {
   readonly work: WorkModel;

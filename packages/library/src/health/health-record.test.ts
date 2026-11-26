@@ -7,7 +7,8 @@ import { waitUntil } from "@storytree/test-waits";
 import { connect } from "../project/index.js";
 import { MemoryTransactions, MissingReferenceError, NewerSchemaError, SchemaError, SchemaRecords, type RecordEnvelope, type RecordType, type SchemaRecord, type Transactions } from "../records/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { WorkInFlight, WorkModel, type ProjectTree } from "../work/index.js";
+import { WorkModel, type ProjectTree } from "../plan/index.js";
+import { WorkInFlight } from "../work/index.js";
 import { capabilityStatus, capabilityWhy, HealthRecord, wordAndWhy, type AnnotatedTree, type HealthColumn, type HealthEntry, type NodeHealth } from "./index.js";
 
 interface Library {

@@ -340,9 +340,7 @@ test("4.27 `arc waits --audit` lists the owner actions that need attention, olde
   await inWorld(command, async (world) => {
     const verb = arcs.verbs.find((one) => one.name === "waits")!;
     const answer = await verb.act(parseArgs(["--audit"], ["audit"], world.folder), { cwd: world.folder, activityContext: async () => ({ library }) } as unknown as Context);
-    const rewrite = "arc increment wait <increment> --for owner";
-    assert.ok(answer.text.includes(rewrite), answer.text);
-    assert.deepEqual(answer.text.split("\n").filter((line) => !line.includes(rewrite)), [
+    assert.deepEqual(answer.text.split("\n"), [
       "4 actions of yours need attention, oldest read first:",
       "  - increment_000000000004  Drop the old org, on arc_security  Security hygiene: it has no why; it has no rank; it has never been read again",
       "      Drop the old organisation",
@@ -352,6 +350,7 @@ test("4.27 `arc waits --audit` lists the owner actions that need attention, olde
       "      #1  Not yet: this opens once the push URL lands (why: it closes a live exposure)",
       "  - increment_000000000007  Tidy the org, on arc_later  Later: its arc is parked",
       "      #1  Tidy the GitHub organisation (why: it closes a live exposure)",
+      "arc increment wait <increment> --for owner [--note …] [--why …] [--rank <n>] rewrites one's note, why or rank; written again, it reads as read again today.",
     ]);
     assert.ok(!(answer.next ?? []).some((step) => step.command.startsWith("arc increment wait")), JSON.stringify(answer.next));
 
@@ -420,7 +419,7 @@ test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose in
   await inWorld(command, async (world) => {
     const verb = arcs.verbs.find((one) => one.name === "waits")!;
     const answer = await verb.act(parseArgs(["--audit"], ["audit"], world.folder), { cwd: world.folder, activityContext: async () => ({ library }) } as unknown as Context);
-    assert.deepEqual(answer.text.split("\n").filter((line) => !line.includes("arc increment wait <increment> --for owner")), [
+    assert.deepEqual(answer.text.split("\n"), [
       "8 actions of yours need attention, oldest read first:",
       "  - increment_000000000017  Name the mirror, on arc_release  Release: its note names increment_0000000000a3, which has closed since it was last read; it has never been read again",
       "      #1  Name the mirror once increment_0000000000a3 lands (why: it unblocks the release)",
@@ -438,6 +437,7 @@ test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose in
       "      #1  Point at the host once increment_0000000000aa lands (why: it unblocks the release)",
       "  - increment_000000000021  Re-read the proxy, on arc_release  Release: its note names increment_0000000000ab, which has closed since it was last read",
       "      #1  Point at the proxy once increment_0000000000ab lands (why: it unblocks the release)",
+      "arc increment wait <increment> --for owner [--note …] [--why …] [--rank <n>] rewrites one's note, why or rank; written again, it reads as read again today.",
     ]);
   });
 });

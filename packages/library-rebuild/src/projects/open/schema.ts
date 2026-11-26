@@ -5,7 +5,7 @@ import type { Pool } from "pg";
 
 import { VECTOR_TABLES } from "../../knowledge/search/index.js";
 import { STORE_TABLES } from "../../storage/store/index.js";
-import { cannotSetUpProject, ConnectionError, sqlState } from "./connection-error.js";
+import { cannotSetUpProject, ConnectionError, sqlState } from "../shared/index.js";
 import type { SchemaStanding } from "./schema-merged.js";
 
 const APPEND_ONLY = (table: string, log: boolean) => `CREATE OR REPLACE FUNCTION ${table}_append_only() RETURNS trigger LANGUAGE plpgsql AS $$

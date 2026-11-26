@@ -25,7 +25,7 @@ export interface CreateOptions extends WriteOptions {
   readonly id?: string;
 }
 
-export type EditOptions = WriteOptions & { readonly checkCurrent?: (record: SchemaRecord) => void };
+export type EditOptions = WriteOptions & { readonly reason?: string; readonly checkCurrent?: (record: SchemaRecord) => void };
 
 type Filter = Omit<ListFilter, "projection">;
 
@@ -103,6 +103,7 @@ export class SchemaRecords {
       fields,
       ...writing(options),
       ...(await this.#mark(await this.#typeOf(id, options), options)),
+      ...(options.reason === undefined ? {} : { reason: options.reason }),
       upgrade: (stored) => {
         if (!Object.hasOwn(this.#schema.versions, stored.type)) throw new UnknownTypeError(stored.type, stored.id);
         const current = this.current(stored);

@@ -1,7 +1,9 @@
 // Capability 2 · Library transactions
+import type { Pool } from "pg";
+
 import type { Knowledge } from "./knowledge/decisions/index.js";
-import { WorkModel } from "./plan/index.js";
-import { connect as connectServer, type ConnectOptions, type ProjectSnapshot } from "./projects/open/index.js";
+import type { WorkModel } from "./plan/index.js";
+import { connect as connectServer, type ConnectOptions, type OwnDatabaseOptions, type ProjectSnapshot } from "./projects/open/index.js";
 import type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./storage/store/index.js";
 import type { RecordType, SchemaRecord, WriteOptions } from "./storage/rules/index.js";
 
@@ -9,6 +11,7 @@ export { MissingUpgradeError, NewerSchemaError, pluginSchema, SchemaError, Unkno
 export type { FieldsOf, PluginRecordKind, PluginUpgradeStep, RecordType, SchemaRecord, WriteOptions } from "./storage/rules/index.js";
 export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./storage/store/index.js";
 export type { ConnectOptions, ProjectSnapshot } from "./projects/open/index.js";
+export { ConnectionError, connectionString } from "./projects/shared/index.js";
 
 export interface Change {
   seq: number;
@@ -23,7 +26,7 @@ export interface Changes {
   cursor: number;
 }
 
-export interface Library extends Pick<WorkModel, "addStory" | "addCapability">, Pick<Knowledge, "recordDecision" | "defineTerm" | "decision" | "frontCovers" | "editNote"> {
+export interface Library extends Pick<WorkModel, "addStory" | "addCapability" | "projectTree">, Pick<Knowledge, "recordDecision" | "defineTerm" | "decision" | "frontCovers" | "editNote"> {
   readonly name: string;
   get(id: string): Promise<SchemaRecord | null>;
   list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]>;
@@ -36,7 +39,9 @@ export interface Library extends Pick<WorkModel, "addStory" | "addCapability">, 
 
 export interface Storytree {
   openProject(name: string): Promise<Library>;
+  listProjects(): Promise<string[]>;
   snapshot(name: string): Promise<ProjectSnapshot>;
+  ownDatabase(name: string, options?: OwnDatabaseOptions): Promise<Pool>;
   close(): Promise<void>;
 }
 
@@ -44,15 +49,15 @@ export async function connect(options: ConnectOptions): Promise<Storytree> {
   const server = await connectServer(options);
   return {
     async openProject(name) {
-      const { records, knowledge, close } = await server.openProject(name);
-      const plan = new WorkModel(records);
+      const { records, work, knowledge, close } = await server.openProject(name);
       return {
         name,
+        addStory: (story, options) => work.addStory(story, options),
+        addCapability: (capability, options) => work.addCapability(capability, options),
+        projectTree: () => work.projectTree(),
         get: (id) => records.get(id),
         list: (kind) => records.list(kind),
         history: (filter) => records.history(filter),
-        addStory: (story, options) => plan.addStory(story, options),
-        addCapability: (capability, options) => plan.addCapability(capability, options),
         recordDecision: (decision, options) => knowledge.recordDecision(decision, options),
         defineTerm: (definition, options) => knowledge.defineTerm(definition, options),
         decision: (id) => knowledge.decision(id),
@@ -67,7 +72,9 @@ export async function connect(options: ConnectOptions): Promise<Storytree> {
         close,
       };
     },
+    listProjects: () => server.listProjects(),
     snapshot: (name) => server.snapshot(name),
+    ownDatabase: (name, options) => server.ownDatabase(name, options),
     close: () => server.close(),
   };
 }

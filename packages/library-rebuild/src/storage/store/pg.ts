@@ -3,6 +3,8 @@ import type { Pool, PoolClient } from "pg";
 
 import { Store, type Backend, type HistoryEntry, type HistoryFilter, type ListFilter, type NewEntry, type RecordEnvelope, type Writer } from "./transactions.js";
 
+export const WRITE_LOCK = "SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))";
+
 export const STORE_TABLES = [
   `CREATE TABLE IF NOT EXISTS record (
     id text PRIMARY KEY,
@@ -74,7 +76,7 @@ export class PgBackend implements Backend {
     try {
       await client.query("BEGIN");
       try {
-        await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))");
+        await client.query(WRITE_LOCK);
         signal?.throwIfAborted();
         const done = await work(this.#on(client));
         await client.query("COMMIT");

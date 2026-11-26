@@ -61,3 +61,8 @@ unchanged.
    these files use. The tests that drive `withLibrary` (31.1, 22.2, 22.3, the four from `supersede.test.ts`) need the
    front door's `Library` to offer the methods they call; this increment grows it by those methods alone, delegating
    to the domains, and the front door increment (increment_b683392d4147) composes the rest.
+9. 13.14 is built here with no carried test: the decisions entry's own `recordDecision` (`knowledge/decisions/door.ts`)
+   refuses a new proposed decision, while `Knowledge.recordDecision` and the `Library`'s stay untouched, because the
+   carried 13.2, 13.3, 13.9 and 13.12 tests store proposed decisions through them. Its frozen test (supersede.test.ts's
+   13.14) drives the `adr new` and `library new decision` verbs, so the commands increment carries it and its verbs go
+   through that function.

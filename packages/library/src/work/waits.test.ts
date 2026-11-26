@@ -5,7 +5,8 @@ import { test } from "node:test";
 import { connect } from "../project/index.js";
 import { MemoryTransactions, MissingReferenceError, SchemaRecords, type Transactions } from "../records/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { WaitLoopError, WorkInFlight, WorkModel } from "./index.js";
+import { WorkModel } from "../plan/index.js";
+import { WaitLoopError, WorkInFlight } from "./index.js";
 
 interface Library {
   readonly work: WorkModel;

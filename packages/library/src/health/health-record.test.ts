@@ -741,6 +741,35 @@ for (const backend of [memory, postgres]) {
     assert.equal((await health.worklist({ changed })).find(({ capability }) => capability === form.id)!.waits, undefined, "verified since the commit: offered by what is recorded");
   });
 
+  contract("5.37", "a capability of a plugin's story whose plugin's main moved at a commit after its carrying contracts were last verified is held with no time limit, its note naming the commit and storytree health plugin <plugin>; one verified at or after that commit is offered by what is recorded", async ({ health, work }) => {
+    const story = await work.addStory({ title: "Mick's dev loop" });
+    const stale = await work.addCapability({ title: "Guidance check", story: story.id });
+    const checked = await work.addContract({ title: "1.1 · Checks the guidance", capability: stale.id });
+    const fresh = await work.addCapability({ title: "Plan edges", story: story.id });
+    const edges = await work.addContract({ title: "2.1 · Checks the plan's edges", capability: fresh.id });
+    for (const built of [stale, fresh]) await work.setProposed(built.id, false);
+    await health.recordVerified(checked.id, "failing");
+    await later();
+    const recorded = await health.recordVerified(edges.id, "failing");
+    const moved = { plugin: "micks-dev-loop", commit: "5f1e2d3c", at: recorded.at };
+    const plugins = new Map([[story.id, moved]]);
+    const days = new Date(Date.parse(moved.at) + 5 * 24 * 60 * 60 * 1000);
+
+    const waiting = await health.worklist({ plugins, now: days });
+    assert.deepEqual(new Map(waiting.map(({ capability, why, waits }) => [capability, { reason: why.reason, held: waits !== undefined }])), new Map([
+      [stale.id, { reason: "failing", held: true }],
+      [fresh.id, { reason: "failing", held: false }],
+    ]), "five days on, the one verified before the plugin's commit is still held; the one verified at it is offered");
+    const waits = waiting.find(({ capability }) => capability === stale.id)!.waits!;
+    assert.equal(waits.since, moved.at);
+    assert.match(waits.note ?? "", /5f1e2d3c/, "it names the commit");
+    assert.match(waits.note ?? "", /storytree health plugin micks-dev-loop/, "it names the command that reads it again");
+
+    await later();
+    await health.recordVerified(checked.id, "failing");
+    assert.equal((await health.worklist({ plugins, now: days })).find(({ capability }) => capability === stale.id)!.waits, undefined, "verified since the commit: offered by what is recorded");
+  });
+
   contract("5.13", "a capability not proven carries the arcs that park it in the annotated tree; a healthy or unhealthy one, or one not parked, carries none (ADR-0992)", async ({ health, work }) => {
     const { capability, contract, sibling } = await smallPlan(work);
     const other = await work.addCapability({ title: "Elsewhere", story: capability.fields.story });

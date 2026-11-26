@@ -59,25 +59,25 @@ only a generic core (a valid, versioned record that refers to live records) is s
 | Node (owner's name) | Folder in `packages/library-rebuild/src` | Today's capabilities | Increment |
 |---|---|---|---|
 | Front door | `index.ts` (the package root, the `Library` interface) | 7 | front door |
-| Storage › The store | `storage/store/` | 2 | storage |
-| Storage › Record rules | `storage/rules/` | 3 (but 3.10–3.14, 3.19, 3.21, 3.22), references | storage |
-| The plan | `plan/` | 4 (but its pending-change and hold contracts), 3.11, 3.14, 3.21, 3.22 | plan |
-| Work › Arcs and increments | `work/arcs/` | 10, 11, 32, 4's pending changes and holds (4.28–4.36, 4.50, 4.55, 4.56) | arcs |
-| Work › Owner's inbox | `work/inbox/` | 12 (and the fyi family's code, 17.10's, which commands builds) | inbox |
-| Knowledge › Search | `knowledge/search/` | 14 | search |
-| Knowledge › Notes | `knowledge/notes/` | 6, 9, 33, 3.10, 3.12, 3.13, 3.19 | notes |
-| Knowledge › Decisions | `knowledge/decisions/` | 31, 13, 22 | decisions |
-| Knowledge › The librarian › Rounds | `knowledge/librarian/`, `knowledge/librarian/rounds/` | 35, 21, 23, 24, 26 | librarian |
-| Health | `health/` | 5 | health |
-| Projects › Opening a project | `projects/open/` | 1, 29, 34 | opening |
-| Projects › Shared library | `projects/shared/` | 15, 28, 30 | shared |
-| Commands › Command kit, Saved queries | `commands/kit/`, `commands/queries/` | 16, 17, 27 (note commands placed in `knowledge/notes/`, the fyi family in `work/inbox/`) | commands |
+| Storage › The store | `storage/store/` | 2 | storage (increment_23d599c571e6) |
+| Storage › Record rules | `storage/rules/` | 3 (but 3.10–3.14, 3.19, 3.21, 3.22), references | storage (increment_23d599c571e6) |
+| The plan | `plan/` | 4 (but its pending-change and hold contracts), 3.11, 3.14, 3.21, 3.22 | plan (increment_b87e6a0f2d97) |
+| Work › Arcs and increments | `work/arcs/` | 10, 11, 32, 4's pending changes and holds (4.28–4.36, 4.50, 4.55, 4.56) | arcs (increment_a2b03908794a) |
+| Work › Owner's inbox | `work/inbox/` | 12 (and the fyi family's code, 17.10's, which commands builds) | inbox (increment_d4e63b0ff102) |
+| Knowledge › Search | `knowledge/search/` | 14 | search (increment_5f55f4ed06bc) |
+| Knowledge › Notes | `knowledge/notes/` | 6, 9, 33, 3.10, 3.12, 3.13, 3.19 | notes (increment_db0d57307978) |
+| Knowledge › Decisions | `knowledge/decisions/` | 31, 13, 22 | decisions (increment_46e203ea6642) |
+| Knowledge › The librarian › Rounds | `knowledge/librarian/`, `knowledge/librarian/rounds/` | 35, 21, 23, 24, 26 | librarian (increment_e78e1099730d) |
+| Health | `health/` | 5 | health (increment_e37477f2eb48) |
+| Projects › Opening a project | `projects/open/` | 1, 29, 34 | opening (increment_3df1aa3256fe) |
+| Projects › Shared library | `projects/shared/` | 15, 28, 30 | shared (increment_216cfd6f4f7e) |
+| Commands › Command kit, Saved queries | `commands/kit/`, `commands/queries/` | 16, 17, 27 (note commands placed in `knowledge/notes/`, the fyi family in `work/inbox/`) | commands (increment_53ff8e067dfa) |
 
 A contract belongs to the increment its number's capability is listed under; a frozen test belongs to its
 contract's increment, and an unnumbered one to the increment that owns the most numbered tests in its file. A
 test file whose tests span increments is split, test by test.
 
-Order (each increment waits on those it names): storage first; then opening, shared, plan, search and health
+Order (each increment waits on those it names, recorded as waits in the plan): storage first; then opening, shared, plan, search and health
 in parallel; arcs after plan; inbox after arcs; notes after search; decisions after notes; librarian after
 decisions and inbox; front door after every domain; commands after the front door; integration last.
 

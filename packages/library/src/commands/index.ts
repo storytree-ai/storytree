@@ -14,7 +14,7 @@ export { mediaGuidance } from "./media.js";
 import { ADR_FAMILY, editDecision, justificationSaid, recordDecision, supersededLines } from "../decisions/index.js";
 import { ARTIFACT_KINDS, WRITTEN_KINDS } from "../knowledge/index.js";
 import { attachedTo, everyHolding, holdingLines, labelOf, NOTE_TOOLS as NOTES_TOOLS, partsBeside, recordLines, type HeldClaim, type NoteToolContext as NotesToolContext } from "./notes.js";
-import { LaterWriterError, StaleRevertError } from "../records/index.js";
+import { LaterWriterError, RECORD_SCHEMAS, StaleRevertError } from "../records/index.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
 import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
@@ -59,6 +59,11 @@ function readAt(value: string, folder: string): string {
 function needed<T>(value: T | undefined, what: string): T {
   if (value === undefined) throw new VerbRefusal(`this needs ${what}`, { misuse: true });
   return value;
+}
+
+function placedOnly(kind: string, fields: Fields): Fields {
+  const shape: Record<string, unknown> = RECORD_SCHEMAS[kind as RecordType]?.shape ?? {};
+  return Object.fromEntries(Object.entries(fields).filter(([name]) => !(name === "arc" || name === "increment") || name in shape));
 }
 
 function countOf(limit: string | undefined): number | undefined {
@@ -258,7 +263,7 @@ const create = verb({
     if (elsewhere !== undefined) throw new VerbRefusal(`a ${kind} is written with \`${elsewhere}\`, under its evidence rules`, { misuse: true });
     const write = WRITERS[kind];
     if (write === undefined) throw new VerbRefusal(`storytree library new writes ${Object.keys(WRITERS).join(", ")}; not "${kind}"`, { misuse: true });
-    const fields = fieldsOf(values);
+    const fields = placedOnly(kind, fieldsOf(values));
     if (kind === "decision" && fields.status === "accepted" && fields.authority === undefined) {
       throw new VerbRefusal("an accepted decision carries its authority, whose call it was: record it with `storytree adr new … --basis <owner-directed|owner-ratified|agent-derived|agent-flipped> [--owner-said …]`, or give --authority @file holding its JSON", { misuse: true });
     }

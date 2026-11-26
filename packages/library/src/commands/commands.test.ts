@@ -1538,3 +1538,32 @@ test("17.38 · Given another live session claims a capability, when library new 
   const made = /contract_[0-9a-f]{12}/.exec(own.text)?.[0];
   assert.deepEqual((await contracts()).sort(), [kept.id, made].sort(), "the holder's own new contract is written");
 });
+
+test("17.39 · library new research given --increment and principle given --arc are written with exactly their own fields, no increment or arc stored; library new increment given --arc stores its arc", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const create = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "new")!;
+  const context: LibraryVerbContext = { library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const arc = await library.createArc({ title: "Cookie banner", intent: "Ask before tracking", endState: "Visitors choose" });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Read the rules", objective: "Know the law", body: "Read, then write it up" });
+  const writtenId = (text: string, kind: string): string => new RegExp(`Wrote ${kind} (${kind}_[0-9a-f]{12})\\.`).exec(text)![1]!;
+
+  const research = { title: "Consent rules", description: "What the law asks of a banner", researched: "2026-11-26", findings: "Opt-in before any cookie is set" };
+  const note = await create.act({ "<kind>": "research", "<fields>": { ...research, increment: increment.id } }, context, WORDS);
+  assert.deepEqual((await library.get(writtenId(note.text, "research")))?.fields, research, "the research note holds its own fields and no increment");
+
+  const principle = { title: "Ask first", description: "Consent comes before tracking", statement: "No cookie before a yes", why: "The law and the visitor's trust", howToApply: "Load trackers only after consent" };
+  const rule = await create.act({ "<kind>": "principle", "<fields>": { ...principle, arc: arc.id } }, context, WORDS);
+  assert.deepEqual((await library.get(writtenId(rule.text, "principle")))?.fields, principle, "the principle holds its own fields and no arc");
+
+  const parked = await create.act({ "<kind>": "increment", "<fields>": { arc: arc.id, title: "Draw the banner", objective: "Show it", body: "Red then green" } }, context, WORDS);
+  assert.equal(((await library.get(writtenId(parked.text, "increment")))?.fields as { arc?: string } | undefined)?.arc, arc.id, "an increment keeps the arc it was given");
+});

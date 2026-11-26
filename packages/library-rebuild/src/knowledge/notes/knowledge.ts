@@ -46,7 +46,10 @@ export class Knowledge {
   }
 
   async editNote(id: string, fields: NoteEdit, options?: WriteOptions): Promise<Note | null> {
-    return (await this.#records.edit(id, fields, options)) as Note | null;
+    const current = await this.#records.get(id);
+    if (current?.type !== "friction") return (await this.#records.edit(id, fields, options)) as Note | null;
+    const judged = { ...current.fields, ...fields } as Record<string, unknown>;
+    return (await this.#records.edit(id, { ...fields, state: frictionState(judged) }, options)) as Note | null;
   }
 
   async rank(query: string, options?: RankOptions): Promise<Ranked> {
@@ -60,4 +63,10 @@ export class Knowledge {
   async findPhrase(phrase: string, options?: PhraseOptions): Promise<PhrasePage> {
     return await findPhrase(this.#records, phrase, options);
   }
+}
+
+function frictionState(fields: Record<string, unknown>): "open" | "routed" | "resolved" | "dismissed" {
+  if (fields["dischargedBy"] !== undefined) return "resolved";
+  if (fields["route"] === "nothing") return "dismissed";
+  return fields["route"] === undefined ? "open" : "routed";
 }

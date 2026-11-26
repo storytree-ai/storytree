@@ -363,8 +363,8 @@ export class WorkModel {
   }
 }
 
-function writing(options: WriteOptions): WriteOptions {
-  return options.actor === undefined ? {} : { actor: options.actor };
+function writing(options: WriteOptions & { readonly reason?: string }): WriteOptions & { readonly reason?: string } {
+  return { ...(options.actor === undefined ? {} : { actor: options.actor }), ...(options.reason === undefined ? {} : { reason: options.reason }) };
 }
 
 function present(fields: Fields): Fields {

@@ -74,11 +74,12 @@ export class SchemaRecords {
     }) as never;
   }
 
-  async edit(id: string, fields: FieldEdit, options: WriteOptions = {}): Promise<SchemaRecord | null> {
+  async edit(id: string, fields: FieldEdit, options: WriteOptions & { readonly reason?: string } = {}): Promise<SchemaRecord | null> {
     const edited = await this.#transactions.edit({
       id,
       fields,
       ...writing(options),
+      ...(options.reason === undefined ? {} : { reason: options.reason }),
       upgrade: (stored) => {
         if (!Object.hasOwn(this.#schema.versions, stored.type)) throw new UnknownTypeError(stored.type, stored.id);
         return this.current(stored);

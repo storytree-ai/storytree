@@ -13,4 +13,12 @@ export const INBOX_KINDS = {
     answer: z.string().optional(),
     settledAt: z.string().optional(),
   }).strict(),
+  fyi: z.object({
+    title: z.string().min(1),
+    what: z.string(),
+    at: z.iso.datetime(),
+    about: z.string(),
+    by: z.string().min(1),
+    heardAt: z.iso.datetime().optional(),
+  }).strict(),
 };

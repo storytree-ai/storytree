@@ -23,6 +23,9 @@ export const NOTE_KINDS = {
     evidence: z.string().min(1),
     impact: z.string().min(1),
     state: z.enum(["open", "routed", "resolved", "dismissed"]),
+    route: z.enum(["principle", "guardrail", "process", "definition", "nothing", "adr", "tool", "edit-existing"]).optional(),
+    routeReason: z.string().optional(),
+    dischargedBy: z.string().optional(),
     ...artifact,
   }).strict(),
   resteer: z.object({

@@ -156,6 +156,10 @@ export interface NamedOnMain extends ChangedOnMain {
   contracts: readonly string[];
 }
 
+export interface PluginOnMain extends ChangedOnMain {
+  plugin: string;
+}
+
 export interface AnnotatedEdge extends Omit<EdgeNode, "contracts"> {
   contracts: AnnotatedContract[];
 }
@@ -493,7 +497,7 @@ export class HealthRecord {
     ];
   }
 
-  async worklist({ now = new Date(), changed = new Map(), named }: { now?: Date; changed?: ReadonlyMap<string, ChangedOnMain>; named?: NamedOnMain } = {}): Promise<HealthWorkItem[]> {
+  async worklist({ now = new Date(), changed = new Map(), named, plugins = new Map() }: { now?: Date; changed?: ReadonlyMap<string, ChangedOnMain>; named?: NamedOnMain; plugins?: ReadonlyMap<string, PluginOnMain> } = {}): Promise<HealthWorkItem[]> {
     const routed = new Set([
       ...(await this.#records.list("increment")).filter(({ fields }) => fields.status !== "closed").flatMap(({ fields }) => fields.capabilities ?? []),
       ...(await this.#records.list("question")).filter(({ fields }) => fields.lifecycle === "settled").flatMap(({ fields }) => fields.unbuilt ?? []),
@@ -505,7 +509,7 @@ export class HealthRecord {
         if (why === undefined || routed.has(id)) return [];
         const verified = new Map(contracts.map((contract) => [contract.id, contract.health.verified]));
         const carrying = why.contracts.map((id) => verified.get(id));
-        const waits = waitingOn(why.contracts.map((id) => ({ mark: marks.get(id), verified: verified.get(id) })), now) ?? waitingOnMerge(changed.get(story.id), carrying, now) ?? waitingOnNamed(named, why, contracts);
+        const waits = waitingOn(why.contracts.map((id) => ({ mark: marks.get(id), verified: verified.get(id) })), now) ?? waitingOnMerge(changed.get(story.id), carrying, now) ?? waitingOnPlugin(plugins.get(story.id), carrying) ?? waitingOnNamed(named, why, contracts);
         const contractsPass = status === "proposed" && contracts.length > 0 && contracts.every((contract) => contract.health.verified.state === "passing");
         const failure = why.reason === "failing" ? (carrying[0] ?? unclaimed)?.note : undefined;
         return [{ capability: id, title, story: story.id, status, why, since: why.since ?? recorded.get(id) ?? "", ...(waits === undefined ? {} : { waits }), ...(contractsPass ? { contractsPass } : {}), ...(failure === undefined ? {} : { failure }) }];
@@ -592,6 +596,12 @@ function waitingOnMerge(merged: ChangedOnMain | undefined, carrying: readonly (H
   if (merged === undefined || carrying.length === 0 || now.getTime() - Date.parse(merged.at) >= MERGE_WAITS_FOR) return undefined;
   if (carrying.some((verified) => verified?.at !== undefined && Date.parse(verified.at) >= Date.parse(merged.at))) return undefined;
   return { since: merged.at, note: `commit ${merged.commit} changed its code on main; its own-health run has not recorded it yet` };
+}
+
+function waitingOnPlugin(moved: PluginOnMain | undefined, carrying: readonly (HealthColumn | undefined)[]): PendingRun | undefined {
+  if (moved === undefined || carrying.length === 0) return undefined;
+  if (carrying.some((verified) => verified?.at !== undefined && Date.parse(verified.at) >= Date.parse(moved.at))) return undefined;
+  return { since: moved.at, note: `the plugin ${moved.plugin}'s main moved at commit ${moved.commit.slice(0, 12)} after its contracts were last verified; storytree health plugin ${moved.plugin} reads it again` };
 }
 
 function waitingOnNamed(named: NamedOnMain | undefined, why: CapabilityWhy, contracts: readonly { id: string; title: string }[]): PendingRun | undefined {

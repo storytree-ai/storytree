@@ -6,9 +6,8 @@ const worklist = verb({
   tool: { absent: "the MCP server's own health_worklist tool gives the worklist" },
   inputs: {},
   async act(_input, { library, folder }) {
-    const { heldBack } = await import("@storytree/library");
-    const { healthWorklistAt } = await import("@storytree/map/read");
-    const all = await healthWorklistAt(library, folder);
+    const [{ heldBack }, { healthWorklistAt }, { factoryFolder }] = await Promise.all([import("@storytree/library"), import("@storytree/map/read"), import("@storytree/project-and-caller")]);
+    const all = await healthWorklistAt(library, folder, factoryFolder().folder);
     const held = heldBack(all);
     const listed = all.filter(({ waits }) => waits === undefined);
     if (listed.length === 0) return { text: ["Nothing waits on the health worklist: every capability is healthy or already routed.", ...(held === undefined ? [] : [held])].join("\n") };

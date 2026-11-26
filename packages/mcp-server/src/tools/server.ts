@@ -6,7 +6,7 @@ import path from "node:path";
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import { callLines, endMergedClaims, outsideTextReads, type ActivityLog, type MergeWatch } from "@storytree/session-management";
 import { agentOf, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type Caller } from "@storytree/project-and-caller/caller";
-import { findProject, idleAfterMs, importsOf, machineOf, readPartsOff, readStandIns, route, storytreeHome, type ImportedFolder, type LocateOptions, type Route } from "@storytree/project-and-caller";
+import { factoryFolder, findProject, idleAfterMs, importsOf, machineOf, readPartsOff, readStandIns, route, storytreeHome, type ImportedFolder, type LocateOptions, type Route } from "@storytree/project-and-caller";
 import { mount, offSaid, recordKinds, standIn, switchedOff } from "@storytree/plugin-loader";
 import { unnamedPlugins } from "@storytree/plugin-loader/factory";
 import { heldBack, type Agent, type HealthWorkItem, type Library, type Storytree, type WriteOptions } from "@storytree/library";
@@ -150,6 +150,7 @@ export interface ToolHost {
   readonly pipelineJobs: readonly PipelineJob[];
   readonly imports: (storytree: Storytree, project: string) => Promise<readonly ImportedFolder[]>;
   readonly heldBack: (items: readonly HealthWorkItem[]) => string | undefined;
+  readonly factory?: () => string | undefined;
 }
 
 export type ToolPart = (host: ToolHost) => ToolExtension | undefined;
@@ -168,6 +169,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     project: findProject(options.folder).project, tools: () => servedTools,
     imports,
     heldBack,
+    factory: () => factoryFolder(home).folder,
     landing: landingOf(() => claimChecks, () => extensions, imports),
     pipelineJobs: mount(standIn(PIPELINE_JOB_PARTS, "pipelineJobs", standIns), off).mounted,
     ...(verbHome === undefined ? {} : { home: verbHome, ledger: path.join(path.dirname(options.dataDir!), "own") }),

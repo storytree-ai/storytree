@@ -9,7 +9,7 @@ import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject
 import { Knowledge } from "../../knowledge/notes/index.js";
 import { MemoryTransactions, type Transactions } from "../../storage/store/index.js";
 import { WorkModel } from "../../plan/index.js";
-import { LifecycleError, WaitLoopError, WorkInFlight, type NewIncrement } from "./index.js";
+import { LifecycleError, WaitLoopError, WorkInFlight, type ArcView, type NewIncrement } from "./index.js";
 
 interface Library {
   readonly work: WorkModel;
@@ -566,6 +566,30 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await flight.holds()).waitsFor?.[install.id], [owner], "the pool and the claim read it from the start");
     await flight.removeWaitFor(install.id, "owner");
     assert.deepEqual(await flight.waitsFor(install.id), [], "cleared as any owner wait is");
+  });
+
+  contract("7.8", "arcViews() answers every live arc's view as arcView does, in a bounded number of reads whatever the number of arcs", async ({ work, flight, records }) => {
+    const arcs = [];
+    for (let i = 0; i < 4; i++) {
+      const arc = await flight.createArc(ARC);
+      arcs.push(arc);
+      await flight.addIncrement({ arc: arc.id, ...WORK });
+    }
+    await flight.parkArc(arcs[1]!.id);
+    await flight.raiseQuestion({ arc: arcs[2]!.id, title: "Copy?", stakes: "Blocks the form", statement: "Which words?", context: "None yet", options: "Short or long" });
+    await records.retire(arcs[3]!.id, "withdrawn");
+    const at = new Date();
+    const one = await Promise.all(arcs.map(({ id }) => flight.arcView(id, at)));
+
+    let reads = 0;
+    for (const method of ["get", "list"] as const) {
+      const real = records[method].bind(records) as (...args: unknown[]) => Promise<unknown>;
+      (records as unknown as Record<string, unknown>)[method] = (...args: unknown[]) => { reads += 1; return real(...args); };
+    }
+    const views = await flight.arcViews(at);
+    const byId = (list: readonly ArcView[]): ArcView[] => [...list].sort((a, b) => a.arc.id.localeCompare(b.arc.id));
+    assert.deepEqual(byId(views), byId(one.filter((view) => view !== null)), "the same views, retired arcs left out");
+    assert.ok(reads <= 3, `${reads} reads for ${arcs.length} arcs`);
   });
 
   contract("10.22", "the board's arcs: live arcs whole plus closed arcs whose closing day falls in a window, and closed arcs alone by a window, each with its closing day and only the increment fields the board draws", async ({ work, flight, records }) => {

@@ -1,0 +1,999 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { test } from "node:test";
+
+import { connect, MissingReferenceError, RetireRefusedError, type Change, type NodeHealth, type RecordEnvelope, type Storytree } from "@storytree/library-rebuild";
+// @ts-expect-error the project handle, which holds the connection pool
+import type { Project } from "@storytree/library-rebuild";
+// @ts-expect-error a store: the only data actions, over a table
+import type { Transactions } from "@storytree/library-rebuild";
+// @ts-expect-error the Postgres store
+import type { PgTransactions } from "@storytree/library-rebuild";
+// @ts-expect-error the in-memory store
+import type { MemoryTransactions } from "@storytree/library-rebuild";
+// @ts-expect-error the typed records, over a store
+import type { SchemaRecords } from "@storytree/library-rebuild";
+// @ts-expect-error the work model, over the typed records
+import type { WorkModel } from "@storytree/library-rebuild";
+// @ts-expect-error the knowledge layer, over the typed records
+import type { Knowledge } from "@storytree/library-rebuild";
+// @ts-expect-error the health record, over the typed records
+import type { HealthRecord } from "@storytree/library-rebuild";
+
+import { dropTestDatabases, testServerUrl, uniqueProjectName, withTestClient } from "./testing/pg.js";
+
+const LIBRARY_API = [
+  "name",
+  "identity",
+  "factory",
+  "markFactory",
+  "recordFactory",
+  "get",
+  "list",
+  "inherited",
+  "factoryLibrary",
+  "reach",
+  "reachAll",
+  "history",
+  "addStory",
+  "mapStories",
+  "importPluginPlan",
+  "createArc",
+  "addCapability",
+  "editStory",
+  "editCapability",
+  "addContract",
+  "editContract",
+  "addEdge",
+  "editEdge",
+  "dependsOn",
+  "moveDependsOnToEdges",
+  "editArc",
+  "projectTree",
+  "arcsFor",
+  "anchor",
+  "setAnchor",
+  "prCutover",
+  "setPrCutover",
+  "addIncrement",
+  "advanceIncrement",
+  "closeIncrement",
+  "correctIncrementClosure",
+  "moveIncrement",
+  "editIncrement",
+  "pendChange",
+  "stalePending",
+  "applyPending",
+  "dropPending",
+  "settleClosedPending",
+  "openListing",
+  "parkArc",
+  "unparkArc",
+  "arcView",
+  "arcViews",
+  "boardArcs",
+  "closedArcs",
+  "addWait",
+  "removeWait",
+  "waitHolds",
+  "addWaitFor",
+  "removeWaitFor",
+  "waitsFor",
+  "holds",
+  "workSurvey",
+  "raiseQuestion",
+  "settleQuestion",
+  "questions",
+  "heldOnQuestion",
+  "checkQuestion",
+  "renewQuestion",
+  "editQuestion",
+  "linkNamedEvidence",
+  "moveQuestion",
+  "lapsedQuestions",
+  "predictQuestion",
+  "questionPrediction",
+  "scoreQuestion",
+  "prepQuestion",
+  "questionDeviation",
+  "reportHealth",
+  "recordVerified",
+  "recordObserved",
+  "recordVerifiedAll",
+  "recordUnclaimed",
+  "markVerifiedPending",
+  "tellUntold",
+  "investigateFlake",
+  "health",
+  "healthHistory",
+  "healthWorklist",
+  "recordDecision",
+  "numberDecision",
+  "numberDecisionsFromFullRecord",
+  "numberFoundingDecisions",
+  "setDecisionNumberFloor",
+  "setProposed",
+  "decisionNumberPlan",
+  "defineTerm",
+  "writeKnowledge",
+  "definitions",
+  "editNote",
+  "search",
+  "searchEach",
+  "rank",
+  "rankAll",
+  "findPhrase",
+  "relatedNotes",
+  "related",
+  "relatedEach",
+  "naming",
+  "linkingIn",
+  "frontCovers",
+  "decision",
+  "decisions",
+  "measures",
+  "composeStatement",
+  "moveNarrowsToClauses",
+  "supersessionPairs",
+  "decisionLinkBacklog",
+  "decisionLinkChanges",
+  "pruneLink",
+  "restoreLink",
+  "archivedLinks",
+  "refile",
+  "retire",
+  "inOneWrite",
+  "retireQuestion",
+  "returnIncrement",
+  "revert",
+  "revertWrites",
+  "writtenBy",
+  "changesSince",
+  "sendFeedback",
+  "feedbackScreenshot",
+  "routeFeedback",
+  "recordFyi",
+  "unheardFyis",
+  "markFyisHeard",
+  "recordPin",
+  "createPluginRecord",
+  "editPluginRecord",
+  "pluginRecords",
+  "removePluginRecords",
+  "dormantKinds",
+  "attachMedia",
+  "media",
+  "mediaFile",
+  "counts",
+  "latestChanges",
+  "findByTitle",
+  "decisionNumbered",
+  "close",
+];
+
+const RUNTIME_EXPORTS = [
+  "ANCHOR_ID",
+  "CONNECT_TIMEOUT_MS",
+  "CONTRACT_DEFINITION",
+  "CONTRACT_PLACEMENT",
+  "CONTRACT_PROOFS",
+  "ConnectionError",
+  "DependencyLoopError",
+  "LONG_CONTRACT_TITLE",
+  "LifecycleError",
+  "LinkLoopError",
+  "MissingReferenceError",
+  "MissingUpgradeError",
+  "NEW_LINE",
+  "NOT_VERIFIED",
+  "NewerSchemaError",
+  "NumberTakenError",
+  "OWNER_TIME_ZONE",
+  "ProjectGoneError",
+  "ProjectNameError",
+  "RestoreRefusedError",
+  "RetireRefusedError",
+  "SEED_CONNECTION",
+  "STORE_LINK_DIRECTIONS",
+  "SchemaError",
+  "SupersessionLoopError",
+  "UnknownTypeError",
+  "WaitLoopError",
+  "anchorGaps",
+  "beforeCutover",
+  "connect",
+  "connectionString",
+  "explainConnectTimeout",
+  "heldBack",
+  "knowledgeGuidance",
+  "listedNotice",
+  "listedSaid",
+  "parseSchedule",
+  "planGuidance",
+  "pluginSchema",
+  "pullSaid",
+  "referenceEdgesOf",
+  "wordAndWhy",
+];
+
+const UNCHECKED: NodeHealth = { reported: { state: "not-checked" }, verified: { state: "not-checked" } };
+
+test("7.1 an agent's day against a real local Postgres: every step is visible where the next step expects it", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    assert.equal(lib.name, name);
+    assert.ok((await storytree.listProjects()).includes(name), "the new project is listed");
+    assert.deepEqual(await lib.projectTree(), { stories: [], arcs: [], unverified: true }, "its plan is empty, and nothing verifies it yet");
+    assert.deepEqual(await lib.changesSince(0), { changes: [], cursor: 0 }, "and nothing has changed in it yet");
+
+    const story = await lib.addStory({ title: "Visitor can sign up" });
+    const arc = await lib.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
+    assert.deepEqual(await lib.arcsFor(story.id), [arc], "the arc is found from its story");
+
+    const capability = await lib.addCapability({ title: "Email form", story: story.id });
+    const contract = await lib.addContract({ title: "Rejects a bad email", capability: capability.id });
+    const planWith = (contractHealth: NodeHealth, rolledUp: NodeHealth) => ({
+      stories: [
+        {
+          id: story.id,
+          title: "Visitor can sign up",
+          health: rolledUp,
+          capabilities: [
+            {
+              id: capability.id,
+              title: "1 · Email form",
+              dependsOn: [],
+              proposed: true,
+              health: rolledUp,
+              contracts: [{ id: contract.id, title: "1.1 · Rejects a bad email", health: contractHealth }],
+              status: "proposed",
+              why: { reason: "not built", mover: "agent", contracts: [] },
+            },
+          ],
+        },
+      ],
+      arcs: [{ id: arc.id, title: "Launch v1", stories: [story.id] }],
+    });
+    assert.deepEqual(await lib.projectTree(), { ...planWith(UNCHECKED, UNCHECKED), unverified: true }, "the plan, nested, with nothing checked yet: nothing verifies the project");
+
+    const reported = await lib.reportHealth(contract.id, "passing", { by: "agent" });
+    const agentSays = { state: "passing" as const, by: "agent", at: reported.at };
+    assert.deepEqual(await lib.health(contract.id), { reported: agentSays, verified: { state: "not-checked" } });
+    assert.deepEqual(await lib.health(story.id), { reported: { state: "passing" }, verified: { state: "not-checked" } });
+
+    const verified = await lib.recordVerified(contract.id, "failing", { by: "storytree" });
+    const contractHealth: NodeHealth = { reported: agentSays, verified: { state: "failing", by: "storytree", at: verified.at } };
+    const rolledUp: NodeHealth = { reported: { state: "passing" }, verified: { state: "failing" } };
+    assert.deepEqual(await lib.health(contract.id), contractHealth);
+    assert.deepEqual(await lib.health(capability.id), rolledUp);
+    assert.deepEqual(await lib.health(story.id), rolledUp);
+    assert.deepEqual(await lib.healthHistory(contract.id), [reported, verified], "both entries, with who wrote them and when");
+
+    const cover = await lib.recordDecision({ status: "accepted", title: "Send through Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
+    const memory = await lib.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain", links: [cover.id] });
+    assert.deepEqual(await lib.frontCovers(capability.id), [cover]);
+    assert.deepEqual(await lib.relatedNotes(cover.id), [memory]);
+    assert.deepEqual(await lib.search("mailgun DOMAIN"), [memory]);
+    assert.deepEqual(await lib.search("mailgun simplest"), [cover]);
+
+    const theDay = await lib.projectTree();
+    assert.deepEqual(theDay, planWith(contractHealth, rolledUp));
+
+    const day = await lib.changesSince(0);
+    const reportedColumn = at(day.changes, 4).recordId;
+    const verifiedColumn = at(day.changes, 5).recordId;
+    const red = at(await lib.unheardFyis(), 0);
+    assert.deepEqual(withoutSeq(day.changes), [
+      { recordId: story.id, type: "story", action: "created", record: story },
+      { recordId: arc.id, type: "arc", action: "created", record: arc },
+      { recordId: capability.id, type: "capability", action: "created", record: capability },
+      { recordId: contract.id, type: "contract", action: "created", record: contract },
+      {
+        recordId: reportedColumn,
+        type: "health",
+        action: "created",
+        record: healthRecord(reportedColumn, { node: contract.id, column: "reported", state: "passing", by: "agent" }, reported.at),
+      },
+      {
+        recordId: verifiedColumn,
+        type: "health",
+        action: "created",
+        record: healthRecord(verifiedColumn, { node: contract.id, column: "verified", state: "failing", by: "storytree" }, verified.at),
+      },
+      { recordId: red.id, type: "fyi", action: "created", record: red },
+      { recordId: cover.id, type: "decision", action: "created", record: cover },
+      { recordId: memory.id, type: "definition", action: "created", record: memory },
+    ]);
+    assert.notEqual(reportedColumn, verifiedColumn, "each column is its own record");
+    assertIncreasing(day.changes);
+    assert.equal(day.cursor, at(day.changes, 8).seq, "the cursor handed back is the last change's");
+    assert.deepEqual(await lib.changesSince(day.cursor), { changes: [], cursor: day.cursor }, "and nothing came after it");
+    await lib.close();
+    await assert.rejects(lib.projectTree(), "a closed library is not read");
+
+    const tomorrow = await connect({ url: testServerUrl() });
+    try {
+      const again = await tomorrow.openProject(name);
+      assert.deepEqual(await again.projectTree(), theDay);
+      assert.deepEqual(await again.changesSince(0), day);
+
+      const work = await again.addIncrement({ arc: arc.id, title: "Drop the check", objective: "Drop it", body: "Retire 1.1." });
+      await again.advanceIncrement(work.id, "active");
+      await again.pendChange(work.id, { record: contract.id, retire: "overtaken" });
+      assert.deepEqual(await again.projectTree(), theDay);
+      assert.deepEqual((await again.projectTree({ pendingOf: work.id })).stories[0]!.capabilities[0]!.contracts, []);
+      assert.deepEqual(await again.stalePending(work.id), []);
+      assert.deepEqual(await again.applyPending(work.id, "#12"), { applied: [contract.id] });
+      assert.deepEqual((await again.projectTree()).stories[0]!.capabilities[0]!.contracts, []);
+    } finally {
+      await tomorrow.close();
+    }
+  });
+});
+
+test("7.2 changesSince(n) returns only the changes after n, in order, each carrying the cursor to pass next time", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+
+    const followed: Change[] = [];
+    let cursor = 0;
+    const follow = async (): Promise<Change[]> => {
+      const { changes, cursor: next } = await lib.changesSince(cursor);
+      for (const change of changes) assert.ok(change.seq > cursor, `change ${change.seq} comes after the cursor ${cursor}`);
+      assert.equal(next, changes.at(-1)?.seq ?? cursor, "the cursor handed back is the last change's seq, or the one passed in when there is none");
+      followed.push(...changes);
+      cursor = next;
+      return changes;
+    };
+
+    assert.deepEqual(await follow(), [], "a new project has no changes");
+    assert.equal(cursor, 0);
+
+    const story = await lib.addStory({ title: "Visitor can sign up" });
+    assert.deepEqual(withoutSeq(await follow()), [{ recordId: story.id, type: "story", action: "created", record: story }]);
+    assert.deepEqual(await follow(), [], "nothing new since: nothing is handed out twice");
+
+    await withTestClient(async (client) => {
+      await client.query("BEGIN");
+      await client.query("INSERT INTO record_event (record_id, type, action, record) VALUES ('rolled-back', 'story', 'created', '{}')");
+      await client.query("ROLLBACK");
+    }, `storytree_${name}`);
+
+    const capability = await lib.addCapability({ title: "Email form", story: story.id });
+    const renamed = await lib.editCapability(capability.id, { title: "Signup form" });
+    const contract = await lib.addContract({ title: "Rejects a bad email", capability: capability.id });
+    const failing = await lib.reportHealth(contract.id, "failing", { by: "agent" });
+    const passing = await lib.reportHealth(contract.id, "passing", { by: "agent" });
+    const memory = await lib.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain" });
+    const reworded = await lib.editNote(memory.id, { meaning: "Mailgun needs a verified sending domain" });
+    await lib.retire(memory.id, "folded into a decision");
+    const decision = await lib.recordDecision({ status: "accepted", title: "Use Mailgun", text: "Its API is the simplest", frontCoverOf: capability.id });
+    assert.equal(await lib.editCapability("capability_000000000000", { title: "Nothing" }), null);
+    assert.equal(await lib.editNote(memory.id, { meaning: "Retired, so not edited" }), null);
+    await lib.retire(memory.id, "already retired");
+    await lib.retire("story_000000000000", "never existed");
+    await lib.retire("story_\u0000", "not an id the library can store");
+
+    const round = await follow();
+    const column = at(round, 3).recordId;
+    assert.deepEqual(withoutSeq(round), [
+      { recordId: capability.id, type: "capability", action: "created", record: capability },
+      { recordId: capability.id, type: "capability", action: "updated", record: renamed },
+      { recordId: contract.id, type: "contract", action: "created", record: contract },
+      {
+        recordId: column,
+        type: "health",
+        action: "created",
+        record: healthRecord(column, { node: contract.id, column: "reported", state: "failing", by: "agent" }, failing.at),
+      },
+      {
+        recordId: column,
+        type: "health",
+        action: "updated",
+        record: healthRecord(column, { node: contract.id, column: "reported", state: "passing", by: "agent" }, failing.at, passing.at),
+      },
+      { recordId: memory.id, type: "definition", action: "created", record: memory },
+      { recordId: memory.id, type: "definition", action: "updated", record: reworded },
+      { recordId: memory.id, type: "definition", action: "retired", record: reworded },
+      { recordId: decision.id, type: "decision", action: "created", record: decision },
+    ]);
+    assert.deepEqual(await follow(), []);
+    const whole = await lib.changesSince(0);
+    assert.deepEqual(followed, whole.changes);
+    assert.equal(cursor, whole.cursor);
+    assertIncreasing(whole.changes);
+    for (const [n, change] of whole.changes.entries()) {
+      assert.deepEqual(await lib.changesSince(change.seq), { changes: whole.changes.slice(n + 1), cursor: whole.cursor }, `changesSince(${change.seq})`);
+    }
+    assert.deepEqual(await lib.changesSince(whole.cursor + 1000), { changes: [], cursor: whole.cursor + 1000 });
+
+    await Promise.all(Array.from({ length: 8 }, () => lib.changesSince(cursor)));
+    const before = followed.length;
+    let writing = true;
+    const writes = Promise.all(Array.from({ length: 8 }, (_, n) => lib.defineTerm({ term: "Delivery", meaning: `Raced note ${n}` }))).finally(() => {
+      writing = false;
+    });
+    writes.catch(() => undefined);
+    do {
+      await follow();
+    } while (writing);
+    const raced = await writes;
+    await follow();
+    assert.deepEqual(
+      followed.slice(before).map((change) => change.recordId).sort(),
+      raced.map((note) => note.id).sort(),
+      "every raced write seen, once",
+    );
+    assert.deepEqual(followed, (await lib.changesSince(0)).changes, "the whole history, followed with no gap and no repeat");
+
+    for (const bad of [-1, 0.5, 1.5, Number.NaN, Number.POSITIVE_INFINITY, "3", null, undefined, {}]) {
+      await assert.rejects(lib.changesSince(untyped(bad)), RangeError, `changesSince(${String(bad)})`);
+    }
+  });
+});
+
+test("7.3 the package's public entry exports exactly the API and nothing else, and its internals cannot be imported through the package", async () => {
+  const api: Record<string, unknown> = { ...(await import("@storytree/library-rebuild")) };
+  assert.deepEqual(Object.keys(api).sort(), RUNTIME_EXPORTS);
+  assert.equal(api.connect, connect, "the entry's connect is the connect imported above");
+  const errorClass = (exported: string): ErrorClass => {
+    const value = api[exported];
+    assert.ok(typeof value === "function" && value.prototype instanceof Error, `${exported} is an Error class`);
+    return value as ErrorClass;
+  };
+
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    assert.deepEqual(surface(storytree), ["close", "dropProject", "listProjects", "openProject", "ownDatabase", "projectIdentities", "restore", "snapshot"]);
+    const lib = await storytree.openProject(name);
+    assert.deepEqual(surface(lib), [...LIBRARY_API].sort());
+    assert.deepEqual(await lib.inherited(), [], "a project with no factory inherits nothing");
+    assert.equal(lib.factoryLibrary(), undefined, "nor has a factory's library to hand");
+    for (const internal of ["pool", "transactions", "records", "work", "knowledge", "project", "server"]) {
+      assert.equal(internal in lib, false, `a Library has no ${internal}`);
+      assert.equal(internal in storytree, false, `the connection has no ${internal}`);
+    }
+
+    await assert.rejects(connect(untyped({ url: "postgres://127.0.0.1/postgres", address: "postgres://127.0.0.1/postgres" })), errorClass("ConnectionError"));
+    await assert.rejects(storytree.openProject("Not A Project"), errorClass("ProjectNameError"));
+    await assert.rejects(lib.addStory(untyped({ titel: "Visitor can sign up" })), errorClass("SchemaError"));
+    await assert.rejects(lib.addCapability({ title: "Email form", story: "story_000000000000" }), errorClass("MissingReferenceError"));
+    const story = await lib.addStory({ title: "Visitor can sign up" });
+    const form = await lib.addCapability({ title: "Email form", story: story.id });
+    const link = await lib.addCapability({ title: "Confirmation link", story: story.id, dependsOn: [form.id] });
+    await assert.rejects(lib.editCapability(form.id, { dependsOn: [link.id] }), errorClass("DependencyLoopError"));
+    await withTestClient(async (client) => {
+      await client.query(
+        `INSERT INTO record (id, type, version, fields, created_at, updated_at)
+         VALUES ('widget-1', 'widget', 1, '{"title": "From elsewhere"}', now(), now()),
+                ('story-future', 'story', 2, '{"title": "From the future"}', now(), now())`,
+      );
+    }, `storytree_${name}`);
+    await assert.rejects(lib.health("widget-1"), errorClass("UnknownTypeError"));
+    await assert.rejects(lib.projectTree(), errorClass("NewerSchemaError"));
+  });
+
+  for (const internal of [
+    "@storytree/library-rebuild/src/storage/store/pg.ts",
+    "@storytree/library-rebuild/src/storage/store/pg.js",
+    "@storytree/library-rebuild/src/projects/open/storytree.ts",
+    "@storytree/library-rebuild/src/storage/rules/records.ts",
+    "@storytree/library-rebuild/src/testing/pg.ts",
+    "@storytree/library-rebuild/src/index.ts",
+    "@storytree/library-rebuild/package.json",
+  ]) {
+    await assert.rejects(import(internal), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" }, internal);
+  }
+});
+
+test("7.18 sendFeedback writes a feedback record, with the element it points at, and keeps its screenshot and the crop to that element beside it, out of the record's history; feedbackScreenshot returns the bytes, and none for a note sent without one", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const note = {
+      text: "The arcs drawer hides the island I clicked",
+      surface: "arcs",
+      story: "arc-surface",
+      selection: "story_000000000001",
+      project: "site",
+      version: "0.3.99",
+      window: { width: 1440, height: 960 },
+      theme: "dark" as const,
+      at: "2026-10-21T12:00:00.000Z",
+    };
+    const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]);
+    const sent = await lib.sendFeedback(note, { screenshot: jpeg, actor: "session:feedback-test" });
+    assert.match(sent.id, /^feedback_[0-9a-f]{12}$/);
+    assert.equal(sent.type, "feedback");
+    assert.deepEqual(sent.fields, { ...note, status: "new", screenshot: true });
+    assert.deepEqual((await lib.list("feedback")).map(({ id }) => id), [sent.id]);
+    assert.deepEqual(await lib.feedbackScreenshot(sent.id), jpeg);
+    const history = await lib.history({ id: sent.id });
+    assert.equal(history.length, 1);
+    assert.equal(history[0]!.actor, "session:feedback-test");
+    assert.equal(JSON.stringify(history[0]!.record).includes("screenshot\":true"), true, "the history says a screenshot was taken");
+    assert.ok(JSON.stringify(history[0]!.record).length < 2_000, "the picture's bytes are not copied into the history");
+
+    const plain = await lib.sendFeedback({ ...note, text: "No picture this time" });
+    assert.equal(plain.fields.screenshot, false);
+    assert.equal(await lib.feedbackScreenshot(plain.id), null);
+    assert.equal(await lib.feedbackScreenshot(sent.id, { element: true }), null, "a note sent without a crop has none");
+
+    const anchor = {
+      selector: "#arcs > button:nth-of-type(2)",
+      tag: "button",
+      role: "button",
+      name: "Close",
+      text: "Close",
+      marks: ['section[data-surface-id="arcs"]'],
+      components: ["ArcsDrawer"],
+      box: { x: 10, y: 20, width: 60, height: 24 },
+      styles: { color: "rgb(236, 234, 227)" },
+      html: '<button type="button">Close</button>',
+    };
+    const crop = Uint8Array.from([0xff, 0xd8, 9, 0xff, 0xd9]);
+    const pointed = await lib.sendFeedback({ ...note, anchor }, { screenshot: jpeg, crop });
+    assert.deepEqual(pointed.fields, { ...note, anchor, status: "new", screenshot: true, crop: true });
+    assert.deepEqual(await lib.feedbackScreenshot(pointed.id, { element: true }), crop);
+    assert.deepEqual(await lib.feedbackScreenshot(pointed.id), jpeg);
+    await assert.rejects(lib.sendFeedback({ ...note, anchor }, { crop }), /only with its window picture/, "a crop is kept only with its window picture");
+    await assert.rejects(lib.sendFeedback(untyped({ ...note, anchor: { ...anchor, html: "x".repeat(2049) } })), (error: Error) => error.name === "SchemaError", "an anchor's HTML is at most 2 KB");
+    assert.equal(await lib.feedbackScreenshot("feedback_000000000000"), null);
+
+    await assert.rejects(lib.sendFeedback(untyped({ ...note, text: "" })), (error: Error) => error.name === "SchemaError", "a note with no text is refused");
+    await assert.rejects(lib.sendFeedback(untyped({ ...note, surface: undefined }), { screenshot: jpeg }), (error: Error) => error.name === "SchemaError", "a note with no surface is refused");
+    assert.equal((await lib.list("feedback")).length, 3, "a refused note writes nothing");
+  });
+});
+
+test("7.22 pluginRecords lists a switched-off plugin's records by kind, with how many and their ids, and removePluginRecords removes exactly what it was handed and nothing else, refusing a listing that no longer matches with nothing removed", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    await withTestClient(async (client) => {
+      for (const [id, type] of [["voice.note_2", "voice.note"], ["voice.note_1", "voice.note"], ["voice.tag_1", "voice.tag"], ["voicemail.note_1", "voicemail.note"]]) {
+        await client.query("INSERT INTO record (id, type, version, fields, created_at, updated_at) VALUES ($1, $2, 1, '{}', now(), now())", [id, type]);
+      }
+    }, `storytree_${name}`);
+    const story = await lib.addStory({ title: "Visitor can sign up" });
+
+    const listed = await lib.pluginRecords("voice");
+    assert.deepEqual(listed, {
+      plugin: "voice",
+      kinds: [
+        { kind: "voice.note", count: 2, ids: ["voice.note_1", "voice.note_2"] },
+        { kind: "voice.tag", count: 1, ids: ["voice.tag_1"] },
+      ],
+    });
+    assert.deepEqual(await lib.pluginRecords("nobody"), { plugin: "nobody", kinds: [] });
+    await assert.rejects(lib.pluginRecords("voice%"), /not a plugin's name/);
+
+    const stale = { plugin: "voice", kinds: [{ kind: "voice.note", count: 1, ids: ["voice.note_1"] }] };
+    await assert.rejects(lib.removePluginRecords(stale, "the owner removed voice"), /changed since they were listed/);
+    assert.deepEqual(await lib.pluginRecords("voice"), listed);
+
+    assert.deepEqual(await lib.removePluginRecords(listed, "the owner removed voice", { actor: "session:remove-test" }), listed);
+    assert.deepEqual(await lib.pluginRecords("voice"), { plugin: "voice", kinds: [] });
+    assert.deepEqual((await lib.pluginRecords("voicemail")).kinds.map(({ ids }) => ids), [["voicemail.note_1"]], "another plugin's records are kept");
+    assert.deepEqual(await lib.get(story.id), story, "the core's records are kept");
+    const removed = await lib.history({ id: "voice.tag_1" });
+    assert.deepEqual(removed.map(({ action, reason, actor }) => ({ action, reason, actor })).at(-1), { action: "retired", reason: "the owner removed voice", actor: "session:remove-test" });
+  });
+});
+
+test("7.19 routeFeedback marks a new feedback record routed with its route, target and reason; a missing, non-feedback or already routed record is refused with nothing written, and a routed record must carry its route and reason", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const note = { text: "The gear menu hides the version", surface: "gear", version: "0.3.99", window: { width: 800, height: 600 }, theme: "light" as const, at: "2026-10-24T09:00:00.000Z" };
+    const sent = await lib.sendFeedback(note);
+    const routed = await lib.routeFeedback(sent.id, { route: "increment", routedTo: "increment_000000000001", routeReason: "The gear menu's arc owns it" }, { actor: "session:manager" });
+    assert.deepEqual(routed?.fields, { ...note, status: "routed", screenshot: false, route: "increment", routedTo: "increment_000000000001", routeReason: "The gear menu's arc owns it" });
+    assert.equal((await lib.history({ id: sent.id })).at(-1)!.actor, "session:manager");
+
+    await assert.rejects(lib.routeFeedback(sent.id, { route: "closed", routeReason: "again" }), /already routed/);
+    assert.equal(((await lib.get(sent.id))!.fields as { route?: string }).route, "increment", "a second route writes nothing");
+    assert.equal(await lib.routeFeedback("feedback_000000000000", { route: "closed", routeReason: "gone" }), null);
+    const arc = await lib.createArc({ title: "Gear", intent: "An intent", endState: "An end state" });
+    assert.equal(await lib.routeFeedback(arc.id, { route: "closed", routeReason: "not a note" }), null);
+
+    const other = await lib.sendFeedback({ ...note, text: "Another" });
+    await assert.rejects(lib.routeFeedback(other.id, untyped({ route: "closed", routeReason: "" })), (error: Error) => error.name === "SchemaError", "a route needs its reason");
+    const closed = await lib.routeFeedback(other.id, { route: "closed", routeReason: "Covered by increment_000000000002" });
+    assert.equal(closed?.fields.status, "routed");
+    assert.equal(closed?.fields.routedTo, undefined);
+  });
+});
+
+test("7.23 recordFyi keeps what the owner should know with its title, what happened, when, what it is about and who noticed it; unheardFyis lists those he has not heard, oldest first; markFyisHeard marks them heard, so they are listed no more but stay in history, and refuses an id that is no FYI with nothing written (ADR-1184 D3)", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const later = await lib.recordFyi({ title: "The exemptions list changed", what: "Two paths were added to the secret check's exemptions", about: "PR #31", by: "session:lane", at: "2026-10-27T09:00:00.000Z" }, { actor: "session:lane" });
+    const earlier = await lib.recordFyi({ title: "A routine was paused", what: "The nightly sweep was switched off", about: "process_000000000001", by: "routine:sweep", at: "2026-10-26T09:00:00.000Z" });
+    assert.deepEqual(later.fields, { title: "The exemptions list changed", what: "Two paths were added to the secret check's exemptions", about: "PR #31", by: "session:lane", at: "2026-10-27T09:00:00.000Z" });
+    assert.equal((await lib.history({ id: later.id })).at(-1)!.actor, "session:lane");
+    assert.deepEqual((await lib.unheardFyis()).map(({ id }) => id), [earlier.id, later.id], "oldest first");
+
+    await assert.rejects(lib.markFyisHeard([earlier.id, "fyi_000000000000"]), /fyi_000000000000/);
+    assert.deepEqual((await lib.unheardFyis()).map(({ id }) => id), [earlier.id, later.id], "a refused mark writes nothing");
+
+    assert.deepEqual(await lib.markFyisHeard([earlier.id], { actor: "person:owner" }), [earlier.id]);
+    assert.equal((await lib.history({ id: earlier.id })).at(-1)!.actor, "person:owner");
+    assert.deepEqual((await lib.unheardFyis()).map(({ id }) => id), [later.id]);
+    const heard = await lib.get(earlier.id);
+    assert.match((heard!.fields as { heardAt?: string }).heardAt ?? "", /^\d{4}-\d{2}-\d{2}T/, "a heard FYI stays, with when it was heard");
+    assert.deepEqual(await lib.markFyisHeard([earlier.id]), [], "one already heard is left as it was");
+
+    await assert.rejects(lib.recordFyi(untyped({ title: "", what: "x", about: "y", by: "z" })), (error: Error) => error.name === "SchemaError");
+    const now = await lib.recordFyi({ title: "No time given", what: "It is stamped now", about: "packages/library", by: "watcher" });
+    assert.match(now.fields.at, /^\d{4}-\d{2}-\d{2}T/);
+
+    await lib.markFyisHeard([later.id, now.id]);
+    const tied = await Promise.all(["One", "Two", "Three"].map((title) => lib.recordFyi({ title, what: "At the same moment", about: "PR #32", by: "watcher", at: "2026-10-28T09:00:00.000Z" })));
+    assert.deepEqual((await lib.unheardFyis()).map(({ id }) => id), tied.map(({ id }) => id).sort(), "FYIs of the same moment are listed by id");
+  });
+});
+
+test("7.28 recordPin keeps an agent's pin as a pin record, its anchor on a capability, part, exported name or store, a preset icon, a short label, its evidence, a commit and when; fields that do not fit are refused with nothing written", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const onPart = await lib.recordPin({ anchor: { capability: "capability_000000000001", part: "packages/web/src/cache", name: "memo" }, icon: "cache", label: "In-memory cache", evidence: "packages/web/src/cache/index.ts:12 keeps answers in a Map", commit: "0123abc", at: "2026-11-15T09:00:00.000Z" }, { actor: "session:lane" });
+    assert.equal(onPart.type, "pin");
+    assert.deepEqual((await lib.get(onPart.id))?.fields, { anchor: { capability: "capability_000000000001", part: "packages/web/src/cache", name: "memo" }, icon: "cache", label: "In-memory cache", evidence: "packages/web/src/cache/index.ts:12 keeps answers in a Map", commit: "0123abc", at: "2026-11-15T09:00:00.000Z" });
+    assert.equal((await lib.history({ id: onPart.id })).at(-1)!.actor, "session:lane");
+    const onStore = await lib.recordPin({ anchor: { store: "postgres://db/app", table: "users" }, icon: "store", label: "Accounts", evidence: "compose.yaml names it", commit: "0123abcd" });
+    assert.match(onStore.fields.at, /^\d{4}-\d{2}-\d{2}T/, "left out, when is now");
+
+    const before = (await lib.list("pin")).length;
+    for (const misfit of [
+      { anchor: { capability: "capability_000000000001" }, icon: "rocket", label: "x", evidence: "y", commit: "0123abc" },
+      { anchor: { capability: "capability_000000000001" }, icon: "cache", label: "A label far longer than forty characters in all", evidence: "y", commit: "0123abc" },
+      { anchor: { capability: "capability_000000000001" }, icon: "cache", label: "x", evidence: "y", commit: "main" },
+      { anchor: { capability: "capability_000000000001", store: "postgres://db/app" }, icon: "cache", label: "x", evidence: "y", commit: "0123abc" },
+      { anchor: { capability: "capability_000000000001" }, icon: "cache", label: "x", evidence: "", commit: "0123abc" },
+    ]) await assert.rejects(lib.recordPin(untyped(misfit)), (error: Error) => error.name === "SchemaError", JSON.stringify(misfit));
+    assert.equal((await lib.list("pin")).length, before, "a refused pin writes nothing");
+  });
+});
+
+test("7.29 · naming(id) returns every live record but health that names the id in a field or among a list field's members, whole and in id order, leaving out prose mentions, and none for an id nothing names", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const story = await lib.addStory({ title: "Visitor can sign up" });
+    const form = await lib.addCapability({ title: "Email form", story: story.id });
+    const link = await lib.addCapability({ title: "Confirmation link", story: story.id, dependsOn: [form.id] });
+    const contract = await lib.addContract({ title: "Rejects a bad email", capability: form.id });
+    const cover = await lib.recordDecision({ status: "accepted", title: "Ask for the address once", text: "One field.", frontCoverOf: form.id });
+    await lib.recordDecision({ status: "accepted", title: "Mentions the form", text: `The form ${form.id} is mentioned here, in prose.` });
+    const gone = await lib.recordDecision({ status: "accepted", title: "Once on the shelf", text: "Overtaken.", frontCoverOf: form.id });
+    await lib.retire(gone.id, "overtaken");
+    const arc = await lib.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+    const increment = await lib.addIncrement({ arc: arc.id, title: "Address form", objective: "Build it", body: "Red then green", capabilities: [form.id], links: [contract.id] });
+    await lib.reportHealth(contract.id, "passing");
+
+    const edge = (await lib.list("edge")).find(({ fields }) => fields.from === link.id && fields.to === form.id)!;
+    const expected = await Promise.all([contract.id, cover.id, increment.id, edge.id].sort().map((id) => lib.get(id)));
+    assert.deepEqual(await lib.naming(form.id), expected, "its contract, its cover, the increment listing it and the edge on which another capability depends on it, whole, in id order");
+    assert.deepEqual(await lib.naming(contract.id), [await lib.get(increment.id)], "the health record naming the contract is left out");
+    assert.deepEqual(await lib.naming("capability_000000000000"), []);
+  });
+});
+
+test("7.30 · linkingIn(id) returns every live record whose stored links hold the id (an increment, a question, a note) and every friction whose dischargedBy is the id, whole and in id order, leaving out a record naming it only in its text or in another field, and none for an id nothing links to", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const queue = await lib.recordDecision({ status: "accepted", title: "Mail by queue", text: "Send mail from a queue." });
+    const arc = await lib.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+    const increment = await lib.addIncrement({ arc: arc.id, title: "Queue the mail", objective: "Build it", body: "Red then green", links: [queue.id] });
+    const question = await lib.raiseQuestion({ arc: arc.id, title: "Which queue?", stakes: "Mail needs one.", statement: "Which?", context: "Two.", options: "Redis or Postgres.", links: [queue.id] });
+    const principle = await lib.writeKnowledge("principle", {
+      title: "Never send inline", description: "Inline sends block the request.", statement: "Mail leaves through the queue.", why: "Requests stay fast.", howToApply: "Enqueue, never send.", links: [queue.id],
+    });
+    const friction = await lib.writeKnowledge("friction", {
+      title: "Mail sent inline", description: "A send blocked sign-up.", statement: "Sign-up waited on the mail server.", evidence: "Sign-up took 9 s.", impact: "Visitors left.",
+    });
+    await lib.editNote(friction.id, { route: "adr", routeReason: "Decided to queue.", dischargedBy: queue.id });
+    await lib.writeKnowledge("principle", {
+      title: "Mail is cheap", description: "Sending costs little.", statement: `As ${queue.id} says, mail is queued.`, why: "It is.", howToApply: "Send freely.",
+    });
+    await lib.recordDecision({ status: "accepted", title: "Mail by topic", text: "Topics replace the queue.", supersedes: [queue.id], justifications: { [queue.id]: "It replaces the queue rule." } } as never);
+    const elsewhere = await lib.writeKnowledge("friction", {
+      title: "Bounces unread", description: "Nobody reads bounces.", statement: "Bounces pile up.", evidence: "400 unread.", impact: "Bad addresses stay.",
+    });
+    await lib.editNote(elsewhere.id, { route: "process", routeReason: "Fixed already.", dischargedBy: "#12" });
+
+    const expected = await Promise.all([increment.id, question.id, principle.id, friction.id].sort().map((id) => lib.get(id)));
+    assert.deepEqual(await lib.linkingIn(queue.id), expected, "the increment, question and note linking it and the friction it discharged, whole, in id order; not the note citing it in its text nor the decision superseding it");
+    assert.deepEqual(await lib.linkingIn("decision_000000000000"), []);
+  });
+});
+
+test("7.10 projectTree marks a capability not proven that a parked arc's open work names with that arc, and drops the mark once the arc is unparked (ADR-0992)", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const story = await lib.addStory({ title: "Visitor can sign up" });
+    const form = await lib.addCapability({ title: "Email form", story: story.id });
+    const arc = await lib.createArc({ title: "Identity", intent: "An intent", endState: "An end state" });
+    await lib.addIncrement({ arc: arc.id, title: "Sign-in", objective: "Build it", body: "Later.", capabilities: [form.id] });
+    const parkedOn = async () => (await lib.projectTree()).stories[0]!.capabilities[0]!.parkedOn;
+    assert.equal(await parkedOn(), undefined, "an active arc's work needs attention");
+    await lib.parkArc(arc.id);
+    assert.deepEqual(await parkedOn(), [{ arc: arc.id, title: "Identity" }]);
+    await lib.unparkArc(arc.id);
+    assert.equal(await parkedOn(), undefined);
+  });
+});
+
+test("7.4 editStory, editContract and editArc change only the fields they name, check a new reference as adding does, and give null for an id that is not a live record of their type", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const story = await lib.addStory({ title: "Visitor can sign up", description: "With an email" });
+    const other = await lib.addStory({ title: "Visitor can sign in" });
+    const form = await lib.addCapability({ title: "Email form", story: story.id });
+    const link = await lib.addCapability({ title: "Confirmation link", story: story.id });
+    const contract = await lib.addContract({ title: "Rejects a bad email", capability: form.id, description: "Before sending" });
+    const arc = await lib.createArc({ title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });
+
+    assert.deepEqual((await lib.editStory(story.id, { title: "Visitor can sign up with email" }))?.fields, {
+      title: "Visitor can sign up with email",
+      description: "With an email",
+    });
+    assert.deepEqual((await lib.editStory(story.id, { description: undefined }))?.fields, { title: "Visitor can sign up with email" });
+    assert.deepEqual((await lib.editContract(contract.id, { capability: link.id }))?.fields, {
+      title: "2.1 · Rejects a bad email",
+      capability: link.id,
+      description: "Before sending",
+    });
+    assert.deepEqual((await lib.editArc(arc.id, { stories: [story.id, other.id], description: "The first release" }))?.fields, {
+      title: "Launch v1",
+      intent: "An intent",
+      endState: "An end state",
+      stories: [story.id, other.id],
+      description: "The first release",
+    });
+    const tree = await lib.projectTree();
+    assert.equal(tree.stories.find((node) => node.id === story.id)?.title, "Visitor can sign up with email");
+    const capabilities = tree.stories.flatMap((node) => node.capabilities);
+    assert.deepEqual(capabilities.find((node) => node.id === form.id)?.contracts, []);
+    assert.deepEqual(capabilities.find((node) => node.id === link.id)?.contracts.map((node) => node.id), [contract.id]);
+    assert.deepEqual((await lib.arcsFor(other.id)).map((node) => node.id), [arc.id]);
+
+    const before = await lib.changesSince(0);
+    await assert.rejects(lib.editContract(contract.id, { capability: "capability_000000000000" }), MissingReferenceError);
+    await assert.rejects(lib.editContract(contract.id, { capability: story.id }), MissingReferenceError, "a story is not a capability");
+    await assert.rejects(lib.editArc(arc.id, { stories: [story.id, "story_000000000000"] }), MissingReferenceError);
+    assert.equal(await lib.editStory("story_000000000000", { title: "Nothing" }), null);
+    assert.equal(await lib.editStory(form.id, { title: "A capability, not a story" }), null);
+    assert.equal(await lib.editContract(arc.id, { title: "An arc, not a contract" }), null);
+    assert.equal(await lib.editArc(contract.id, { title: "A contract, not an arc" }), null);
+    assert.deepEqual(await lib.changesSince(before.cursor), { changes: [], cursor: before.cursor }, "nothing was written");
+  });
+});
+
+test("4.9 · retiring a capability refuses live dependents without writing, then succeeds once their links are gone", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const story = await lib.addStory({ title: "The plan" });
+    const otherStory = await lib.addStory({ title: "The world" });
+    const target = await lib.addCapability({ story: story.id, title: "Source" });
+    const unrelated = await lib.addCapability({ story: story.id, title: "Other source" });
+    const first = await lib.addCapability({ story: story.id, title: "First dependent", dependsOn: [target.id, unrelated.id] });
+    const second = await lib.addCapability({ story: otherStory.id, title: "Second dependent", dependsOn: [target.id] });
+    const retired = await lib.addCapability({ story: otherStory.id, title: "Old dependent", dependsOn: [target.id] });
+    await lib.retire(retired.id, "No longer used");
+    const before = await lib.changesSince(0);
+    const tree = await lib.projectTree();
+
+    await assert.rejects(lib.retire(target.id, "No longer used"), (error: unknown) => {
+      assert.ok(error instanceof RetireRefusedError);
+      assert.equal(error.id, target.id);
+      assert.deepEqual(new Set(error.heldBy), new Set([first.id, second.id]));
+      for (const id of [target.id, first.id, second.id]) assert.ok(error.message.includes(id), error.message);
+      assert.match(error.message, /dependsOn/);
+      assert.ok(!error.message.includes(retired.id));
+      return true;
+    });
+    assert.deepEqual(await lib.changesSince(before.cursor), { changes: [], cursor: before.cursor });
+    assert.deepEqual(await lib.projectTree(), tree);
+    assert.deepEqual(await lib.get(target.id), target);
+
+    await lib.editCapability(first.id, { dependsOn: [unrelated.id] });
+    await lib.retire(second.id, "No longer needed");
+    await lib.retire(target.id, "Replaced", { actor: "session:retirer" });
+    assert.equal(await lib.get(target.id), null);
+    const remaining = await lib.get(first.id);
+    assert.equal(remaining?.type, "capability");
+    assert.deepEqual(await lib.dependsOn(first.id), [unrelated.id]);
+    const history = await lib.history({ id: target.id });
+    assert.equal(history.at(-1)?.action, "retired");
+    assert.equal(history.at(-1)?.reason, "Replaced");
+    assert.equal(history.at(-1)?.actor, "session:retirer");
+  });
+});
+
+type ErrorClass = new (...args: never[]) => Error;
+
+async function withStorytree(projects: readonly string[], body: (storytree: Storytree) => Promise<void>): Promise<void> {
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    await body(storytree);
+  } finally {
+    try {
+      await storytree.close();
+    } finally {
+      await dropTestDatabases(projects.map((project) => `storytree_${project}`));
+    }
+  }
+}
+
+function surface(object: object): string[] {
+  const names = new Set<string>();
+  for (let level: object | null = object; level !== null && level !== Object.prototype; level = Object.getPrototypeOf(level) as object | null) {
+    for (const key of Reflect.ownKeys(level)) if (key !== "constructor") names.add(String(key));
+  }
+  return [...names].sort();
+}
+
+function healthRecord(id: string, fields: Record<string, unknown>, createdAt: string, updatedAt = createdAt): RecordEnvelope {
+  return { id, type: "health", version: 1, fields, createdAt, updatedAt };
+}
+
+function withoutSeq(changes: readonly Change[]): Omit<Change, "seq">[] {
+  return changes.map(({ seq: _seq, ...change }) => change);
+}
+
+function assertIncreasing(changes: readonly Change[]): void {
+  let previous = 0;
+  for (const change of changes) {
+    assert.ok(Number.isSafeInteger(change.seq) && change.seq > previous, `seq ${change.seq} comes after ${previous}`);
+    previous = change.seq;
+  }
+}
+
+function at<T>(items: readonly T[], index: number): T {
+  return items[index] ?? assert.fail(`there is no item ${index}`);
+}
+
+function untyped(value: unknown): never {
+  return value as never;
+}
+
+test("7.21 createPluginRecord saves a record of a plugin's kind the project was opened with, with the writer on its history; a kind it was not opened with, a core kind and fields outside the declared shape are refused with nothing written (ADR-1178 D3)", async () => {
+  const name = uniqueProjectName();
+  const note = { kind: "voice.note", version: 1, fields: { type: "object", properties: { words: { type: "string" } }, required: ["words"] }, writers: ["storytree_voice"] };
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name, { kinds: [note] });
+    const written = await lib.createPluginRecord("voice.note", { words: "park the globe idea" }, { actor: "voice door" });
+    assert.deepEqual([written.type, written.fields], ["voice.note", { words: "park the globe idea" }]);
+    assert.deepEqual((await lib.get(written.id))?.fields, { words: "park the globe idea" });
+    assert.equal((await lib.history({ id: written.id })).at(-1)!.actor, "voice door");
+    await assert.rejects(lib.createPluginRecord("voice.note", { said: "no words" }), { name: "SchemaError" });
+    await assert.rejects(lib.createPluginRecord("story", { title: "Through the side door" }), { name: "UnknownTypeError" }, "a core kind has its own write");
+    await assert.rejects(lib.createPluginRecord("chat.line", { words: "hello" }), { name: "UnknownTypeError" }, "a kind no mounted plugin declares");
+    assert.deepEqual((await lib.history()).map((entry) => entry.recordId), [written.id], "nothing else was written");
+    await lib.close();
+  });
+});
+
+test("7.24 editPluginRecord changes the named fields of a record of a plugin's kind the project was opened with, its writer on the history, and checkCurrent refuses an edit the record as it stands rules out; a core kind's record, a kind it was not opened with and fields outside the declared shape are refused with nothing written, and an id that is no live record is null", async () => {
+  const name = uniqueProjectName();
+  const note = { kind: "voice.note", version: 1, fields: { type: "object", properties: { words: { type: "string" }, takenBy: { type: "string" } }, required: ["words"], additionalProperties: false }, writers: ["storytree_voice"] };
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name, { kinds: [note] });
+    const written = await lib.createPluginRecord("voice.note", { words: "park the globe idea" });
+    const untaken = (current: { fields: Record<string, unknown> }) => {
+      if (current.fields.takenBy !== undefined) throw new Error(`already taken by ${String(current.fields.takenBy)}`);
+    };
+    const taken = await lib.editPluginRecord(written.id, { takenBy: "run 7" }, { actor: "owner", checkCurrent: untaken });
+    assert.deepEqual(taken?.fields, { words: "park the globe idea", takenBy: "run 7" });
+    assert.equal((await lib.history({ id: written.id })).at(-1)!.actor, "owner");
+    await assert.rejects(lib.editPluginRecord(written.id, { takenBy: "run 8" }, { checkCurrent: untaken }), /already taken by run 7/);
+    await assert.rejects(lib.editPluginRecord(written.id, { said: "no words" }), { name: "SchemaError" });
+    const story = await lib.addStory({ title: "Through the side door" });
+    await assert.rejects(lib.editPluginRecord(story.id, { title: "Edited from a plugin" }), { name: "UnknownTypeError" }, "a core kind has its own edit");
+    assert.equal(await lib.editPluginRecord("voice_note_000000000000", { takenBy: "run 9" }), null);
+    const before = (await lib.history()).length;
+    await lib.close();
+    const without = await storytree.openProject(name);
+    await assert.rejects(without.editPluginRecord(written.id, { takenBy: "run 9" }), { name: "UnknownTypeError" }, "a kind no mounted plugin declares");
+    assert.equal((await without.history()).length, before, "nothing else was written");
+    assert.deepEqual((await without.history({ id: written.id })).length, 2);
+    await without.close();
+  });
+});
+
+test("7.25 changesSince(n, { types, actions }) hands out only the changes of those types and actions after n, oldest first, with the cursor of the last one it kept", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const first = await lib.addStory({ title: "Visitor can sign up" });
+    await lib.editStory(first.id, { title: "Visitor signs up" });
+    const capability = await lib.addCapability({ title: "Email form", story: first.id });
+    const second = await lib.addStory({ title: "Visitor signs in" });
+    await lib.addCapability({ title: "Password form", story: second.id });
+
+    const whole = await lib.changesSince(0);
+    const created = await lib.changesSince(0, { types: ["story"], actions: ["created"] });
+    assert.deepEqual(created, { changes: whole.changes.filter((change) => change.type === "story" && change.action === "created"), cursor: created.changes.at(-1)!.seq });
+    assert.deepEqual(created.changes.map((change) => change.recordId), [first.id, second.id]);
+    assert.deepEqual((await lib.changesSince(created.changes[0]!.seq, { types: ["story"], actions: ["created"] })).changes.map((change) => change.recordId), [second.id], "after the cursor only");
+    assert.deepEqual((await lib.changesSince(0, { types: ["capability"] })).changes.map((change) => change.recordId), [capability.id, whole.changes.at(-1)!.recordId], "types alone");
+    assert.deepEqual((await lib.changesSince(0, { actions: ["updated"] })).changes.map((change) => change.recordId), [first.id], "actions alone");
+    assert.deepEqual(await lib.changesSince(created.cursor, { types: ["story"], actions: ["created"] }), { changes: [], cursor: created.cursor }, "nothing kept: the cursor given");
+    await assert.rejects(lib.changesSince(0, { actions: untyped(["deleted"]) }), RangeError, "an action no change has is refused");
+  });
+});
+
+test("7.27 changesSince(n, { fields, healthColumns }) keeps only those record fields, and of health only those columns' changes, with the cursor of the latest change it read past", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const story = await lib.addStory({ title: "Visitor signs up", text: "A long story no surface reads" });
+    const capability = await lib.addCapability({ title: "Email form", story: story.id });
+    const contract = await lib.addContract({ title: "Rejects a bad email", capability: capability.id });
+    await lib.reportHealth(contract.id, "failing", { by: "agent" });
+    await lib.recordVerified(contract.id, "passing");
+    await lib.recordVerified(contract.id, "failing");
+
+    const whole = await lib.changesSince(0);
+    const thinned = await lib.changesSince(0, { fields: ["title", "story", "node", "column", "state"], healthColumns: ["reported"] });
+    const kept = whole.changes.filter((change) => change.type !== "health" || change.record.fields.column === "reported");
+    assert.deepEqual(thinned.changes.map((change) => change.seq), kept.map((change) => change.seq), "every change but the verified column's");
+    assert.deepEqual(thinned.changes[0]!.record.fields, { title: "Visitor signs up" }, "only the fields asked leave the server");
+    assert.deepEqual({ ...thinned.changes[0]!.record, fields: {} }, { ...whole.changes[0]!.record, fields: {} }, "the rest of the record as it was");
+    assert.equal(thinned.cursor, whole.cursor, "the cursor of the latest change it read past, though it kept none of the last two");
+    assert.deepEqual(await lib.changesSince(thinned.cursor, { healthColumns: ["reported"] }), { changes: [], cursor: thinned.cursor }, "nothing after: the cursor given");
+    assert.deepEqual((await lib.changesSince(0, { fields: [] })).changes.map((change) => change.record.fields), whole.changes.map(() => ({})), "no fields asked keeps none");
+  });
+});
+
+test("7.26 attachMedia keeps a file beside a live record, with its type, size and SHA-256, out of the record's history; media lists them and mediaFile reads one back exactly; a record that is not live, a file past 10 MB and a name taken by other bytes are refused, unless replacing", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const note = await lib.defineTerm({ term: "Approved look", meaning: "The forest at dusk, as the owner approved it." });
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 1, 2, 0xff]);
+    const sha256 = createHash("sha256").update(png).digest("hex");
+    const before = (await lib.history()).length;
+
+    const attached = await lib.attachMedia(note.id, { name: "dusk.png", type: "image/png", bytes: png }, { actor: "session:media-test" });
+    assert.equal(attached.outcome, "added");
+    assert.deepEqual([attached.recordId, attached.name, attached.type, attached.size, attached.sha256, attached.addedBy], [note.id, "dusk.png", "image/png", png.length, sha256, "session:media-test"]);
+    assert.equal((await lib.history()).length, before, "the bytes are not written into the record's history");
+    const listed = await lib.media(note.id);
+    assert.deepEqual(listed, [{ recordId: note.id, name: "dusk.png", type: "image/png", size: png.length, sha256, addedAt: attached.addedAt, addedBy: "session:media-test" }]);
+    const file = await lib.mediaFile(note.id, "dusk.png");
+    assert.deepEqual(file?.bytes, png, "read back exactly");
+    assert.equal(file?.sha256, sha256);
+    assert.equal(await lib.mediaFile(note.id, "other.png"), null);
+    assert.deepEqual(await lib.media("glossary_000000000000"), []);
+
+    assert.equal((await lib.attachMedia(note.id, { name: "dusk.png", type: "image/png", bytes: png })).outcome, "same");
+    const redrawn = Uint8Array.from([...png, 7]);
+    await assert.rejects(lib.attachMedia(note.id, { name: "dusk.png", type: "image/png", bytes: redrawn }), /already holds other bytes.*replace/s);
+    assert.deepEqual((await lib.mediaFile(note.id, "dusk.png"))?.bytes, png, "a refusal changes nothing");
+    const replaced = await lib.attachMedia(note.id, { name: "dusk.png", type: "image/png", bytes: redrawn }, { replace: true });
+    assert.deepEqual([replaced.outcome, replaced.size], ["replaced", redrawn.length]);
+    assert.deepEqual((await lib.mediaFile(note.id, "dusk.png"))?.bytes, redrawn);
+
+    const cap = new Uint8Array(10 * 1024 * 1024);
+    assert.equal((await lib.attachMedia(note.id, { name: "clip.mp4", type: "video/mp4", bytes: cap })).size, cap.length);
+    await assert.rejects(lib.attachMedia(note.id, { name: "long.mp4", type: "video/mp4", bytes: new Uint8Array(cap.length + 1) }), /10 MB/);
+    await assert.rejects(lib.attachMedia("glossary_000000000000", { name: "dusk.png", type: "image/png", bytes: png }), /no live record/);
+    const gone = await lib.defineTerm({ term: "Old look", meaning: "Retired." });
+    await lib.retire(gone.id, "overtaken");
+    await assert.rejects(lib.attachMedia(gone.id, { name: "dusk.png", type: "image/png", bytes: png }), /no live record/);
+    await assert.rejects(lib.attachMedia(note.id, { name: "../dusk.png", type: "image/png", bytes: png }), /file name/);
+    await assert.rejects(lib.attachMedia(note.id, { name: "dusk.png", type: "a png", bytes: png }), /media type/);
+    assert.deepEqual((await lib.media(note.id)).map((entry) => entry.name), ["clip.mp4", "dusk.png"], "in name order, the refused ones not kept");
+  });
+});

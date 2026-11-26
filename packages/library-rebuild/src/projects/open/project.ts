@@ -1,6 +1,7 @@
 // Capability 1 · Project libraries
 import type { Pool } from "pg";
 
+import type { HealthRecord } from "../../health/index.js";
 import type { Knowledge } from "../../knowledge/notes/index.js";
 import type { WorkModel } from "../../plan/index.js";
 import type { Transactions } from "../../storage/store/index.js";
@@ -18,6 +19,7 @@ export interface Project {
   readonly knowledge: Knowledge;
   readonly work: WorkModel;
   readonly flight: WorkInFlight;
+  readonly health: HealthRecord;
   readonly lineage: ProjectLineage;
   reach(name: string): Promise<Project>;
   reachAll(): Promise<Reached<Project>[]>;

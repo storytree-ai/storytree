@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import type { Pool, QueryResult, QueryResultRow } from "pg";
 
+import { HealthRecord } from "../../health/index.js";
 import { convertMemories, Knowledge } from "../../knowledge/notes/index.js";
 import { defaultEmbedder, modelsFolder, PgVectors, vectorServerIdentity, type EmbedderSource } from "../../knowledge/search/index.js";
 import { LIBRARY_SCHEMA, pluginSchema, SchemaRecords, type PluginRecordKind } from "../../storage/rules/index.js";
@@ -157,6 +158,7 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
     await convertMemories(records, transactions);
     let circle: FactoryCircle<Project> | undefined;
     const work = new WorkModel(records);
+    const flight = new WorkInFlight(records, work);
     const project: Project = {
       name,
       identity: domain.identity,
@@ -165,7 +167,8 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
       records,
       knowledge: new Knowledge(records, name, { embedder, vectors: new PgVectors(pool, vectorCache, domain) }),
       work,
-      flight: new WorkInFlight(records, work),
+      flight,
+      health: new HealthRecord(records, work, flight),
       lineage: new ProjectLineage(pool, name),
       reach: (other) => circle!.reach(other),
       reachAll: () => circle!.reachAll(),

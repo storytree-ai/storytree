@@ -110,7 +110,31 @@ export class PgBackend implements Backend {
         await db.query("DELETE FROM record WHERE id = $1", [id]);
       },
       append: async (entry) => this.#append(db, entry),
+      getAll: async (ids) => {
+        const { rows } = await db.query<RecordRow>("SELECT * FROM record WHERE id = ANY($1::text[])", [ids]);
+        return rows.map(envelope);
+      },
+      putAll: async (records, entries) => this.#putAll(db, records, entries),
     };
+  }
+
+  async #putAll(db: Queryable, records: readonly RecordEnvelope[], entries: readonly NewEntry[]): Promise<void> {
+    const marks = await this.#hasMarks(db);
+    const rows = records.map((record) => ({ id: record.id, type: record.type, version: record.version, fields: record.fields, created_at: record.createdAt, updated_at: record.updatedAt }));
+    const events = entries.map((entry) => ({ record_id: entry.recordId, type: entry.type, action: entry.action, record: entry.record, reason: entry.reason ?? null, actor: entry.actor ?? null, outside_read: entry.outsideRead ?? null }));
+    await db.query(
+      `WITH saved AS (
+         INSERT INTO record (id, type, version, fields, created_at, updated_at)
+         SELECT r->>'id', r->>'type', (r->>'version')::integer, r->'fields', (r->>'created_at')::timestamptz, (r->>'updated_at')::timestamptz
+         FROM jsonb_array_elements($1::jsonb) AS t(r)
+         ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type, version = EXCLUDED.version, fields = EXCLUDED.fields,
+           created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at
+       )
+       INSERT INTO record_event (record_id, type, action, record, reason, actor${marks ? ", outside_read" : ""})
+       SELECT e->>'record_id', e->>'type', e->>'action', e->'record', e->>'reason', e->>'actor'${marks ? ", NULLIF(e->'outside_read', 'null'::jsonb)" : ""}
+       FROM jsonb_array_elements($2::jsonb) WITH ORDINALITY AS u(e, n) ORDER BY n`,
+      [JSON.stringify(rows), JSON.stringify(events)],
+    );
   }
 
   async #append(db: Queryable, entry: NewEntry): Promise<void> {

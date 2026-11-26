@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { withLibrary } from "../testing/pg.js";
+import { withLibrary } from "../../testing/pg.js";
 import { annotate, correct, recordDecision, supersede } from "./index.js";
 
 test("31.1 · through the decisions entry, a decision recorded accepted is corrected, annotated by a later decision naming its clauses, then superseded: it reads superseded by its successor, names the annotating decision and its clauses, and its history keeps the corrected wording", async () => {

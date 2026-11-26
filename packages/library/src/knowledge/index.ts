@@ -18,6 +18,8 @@ export type { Found, HeldClaim, NoteRead, PhraseHit, Presenter } from "./notes/n
 export { narrowedSaid, rankedSearch } from "./notes/ranked.js";
 export { refuseStaleEdit } from "./notes/stale-edit.js";
 export { contextIn, libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./notes/elsewhere.js";
+export { ADR_FAMILY, annotate, correct, editDecision, justificationSaid, recordDecision, supersede, supersededLines } from "./decisions/index.js";
+export type { Annotation, Correction, DecisionLibrary, DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision, Successor } from "./decisions/index.js";
 
 export type NoteToolContext = NotesToolContext<Library, Pick<Storytree, "ownDatabase">>;
 

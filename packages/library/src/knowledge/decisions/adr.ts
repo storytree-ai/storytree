@@ -1,5 +1,5 @@
-// Capability 13 · Decision log
-import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
+// Capability 31 · Decisions
+import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../../verbs/verb.js";
 import type { DecisionView } from "./decision-log.js";
 import { editDecision, recordDecision, type DecisionLibrary } from "./supersede.js";
 

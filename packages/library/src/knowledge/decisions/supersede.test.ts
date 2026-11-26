@@ -1,16 +1,16 @@
-// Capability 13 · Decision log
+// Capability 31 · Decisions
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import type { Library } from "../index.js";
-import { LIBRARY_FAMILIES, type LibraryVerbContext } from "../commands/index.js";
-import type { DoorWords } from "../verbs/verb.js";
+import type { Library } from "../../index.js";
+import { LIBRARY_FAMILIES, type LibraryVerbContext } from "../../commands/index.js";
+import type { DoorWords } from "../../verbs/verb.js";
 
-import { withLibrary } from "../testing/pg.js";
-import { librarianTools, type ToolAnswer, type ToolCall } from "../librarian/index.js";
+import { withLibrary } from "../../testing/pg.js";
+import { librarianTools, type ToolAnswer, type ToolCall } from "../../librarian/index.js";
 import { ADR_FAMILY, supersede } from "./index.js";
 
 
@@ -25,7 +25,7 @@ async function textsOf(library: Library, id: string): Promise<unknown[]> {
   return (await library.changesSince(0)).changes.filter((change) => change.recordId === id).map((change) => change.record.fields.text);
 }
 
-test("13.12 supersede records an accepted successor that takes the old one's shelf and load-bearing mark, and the old one stays readable as superseded", async () => {
+test("31.13 supersede records an accepted successor that takes the old one's shelf and load-bearing mark, and the old one stays readable as superseded", async () => {
   await withLibrary(async (library) => {
     const { capability, cover } = await shelf(library);
     const other = await library.recordDecision({ title: "Log every email", text: "Every email sent is logged.", status: "accepted" });
@@ -43,7 +43,7 @@ test("13.12 supersede records an accepted successor that takes the old one's she
   });
 });
 
-test("13.12 supersede accepts an existing successor through the tool, preserving its history and links without making a duplicate", async () => {
+test("31.13 supersede accepts an existing successor through the tool, preserving its history and links without making a duplicate", async () => {
   await withLibrary(async (library) => {
     const { capability, cover } = await shelf(library);
     const earlier = await library.recordDecision({ title: "Send nothing", text: "No email yet.", status: "accepted" });
@@ -79,7 +79,7 @@ test("13.12 supersede accepts an existing successor through the tool, preserving
   });
 });
 
-test("13.12 an existing successor keeps its own shelf and load-bearing mark when another decision is added", async () => {
+test("31.13 an existing successor keeps its own shelf and load-bearing mark when another decision is added", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const { capability, cover: successor } = await shelf(library);
@@ -90,7 +90,7 @@ test("13.12 an existing successor keeps its own shelf and load-bearing mark when
   });
 });
 
-test("13.12 existing supersession refuses invalid decisions and loops before any write", async () => {
+test("31.13 existing supersession refuses invalid decisions and loops before any write", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const proposal = await library.recordDecision({ title: "Proposal", text: "Maybe.", status: "proposed" });
@@ -114,7 +114,7 @@ test("13.12 existing supersession refuses invalid decisions and loops before any
   });
 });
 
-test("13.13 a decision superseded by `adr new --supersedes` leaves `adr list --load-bearing`, and its successor takes the mark and the shelf as supersede leaves them", async () => {
+test("31.14 a decision superseded by `adr new --supersedes` leaves `adr list --load-bearing`, and its successor takes the mark and the shelf as supersede leaves them", async () => {
   await withLibrary(async (library) => {
     const { capability, cover } = await shelf(library);
     const words: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
@@ -141,7 +141,7 @@ test("13.13 a decision superseded by `adr new --supersedes` leaves `adr list --l
   });
 });
 
-test("13.13 a decision superseded through `library new`, `library edit` or `adr push` leaves `adr list --load-bearing`, its successor carrying the mark and the shelf", async () => {
+test("31.14 a decision superseded through `library new`, `library edit` or `adr push` leaves `adr list --load-bearing`, its successor carrying the mark and the shelf", async () => {
   await withLibrary(async (library) => {
     const words: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
     const context = { library, project: library.name, session: "s", folder: process.cwd(), writer: { actor: "session:s" } } as LibraryVerbContext;
@@ -175,7 +175,7 @@ test("13.13 a decision superseded through `library new`, `library edit` or `adr 
   });
 });
 
-test("13.13 a supersede that fails part-way leaves neither the successor nor the old decision changed", async () => {
+test("31.14 a supersede that fails part-way leaves neither the successor nor the old decision changed", async () => {
   await withLibrary(async (library) => {
     const { capability, cover } = await shelf(library);
     const { cursor } = await library.changesSince(0);
@@ -195,7 +195,7 @@ test("13.13 a supersede that fails part-way leaves neither the successor nor the
   });
 });
 
-test("13.14 a new decision written proposed, through `adr new` or `library new decision`, is refused pointing to an open question, and nothing is written", async () => {
+test("31.15 a new decision written proposed, through `adr new` or `library new decision`, is refused pointing to an open question, and nothing is written", async () => {
   await withLibrary(async (library) => {
     const words: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
     const context = { library, project: library.name, session: "s", folder: process.cwd(), writer: { actor: "session:s" } } as LibraryVerbContext;

@@ -1,10 +1,10 @@
-// Capability 22 · Decision corrections
+// Capability 31 · Decisions
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Library } from "../index.js";
+import type { Library } from "../../index.js";
 
-import { withLibrary } from "../testing/pg.js";
+import { withLibrary } from "../../testing/pg.js";
 import { annotate, correct } from "./index.js";
 
 async function shelf(library: Library) {
@@ -18,7 +18,7 @@ async function textsOf(library: Library, id: string): Promise<unknown[]> {
   return (await library.changesSince(0)).changes.filter((change) => change.recordId === id).map((change) => change.record.fields.text);
 }
 
-test("22.2 correct changes a decision in place, keeping the old wording in history, and refuses turning an accepted decision back to proposed", async () => {
+test("31.25 correct changes a decision in place, keeping the old wording in history, and refuses turning an accepted decision back to proposed", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
 
@@ -34,7 +34,7 @@ test("22.2 correct changes a decision in place, keeping the old wording in histo
   });
 });
 
-test("22.3 · annotate adds a dated note to the target naming the decision that supersedes clauses of it, names the target once in that decision's supersedesClauses with the clauses given added (partial when none are given), and refuses a superseding record that is not a live decision", async () => {
+test("31.26 · annotate adds a dated note to the target naming the decision that supersedes clauses of it, names the target once in that decision's supersedesClauses with the clauses given added (partial when none are given), and refuses a superseding record that is not a live decision", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const narrowing = await library.recordDecision({ title: "Transactional email only", text: "Mailgun sends receipts, never newsletters.", status: "accepted" });

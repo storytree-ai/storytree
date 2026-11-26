@@ -1,5 +1,5 @@
-// Capability 22 · Decision corrections
-import type { SchemaRecord, WriteOptions } from "../records/index.js";
+// Capability 31 · Decisions
+import type { SchemaRecord, WriteOptions } from "../../records/index.js";
 
 import { withClauses } from "./decision-log.js";
 import { DecisionRefusal, label, type DecisionLibrary } from "./supersede.js";

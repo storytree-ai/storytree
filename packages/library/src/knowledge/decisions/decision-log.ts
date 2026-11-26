@@ -1,7 +1,7 @@
-// Capability 13 · Decision log
+// Capability 31 · Decisions
 import { createHash } from "node:crypto";
 
-import { byCreation, checkReference, checkReferences, type Expected, type FieldsOf, type HistoryEntry, liveRecord, NumberTakenError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
+import { byCreation, checkReference, checkReferences, type Expected, type FieldsOf, type HistoryEntry, liveRecord, NumberTakenError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../records/index.js";
 
 const COVERABLE: Expected = { name: "story or capability", types: ["story", "capability"] };
 

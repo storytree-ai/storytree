@@ -1,6 +1,5 @@
 // Capability 35 · The librarian
-import type { DecisionLibrary } from "../decisions/index.js";
-import { referenceEdgesOf, type Knowledge, type Note } from "../knowledge/index.js";
+import { referenceEdgesOf, type DecisionLibrary, type Knowledge, type Note } from "../knowledge/index.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../records/index.js";
 
 export interface LibrarianLibrary

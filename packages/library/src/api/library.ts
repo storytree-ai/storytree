@@ -333,7 +333,14 @@ function libraryOf(project: Project): Library {
       return routed as SchemaRecord<"feedback"> | null;
     },
     async recordFyi({ at, ...fyi }, options = {}) {
-      return project.records.create("fyi", { ...fyi, at: at ?? new Date().toISOString() }, options);
+      const fields = { ...fyi, at: at ?? new Date().toISOString() };
+      const about = couldBeId(fyi.about) ? await project.records.get(fyi.about) : null;
+      if (about?.type === "research" || about?.type === "experiment") {
+        const unheard = (await project.records.list("fyi")).find(({ fields: one }) => one.about === fyi.about && one.heardAt === undefined);
+        const replaced = unheard === undefined ? null : await project.records.edit(unheard.id, fields, options);
+        if (replaced !== null) return replaced as SchemaRecord<"fyi">;
+      }
+      return project.records.create("fyi", fields, options);
     },
     async unheardFyis() {
       const unheard = (await project.records.list("fyi")).filter(({ fields }) => fields.heardAt === undefined);

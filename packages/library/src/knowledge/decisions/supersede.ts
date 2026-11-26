@@ -1,5 +1,5 @@
 // Capability 31 · Decisions
-import type { Knowledge, Note, NoteEdit } from "../notes/knowledge.js";
+import type { Knowledge, Note, NoteEdit } from "../index.js";
 import type { RecordType, SchemaRecord, WriteOptions } from "../../records/index.js";
 
 import type { NewDecision } from "./decision-log.js";

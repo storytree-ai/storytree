@@ -11,8 +11,8 @@ import { removeTemp } from "@storytree/test-waits";
 
 import pg from "pg";
 
-import { Knowledge } from "../knowledge/knowledge.js";
-import { chunksOf, renderNote } from "../knowledge/embedding.js";
+import { Knowledge } from "../knowledge/notes/knowledge.js";
+import { chunksOf, renderNote } from "../knowledge/search/embedding.js";
 import type { SchemaRecord } from "../records/index.js";
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 import { PgVectors, vectorServerIdentity } from "../knowledge/index.js";

@@ -1,3 +1,4 @@
+// Capability 14 · Search
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
@@ -7,10 +8,10 @@ import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { Knowledge, type Embedder } from "./index.js";
-import { withCountedProject } from "../testing/pg.js";
+import { Knowledge, type Embedder } from "../index.js";
+import { withCountedProject } from "../../testing/pg.js";
 import { PgVectors } from "./embeddings.js";
-import { connect } from "../project/index.js";
+import { connect } from "../../project/index.js";
 
 const domain = { server: "synthetic", database: "test-project", identity: "1" };
 

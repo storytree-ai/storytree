@@ -7,7 +7,7 @@
     ".": "./src/index.ts",
     "./verbs": "./src/commands/verbs.ts",
     "./commands": "./src/commands/index.ts",
-    "./whole-words": "./src/knowledge/whole-words.ts",
+    "./whole-words": "./src/knowledge/search/whole-words.ts",
     "./librarian": "./src/librarian/index.ts",
     "./pr-cutover": "./src/plan/pr-cutover.ts",
     "./connection-error": "./src/project/connection-error.ts",

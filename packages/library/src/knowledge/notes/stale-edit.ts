@@ -1,6 +1,6 @@
-// Capability 17 · The library's commands
-import type { SchemaRecords, WriteOptions } from "../records/index.js";
-import { VerbRefusal } from "../verbs/verb.js";
+// Capability 6 · Notes
+import type { SchemaRecords, WriteOptions } from "../../records/index.js";
+import { VerbRefusal } from "../../verbs/verb.js";
 
 export const RECENT_MS = 15 * 60 * 1000;
 

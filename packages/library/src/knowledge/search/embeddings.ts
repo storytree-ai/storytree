@@ -1,4 +1,4 @@
-// Capability 14 · Ranked search
+// Capability 14 · Search
 import { createHash } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";

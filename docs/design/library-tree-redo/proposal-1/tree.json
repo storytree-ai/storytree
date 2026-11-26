@@ -165,7 +165,8 @@
       "id": "r1-knowledge",
       "title": "Knowledge",
       "files": [
-        "packages/library/src/knowledge/index.ts"
+        "packages/library/src/knowledge/index.ts",
+        "packages/library/src/knowledge/schema.ts"
       ],
       "entry": "packages/library/src/knowledge/index.ts",
       "was": [
@@ -178,17 +179,17 @@
       "title": "Notes",
       "parent": "r1-knowledge",
       "files": [
-        "packages/library/src/knowledge/knowledge.ts",
-        "packages/library/src/knowledge/kinds.ts",
-        "packages/library/src/knowledge/memory-upgrade.ts",
-        "packages/library/src/knowledge/similarity.ts",
-        "packages/library/src/knowledge/front-covers.ts",
-        "packages/library/src/commands/notes.ts",
-        "packages/library/src/commands/ranked.ts",
-        "packages/library/src/commands/elsewhere.ts",
-        "packages/library/src/commands/stale-edit.ts"
+        "packages/library/src/knowledge/notes/knowledge.ts",
+        "packages/library/src/knowledge/notes/kinds.ts",
+        "packages/library/src/knowledge/notes/memory-upgrade.ts",
+        "packages/library/src/knowledge/notes/similarity.ts",
+        "packages/library/src/knowledge/notes/front-covers.ts",
+        "packages/library/src/knowledge/notes/notes.ts",
+        "packages/library/src/knowledge/notes/ranked.ts",
+        "packages/library/src/knowledge/notes/elsewhere.ts",
+        "packages/library/src/knowledge/notes/stale-edit.ts"
       ],
-      "entry": "packages/library/src/knowledge/knowledge.ts",
+      "entry": "packages/library/src/knowledge/notes/knowledge.ts",
       "schema": [
         "definition",
         "principle",
@@ -215,15 +216,15 @@
     },
     {
       "id": "r1-know-search",
-      "title": "Ranked search",
+      "title": "Search",
       "parent": "r1-knowledge",
       "files": [
-        "packages/library/src/knowledge/embedding-model.ts",
-        "packages/library/src/knowledge/embedding.ts",
-        "packages/library/src/knowledge/embeddings.ts",
-        "packages/library/src/knowledge/whole-words.ts"
+        "packages/library/src/knowledge/search/embedding-model.ts",
+        "packages/library/src/knowledge/search/embedding.ts",
+        "packages/library/src/knowledge/search/embeddings.ts",
+        "packages/library/src/knowledge/search/whole-words.ts"
       ],
-      "entry": "packages/library/src/knowledge/embedding.ts",
+      "entry": "packages/library/src/knowledge/search/embedding.ts",
       "was": [
         14
       ],

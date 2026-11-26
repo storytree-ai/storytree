@@ -1,14 +1,14 @@
-// Capability 9 · Knowledge entrances
+// Capability 6 · Notes
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { waitUntil } from "@storytree/test-waits";
 
-import { connect } from "../project/index.js";
-import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type RecordEnvelope, type RecordType, type Transactions } from "../records/index.js";
-import { LIBRARY_SCHEMA, SCHEMA_VERSIONS } from "../schema/index.js";
-import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { Knowledge, type NewDefinition } from "./index.js";
+import { connect } from "../../project/index.js";
+import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type RecordEnvelope, type RecordType, type Transactions } from "../../records/index.js";
+import { LIBRARY_SCHEMA, SCHEMA_VERSIONS } from "../../schema/index.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
+import { Knowledge, type NewDefinition } from "../index.js";
 
 interface Library {
   readonly knowledge: Knowledge;
@@ -70,7 +70,7 @@ for (const backend of [memory, postgres]) {
     });
   };
 
-  contract("9.1", "a decision can be the front cover of a story or a capability, and frontCovers lists a node's covers, founding first", async ({ knowledge, records, transactions }) => {
+  contract("6.30", "a decision can be the front cover of a story or a capability, and frontCovers lists a node's covers, founding first", async ({ knowledge, records, transactions }) => {
     const story = await records.create("story", { title: "Visitor can sign up" });
     const form = await records.create("capability", { title: "Email form", story: story.id, proposed: true });
     const login = await records.create("capability", { title: "Login", story: story.id, proposed: true });
@@ -174,7 +174,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(covered?.fields, { ...decision.fields, frontCoverOf: capability.id });
   });
 
-  contract("9.3", "a note linking to a story, capability, contract, arc or health entry is refused, and nothing is written", async ({ knowledge, records, transactions }) => {
+  contract("6.31", "a note linking to a story, capability, contract, arc or health entry is refused, and nothing is written", async ({ knowledge, records, transactions }) => {
     const story = await records.create("story", { title: "Visitor can sign up" });
     const capability = await records.create("capability", { title: "Email form", story: story.id, proposed: true });
     const arc = await records.create("arc", { title: "Launch v1", intent: "An intent", endState: "An end state", stories: [story.id] });

@@ -998,3 +998,21 @@ test("7.26 attachMedia keeps a file beside a live record, with its type, size an
     assert.deepEqual((await lib.media(note.id)).map((entry) => entry.name), ["clip.mp4", "dusk.png"], "in name order, the refused ones not kept");
   });
 });
+
+test("5.37 the library's health worklist holds a plugin's story's capability verified before its plugin's main moved, naming the commit and storytree health plugin <plugin>", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const story = await lib.addStory({ title: "Mick's dev loop" });
+    const capability = await lib.addCapability({ title: "Guidance check", story: story.id });
+    const contract = await lib.addContract({ title: "1.1 · Checks the guidance", capability: capability.id });
+    await lib.setProposed(capability.id, false);
+    const recorded = await lib.recordVerified(contract.id, "failing");
+    const plugins = new Map([[story.id, { plugin: "micks-dev-loop", commit: "5f1e2d3c", at: new Date(Date.parse(recorded.at) + 1000).toISOString() }]]);
+
+    const waits = (await lib.healthWorklist({ plugins })).find((item) => item.capability === capability.id)?.waits;
+    assert.match(waits?.note ?? "", /5f1e2d3c/, "held on the plugin's commit");
+    assert.match(waits?.note ?? "", /storytree health plugin micks-dev-loop/);
+    await lib.close();
+  });
+});

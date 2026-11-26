@@ -78,6 +78,7 @@ export type {
   HealthWorkItem,
   ChangedOnMain,
   NamedOnMain,
+  PluginOnMain,
   PendingRun,
   EarlierVerdict,
   HealthColumn,

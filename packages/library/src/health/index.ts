@@ -21,6 +21,7 @@ export type {
   NodeHealth,
   ChangedOnMain,
   NamedOnMain,
+  PluginOnMain,
   PendingRun,
   HealthSource,
   SkipKind,

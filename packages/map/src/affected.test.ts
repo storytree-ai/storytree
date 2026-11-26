@@ -231,3 +231,55 @@ test("4.3 the health worklist read at a checkout names to the library each contr
   await healthWorklistAt(library, checkout);
   assert.ok(asked.every(options => options?.named === undefined), "no origin/main: nothing named");
 });
+
+test("4.5 the health worklist read at a checkout with a factory folder gives the library, for each story a plugin owns, the newest commit on the factory's fetched origin/main that changed plugins/<plugin>/, with its time and the plugin's name; with no factory folder, no such plugin folder or no origin/main there, that story has none", async t => {
+  const repo = await repository(t);
+  const factory = await mkdtemp(path.join(tmpdir(), "map-factory-"));
+  t.after(() => removeTemp(factory));
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: factory, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
+  const write = async (name: string, text: string) => { await mkdir(path.dirname(path.join(factory, name)), { recursive: true }); await writeFile(path.join(factory, name), text); };
+  const at = (when: Date, message: string) => execFileSync("git", ["-c", "user.name=Map test", "-c", "user.email=map@example.test", "-c", "commit.gpgsign=false", "commit", "-m", message], { cwd: factory, env: { ...process.env, GIT_COMMITTER_DATE: when.toISOString(), GIT_AUTHOR_DATE: when.toISOString() }, stdio: "ignore" });
+  const now = Date.now();
+  const daysAgo = (days: number) => new Date(now - days * 24 * 60 * 60 * 1000);
+  git("init");
+  await write("plugins/micks-dev-loop/index.mjs", "export const loop = 1;\n");
+  git("add", "-A"); at(daysAgo(9), "loop, first");
+  await write("plugins/micks-dev-loop/index.mjs", "export const loop = 2;\n");
+  git("add", "-A"); at(daysAgo(3), "loop, newest on main");
+  const loop = git("rev-parse", "HEAD");
+  await write("plugins/micks-dev-loop-extra/index.mjs", "export const extra = 1;\n");
+  await write("plugins/other/index.mjs", "export const other = 1;\n");
+  git("add", "-A"); at(daysAgo(1), "a plugin no story owns, and a folder whose name only starts with the plugin's");
+  git("update-ref", "refs/remotes/origin/main", "HEAD");
+  await write("plugins/micks-dev-loop/index.mjs", "export const loop = 3;\n");
+  git("add", "-A"); at(daysAgo(0), "loop, off main");
+
+  const health = { reported: { state: "not-checked" }, verified: { state: "passing" } };
+  const plan = { arcs: [], stories: [
+    { id: "loop", title: "Mick's dev loop", plugin: "micks-dev-loop", health, capabilities: [] },
+    { id: "missing", title: "A plugin with no folder", plugin: "never-made", health, capabilities: [] },
+    { id: "shop", title: "Shop", health, capabilities: [] },
+  ] } as unknown as AnnotatedTree;
+  const asked: Parameters<Library["healthWorklist"]>[0][] = [];
+  const library = {
+    projectTree: async () => plan,
+    healthWorklist: async (options?: Parameters<Library["healthWorklist"]>[0]) => { asked.push(options); return []; },
+  };
+  const plugins = () => asked.at(-1)?.plugins as ReadonlyMap<string, { plugin: string; commit: string; at: string }> | undefined;
+
+  await healthWorklistAt(library, repo.folder, factory);
+  assert.deepEqual([...(plugins()?.keys() ?? [])], ["loop"], "only the story whose plugin's folder main changed; a plugin with no folder and a story no plugin owns have none");
+  const read = plugins()!.get("loop")!;
+  assert.equal(read.plugin, "micks-dev-loop");
+  assert.equal(read.commit, loop, "the newest commit on origin/main that changed its folder, not a later one off main or one in another folder");
+  assert.equal(Date.parse(read.at), Math.floor(daysAgo(3).getTime() / 1000) * 1000);
+
+  asked.length = 0;
+  await healthWorklistAt(library, repo.folder);
+  assert.ok(asked.length > 0 && asked.every(options => (options?.plugins?.size ?? 0) === 0), "no factory folder: none");
+
+  asked.length = 0;
+  git("update-ref", "-d", "refs/remotes/origin/main");
+  await healthWorklistAt(library, repo.folder, factory);
+  assert.ok(asked.length > 0 && asked.every(options => (options?.plugins?.size ?? 0) === 0), "no origin/main in the factory: none");
+});

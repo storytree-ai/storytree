@@ -30,11 +30,12 @@ export interface ToolExtension {
 export interface ToolHost {
   readonly imports: (storytree: Storytree, project: string) => Promise<readonly ImportedFolder[]>;
   readonly heldBack: (items: readonly HealthWorkItem[]) => string | undefined;
+  readonly factory?: () => string | undefined;
 }
 
 export const mapToolParts = [(host: ToolHost): ToolExtension => mapTools(host)];
 
-export function mapTools({ imports: importsOf, heldBack }: ToolHost): ToolExtension {
+export function mapTools({ imports: importsOf, heldBack, factory }: ToolHost): ToolExtension {
   return {
     registerTools(define) {
       define(
@@ -84,7 +85,7 @@ export function mapTools({ imports: importsOf, heldBack }: ToolHost): ToolExtens
         "See the oldest three capabilities that are not healthy, each with its reason, who moves it and since when, and how many more wait. One an open increment lists among its capabilities is already routed and not offered (ADR-0825 D4), and neither is one a test run in progress, or a merge to main its own-health run has not recorded yet, will record: it is held back, and counted.",
         z.object({}),
         async (_args, { library, folder }) => {
-          const all = await healthWorklistAt(library, folder);
+          const all = await healthWorklistAt(library, folder, factory?.());
           const said = heldBack(all);
           const held = all.filter(({ waits }) => waits !== undefined).map(({ capability }) => capability);
           const listed = all.filter(({ waits }) => waits === undefined);

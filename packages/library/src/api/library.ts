@@ -1,5 +1,5 @@
 // Capability 7 · Library API
-import type { AnnotatedTree, ChangedOnMain, HealthWorkItem, NamedOnMain } from "../health/index.js";
+import type { AnnotatedTree, ChangedOnMain, HealthWorkItem, NamedOnMain, PluginOnMain } from "../health/index.js";
 import { connect as connectServer, InheritedRecords, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Reached, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
 import { DataQuestions } from "../data/data-questions.js";
@@ -58,7 +58,7 @@ export interface Library
   reachAll(): Promise<Reached<Library>[]>;
   workSurvey(at?: Date, options?: Omit<SurveyOptions, "empty">): Promise<WorkSurvey>;
   projectTree(options?: { readonly pendingOf?: string | undefined }): Promise<AnnotatedTree>;
-  healthWorklist(options?: { readonly changed?: ReadonlyMap<string, ChangedOnMain>; readonly named?: NamedOnMain }): Promise<HealthWorkItem[]>;
+  healthWorklist(options?: { readonly changed?: ReadonlyMap<string, ChangedOnMain>; readonly named?: NamedOnMain; readonly plugins?: ReadonlyMap<string, PluginOnMain> }): Promise<HealthWorkItem[]>;
   retireQuestion(id: string, reason: string, options?: WriteOptions): Promise<string[] | null>;
   retire(id: string, reason: string, options?: WriteOptions): Promise<void>;
   inOneWrite<T>(work: () => Promise<T>, options?: { readonly signal?: AbortSignal }): Promise<T>;
@@ -254,7 +254,7 @@ function libraryOf(project: Project): Library {
       const tree = await project.work.projectTree();
       return project.health.annotate((await project.flight.withPending(options.pendingOf, tree)) ?? tree, parked);
     },
-    healthWorklist: (options) => project.health.worklist({ ...(options?.changed === undefined ? {} : { changed: options.changed }), ...(options?.named === undefined ? {} : { named: options.named }) }),
+    healthWorklist: (options) => project.health.worklist({ ...(options?.changed === undefined ? {} : { changed: options.changed }), ...(options?.named === undefined ? {} : { named: options.named }), ...(options?.plugins === undefined ? {} : { plugins: options.plugins }) }),
     async createPluginRecord(kind, fields, options = {}) {
       if (!isPluginKind(kind)) throw new UnknownTypeError(kind);
       return project.records.create(kind as RecordType, fields as FieldsOf<RecordType>, options);

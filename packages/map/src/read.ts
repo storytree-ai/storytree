@@ -2,7 +2,7 @@
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { affectedProject, changedOnMain, namedOnMain, type AffectedOptions } from "./affected.js";
+import { affectedProject, changedOnMain, movedInFactory, namedOnMain, type AffectedOptions } from "./affected.js";
 import type { AnnotatedTree, HealthWorkItem, Library } from "@storytree/library";
 import { readFile } from "node:fs/promises";
 import { codeSurveyReader, surveyCodeName, type ImportedFolder } from "./code-survey/read-survey.js";
@@ -107,12 +107,12 @@ export type { CrossingAnswer, CrossingOptions, ImportedFolder, LinksAnswer };
 
 const MAIN_READ_BACK = 24 * 60 * 60 * 1000;
 
-export async function healthWorklistAt(library: Pick<Library, "projectTree" | "healthWorklist">, folder: string): Promise<HealthWorkItem[]> {
+export async function healthWorklistAt(library: Pick<Library, "projectTree" | "healthWorklist">, folder: string, factory?: string): Promise<HealthWorkItem[]> {
   const tree = await library.projectTree();
-  const changed = await changedOnMain(tree.stories, folder, { within: MAIN_READ_BACK });
-  const offered = await library.healthWorklist({ changed });
+  const [changed, plugins] = await Promise.all([changedOnMain(tree.stories, folder, { within: MAIN_READ_BACK }), movedInFactory(tree.stories, factory)]);
+  const offered = await library.healthWorklist({ changed, plugins });
   const unnamed = new Set(offered.flatMap(({ why, waits }) => (waits === undefined && why.reason === "no test names it" ? why.contracts : [])));
   if (unnamed.size === 0) return offered;
   const named = await namedOnMain(tree, folder, unnamed);
-  return named === undefined || named.contracts.length === 0 ? offered : library.healthWorklist({ changed, named });
+  return named === undefined || named.contracts.length === 0 ? offered : library.healthWorklist({ changed, plugins, named });
 }

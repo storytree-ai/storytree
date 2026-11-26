@@ -1,10 +1,11 @@
 // Capability 4 · Diff impact
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { AnnotatedTree, ChangedOnMain, Library, NamedOnMain } from "@storytree/library";
+import type { AnnotatedTree, ChangedOnMain, Library, NamedOnMain, PluginOnMain } from "@storytree/library";
 import { packageOf, packagesOf } from "./code-survey/code-survey.js";
 import { codeSurveyReader, type CodeSurveyReader } from "./code-survey/read-survey.js";
 import { buildGraph, type ChangeLabel, type MapEdge, type MapNode, type ProjectGraph } from "./graph.js";
@@ -192,6 +193,18 @@ export async function changedOnMain(stories: readonly { readonly id: string; rea
     }
   }
   return changed;
+}
+
+export async function movedInFactory(stories: readonly { readonly id: string; readonly plugin?: string }[], factory: string | undefined): Promise<Map<string, PluginOnMain>> {
+  const moved = new Map<string, PluginOnMain>();
+  if (factory === undefined) return moved;
+  for (const { id, plugin } of stories) {
+    if (plugin === undefined || !existsSync(path.join(factory, "plugins", plugin))) continue;
+    const head = await gitText(factory, ["log", "-1", "--format=%H %cI", "refs/remotes/origin/main", "--", `plugins/${plugin}/`]).catch(() => "");
+    const [commit = "", at = ""] = head.split(" ");
+    if (commit !== "") moved.set(id, { plugin, commit, at: new Date(at).toISOString() });
+  }
+  return moved;
 }
 
 export async function namedOnMain(tree: AnnotatedTree, folder: string, contracts: ReadonlySet<string>): Promise<NamedOnMain | undefined> {

@@ -381,6 +381,32 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await work.dependsOn(link.id), [mail.id]);
   });
 
+  contract("10.66", "a landing applies a capability retirement queued before the retirement of the edge onto it and before the edit taking it off another capability's dependsOn, so all four apply with no residue", async ({ work, flight, records }) => {
+    const arc = await flight.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const other = await work.addStory({ title: "Visitor gets mail" });
+    const form = await work.addCapability({ title: "Email form", story: story.id });
+    const link = await work.addCapability({ title: "Confirmation link", story: story.id });
+    const mail = await work.addCapability({ title: "Mailer", story: story.id });
+    const digest = await work.addCapability({ title: "Digest", story: other.id, dependsOn: [form.id] });
+    const sends = await work.addEdge({ from: mail.id, to: link.id });
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.advanceIncrement(increment.id, "active");
+    await flight.pendChange(increment.id, { record: form.id, retire: "the form goes" });
+    await flight.pendChange(increment.id, { record: link.id, retire: "the link goes" });
+    await flight.pendChange(increment.id, { record: sends.id, retire: "the mailer no longer sends it" });
+    await flight.pendChange(increment.id, { record: digest.id, fields: { dependsOn: [] } });
+
+    const landed = await flight.applyPending(increment.id, "#901");
+    assert.deepEqual([...landed!.applied].sort(), [form.id, link.id, sends.id, digest.id].sort(), "all four applied");
+    assert.equal(landed!.residue, undefined, "nothing parked as residue");
+    assert.equal(await records.get(form.id), null);
+    assert.equal(await records.get(link.id), null);
+    assert.equal(await records.get(sends.id), null);
+    assert.deepEqual(await work.dependsOn(digest.id), []);
+    assert.equal(((await records.get(increment.id)) as SchemaRecord<"increment">).fields.pending, undefined);
+  });
+
   contract("10.58", "settling closed increments' leftover pending changes applies those of each that landed and drops those of each that did not, and finds nothing the second time", async ({ work, flight, records, transactions }) => {
     const arc = await flight.createArc(ARC);
     const story = await work.addStory({ title: "Visitor can sign up" });

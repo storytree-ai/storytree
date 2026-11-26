@@ -163,21 +163,25 @@ export function transactionsBehaviourSuite(label: string, open: () => Promise<Op
   });
 
   contract("2.12", "`history` also narrows on the server: `from` (a time) keeps the changes made at or after it, to the millisecond, however the time is written; `types` keeps only changes to records of those types (none for an empty list); `oldest: n` or `newest: n` keeps only the first or last n of what matches, still in order. Filters combine with each other and with `id` and `since`; a malformed one (a limit that is not a whole number above 0, both limits, or a time that is not one) is refused with a RangeError before anything is read.", async (store) => {
-    const writes: [id: string, type: string][] = [["note-1", "note"], ["story-1", "story"], ["note-2", "note"], ["story-2", "story"]];
-    for (const [id, type] of writes) {
+    for (const [id, type] of [["note-1", "note"], ["story-1", "story"], ["note-2", "note"], ["story-2", "story"]] as const) {
       await store.save({ id, type, fields: { title: id } });
-      await new Promise((resolve) => setTimeout(resolve, 5));
     }
     await store.edit({ id: "note-1", fields: { title: "edited" } });
     const all = await store.history();
     assert.equal(all.length, 5);
-    for (let index = 1; index < all.length; index++) assert.ok(Date.parse(all[index]!.at) > Date.parse(all[index - 1]!.at), "each write was made a later millisecond");
+    const atOrAfter = (instant: number, entries: readonly HistoryEntry[] = all): HistoryEntry[] => entries.filter((entry) => Date.parse(entry.at) >= instant);
 
-    const second = Date.parse(all[1]!.at);
-    assert.deepEqual(await store.history({ from: all[1]!.at }), all.slice(1), "at or after it");
-    assert.deepEqual(await store.history({ from: new Date(second + 1).toISOString() }), all.slice(2), "to the millisecond");
-    assert.deepEqual(await store.history({ from: writtenAt(second, 600) }), all.slice(1), "the same instant written at +10:00");
-    assert.deepEqual(await store.history({ from: writtenAt(second + 1, -300) }), all.slice(2), "a millisecond later written at -05:00");
+    for (const entry of all) {
+      const instant = Date.parse(entry.at);
+      assert.deepEqual(await store.history({ from: entry.at }), atOrAfter(instant), `at or after ${entry.at}`);
+      assert.deepEqual(await store.history({ from: new Date(instant + 1).toISOString() }), atOrAfter(instant + 1), `to the millisecond: after ${entry.at}`);
+      assert.deepEqual(await store.history({ from: writtenAt(instant, 600) }), atOrAfter(instant), `${entry.at} written at +10:00`);
+      assert.deepEqual(await store.history({ from: writtenAt(instant + 1, -300) }), atOrAfter(instant + 1), `a millisecond after ${entry.at} written at -05:00`);
+    }
+    const last = Date.parse(all.at(-1)!.at);
+    assert.deepEqual(await store.history({ from: all[0]!.at }), all, "the first entry's time keeps every change");
+    assert.deepEqual(await store.history({ from: new Date(last + 1).toISOString() }), [], "a millisecond after the last change keeps none");
+    assert.deepEqual(await store.history({ from: writtenAt(last + 1, 600) }), [], "nor written at +10:00");
 
     assert.deepEqual(await store.history({ types: ["story"] }), [all[1], all[3]]);
     assert.deepEqual(await store.history({ types: ["note", "story"] }), all);
@@ -189,8 +193,8 @@ export function transactionsBehaviourSuite(label: string, open: () => Promise<Op
     assert.deepEqual(await store.history({ types: ["note"], newest: 2 }), [all[2], all[4]]);
     assert.deepEqual(await store.history({ types: ["note"], oldest: 1, since: all[0]!.seq }), [all[2]]);
     assert.deepEqual(await store.history({ id: "note-1", newest: 1 }), [all[4]]);
-    assert.deepEqual(await store.history({ id: "note-1", from: all[1]!.at }), [all[4]]);
-    assert.deepEqual(await store.history({ types: ["story"], from: all[2]!.at }), [all[3]]);
+    assert.deepEqual(await store.history({ id: "note-1", from: all[1]!.at }), atOrAfter(Date.parse(all[1]!.at), [all[0]!, all[4]!]));
+    assert.deepEqual(await store.history({ types: ["story"], from: all[2]!.at }), atOrAfter(Date.parse(all[2]!.at), [all[1]!, all[3]!]));
 
     for (const malformed of [{ oldest: 0 }, { newest: 0 }, { oldest: -1 }, { newest: 1.5 }, { oldest: 1, newest: 1 }, { from: "yesterday" }]) {
       await assert.rejects(store.history(malformed), RangeError, JSON.stringify(malformed));
@@ -277,6 +281,7 @@ export function transactionsBehaviourSuite(label: string, open: () => Promise<Op
 
     await assert.rejects(store.revert({ id: "note-1", to: first!.seq, read: first!.seq }), "a stale read");
     await assert.rejects(store.revert({ id: "note-1", to: foreign!.seq, read: newest!.seq }), "another record's entry");
+    await assert.rejects(store.revert({ id: "note-1", to: Math.max(...before.map((entry) => entry.seq)) + 1, read: newest!.seq }), "an entry no record has");
     await assert.rejects(store.revert({ id: "note-1", to: first!.seq, read: newest!.seq, validate: () => { throw new Error("check refused"); } }), /check refused/);
     assert.deepEqual(await store.get("note-1"), stored);
     assert.deepEqual(await store.history(), before);

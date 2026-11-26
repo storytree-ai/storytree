@@ -127,12 +127,11 @@ function verdictSaid(contract: SchemaRecord<"contract">, entry: HealthEntry): st
 }
 
 function flakeOf(contract: SchemaRecord<"contract">, entry: HealthEntry, test: string, story: string | undefined): FlakeSeen {
-  const commit = /at commit ([0-9a-f]{7,40})/.exec(entry.note ?? "")?.[1];
   return {
     test,
     ...(story === undefined ? {} : { story }),
     contract: contract.id,
-    seen: commit === undefined ? entry.at : `commit ${commit}`,
+    seen: entry.at,
     evidence: entry.note ?? `${contract.fields.title} failed`,
     found: `Own health saw ${test} fail ${contract.fields.title}`,
     by: entry.by ?? "storytree",

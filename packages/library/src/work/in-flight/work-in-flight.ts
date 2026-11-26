@@ -1,14 +1,14 @@
-// Capability 10 · Work in flight
-import { byCreation, checkReference, checkReferences, type FieldsOf, liveRecord, SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
-import { INCREMENT_STATUSES } from "../schema/index.js";
-import { Knowledge } from "../knowledge/index.js";
+// Capability 10 · Arcs and increments
+import { byCreation, checkReference, checkReferences, type FieldsOf, liveRecord, SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../records/index.js";
+import { INCREMENT_STATUSES } from "../schema.js";
+import { Knowledge } from "../../knowledge/index.js";
 import * as pending from "./pending-changes.js";
 import type { AppliedPending, Pended, PlanChange, SettledPending, StalePending } from "./pending-changes.js";
-import * as questions from "./owner-questions.js";
-import { heldOnOpen, type NewQuestion, type Prep, type QuestionDeviation, type QuestionEdit, type QuestionLease, type Score, type Settlement, type WouldBeAnswer } from "./owner-questions.js";
+import * as questions from "../questions/owner-questions.js";
+import { heldOnOpen, type NewQuestion, type Prep, type QuestionDeviation, type QuestionEdit, type QuestionLease, type Score, type Settlement, type WouldBeAnswer } from "../questions/owner-questions.js";
 import * as waits from "./waits.js";
 import * as waitWrites from "./wait-writes.js";
-import { WorkModel, type ProjectTree } from "../plan/index.js";
+import { WorkModel, type ProjectTree } from "../../plan/index.js";
 import { arcHold, claimHold, holdsOf, incrementHold, noteWaits, onClaim, type ClaimReading, type Hold, type Holds, type NoteWait, type Wait, type WaitFor } from "./waits.js";
 import { checkedWaitFor, INCREMENT_BLOCKER, type WaitWrite } from "./wait-writes.js";
 

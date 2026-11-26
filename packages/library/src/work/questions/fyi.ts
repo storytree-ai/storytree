@@ -1,6 +1,6 @@
-// Capability 17 · The library's commands
-import type { FieldsOf, SchemaRecord, WriteOptions } from "../records/index.js";
-import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
+// Capability 12 · Owner's inbox
+import type { FieldsOf, SchemaRecord, WriteOptions } from "../../records/index.js";
+import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../../verbs/verb.js";
 
 interface FyiLibrary {
   recordFyi(fyi: Omit<FieldsOf<"fyi">, "at" | "heardAt"> & { readonly at?: string | undefined }, options?: WriteOptions): Promise<SchemaRecord<"fyi">>;

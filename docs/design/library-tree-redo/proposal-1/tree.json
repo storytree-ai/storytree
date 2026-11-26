@@ -108,7 +108,8 @@
       "id": "r1-work",
       "title": "Work",
       "files": [
-        "packages/library/src/work/index.ts"
+        "packages/library/src/work/index.ts",
+        "packages/library/src/work/schema.ts"
       ],
       "entry": "packages/library/src/work/index.ts",
       "was": [
@@ -118,16 +119,16 @@
     },
     {
       "id": "r1-work-flight",
-      "title": "Work in flight",
+      "title": "Arcs and increments",
       "parent": "r1-work",
       "files": [
-        "packages/library/src/work/work-in-flight.ts",
-        "packages/library/src/work/waits.ts",
-        "packages/library/src/work/wait-writes.ts",
-        "packages/library/src/work/pending-changes.ts",
-        "packages/library/src/work/plan-hold.ts"
+        "packages/library/src/work/in-flight/work-in-flight.ts",
+        "packages/library/src/work/in-flight/waits.ts",
+        "packages/library/src/work/in-flight/wait-writes.ts",
+        "packages/library/src/work/in-flight/pending-changes.ts",
+        "packages/library/src/work/in-flight/plan-hold.ts"
       ],
-      "entry": "packages/library/src/work/work-in-flight.ts",
+      "entry": "packages/library/src/work/in-flight/work-in-flight.ts",
       "schema": [
         "arc",
         "increment"
@@ -141,13 +142,13 @@
     },
     {
       "id": "r1-work-questions",
-      "title": "Owner questions",
+      "title": "Owner's inbox",
       "parent": "r1-work",
       "files": [
-        "packages/library/src/work/owner-questions.ts",
-        "packages/library/src/commands/fyi.ts"
+        "packages/library/src/work/questions/owner-questions.ts",
+        "packages/library/src/work/questions/fyi.ts"
       ],
-      "entry": "packages/library/src/work/owner-questions.ts",
+      "entry": "packages/library/src/work/questions/owner-questions.ts",
       "schema": [
         "question",
         "prediction",

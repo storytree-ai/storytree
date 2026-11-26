@@ -1,8 +1,8 @@
-// Capability 4 · The plan
+// Capability 10 · Arcs and increments
 import { isDeepStrictEqual } from "node:util";
 
-import { byCreation, checkReference, checkReferences, type FieldsOf, type HistoryEntry, liveRecord, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
-import type { CapabilityNode, EdgeNode, ProjectTree, StoryNode, WorkModel } from "../plan/index.js";
+import { byCreation, checkReference, checkReferences, type FieldsOf, type HistoryEntry, liveRecord, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../records/index.js";
+import type { CapabilityNode, EdgeNode, ProjectTree, StoryNode, WorkModel } from "../../plan/index.js";
 
 export type PendingChange = NonNullable<FieldsOf<"increment">["pending"]>[number];
 

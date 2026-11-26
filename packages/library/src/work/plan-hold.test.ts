@@ -1,4 +1,4 @@
-// Capability 4 · Work model
+// Capability 4 · The plan
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

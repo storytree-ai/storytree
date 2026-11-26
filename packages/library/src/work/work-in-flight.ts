@@ -7,7 +7,7 @@ import * as questions from "./owner-questions.js";
 import { heldOnOpen, type NewQuestion, type Prep, type QuestionDeviation, type QuestionEdit, type QuestionLease, type Score, type Settlement, type WouldBeAnswer } from "./owner-questions.js";
 import * as waits from "./waits.js";
 import * as waitWrites from "./wait-writes.js";
-import { WorkModel, type ProjectTree } from "./work-model.js";
+import { WorkModel, type ProjectTree } from "../plan/index.js";
 import { arcHold, claimHold, holdsOf, incrementHold, noteWaits, onClaim, type ClaimReading, type Hold, type Holds, type NoteWait, type Wait, type WaitFor } from "./waits.js";
 import { checkedWaitFor, INCREMENT_BLOCKER, type WaitWrite } from "./wait-writes.js";
 

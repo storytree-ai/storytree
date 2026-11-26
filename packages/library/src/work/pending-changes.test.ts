@@ -1,11 +1,12 @@
-// Capability 4 · Work model
+// Capability 4 · The plan
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { connect } from "../project/index.js";
 import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type SchemaRecord, type Transactions } from "../records/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { WorkInFlight, WorkModel } from "./index.js";
+import { WorkModel } from "../plan/index.js";
+import { WorkInFlight } from "./index.js";
 
 interface Library {
   readonly work: WorkModel;

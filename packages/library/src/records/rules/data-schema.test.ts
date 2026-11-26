@@ -490,7 +490,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), before, "no history entry was written");
   });
 
-  contract("3.11", "a story and a capability carry their prose as text, read back whole and in order; one written without it reads as before", async ({ records }) => {
+  contract("4.57", "a story and a capability carry their prose as text, read back whole and in order; one written without it reads as before", async ({ records }) => {
     const prose = "An opening paragraph.\n\n- **A list item,** wrapped\n  onto a second line.\n\n## A closing section\n\nIts body.";
     await records.create("story", MINIMAL.story, { id: "story-old" });
     await records.create("story", { ...MINIMAL.story, text: prose }, { id: "story-1" });
@@ -504,7 +504,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(await textOf("story-old"), "Added later.");
   });
 
-  contract("3.21", "a contract belongs to exactly one capability or one edge: naming both or neither is refused, naming the field, with nothing written; an edge is a from and a to capability with an optional description", async ({ records, transactions }) => {
+  contract("4.59", "a contract belongs to exactly one capability or one edge: naming both or neither is refused, naming the field, with nothing written; an edge is a from and a to capability with an optional description", async ({ records, transactions }) => {
     const edge = await records.create("edge", { from: "capability-1", to: "capability-0", description: "Reads the saved form" }, { id: "edge-1" });
     assert.deepEqual(edge.fields, { from: "capability-1", to: "capability-0", description: "Reads the saved form" });
     const onEdge = await records.create("contract", { title: "1.4 · The form's fields arrive whole", edge: "edge-1" }, { id: "contract-edge" });
@@ -519,7 +519,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), before, "nothing was written");
   });
 
-  contract("3.22", "a contract's proof can name observability as proof with its freshness and the watcher that records its readings; one without them, or another proof carrying them, is refused", async ({ records, transactions }) => {
+  contract("4.60", "a contract's proof can name observability as proof with its freshness and the watcher that records its readings; one without them, or another proof carrying them, is refused", async ({ records, transactions }) => {
     const observed = { by: "observability-as-proof", reason: "Only the laptop and the box together show it.", freshness: "2d", watcher: "the Mint box's activity watcher" } as const;
     const saved = await records.create("contract", { title: "2.5 · Two machines' lines read back in order", capability: "capability-1", proof: observed }, { id: "contract-observed" });
     assert.deepEqual((await records.get(saved.id))?.fields, { title: "2.5 · Two machines' lines read back in order", capability: "capability-1", proof: observed });
@@ -620,7 +620,7 @@ for (const backend of [memory, postgres]) {
     assert.equal(((await records.get("process-checked"))?.fields as { precheck?: string } | undefined)?.precheck, "feedback-waiting");
   });
 
-  contract("3.14", "a story carries a risk reading, a blast depth and a blast radius each with the day read and a reason, and a story or capability its own guardrails, each a check and the change or release that triggers it; values out of range are refused and named, and one written without them reads as before", async ({ records, transactions }) => {
+  contract("4.58", "a story carries a risk reading, a blast depth and a blast radius each with the day read and a reason, and a story or capability its own guardrails, each a check and the change or release that triggers it; values out of range are refused and named, and one written without them reads as before", async ({ records, transactions }) => {
     const risk = {
       depth: { value: 2, read: "2026-10-23", reason: "writes records" },
       radius: { value: 3, downstream: 11, audience: "invited", users: 5, read: "2026-10-23", reason: "11 stories depend on it" },

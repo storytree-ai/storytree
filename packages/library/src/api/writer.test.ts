@@ -7,7 +7,8 @@ import { Knowledge } from "../knowledge/index.js";
 import { connect as connectProject } from "../project/index.js";
 import { MemoryTransactions, SchemaRecords } from "../records/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { WorkInFlight, WorkModel } from "../work/index.js";
+import { WorkModel } from "../plan/index.js";
+import { WorkInFlight } from "../work/index.js";
 
 for (const backend of ["memory", "postgres", "public postgres"] as const) {
   test(`2.10 / 7.6 [${backend}] every write keeps its optional writer in history`, async () => {

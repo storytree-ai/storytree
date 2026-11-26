@@ -2,7 +2,8 @@
 import { createHash } from "node:crypto";
 
 import { byCreation, couldBeId, type FieldsOf, FRESHNESS, liveRecord, MissingReferenceError, recordNamed, type RecordType, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
-import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, Holds, ParkedOn, ProjectTree, StoryNode, WorkInFlight, WorkModel } from "../work/index.js";
+import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, ProjectTree, StoryNode, WorkModel } from "../plan/index.js";
+import type { Holds, ParkedOn, WorkInFlight } from "../work/index.js";
 
 export type HealthState = FieldsOf<"health">["state"];
 

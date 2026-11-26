@@ -1,4 +1,4 @@
-// Capability 4 · Work model
+// Capability 4 · The plan
 import type { FieldsOf } from "../records/index.js";
 
 export type PrCutover = FieldsOf<"prCutover">;

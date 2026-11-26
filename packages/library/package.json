@@ -9,7 +9,7 @@
     "./commands": "./src/commands/index.ts",
     "./whole-words": "./src/knowledge/whole-words.ts",
     "./librarian": "./src/librarian/index.ts",
-    "./pr-cutover": "./src/work/pr-cutover.ts",
+    "./pr-cutover": "./src/plan/pr-cutover.ts",
     "./connection-error": "./src/project/connection-error.ts",
     "./reads": "./src/project/reads.ts",
     "./printable": "./src/api/printable.ts",

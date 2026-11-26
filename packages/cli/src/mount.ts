@@ -98,9 +98,9 @@ async function placeFilesOf(cwd: string, library: Library, paths: readonly strin
 }
 
 async function levelsBehindOf(cwd: string, library: Library, story: string, parent: string): Promise<string[]> {
-  const { readCodeSurvey } = await import("@storytree/map/code-survey");
+  const { codeSurveyReader } = await import("@storytree/map/code-survey");
   const tree = await library.projectTree();
-  const survey = await readCodeSurvey(cwd, { ...tree, stories: tree.stories.filter(({ id }) => id === story) });
+  const survey = await codeSurveyReader({ checkout: "current" }).read(cwd, { ...tree, stories: tree.stories.filter(({ id }) => id === story) });
   const folders = (parts: readonly SurveyedPart[]): string[] => parts.flatMap((part) => [part.folder, ...folders(part.parts)]);
   return folders(survey[story]?.parts?.capabilities[parent] ?? []);
 }

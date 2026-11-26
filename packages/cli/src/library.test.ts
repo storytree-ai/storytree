@@ -1,5 +1,6 @@
 // Capability 3 · Library
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
 import path from "node:path";
@@ -12,7 +13,7 @@ import { claim, openActivityLog } from "@storytree/session-management";
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
 import { family } from "./mount.js";
-import { BuiltCommand, dropTestProjects, inWorld, testServerUrl, uniqueProjectName, type World } from "./testing/cli.js";
+import { BuiltCommand, dropTestProjects, inWorld, storytree, testServerUrl, uniqueProjectName, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 
@@ -647,5 +648,41 @@ test("3.23 `library edit <capability> --parent <id>` and `--parent none`, run by
     } finally {
       await log.close();
     }
+  });
+});
+
+test("3.23 · `library edit <capability> --parent <id>` run in a git worktree reads that worktree's branch: a parent whose folder with its own entry file is committed on the branch, not on main, takes the nest there, though main refuses it", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Shop" });
+    const claims = await library.addCapability({ story: story.id, title: "Claims" });
+    const receipts = await library.addCapability({ story: story.id, title: "Receipts" });
+    const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main", ...args], { cwd, stdio: "pipe" });
+    const shop = (root: string) => path.join(root, "packages/shop");
+    mkdirSync(path.join(shop(world.folder), "src"), { recursive: true });
+    writeFileSync(path.join(shop(world.folder), "package.json"), JSON.stringify({ name: "@x/shop", type: "module" }));
+    writeFileSync(path.join(shop(world.folder), "src/claim.ts"), "export const add = () => 1;\n");
+    writeFileSync(path.join(shop(world.folder), "src/claims.test.ts"), 'import { add } from "./claim.js";\ntest("1.1 a claim holds", () => add());\n');
+    git(world.folder, "init");
+    git(world.folder, "add", ".");
+    git(world.folder, "commit", "-m", "Shop with flat claims");
+    const branch = path.join(path.dirname(world.folder), "lane");
+    git(world.folder, "worktree", "add", "-b", "claude/cart", branch);
+    mkdirSync(path.join(shop(branch), "src/cart"), { recursive: true });
+    writeFileSync(path.join(shop(branch), "src/cart/index.ts"), "export const add = () => 1;\n");
+    writeFileSync(path.join(shop(branch), "src/claims.test.ts"), 'import { add } from "./cart/index.js";\ntest("1.1 a claim holds", () => add());\n');
+    git(branch, "add", ".");
+    git(branch, "commit", "-m", "Claims gets src/cart with its own index.ts");
+    const parentOf = async (id: string) => ((await library.get(id))?.fields as { parent?: string } | undefined)?.parent;
+    const args = ["library", "edit", receipts.id, "--parent", claims.id, "--project", world.project];
+
+    const onMain = await world.run(args);
+    assert.notEqual(onMain.code, 0, `${onMain.stderr}${onMain.stdout}`);
+    assert.match(`${onMain.stderr}${onMain.stdout}`, /has no folder with its own entry file/, "main's claims code is one flat file");
+    assert.equal(await parentOf(receipts.id), undefined);
+
+    const onBranch = await storytree(command.script, args, { cwd: branch, home: world.home });
+    assert.equal(onBranch.code, 0, `${onBranch.stderr}${onBranch.stdout}`);
+    assert.equal(await parentOf(receipts.id), claims.id, "nested under claims, whose src/cart/index.ts the worktree's branch adds");
   });
 });

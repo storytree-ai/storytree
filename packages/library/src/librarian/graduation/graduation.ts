@@ -3,9 +3,10 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import type { Library, Note, WriteOptions } from "../../index.js";
+import type { Note } from "../../knowledge/index.js";
+import type { WriteOptions } from "../../records/index.js";
 
-import { allNotes, LibrarianRefusal } from "../notes.js";
+import { allNotes, LibrarianRefusal, type LibrarianLibrary } from "../notes.js";
 
 export type GraduationKind = "principle" | "process" | "definition";
 
@@ -60,18 +61,18 @@ export async function park(file: string, reason: string, { now = new Date() }: {
   writeLedger(folder, ledger);
 }
 
-export async function graduate(library: Library, file: string, kind: string, fields: Record<string, unknown>, writer?: WriteOptions): Promise<Note> {
+export async function graduate(library: LibrarianLibrary, file: string, kind: string, fields: Record<string, unknown>, writer?: WriteOptions): Promise<Note> {
   if (kind !== "principle" && kind !== "process" && kind !== "definition") {
     throw new LibrarianRefusal(`a lesson graduates into a principle, process or definition, not a ${kind}`);
   }
   if (!existsSync(file)) throw new LibrarianRefusal(`there is no memory ${file}`);
   const note: Note =
-    kind === "definition" ? await library.defineTerm(fields as Parameters<Library["defineTerm"]>[0], writer) : await library.writeKnowledge(kind, fields as never, writer);
+    kind === "definition" ? await library.defineTerm(fields as Parameters<LibrarianLibrary["defineTerm"]>[0], writer) : await library.writeKnowledge(kind, fields as never, writer);
   forget(file);
   return note;
 }
 
-export async function processGaps(library: Library, tools: readonly string[], read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<ProcessGaps> {
+export async function processGaps(library: LibrarianLibrary, tools: readonly string[], read: Promise<readonly Note[]> | readonly Note[] = allNotes(library)): Promise<ProcessGaps> {
   const processes = (await read).filter((note): note is Extract<Note, { type: "process" }> => note.type === "process");
   const names = (note: Extract<Note, { type: "process" }>, tool: string): boolean => new RegExp(`\\b${tool.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(note.fields.surfaces);
   return {

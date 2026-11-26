@@ -17,6 +17,8 @@ export const DECISION_KINDS = {
     status: z.enum(["proposed", "accepted"]),
     number: z.number().int().optional(),
     supersedes: z.array(z.string()).optional(),
+    supersedesClauses: z.array(z.object({ decision: z.string(), clauses: z.array(z.string()).optional() }).strict()).optional(),
+    narrows: z.array(z.string()).optional(),
     justifications: z.record(z.string(), justification).optional(),
     loadBearing: z.boolean().optional(),
   }).strict(),

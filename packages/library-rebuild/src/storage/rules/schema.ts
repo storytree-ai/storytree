@@ -6,8 +6,9 @@ import { DECISION_KINDS } from "../../knowledge/decisions/kinds.js";
 import { NOTE_KINDS } from "../../knowledge/notes/kinds.js";
 import { PLAN_KINDS } from "../../plan/kinds.js";
 import { ARC_KINDS, ARC_UPGRADES, ARC_VERSIONS } from "../../work/arcs/kinds.js";
+import { INBOX_KINDS } from "../../work/inbox/kinds.js";
 
-export const RECORD_SCHEMAS = { ...ARC_KINDS, ...PLAN_KINDS, ...HEALTH_KINDS, ...DECISION_KINDS, ...NOTE_KINDS };
+export const RECORD_SCHEMAS = { ...ARC_KINDS, ...PLAN_KINDS, ...HEALTH_KINDS, ...DECISION_KINDS, ...NOTE_KINDS, ...INBOX_KINDS };
 
 export type RecordType = keyof typeof RECORD_SCHEMAS;
 

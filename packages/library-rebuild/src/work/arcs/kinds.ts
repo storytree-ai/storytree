@@ -19,6 +19,12 @@ export const ARC_KINDS = {
     parked: z.string().optional(),
     capabilities: z.array(z.string()).optional(),
     links: z.array(z.string()).optional(),
+    outcome: z.object({
+      date: z.string(),
+      pr: z.string().optional(),
+      note: z.string().optional(),
+      disposition: z.enum(["landed", "failed", "withdrawn"]),
+    }).strict().optional(),
   }).strict(),
 };
 

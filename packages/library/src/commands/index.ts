@@ -13,7 +13,7 @@ export { mediaGuidance } from "./media.js";
 import { ADR_FAMILY, editDecision, recordDecision } from "../decisions/index.js";
 import { ARTIFACT_KINDS, WRITTEN_KINDS } from "../knowledge/index.js";
 import { attachedTo, partsBeside } from "./notes.js";
-import { LaterWriterError, StaleRevertError } from "../transactions/index.js";
+import { LaterWriterError, StaleRevertError } from "../records/index.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
 import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";

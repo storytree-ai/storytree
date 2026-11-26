@@ -3,7 +3,7 @@ export { connectionString, PASSWORD_KEY } from "./address.js";
 export { ConnectionError } from "./connection-error.js";
 export { InheritedRecords } from "./factory.js";
 export type { FactoryLink, Reached } from "./factory.js";
-export { SEED_CONNECTION } from "./seed-connection.js";
+export { SEED_CONNECTION } from "../records/index.js";
 export type { ConnectionProblem } from "./connection-error.js";
 export { ProjectGoneError, ProjectNameError } from "./names.js";
 export { fenceOutsideWriter } from "./outside-writer.js";

@@ -22,9 +22,9 @@
       "id": "r1-records",
       "title": "Records",
       "files": [
-        "packages/library/src/schema/index.ts"
+        "packages/library/src/records/index.ts"
       ],
-      "entry": "packages/library/src/schema/index.ts",
+      "entry": "packages/library/src/records/index.ts",
       "was": [
         2,
         3
@@ -36,16 +36,16 @@
       "title": "Transactions",
       "parent": "r1-records",
       "files": [
-        "packages/library/src/transactions/behaviour-suite.ts",
-        "packages/library/src/transactions/index.ts",
-        "packages/library/src/transactions/memory.ts",
-        "packages/library/src/transactions/pg.ts",
-        "packages/library/src/transactions/records.ts",
-        "packages/library/src/transactions/types.ts",
-        "packages/library/src/transactions/waits.ts",
-        "packages/library/src/project/seed-connection.ts"
+        "packages/library/src/records/store/behaviour-suite.ts",
+        "packages/library/src/records/store/index.ts",
+        "packages/library/src/records/store/memory.ts",
+        "packages/library/src/records/store/pg.ts",
+        "packages/library/src/records/store/records.ts",
+        "packages/library/src/records/store/types.ts",
+        "packages/library/src/records/store/waits.ts",
+        "packages/library/src/records/store/seed-connection.ts"
       ],
-      "entry": "packages/library/src/transactions/index.ts",
+      "entry": "packages/library/src/records/store/index.ts",
       "was": [
         2
       ],
@@ -56,18 +56,19 @@
       "title": "Valid records",
       "parent": "r1-records",
       "files": [
-        "packages/library/src/schema/records.ts",
+        "packages/library/src/records/rules/index.ts",
+        "packages/library/src/records/rules/records.ts",
         "packages/library/src/schema/types.ts",
-        "packages/library/src/schema/upgrades.ts",
-        "packages/library/src/schema/plugin-kinds.ts",
-        "packages/library/src/schema/errors.ts",
-        "packages/library/src/schema/code-distance.ts",
-        "packages/library/src/schema/schedule.ts",
-        "packages/library/src/schema/activity-line.ts",
-        "packages/library/src/references.ts",
-        "packages/library/src/creation-order.ts"
+        "packages/library/src/records/rules/upgrades.ts",
+        "packages/library/src/records/rules/plugin-kinds.ts",
+        "packages/library/src/records/rules/errors.ts",
+        "packages/library/src/records/rules/code-distance.ts",
+        "packages/library/src/records/rules/schedule.ts",
+        "packages/library/src/records/rules/activity-line.ts",
+        "packages/library/src/records/rules/references.ts",
+        "packages/library/src/records/rules/creation-order.ts"
       ],
-      "entry": "packages/library/src/schema/records.ts",
+      "entry": "packages/library/src/records/rules/index.ts",
       "was": [
         3,
         7

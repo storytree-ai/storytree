@@ -1,8 +1,5 @@
 // Capability 10 · Work in flight
-import { byCreation } from "../creation-order.js";
-import { checkReference, liveRecord } from "../references.js";
-import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
-import type { FieldsOf } from "../schema/index.js";
+import { byCreation, checkReference, type FieldsOf, liveRecord, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
 import type { Wait, WaitFor } from "./waits.js";
 
 export class WaitLoopError extends Error {

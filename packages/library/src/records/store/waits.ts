@@ -1,4 +1,4 @@
-// Capability 2 · Library transactions
+// Capability 2 · The store
 import type { Pool } from "pg";
 
 export const WAIT_MS = 30_000;

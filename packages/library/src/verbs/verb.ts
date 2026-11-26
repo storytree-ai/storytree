@@ -1,6 +1,6 @@
 // Capability 16 · The command schema
 import type { Library, Storytree } from "../index.js";
-import type { WriteOptions } from "../schema/index.js";
+import type { WriteOptions } from "../records/index.js";
 import { sqlState } from "../project/connection-error.js";
 
 export type VerbInput =

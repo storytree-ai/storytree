@@ -1,9 +1,6 @@
 // Capability 10 · Work in flight
-import { byCreation } from "../creation-order.js";
+import { byCreation, checkReference, checkReferences, type FieldsOf, INCREMENT_STATUSES, liveRecord, SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
 import { Knowledge } from "../knowledge/index.js";
-import { checkReference, checkReferences, liveRecord } from "../references.js";
-import { SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
-import { INCREMENT_STATUSES, type FieldsOf } from "../schema/index.js";
 import * as pending from "./pending-changes.js";
 import type { AppliedPending, Pended, PlanChange, SettledPending, StalePending } from "./pending-changes.js";
 import * as questions from "./owner-questions.js";

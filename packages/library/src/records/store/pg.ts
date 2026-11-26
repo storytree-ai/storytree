@@ -1,4 +1,4 @@
-// Capability 2 · Library transactions
+// Capability 2 · The store
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { Pool, PoolClient } from "pg";

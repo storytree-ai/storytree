@@ -1,5 +1,5 @@
 // Capability 4 · Work model
-import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
+import type { SchemaRecord, SchemaRecords, WriteOptions } from "../records/index.js";
 import type { PendingChange, PlanChange } from "./pending-changes.js";
 import type { WorkInFlight } from "./work-in-flight.js";
 import type { WorkModel } from "./work-model.js";

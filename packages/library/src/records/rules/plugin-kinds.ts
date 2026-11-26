@@ -1,7 +1,7 @@
-// Capability 3 · Data schema
+// Capability 3 · Record rules
 import { z } from "zod";
 
-import type { LibrarySchema, UpgradeStep } from "./types.js";
+import type { LibrarySchema, UpgradeStep } from "../../schema/types.js";
 import { LIBRARY_SCHEMA } from "./upgrades.js";
 
 export interface PluginUpgradeStep {

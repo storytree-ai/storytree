@@ -2,7 +2,7 @@
 import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 
-import { marksOutsideRead, takeWriteLock } from "../transactions/index.js";
+import { marksOutsideRead, takeWriteLock } from "../records/index.js";
 
 export interface SnapshotRecord {
   id: string;

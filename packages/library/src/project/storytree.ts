@@ -7,8 +7,7 @@ import type { Pool, PoolClient } from "pg";
 
 import { HealthRecord } from "../health/index.js";
 import { Knowledge, modelsFolder, PgVectors, pendingMemories, upgradeMemories, vectorServerIdentity, type EmbedderSource, type VectorDomain } from "../knowledge/index.js";
-import { pluginSchema, SchemaRecords, type PluginRecordKind } from "../schema/index.js";
-import { PgTransactions, takeWriteLock, type Transactions } from "../transactions/index.js";
+import { PgTransactions, type PluginRecordKind, pluginSchema, SchemaRecords, takeWriteLock, type Transactions } from "../records/index.js";
 import { WorkInFlight, WorkModel } from "../work/index.js";
 import { addressServer, type ConnectOptions } from "./address.js";
 import { CachedTransactions } from "./record-cache.js";

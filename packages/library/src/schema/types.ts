@@ -1,7 +1,7 @@
-// Capability 3 · Data schema
+// Capability 3 · Record rules
 import { z } from "zod";
 
-import { isTimeZone, parseSchedule, PRECHECKS } from "./schedule.js";
+import { isTimeZone, parseSchedule, PRECHECKS } from "../records/rules/schedule.js";
 
 export type RecordType =
   | "arc"

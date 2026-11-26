@@ -1,6 +1,6 @@
 // Capability 17 · The library's commands
 import type { KnowledgeKind, Library, NewLine, Note, NoteEdit, PhraseKind, SchemaRecord, WriteOptions } from "../index.js";
-import { isPluginKind } from "../schema/index.js";
+import { isPluginKind } from "../records/index.js";
 import { ARTIFACT_KINDS, KNOWLEDGE_KINDS, WRITTEN_KINDS } from "../knowledge/index.js";
 import { verb, VerbRefusal, type VerbAnswer, type VerbContext, type Verb, type VerbInputs } from "../verbs/verb.js";
 import { everyHolding, holdingLines, justificationSaid, supersededLines, wholeRecord, type HeldClaim } from "./index.js";

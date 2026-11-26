@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./connection-error": "./src/projects/open/connection-error.ts",
     "./pr-cutover": "./src/plan/pr-cutover.ts",
     "./testing/pg": "./src/testing/pg.ts"
   },

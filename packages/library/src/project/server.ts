@@ -8,6 +8,12 @@ import { seconds, waitsOf, type PoolWaits } from "../transactions/index.js";
 import { ConnectionError, sqlState } from "./connection-error.js";
 import { countReads, lastWordsOf, processReaderName } from "./reads.js";
 
+export const PROJECT_DATABASE_PREFIX = "storytree_";
+
+export function projectDatabase(name: string): string {
+  return PROJECT_DATABASE_PREFIX + name;
+}
+
 export type PoolFactory = (database: string, role?: string) => Pool;
 
 export interface ServerAccess {

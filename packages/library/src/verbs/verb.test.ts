@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { consumersOf, judgedByLines, mounted, verb, VerbRefusal, type VerbFamily, type VerbPlace } from "./verb.js";
+import { consumersOf, judgedByLines, mounted, verb, VerbRefusal, type VerbFamily, type VerbPlace } from "../commands/verbs.js";
 
 test("16.1 · a verb is declared once with a face on each door or why a door lacks one, and its refusal is a misuse only when it says so, carrying the steps that do the job instead", async () => {
   const look = verb({

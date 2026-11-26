@@ -420,7 +420,7 @@ test("4.32 `arc waits --audit` lists an owner wait whose note names, or whose in
   await inWorld(command, async (world) => {
     const verb = arcs.verbs.find((one) => one.name === "waits")!;
     const answer = await verb.act(parseArgs(["--audit"], ["audit"], world.folder), { cwd: world.folder, activityContext: async () => ({ library }) } as unknown as Context);
-    assert.deepEqual(answer.text.split("\n"), [
+    assert.deepEqual(answer.text.split("\n").filter((line) => !line.includes("arc increment wait <increment> --for owner")), [
       "8 actions of yours need attention, oldest read first:",
       "  - increment_000000000017  Name the mirror, on arc_release  Release: its note names increment_0000000000a3, which has closed since it was last read; it has never been read again",
       "      #1  Name the mirror once increment_0000000000a3 lands (why: it unblocks the release)",

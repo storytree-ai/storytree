@@ -3,24 +3,25 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import pg, { type Pool } from "pg";
+import type { Pool, QueryResult, QueryResultRow } from "pg";
 
 import { Knowledge } from "../../knowledge/notes/index.js";
 import { defaultEmbedder, modelsFolder, PgVectors, vectorServerIdentity, type EmbedderSource } from "../../knowledge/search/index.js";
 import { LIBRARY_SCHEMA, pluginSchema, SchemaRecords, type PluginRecordKind } from "../../storage/rules/index.js";
 import { PgBackend, PgTransactions, Store } from "../../storage/store/index.js";
 import { FactoryCircle } from "./circle.js";
-import { ConnectionError, isUnreachable, LIBRARY_UNREACHABLE, sqlState } from "./connection-error.js";
+import { WorkModel } from "../../plan/index.js";
+import { ConnectionError, createDatabase, serverOf, sqlState, type ConnectOptions } from "../shared/index.js";
 import { linkOf, ProjectLineage } from "./lineage.js";
 import { checkName, databaseOf, ProjectGoneError } from "./names.js";
-import { workOf, type Project } from "./project.js";
+import type { Project } from "./project.js";
 import { RecordCache } from "./record-cache.js";
 import { ProjectRecords, type SystemSwitches } from "./records.js";
 import { readMeta, setUp } from "./schema.js";
 import { schemaMerged, type SchemaStanding } from "./schema-merged.js";
 import { restoreSnapshot, takeSnapshot, type ProjectSnapshot } from "./snapshot.js";
 
-export type ConnectOptions = { readonly url: string; readonly address?: undefined } | { readonly address: string; readonly url?: undefined };
+export type { ConnectOptions } from "../shared/index.js";
 
 export interface Seams {
   readonly sharedLibrary?: boolean;
@@ -64,12 +65,6 @@ function storytreeHome(): string {
   return home !== undefined && home !== "" ? path.resolve(home) : path.join(homedir(), ".storytree", "0.3");
 }
 
-function quiet(pool: Pool): Pool {
-  pool.on("error", () => undefined);
-  pool.on("connect", (client) => client.on("error", () => undefined));
-  return pool;
-}
-
 function quoted(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;
 }
@@ -85,8 +80,7 @@ function standingOf(declaredIn: readonly (string | undefined)[] | undefined, pro
 }
 
 export async function connect(options: ConnectOptions, seams: Seams = {}): Promise<Storytree> {
-  const byAddress = options.address !== undefined;
-  const server = new URL(options.url ?? options.address!);
+  const server = serverOf(options);
   const shared = seams.sharedLibrary === true;
   const probe = seams.schemaMerged ?? schemaMerged;
   const cacheFile = seams.recordCache !== undefined
@@ -95,25 +89,16 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
   const cache = cacheFile === null ? undefined : new RecordCache(cacheFile);
   const embedder = seams.embedder ?? defaultEmbedder();
   const vectorCache = seams.vectorCache !== undefined ? seams.vectorCache : seams.embedder === undefined ? path.join(modelsFolder(process.env), "vectors.sqlite") : null;
-  const admin = quiet(new pg.Pool({ connectionString: server.href }));
+  const admin = server.admin;
   const pools = new Map<Pool, string>();
   const inFlight = new Set<Promise<unknown>>();
   const dropping = new Set<string>();
   let closing: Promise<void> | undefined;
 
-  const ask = async <R extends pg.QueryResultRow>(text: string, values?: unknown[]): Promise<pg.QueryResult<R>> => {
-    try {
-      return await admin.query<R>(text, values);
-    } catch (error) {
-      if (byAddress && isUnreachable(error)) throw new ConnectionError("unreachable", `${LIBRARY_UNREACHABLE}: could not reach the library at ${server.host}`, error);
-      throw error;
-    }
-  };
+  const ask = <R extends QueryResultRow>(text: string, values?: unknown[]): Promise<QueryResult<R>> => admin.query<R>(text, values);
 
   const poolFor = (database: string): Pool => {
-    const url = new URL(server.href);
-    url.pathname = `/${encodeURIComponent(database)}`;
-    const pool = quiet(new pg.Pool({ connectionString: url.href }));
+    const pool = server.pool(database);
     pools.set(pool, database);
     return pool;
   };
@@ -134,11 +119,7 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
     const { rows } = await ask<{ datconnlimit: number }>("SELECT datconnlimit FROM pg_database WHERE datname = $1", [database]);
     if (rows.length > 0 && rows[0]!.datconnlimit !== -2) return true;
     if (!create) return false;
-    try {
-      await ask(`CREATE DATABASE ${quoted(database)}`);
-    } catch (error) {
-      if (sqlState(error) !== "42P04" && sqlState(error) !== "23505") throw error;
-    }
+    await createDatabase(admin, database);
     return true;
   };
 
@@ -180,7 +161,8 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
       transactions,
       records,
       knowledge: new Knowledge(records, name, { embedder, vectors: new PgVectors(pool, vectorCache, domain) }),
-      work: workOf(records),
+      work: new WorkModel(records),
+      flight: { holds: async () => ({ waits: {}, heldOn: {} }) },
       lineage: new ProjectLineage(pool, name),
       reach: (other) => circle!.reach(other),
       reachAll: () => circle!.reachAll(),
@@ -285,7 +267,7 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
       closing ??= (async () => {
         await Promise.allSettled([...inFlight]);
         await Promise.all([...pools.keys()].map(end));
-        await admin.end();
+        await server.close();
         cache?.close();
       })();
       return closing;

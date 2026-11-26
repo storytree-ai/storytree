@@ -1,12 +1,11 @@
 // Capability 17 · The library's commands
-import type { KnowledgeKind, Library, NewLine, Note, NoteEdit, PhraseKind, SchemaRecord, WriteOptions } from "../index.js";
-import { isPluginKind } from "../records/index.js";
-import { ARTIFACT_KINDS, KNOWLEDGE_KINDS, WRITTEN_KINDS } from "../knowledge/index.js";
+import { isPluginKind, type KnowledgeKind, type NewLine, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
+import { ARTIFACT_KINDS, KNOWLEDGE_KINDS, WRITTEN_KINDS, type Knowledge, type Note, type NoteEdit, type PhraseKind } from "../knowledge/index.js";
+import { justificationSaid, supersededLines, type DecisionLibrary } from "../decisions/index.js";
 import { verb, VerbRefusal, type VerbAnswer, type VerbContext, type Verb, type VerbInputs } from "../verbs/verb.js";
-import { everyHolding, holdingLines, justificationSaid, supersededLines, wholeRecord, type HeldClaim } from "./index.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
-import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
+import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid, type Reachable } from "./elsewhere.js";
 
 export type Found = Extract<NewLine, { kind: "note-read" }>["found"];
 
@@ -22,7 +21,53 @@ export interface Presenter {
   readonly since: string;
 }
 
-export interface NoteToolContext extends VerbContext {
+export interface HeldClaim {
+  readonly session: string;
+  readonly increment?: string | undefined;
+  readonly capability?: string | undefined;
+  readonly since: string;
+  readonly branch?: string | undefined;
+  readonly holder?: string | undefined;
+}
+
+interface ContractNode {
+  readonly id: string;
+  readonly title: string;
+  readonly description?: string;
+}
+
+interface CapabilityNode extends ContractNode {
+  readonly dependsOn: readonly string[];
+  readonly contracts: readonly ContractNode[];
+}
+
+interface EdgeContractNode extends ContractNode {
+  readonly health: { readonly verified: { readonly state: string }; readonly reported: { readonly state: string } };
+}
+
+interface EdgeNode {
+  readonly id: string;
+  readonly from: string;
+  readonly to: string;
+  readonly contracts: readonly EdgeContractNode[];
+}
+
+export interface NotesTree {
+  readonly stories: readonly (ContractNode & { readonly capabilities: readonly CapabilityNode[]; readonly edges?: readonly EdgeNode[] })[];
+  readonly arcs: readonly { readonly id: string }[];
+}
+
+export interface NotesLibrary
+  extends Pick<Knowledge, "search" | "frontCovers" | "editNote" | "recordDecision" | "defineTerm" | "writeKnowledge" | "rankAll" | "findPhrase">,
+    Pick<DecisionLibrary, "decision" | "get" | "list" | "linkingIn">,
+    Pick<SchemaRecords, "history">,
+    Reachable<NotesLibrary> {
+  naming(id: string): Promise<SchemaRecord[]>;
+  holds(): Promise<{ readonly heldOn: Readonly<Record<string, readonly string[]>> }>;
+  projectTree(): Promise<NotesTree>;
+}
+
+export interface NoteToolContext<L extends NotesLibrary = NotesLibrary, S = unknown> extends VerbContext<L, S> {
   claims(): Promise<readonly HeldClaim[]>;
   notesRead(): Promise<readonly NoteRead[]>;
   recordReads(reads: readonly NoteRead[]): Promise<void>;
@@ -32,10 +77,6 @@ export interface NoteToolContext extends VerbContext {
 type Findable = Note | SchemaRecord<"story" | "capability" | "contract" | "arc" | "increment">;
 type Linking = Findable | SchemaRecord<"question">;
 const NOTE_KINDS: readonly string[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
-type CapabilityNode = Awaited<ReturnType<Library["projectTree"]>>["stories"][number]["capabilities"][number];
-type ContractNode = CapabilityNode["contracts"][number];
-type EdgeNode = NonNullable<Awaited<ReturnType<Library["projectTree"]>>["stories"][number]["edges"]>[number];
-type EdgeContractNode = EdgeNode["contracts"][number];
 
 const NO_COMMAND = (instead: string) => ({ absent: `a person does this with \`storytree library ${instead}\`, which records no reads` });
 
@@ -199,7 +240,7 @@ async function openRecord(id: string, context: NoteToolContext): Promise<VerbAns
   }
   const record = await library.get(id);
   if (record?.type === "question") return openQuestion(record as SchemaRecord<"question">, context);
-  if (record !== null && isPluginKind(record.type)) return { text: wholeRecord(record) };
+  if (record !== null && isPluginKind(record.type)) return { text: recordLines(record) };
   const notes = await library.search("");
   const note = notes.find((candidate) => candidate.id === id) ?? (record !== null && (KNOWLEDGE_KINDS as readonly string[]).includes(record.type) ? (record as Note) : undefined);
   if (note === undefined) {
@@ -285,7 +326,7 @@ async function openShelf(kind: "Story" | "Capability", title: string, id: string
   return { text: [head, ...lines].join("\n"), data: { shelf: attached.shelf, attached } };
 }
 
-export async function attachedTo(library: Library, id: string, story: boolean) {
+export async function attachedTo(library: NotesLibrary, id: string, story: boolean) {
   const covers = await library.frontCovers(id);
   const naming = await library.naming(id);
   const parts = story ? naming.filter((record) => record.type === "capability" && (record.fields as { story?: unknown }).story === id) : [];
@@ -391,7 +432,7 @@ async function writeArtifact(args: NoteArgs, context: NoteToolContext): Promise<
   return { text: `Wrote a ${args.kind} (${note.id}) ${placed}.${beside === undefined ? "" : `\n${beside}`}`, data: { id: note.id, ...(emptyShelf === undefined ? {} : { shelf: "empty" }) } };
 }
 
-function write(library: Library, args: NoteArgs, fields: NoteArgs["fields"] | undefined, place: { links?: string[]; frontCoverOf?: string }, writer: WriteOptions): Promise<Note> {
+function write(library: NotesLibrary, args: NoteArgs, fields: NoteArgs["fields"] | undefined, place: { links?: string[]; frontCoverOf?: string }, writer: WriteOptions): Promise<Note> {
   switch (args.kind) {
     case "decision":
       return library.recordDecision({ status: "accepted", title: args.title!, text: args.text!, ...place, ...(Object.keys(args.justifications ?? {}).length === 0 ? {} : { justifications: args.justifications as Record<string, string> }) }, writer);
@@ -402,7 +443,7 @@ function write(library: Library, args: NoteArgs, fields: NoteArgs["fields"] | un
   }
 }
 
-export async function partsBeside(library: Library, id: string, correct: string): Promise<string | undefined> {
+export async function partsBeside(library: Pick<NotesLibrary, "projectTree">, id: string, correct: string): Promise<string | undefined> {
   const tree = await library.projectTree();
   const story = tree.stories.find((node) => node.id === id);
   const capabilities = tree.stories.flatMap((node) => node.capabilities);
@@ -483,4 +524,45 @@ function spineLine(note: Linking): string {
 
 function spineData(note: Linking): { id: string; kind: string; spine: string; firstLine: string; state?: string } {
   return { id: note.id, kind: note.type, spine: spineOf(note), firstLine: firstLineOf(note), ...(note.type === "friction" ? { state: note.fields.state } : {}) };
+}
+
+export function labelOf(fields: Readonly<Record<string, unknown>>): string {
+  const title = typeof fields.title === "string" ? fields.title : typeof fields.term === "string" ? fields.term : typeof fields.text === "string" ? fields.text : "";
+  const line = title.split(/\r?\n/, 1)[0] ?? "";
+  return line.length > 100 ? `${line.slice(0, 99)}…` : line;
+}
+
+export function recordLines(record: SchemaRecord): string {
+  const fields = Object.entries(record.fields).filter(([key]) => key !== "pending").map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`);
+  const dormant = record.dormant === true ? "  dormant: its plugin is not mounted on this computer" : "";
+  return [`${record.id}  [${record.type}]  schema ${record.version}${dormant}`, `Created: ${record.createdAt}`, `Updated: ${record.updatedAt}`, "", ...fields].join("\n");
+}
+
+export interface PhraseHit {
+  readonly record: SchemaRecord<PhraseKind>;
+  readonly title: string;
+  readonly fields: readonly string[];
+}
+
+export async function everyHolding(library: Pick<Knowledge, "findPhrase">, phrase: string, options: { kinds?: readonly PhraseKind[]; fields?: readonly string[] } = {}): Promise<PhraseHit[]> {
+  const hits: PhraseHit[] = [];
+  let after: string | undefined;
+  do {
+    const page = await library.findPhrase(phrase, { ...options, limit: 100, ...(after === undefined ? {} : { after }) });
+    for (const record of page.records) {
+      const fields = Object.entries(record.fields)
+        .filter(([key, value]) => (options.fields === undefined || options.fields.includes(key)) && typeof value === "string" && value.includes(phrase))
+        .map(([key]) => key)
+        .sort();
+      hits.push({ record, title: labelOf(record.fields), fields });
+    }
+    after = page.next;
+  } while (after !== undefined);
+  return hits;
+}
+
+export function holdingLines(phrase: string, hits: readonly PhraseHit[]): string {
+  if (hits.length === 0) return `No record holds ${JSON.stringify(phrase)} exactly.`;
+  const heading = `${hits.length} ${hits.length === 1 ? "record holds" : "records hold"} ${JSON.stringify(phrase)} exactly:`;
+  return [heading, ...hits.map(({ record, title, fields }) => `  ${record.id}  [${record.type}]  ${title}  (${fields.join(", ")})`)].join("\n");
 }

@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./verbs": "./src/verbs/verb.ts",
+    "./verbs": "./src/commands/verbs.ts",
     "./commands": "./src/commands/index.ts",
     "./whole-words": "./src/knowledge/whole-words.ts",
     "./librarian": "./src/librarian/index.ts",

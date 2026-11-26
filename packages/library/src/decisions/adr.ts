@@ -1,8 +1,9 @@
 // Capability 13 · Decision log
 import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
-import type { Library } from "../index.js";
 import type { DecisionView } from "./decision-log.js";
-import { editDecision, recordDecision } from "./supersede.js";
+import { editDecision, recordDecision, type DecisionLibrary } from "./supersede.js";
+
+type DecisionContext = VerbContext<DecisionLibrary>;
 
 const EDITABLE = ["status", "decided", "loadBearing", "supersedes", "links", "justifications", "frontCoverOf"] as const;
 const READ_ONLY_MARK = "# read only";
@@ -23,7 +24,7 @@ export function idList(value: string | undefined, name: string): string[] | unde
   return ids;
 }
 
-async function viewOf(library: Library, name: string): Promise<DecisionView> {
+async function viewOf(library: Pick<DecisionLibrary, "list" | "decision">, name: string): Promise<DecisionView> {
   const number = /^(?:adr-)?(\d+)$/i.exec(name)?.[1];
   const id = number === undefined ? name : (await library.list("decision")).find((record) => record.fields.number === Number(number))?.id;
   if (id === undefined) throw new VerbRefusal(`no decision "${name}" in this project`);
@@ -128,7 +129,7 @@ const create = verb({
     "load-bearing": { kind: "switch", describe: "every session calibrates to it" },
   },
   writes: true,
-  async act(input, context: VerbContext) {
+  async act(input, context: DecisionContext) {
     const basis = input.basis;
     const ownerSaid = input["owner-said"];
     const broughtFrom = input["brought-from"] === undefined && input["brought-basis"] === undefined ? undefined : { record: input["brought-from"], basis: input["brought-basis"] };
@@ -159,7 +160,7 @@ const pull = verb({
     decision: { kind: "text", word: 0, describe: "the decision's id" },
     out: { kind: "text", optional: true, describe: "the file to write it to" },
   },
-  async act({ decision, out }, context: VerbContext) {
+  async act({ decision, out }, context: DecisionContext) {
     const view = await viewOf(context.library, decision);
     const file = fileOf(view, (await context.library.linkingIn(view.record.id)).map((record) => record.id));
     if (out === undefined) return { text: file };
@@ -178,7 +179,7 @@ const push = verb({
     file: { kind: "text", describe: "the file adr pull wrote, as you edited it" },
   },
   writes: true,
-  async act({ decision, file }, context: VerbContext) {
+  async act({ decision, file }, context: DecisionContext) {
     const pushed = parseFile(await readFile(context.folder, file), file);
     const record = (await viewOf(context.library, decision)).record;
     const id = record.id;
@@ -215,7 +216,7 @@ const compose = verb({
     statement: { kind: "text", describe: "its one composed statement" },
   },
   writes: true,
-  async act({ decision, statement }, context: VerbContext) {
+  async act({ decision, statement }, context: DecisionContext) {
     const id = (await viewOf(context.library, decision)).record.id;
     const composed = await context.library.composeStatement(id, statement, context.writer);
     if (composed === null) throw new VerbRefusal(`no decision "${id}" in this project`);
@@ -231,7 +232,7 @@ const list = verb({
     status: { kind: "text", optional: true, describe: "only those that read as this status" },
     "load-bearing": { kind: "switch", describe: "only the load-bearing ones" },
   },
-  async act(input, context: VerbContext) {
+  async act(input, context: DecisionContext) {
     const lines: string[] = [];
     for (const view of await context.library.decisions()) {
       if (input.current && view.status !== "accepted") continue;
@@ -252,7 +253,7 @@ const moveNarrows = verb({
   tool: { absent: NO_TOOL },
   inputs: {},
   writes: true,
-  async act(_inputs, context: VerbContext) {
+  async act(_inputs, context: DecisionContext) {
     const moved = await context.library.moveNarrowsToClauses(context.writer);
     if (moved.decisions.length === 0) return { text: "No decision stores a narrows: nothing to move." };
     return { text: `Moved ${moved.edges} ${moved.edges === 1 ? "narrowing" : "narrowings"} onto supersedesClauses (${moved.partial} partial), from ${moved.decisions.length} ${moved.decisions.length === 1 ? "decision" : "decisions"}: ${moved.decisions.join(", ")}.` };
@@ -263,7 +264,7 @@ const pairs = verb({
   command: { family: "adr", name: "pairs", summary: "check each clause-scoped supersedes has its in-place note, and each in-place note its edge; what came before 2026-11-20 is counted, not failed", usage: "adr pairs" },
   tool: { absent: NO_TOOL },
   inputs: {},
-  async act(_inputs, context: VerbContext) {
+  async act(_inputs, context: DecisionContext) {
     const { flagged, backlog } = await context.library.supersessionPairs();
     const counted = `${backlog} older ${backlog === 1 ? "pair" : "pairs"} counted as backlog.`;
     if (flagged.length > 0) {
@@ -280,7 +281,7 @@ const backlog = verb({
   inputs: {
     "by-target": { kind: "switch", describe: "list each decision old-shape links point at, most links in first" },
   },
-  async act(input, context: VerbContext) {
+  async act(input, context: DecisionContext) {
     const { links, decisions, targets } = await context.library.decisionLinkBacklog();
     if (input["by-target"]) return { text: targets.map((target) => `${adr(target.number)}  ${target.title}  ${target.links} old-shape ${target.links === 1 ? "link" : "links"} in`).join("\n") };
     return { text: `${links} old-shape decision ${links === 1 ? "link" : "links"} (no justification) across ${decisions} ${decisions === 1 ? "decision" : "decisions"}` };
@@ -295,7 +296,7 @@ const changes = verb({
     to: { kind: "text", optional: true, describe: "the last UTC day counted, YYYY-MM-DD" },
     by: { kind: "text", optional: true, describe: "only this writer's writes, such as session:<id>" },
   },
-  async act({ from, to, by }, context: VerbContext) {
+  async act({ from, to, by }, context: DecisionContext) {
     const { days, total } = await context.library.decisionLinkChanges({ from, to, by });
     const span = `from ${from ?? "the start"} to ${to ?? "now"}${by === undefined ? "" : ` by ${by}`}`;
     if (days.length === 0) return { text: `No decision link changed ${span}.` };
@@ -322,7 +323,7 @@ const prune = verb({
     reason: { kind: "text", optional: true, describe: "why the link is pruned" },
   },
   writes: true,
-  async act({ decision, target, reason }, context: VerbContext) {
+  async act({ decision, target, reason }, context: DecisionContext) {
     if (reason === undefined || reason.trim() === "") throw new VerbRefusal("adr prune keeps why a link was pruned: give --reason <why>", { misuse: true });
     const id = (await viewOf(context.library, decision)).record.id;
     await refused(() => context.library.pruneLink(id, target, reason, context.writer));
@@ -334,7 +335,7 @@ const pruned = verb({
   command: { family: "adr", name: "pruned", summary: "the archived decision links: from, to, field, by, at and reason", usage: "adr pruned [<decision>]" },
   tool: { absent: NO_TOOL },
   inputs: { decision: { kind: "text", word: 0, optional: true, describe: "only this decision's" } },
-  async act({ decision }, context: VerbContext) {
+  async act({ decision }, context: DecisionContext) {
     const from = decision === undefined ? undefined : (await viewOf(context.library, decision)).record.id;
     const archived = await context.library.archivedLinks(from);
     if (archived.length === 0) return { text: "No decision link is archived." };
@@ -352,14 +353,14 @@ const restore = verb({
     why: { kind: "text", optional: true, describe: "its justification, when it was archived with none" },
   },
   writes: true,
-  async act({ decision, target, why }, context: VerbContext) {
+  async act({ decision, target, why }, context: DecisionContext) {
     const id = (await viewOf(context.library, decision)).record.id;
     await refused(() => context.library.restoreLink(id, target, why, context.writer));
     return { text: `Restored ${id}'s link to ${target}.` };
   },
 });
 
-export const ADR_FAMILY: VerbFamily = {
+export const ADR_FAMILY: VerbFamily<DecisionContext> = {
   name: "adr",
   summary: "the decision log: new, pull, push, compose, list, move-narrows, pairs, backlog, changes, prune, pruned, restore",
   order: 4,

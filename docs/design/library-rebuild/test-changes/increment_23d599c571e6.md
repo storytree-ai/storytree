@@ -17,3 +17,7 @@ Changes beyond re-pointed imports, for the blind reviewer.
    trailing line break). The oracle never listed these titles: the old suite was not a test file.
 5. `api/writer.test.ts` ("2.10 / 7.6") is not copied here: it drives every domain, so the front door increment
    carries it. 2.10 is covered here by the behaviour suite.
+6. The TLS fixtures (`testing/tls/`) are not carried here, though the build brief gives them to storage: `pnpm gate`'s
+   secret check exempts their private keys only at `packages/library/src/testing/tls/`, which is where integration's
+   swap puts the rebuild's `src` back, and no test of this increment reads them. The shared increment
+   (increment_216cfd6f4f7e), whose 15.4 tests read them, or integration copies them.

@@ -3,7 +3,8 @@ import type { AnnotatedTree, ChangedOnMain, HealthWorkItem, NamedOnMain, PluginO
 import { connect as connectServer, InheritedRecords, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Reached, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
 import { DataQuestions } from "../data/data-questions.js";
-import { couldBeId, type FieldEdit, type FieldsOf, type HistoryEntry, isPluginKind, type RecordEnvelope, type RecordType, SCHEMA_VERSIONS, type SchemaRecord, UnknownTypeError, type WriteOptions } from "../records/index.js";
+import { couldBeId, type FieldEdit, type FieldsOf, type HistoryEntry, isPluginKind, type RecordEnvelope, type RecordType, type SchemaRecord, UnknownTypeError, type WriteOptions } from "../records/index.js";
+import { SCHEMA_VERSIONS } from "../schema/index.js";
 import { createHash, randomUUID } from "node:crypto";
 
 import type { SurveyOptions, WorkSurvey } from "../work/index.js";
@@ -256,7 +257,7 @@ function libraryOf(project: Project): Library {
     },
     healthWorklist: (options) => project.health.worklist({ ...(options?.changed === undefined ? {} : { changed: options.changed }), ...(options?.named === undefined ? {} : { named: options.named }), ...(options?.plugins === undefined ? {} : { plugins: options.plugins }) }),
     async createPluginRecord(kind, fields, options = {}) {
-      if (!isPluginKind(kind)) throw new UnknownTypeError(kind);
+      if (!isPluginKind(kind)) throw new UnknownTypeError(kind, Object.keys(SCHEMA_VERSIONS));
       return project.records.create(kind as RecordType, fields as FieldsOf<RecordType>, options);
     },
     async editPluginRecord(id, fields, options = {}) {
@@ -265,7 +266,7 @@ function libraryOf(project: Project): Library {
       return project.records.edit(id, fields as FieldEdit, {
         ...write,
         checkCurrent: (current) => {
-          if (!isPluginKind(current.type)) throw new UnknownTypeError(current.type);
+          if (!isPluginKind(current.type)) throw new UnknownTypeError(current.type, Object.keys(SCHEMA_VERSIONS));
           checkCurrent?.(current);
         },
       });

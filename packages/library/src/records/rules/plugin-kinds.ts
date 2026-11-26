@@ -1,8 +1,7 @@
 // Capability 3 · Record rules
 import { z } from "zod";
 
-import type { LibrarySchema, UpgradeStep } from "../../schema/types.js";
-import { LIBRARY_SCHEMA } from "./upgrades.js";
+import type { LibrarySchema, UpgradeStep } from "./schema.js";
 
 export interface PluginUpgradeStep {
   readonly from: number;
@@ -24,7 +23,7 @@ export function isPluginKind(type: string): boolean {
   return /^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*$/.test(type);
 }
 
-export function pluginSchema(kinds: readonly PluginRecordKind[], base: LibrarySchema = LIBRARY_SCHEMA): LibrarySchema {
+export function withPluginKinds(base: LibrarySchema, kinds: readonly PluginRecordKind[]): LibrarySchema {
   const versions: Record<string, number> = { ...base.versions };
   const schemas: Record<string, z.ZodType> = { ...base.schemas };
   const upgrades: UpgradeStep[] = [...base.upgrades];

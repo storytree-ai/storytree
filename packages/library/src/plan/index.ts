@@ -1,4 +1,5 @@
 // Capability 4 · The plan
+export { CONTRACT_PROOFS, FRESHNESS, STORE_LINK_DIRECTIONS } from "./schema.js";
 export { beforeCutover, PR_CUTOVER_ID, pullRepository, pullSaid } from "./pr-cutover.js";
 export type { PrCutover } from "./pr-cutover.js";
 export { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE, planGuidance, WorkModel } from "./work-model.js";

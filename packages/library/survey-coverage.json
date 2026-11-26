@@ -744,7 +744,7 @@
   "3": 4,
   "17": 84
  },
- "src/records/rules/upgrades.ts": {
+ "src/schema/upgrades.ts": {
   "3": 6,
   "7": 1,
   "10": 6,

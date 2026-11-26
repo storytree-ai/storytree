@@ -1,5 +1,6 @@
 // Capability 6 · Knowledge artifacts
-import { byCreation, checkReference, checkReferences, type Expected, type FieldsOf, judgedState, type KnowledgeKind, liveRecord, SchemaError, type SchemaRecord, type SchemaRecords, unstorable, type WriteOptions } from "../records/index.js";
+import { byCreation, checkReference, checkReferences, type Expected, type FieldsOf, liveRecord, SchemaError, type SchemaRecord, type SchemaRecords, unstorable, type WriteOptions } from "../records/index.js";
+import { judgedState, type KnowledgeKind } from "../schema/index.js";
 import { defaultEmbedder } from "./embedding-model.js";
 import { ARTIFACT_KINDS } from "./kinds.js";
 import { addedEdges, checkClauseSupersession, checkFrontCover, DecisionLog, justifiedEdit, partlySupersedes, prunedEdit, restoredEdit, type ArchivedDecisionLink, type DecisionLinkBacklog, type DecisionLinkChanges, type DecisionLinkSpan, type DecisionNumberPlan, type DecisionView, type NarrowsMove, type NewDecision, type SupersessionPairs } from "../decisions/index.js";

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import type { Pool, QueryResult, QueryResultRow } from "pg";
 
+import { HealthRecord } from "../../health/index.js";
 import { Knowledge } from "../../knowledge/decisions/index.js";
 import { convertMemories } from "../../knowledge/notes/index.js";
 import { defaultEmbedder, modelsFolder, PgVectors, vectorServerIdentity, type EmbedderSource } from "../../knowledge/search/index.js";
@@ -12,6 +13,7 @@ import { LIBRARY_SCHEMA, pluginSchema, SchemaRecords, type PluginRecordKind } fr
 import { PgBackend, PgTransactions, Store } from "../../storage/store/index.js";
 import { FactoryCircle } from "./circle.js";
 import { WorkModel } from "../../plan/index.js";
+import { WorkInFlight } from "../../work/arcs/index.js";
 import { ConnectionError, createDatabase, serverOf, sqlState, type ConnectOptions } from "../shared/index.js";
 import { linkOf, ProjectLineage } from "./lineage.js";
 import { checkName, databaseOf, ProjectGoneError } from "./names.js";
@@ -156,6 +158,8 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
     const records = new ProjectRecords(transactions, schema, factory === undefined ? undefined : new SchemaRecords(factory.transactions, schema), open.system);
     await convertMemories(records, transactions);
     let circle: FactoryCircle<Project> | undefined;
+    const work = new WorkModel(records);
+    const flight = new WorkInFlight(records, work);
     const project: Project = {
       name,
       identity: domain.identity,
@@ -163,8 +167,9 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
       transactions,
       records,
       knowledge: new Knowledge(records, name, { embedder, vectors: new PgVectors(pool, vectorCache, domain) }),
-      work: new WorkModel(records),
-      flight: { holds: async () => ({ waits: {}, heldOn: {} }) },
+      work,
+      flight,
+      health: new HealthRecord(records, work, flight),
       lineage: new ProjectLineage(pool, name),
       reach: (other) => circle!.reach(other),
       reachAll: () => circle!.reachAll(),

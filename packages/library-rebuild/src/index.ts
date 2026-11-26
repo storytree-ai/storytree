@@ -12,6 +12,34 @@ export type { FieldsOf, PluginRecordKind, PluginUpgradeStep, RecordType, SchemaR
 export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./storage/store/index.js";
 export type { ConnectOptions, ProjectSnapshot } from "./projects/open/index.js";
 export { ConnectionError, connectionString } from "./projects/shared/index.js";
+export { RetireRefusedError } from "./work/inbox/index.js";
+export { NOT_VERIFIED, wordAndWhy } from "./health/index.js";
+export type {
+  AnnotatedCapability,
+  AnnotatedContract,
+  AnnotatedEdge,
+  AnnotatedStory,
+  AnnotatedTree,
+  CapabilityStatus,
+  CapabilityWhy,
+  ChangedOnMain,
+  EarlierVerdict,
+  FlakeSeen,
+  HealthColumn,
+  HealthColumnName,
+  HealthEntry,
+  HealthOptions,
+  HealthReason,
+  HealthSource,
+  HealthState,
+  HealthWorkItem,
+  NamedOnMain,
+  NodeHealth,
+  OpenWait,
+  PendingRun,
+  SkipKind,
+  VerifiedVerdict,
+} from "./health/index.js";
 
 export interface Change {
   seq: number;

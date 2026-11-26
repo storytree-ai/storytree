@@ -132,6 +132,8 @@ export interface Writer extends Reader {
   put(record: RecordEnvelope): Promise<void>;
   remove(id: string): Promise<void>;
   append(entry: NewEntry): Promise<void>;
+  getAll?(ids: readonly string[]): Promise<RecordEnvelope[]>;
+  putAll?(records: readonly RecordEnvelope[], entries: readonly NewEntry[]): Promise<void>;
 }
 
 export interface Backend {
@@ -159,9 +161,17 @@ export class Store implements Transactions {
 
   async saveAll(inputs: readonly SaveInput[], signal?: AbortSignal): Promise<RecordEnvelope[]> {
     return await this.#write(async (writer) => {
-      const saved: RecordEnvelope[] = [];
-      for (const input of inputs) saved.push(await saveOne(writer, input));
-      return saved;
+      const ids = inputs.map(({ id }) => id);
+      if (writer.getAll === undefined || writer.putAll === undefined || inputs.length === 0 || new Set(ids).size !== ids.length) {
+        const saved: RecordEnvelope[] = [];
+        for (const input of inputs) saved.push(await saveOne(writer, input));
+        return saved;
+      }
+      const stored = new Map((await writer.getAll(ids)).map((record) => [record.id, record]));
+      const now = new Date().toISOString();
+      const records = inputs.map((input) => recordOf(input, stored.get(input.id), now));
+      await writer.putAll(records, records.map((record, index) => entry(stored.has(record.id) ? "updated" : "created", record, inputs[index]!, undefined)));
+      return records;
     }, signal);
   }
 
@@ -269,11 +279,15 @@ export class Store implements Transactions {
 
 async function saveOne(writer: Writer, input: SaveInput): Promise<RecordEnvelope> {
   const stored = await writer.get(input.id);
-  const now = new Date().toISOString();
-  const record = { id: input.id, type: input.type, version: input.version ?? 1, fields: input.fields, createdAt: stored?.createdAt ?? now, updatedAt: now };
-  input.validate?.(record);
+  const record = recordOf(input, stored ?? undefined, new Date().toISOString());
   await writer.put(record);
   await writer.append(entry(stored === null ? "created" : "updated", record, input, undefined));
+  return record;
+}
+
+function recordOf(input: SaveInput, stored: RecordEnvelope | undefined, now: string): RecordEnvelope {
+  const record = { id: input.id, type: input.type, version: input.version ?? 1, fields: input.fields, createdAt: stored?.createdAt ?? now, updatedAt: now };
+  input.validate?.(record);
   return record;
 }
 

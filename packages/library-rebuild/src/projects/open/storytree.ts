@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 
 import pg, { type Pool } from "pg";
 
-import { convertMemories, Knowledge } from "../../knowledge/notes/index.js";
+import { Knowledge } from "../../knowledge/decisions/index.js";
+import { convertMemories } from "../../knowledge/notes/index.js";
 import { defaultEmbedder, modelsFolder, PgVectors, vectorServerIdentity, type EmbedderSource } from "../../knowledge/search/index.js";
 import { LIBRARY_SCHEMA, pluginSchema, SchemaRecords, type PluginRecordKind } from "../../storage/rules/index.js";
 import { PgBackend, PgTransactions, Store } from "../../storage/store/index.js";

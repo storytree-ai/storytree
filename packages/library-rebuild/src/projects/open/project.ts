@@ -1,7 +1,7 @@
 // Capability 1 · Project libraries
 import type { Pool } from "pg";
 
-import type { Knowledge } from "../../knowledge/notes/index.js";
+import type { Knowledge } from "../../knowledge/decisions/index.js";
 import type { FieldsOf, SchemaRecord, WriteOptions } from "../../storage/rules/index.js";
 import type { Transactions } from "../../storage/store/index.js";
 import type { Reached } from "./circle.js";

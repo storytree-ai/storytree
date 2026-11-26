@@ -7,15 +7,13 @@ import { z } from "zod";
 
 import { connect } from "../../project/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../../testing/pg.js";
+import { LIBRARY_SCHEMA, pluginSchema, RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../../schema/index.js";
 import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../store/index.js";
 import {
   MissingUpgradeError,
   NewerSchemaError,
   OWNER_TIME_ZONE,
   parseSchedule,
-  pluginSchema,
-  RECORD_SCHEMAS,
-  SCHEMA_VERSIONS,
   SchemaError,
   SchemaRecords,
   UnknownTypeError,
@@ -40,7 +38,7 @@ const memory: Backend = {
   label: "memory",
   async open() {
     const transactions = new MemoryTransactions();
-    return { records: new SchemaRecords(transactions), transactions, cleanup: async () => {} };
+    return { records: new SchemaRecords(transactions, LIBRARY_SCHEMA), transactions, cleanup: async () => {} };
   },
 };
 

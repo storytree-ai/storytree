@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 
 import { connect } from "../project/index.js";
-import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type KnowledgeKind, type Transactions } from "../records/index.js";
+import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type Transactions } from "../records/index.js";
+import { LIBRARY_SCHEMA, type KnowledgeKind } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { Knowledge } from "./index.js";
 
@@ -22,7 +23,7 @@ const memory: Backend = {
   label: "memory",
   async open() {
     const transactions = new MemoryTransactions();
-    return { knowledge: new Knowledge(new SchemaRecords(transactions)), transactions, cleanup: async () => {} };
+    return { knowledge: new Knowledge(new SchemaRecords(transactions, LIBRARY_SCHEMA)), transactions, cleanup: async () => {} };
   },
 };
 
@@ -676,7 +677,7 @@ for (const backend of [memory, postgres]) {
   test(`6.24 [${backend.label}] a measure is saved with its live story, what it reads, its unit, its better direction, how and where it is read, its runs and its version; one missing a field, naming no live story, with a direction outside higher, lower and neither, or runs or a version that is not a whole number from 1 is refused naming the field`, async () => {
     const { knowledge, transactions, cleanup } = await backend.open();
     try {
-      const records = new SchemaRecords(transactions);
+      const records = new SchemaRecords(transactions, LIBRARY_SCHEMA);
       const story = await records.create("story", { title: "Desktop app" });
       const rule = await knowledge.writeKnowledge("principle", { title: "Measure before tuning", description: "One line", statement: "S", why: "W", howToApply: "H" } as never);
       const measure = coldStart(story.id);
@@ -735,7 +736,7 @@ for (const backend of [memory, postgres]) {
   test(`6.24 [${backend.label}] measures(story) lists that story's live measures oldest first, and measures() every live measure oldest first, a retired one in neither`, async (t) => {
     const { knowledge, transactions, cleanup } = await backend.open();
     try {
-      const records = new SchemaRecords(transactions);
+      const records = new SchemaRecords(transactions, LIBRARY_SCHEMA);
       const desktop = await records.create("story", { title: "Desktop app" });
       const library = await records.create("story", { title: "Library" });
       assert.deepEqual(await knowledge.measures(), [], "no measure yet");
@@ -759,7 +760,7 @@ for (const backend of [memory, postgres]) {
   test(`6.25 [${backend.label}] a measure's edit that changes what it reads without raising its version, or that lowers it, is refused naming version with nothing written; a title, description or links edit needs no new version`, async () => {
     const { knowledge, transactions, cleanup } = await backend.open();
     try {
-      const records = new SchemaRecords(transactions);
+      const records = new SchemaRecords(transactions, LIBRARY_SCHEMA);
       const desktop = await records.create("story", { title: "Desktop app" });
       const library = await records.create("story", { title: "Library" });
       const rule = await knowledge.writeKnowledge("principle", { title: "Measure before tuning", description: "One line", statement: "S", why: "W", howToApply: "H" } as never);
@@ -840,7 +841,7 @@ for (const backend of [memory, postgres]) {
   test(`6.27 [${backend.label}] an old-shape decision link, stored with no justification, never refuses a later edit: the decision's text and title change, and a new justified link is added beside it`, async () => {
     const { knowledge, transactions, cleanup } = await backend.open();
     try {
-      const records = new SchemaRecords(transactions);
+      const records = new SchemaRecords(transactions, LIBRARY_SCHEMA);
       const target = await knowledge.recordDecision({ title: "Mail by queue", text: "Queue it.", status: "accepted" });
       const replaced = await knowledge.recordDecision({ title: "Mail by hand", text: "By hand.", status: "accepted" });
       const added = await knowledge.recordDecision({ title: "Mail is logged", text: "Log it.", status: "accepted" });

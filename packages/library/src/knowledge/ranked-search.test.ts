@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 import { connect } from "../project/index.js";
 import { MemoryTransactions, SchemaRecords } from "../records/index.js";
+import { LIBRARY_SCHEMA } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { Knowledge, MemoryVectors, type Embedder, type EmbedderSource } from "./index.js";
 
@@ -63,7 +64,7 @@ interface Backend {
 const memory: Backend = {
   label: "memory",
   async open(embedder) {
-    const records = new SchemaRecords(new MemoryTransactions());
+    const records = new SchemaRecords(new MemoryTransactions(), LIBRARY_SCHEMA);
     const vectors = new MemoryVectors();
     return {
       knowledge: new Knowledge(records, undefined, { embedder, vectors }),

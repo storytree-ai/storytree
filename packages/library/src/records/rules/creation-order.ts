@@ -1,4 +1,4 @@
-// Capability 7 · Library API
+// Capability 3 · Record rules
 export function byCreation(
   a: { readonly createdAt: string; readonly id: string },
   b: { readonly createdAt: string; readonly id: string },

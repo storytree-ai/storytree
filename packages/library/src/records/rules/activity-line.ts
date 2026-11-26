@@ -1,4 +1,4 @@
-// Capability 3 · Data schema
+// Capability 3 · Record rules
 import { z } from "zod";
 
 const common = {

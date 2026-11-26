@@ -1,4 +1,4 @@
-// Capability 2 · Library transactions
+// Capability 2 · The store
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import { check, editedRecord, saveAllInputs, historyEntry, historyFilter, jsonCopy, listed, now, numbered, outsideReadOf, revertedRecord, revertInput, revertReason, savedRecord, writesReverted, writtenBy } from "./records.js";

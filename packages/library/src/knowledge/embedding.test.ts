@@ -2,8 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { SchemaRecords } from "../schema/index.js";
-import { MemoryTransactions } from "../transactions/index.js";
+import { MemoryTransactions, SchemaRecords } from "../records/index.js";
 import { renderNote } from "./embedding.js";
 
 test("14.17 · a check's embedded text holds its question, never the ids of the principles it enforces", async () => {

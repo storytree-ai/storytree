@@ -9,7 +9,7 @@ import { waitUntil } from "@storytree/test-waits";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
 
-import { WRITE_LOCK } from "../transactions/index.js";
+import { WRITE_LOCK } from "../records/index.js";
 import { localServer } from "./server.js";
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 

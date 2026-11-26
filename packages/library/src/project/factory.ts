@@ -1,8 +1,7 @@
 // Capability 29 · Factory and product
 import type { Pool } from "pg";
 
-import { SchemaRecords, type FieldEdit, type LibrarySchema, type RecordType, type SchemaRecord, type WriteOptions } from "../schema/index.js";
-import type { ListFilter, Transactions } from "../transactions/index.js";
+import { type FieldEdit, type LibrarySchema, type ListFilter, type RecordType, type SchemaRecord, SchemaRecords, type Transactions, type WriteOptions } from "../records/index.js";
 import { assertProjectName } from "./names.js";
 
 export const SYSTEM_KINDS: readonly RecordType[] = ["agent", "check", "principle", "guardrail", "pattern", "process"];

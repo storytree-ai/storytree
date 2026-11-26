@@ -1,4 +1,4 @@
-// Capability 2 · Library transactions
+// Capability 2 · The store
 import type { HistoryEntry, HistoryFilter, ListFilter, OutsideRead, RecordEnvelope, RevertedWrite, RevertInput, RevertWritesInput, SaveInput, Upgrade, Validate } from "./types.js";
 
 export function now(): string {

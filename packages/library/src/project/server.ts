@@ -4,7 +4,7 @@ import { hostname } from "node:os";
 import pg from "pg";
 import type { Pool, PoolClient, PoolConfig } from "pg";
 
-import { seconds, waitsOf, type PoolWaits } from "../transactions/index.js";
+import { seconds, waitsOf, type PoolWaits } from "../records/index.js";
 import { ConnectionError, sqlState } from "./connection-error.js";
 import { countReads, lastWordsOf, processReaderName } from "./reads.js";
 

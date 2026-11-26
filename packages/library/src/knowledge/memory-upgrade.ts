@@ -1,10 +1,9 @@
 // Capability 6 · Knowledge artifacts
 import type { PoolClient } from "pg";
 
-import { RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../schema/index.js";
+import { RECORD_SCHEMAS, type RecordEnvelope, SCHEMA_VERSIONS } from "../records/index.js";
 import type { NoteType } from "./knowledge.js";
 import { KNOWLEDGE_KINDS, REFERENCE_FIELD_NAMES } from "./knowledge.js";
-import type { RecordEnvelope } from "../transactions/index.js";
 
 const KINDS: readonly string[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
 

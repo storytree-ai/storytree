@@ -12,7 +12,7 @@ import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, te
 import { ConnectionError, ProjectGoneError, connect, type Project, type Storytree } from "./index.js";
 import { FactoryCircle, type InheritedRecords } from "./factory.js";
 import { PROJECT_SCHEMA } from "./schema.js";
-import type { FieldsOf, RecordType } from "../schema/index.js";
+import type { FieldsOf, RecordType } from "../records/index.js";
 
 function databaseOf(project: string): string {
   return `storytree_${project}`;

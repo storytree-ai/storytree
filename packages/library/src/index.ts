@@ -5,15 +5,15 @@ export type { ConnectionProblem, ConnectOptions, FactoryLink, OpenOptions, Reach
 
 export { CONNECT_TIMEOUT_MS, ConnectionError, connectionString, explainConnectTimeout, ProjectGoneError, ProjectNameError, RestoreRefusedError, SEED_CONNECTION } from "./project/index.js";
 export { knowledgeGuidance, LinkLoopError, referenceEdgesOf, SupersessionLoopError } from "./knowledge/index.js";
-export { DependencyLoopError, MissingReferenceError } from "./references.js";
-export { NumberTakenError } from "./transactions/index.js";
+export { DependencyLoopError, MissingReferenceError } from "./records/index.js";
+export { NumberTakenError } from "./records/index.js";
 export type { Counts, KindCount, RecentChange, TitleHit } from "./data/data-questions.js";
 export { ANCHOR_ID, anchorGaps, beforeCutover, CONTRACT_DEFINITION, CONTRACT_PLACEMENT, LifecycleError, LONG_CONTRACT_TITLE, planGuidance, pullSaid, RetireRefusedError, WaitLoopError } from "./work/index.js";
-export { CONTRACT_PROOFS, STORE_LINK_DIRECTIONS, MissingUpgradeError, NewerSchemaError, NEW_LINE, OWNER_TIME_ZONE, parseSchedule, pluginSchema, SchemaError, UnknownTypeError } from "./schema/index.js";
+export { CONTRACT_PROOFS, STORE_LINK_DIRECTIONS, MissingUpgradeError, NewerSchemaError, NEW_LINE, OWNER_TIME_ZONE, parseSchedule, pluginSchema, SchemaError, UnknownTypeError } from "./records/index.js";
 
-export type { Agent, FieldsOf, KnowledgeKind, Line, LineKind, LinesSince, NewLine, PluginRecordKind, PluginUpgradeStep, Precheck, RecordType, ScheduleRule, SchemaRecord, WriteOptions } from "./schema/index.js";
+export type { Agent, FieldsOf, KnowledgeKind, Line, LineKind, LinesSince, NewLine, PluginRecordKind, PluginUpgradeStep, Precheck, RecordType, ScheduleRule, SchemaRecord, WriteOptions } from "./records/index.js";
 export type { CodeEdge, EdgeFile, FileImport, PartClash, SharedStore, StoreTable, StorySurvey, SurveyedFile, SurveyedPart, SurveyedParts, SurveyedTest } from "./schema/story-survey.js";
-export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./transactions/index.js";
+export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./records/index.js";
 export type {
   ArcEdit,
   ArcNode,

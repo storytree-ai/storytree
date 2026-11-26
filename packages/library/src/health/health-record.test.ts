@@ -5,10 +5,8 @@ import { test } from "node:test";
 import { waitUntil } from "@storytree/test-waits";
 
 import { connect } from "../project/index.js";
-import { MissingReferenceError } from "../references.js";
-import { NewerSchemaError, SchemaError, SchemaRecords, type RecordType, type SchemaRecord } from "../schema/index.js";
+import { MemoryTransactions, MissingReferenceError, NewerSchemaError, SchemaError, SchemaRecords, type RecordEnvelope, type RecordType, type SchemaRecord, type Transactions } from "../records/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
 import { WorkInFlight, WorkModel, type ProjectTree } from "../work/index.js";
 import { capabilityStatus, capabilityWhy, HealthRecord, wordAndWhy, type AnnotatedTree, type HealthColumn, type HealthEntry, type NodeHealth } from "./index.js";
 

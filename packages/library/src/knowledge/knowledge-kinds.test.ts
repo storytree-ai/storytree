@@ -3,10 +3,8 @@ import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 
 import { connect } from "../project/index.js";
-import { MissingReferenceError } from "../references.js";
-import { SchemaError, SchemaRecords, type KnowledgeKind } from "../schema/index.js";
+import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type KnowledgeKind, type Transactions } from "../records/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { MemoryTransactions, type Transactions } from "../transactions/index.js";
 import { Knowledge } from "./index.js";
 
 interface Library {

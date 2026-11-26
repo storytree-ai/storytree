@@ -3,11 +3,9 @@ import type { AnnotatedTree, ChangedOnMain, HealthWorkItem, NamedOnMain } from "
 import { connect as connectServer, InheritedRecords, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Reached, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
 import { DataQuestions } from "../data/data-questions.js";
-import { couldBeId } from "../references.js";
+import { couldBeId, type FieldEdit, type FieldsOf, type HistoryEntry, isPluginKind, type RecordEnvelope, type RecordType, SCHEMA_VERSIONS, type SchemaRecord, UnknownTypeError, type WriteOptions } from "../records/index.js";
 import { createHash, randomUUID } from "node:crypto";
 
-import { isPluginKind, SCHEMA_VERSIONS, UnknownTypeError, type FieldEdit, type FieldsOf, type RecordType, type SchemaRecord, type WriteOptions } from "../schema/index.js";
-import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
 import type { SurveyOptions, WorkSurvey } from "../work/index.js";
 
 export interface Storytree {

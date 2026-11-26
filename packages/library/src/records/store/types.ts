@@ -1,4 +1,4 @@
-// Capability 2 · Library transactions
+// Capability 2 · The store
 
 export interface RecordEnvelope {
   id: string;

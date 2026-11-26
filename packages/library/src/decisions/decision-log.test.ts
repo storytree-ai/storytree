@@ -2,11 +2,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { byCreation } from "../creation-order.js";
+import { byCreation, MemoryTransactions, NumberTakenError, SchemaError, SchemaRecords, type Transactions } from "../records/index.js";
 import { connect } from "../project/index.js";
-import { SchemaError, SchemaRecords } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { MemoryTransactions, NumberTakenError, type Transactions } from "../transactions/index.js";
 import { Knowledge, SupersessionLoopError } from "../knowledge/index.js";
 
 interface Library {

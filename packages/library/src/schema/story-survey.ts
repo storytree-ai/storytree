@@ -1,4 +1,4 @@
-// Capability 3 · Data schema
+// Capability 3 · Record rules
 
 export type SurveyedFile = {
   readonly path: string;

@@ -6,6 +6,7 @@ import { HealthRecord } from "../health/index.js";
 import { Knowledge } from "../knowledge/index.js";
 import { connect as connectProject } from "../project/index.js";
 import { MemoryTransactions, SchemaRecords } from "../records/index.js";
+import { LIBRARY_SCHEMA } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { WorkModel } from "../plan/index.js";
 import { WorkInFlight } from "../work/index.js";
@@ -17,7 +18,7 @@ for (const backend of ["memory", "postgres", "public postgres"] as const) {
     const api = backend === "public postgres" ? await connect({ url: testServerUrl() }) : undefined;
     try {
       const project = await server?.openProject(name);
-      const records = project?.records ?? new SchemaRecords(new MemoryTransactions());
+      const records = project?.records ?? new SchemaRecords(new MemoryTransactions(), LIBRARY_SCHEMA);
       const lib = await api?.openProject(name);
       const reader = lib ?? records;
       const work: Pick<Library, "addStory" | "editStory" | "addCapability" | "editCapability" | "addContract" | "editContract"> = lib ?? project?.work ?? new WorkModel(records);

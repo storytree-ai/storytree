@@ -62,7 +62,7 @@ export class ProjectLineage {
 export class InheritedRecords extends SchemaRecords {
   readonly #factory: SchemaRecords;
 
-  constructor(transactions: Transactions, factory: SchemaRecords, schema?: LibrarySchema) {
+  constructor(transactions: Transactions, factory: SchemaRecords, schema: LibrarySchema) {
     super(transactions, schema);
     this.#factory = factory;
   }

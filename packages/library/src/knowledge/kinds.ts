@@ -1,5 +1,5 @@
 // Capability 6 · Knowledge artifacts.
-import type { KnowledgeKind } from "../records/index.js";
+import type { KnowledgeKind } from "../schema/index.js";
 
 export const ARTIFACT_KINDS: { readonly [K in KnowledgeKind]: { readonly name: string; readonly captured?: { readonly command: string; readonly tool: string } } } = {
   principle: { name: "Principle" },

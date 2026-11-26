@@ -5,9 +5,8 @@ import type { z } from "zod";
 
 import { pickFields, writtenBy, type HistoryEntry, type HistoryFilter, type ListFilter, type OutsideRead, type RecordEnvelope, type RevertedWrite, type Transactions } from "../store/index.js";
 import { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError, type FieldProblem } from "./errors.js";
-import type { FieldsOf, LibrarySchema, RecordType } from "../../schema/types.js";
+import type { FieldsOf, LibrarySchema, RecordType } from "./schema.js";
 import { isPluginKind } from "./plugin-kinds.js";
-import { LIBRARY_SCHEMA } from "./upgrades.js";
 
 export type SchemaRecord<T extends RecordType = RecordType> = {
   [K in T]: Omit<RecordEnvelope, "type" | "fields"> & { type: K; fields: FieldsOf<K>; dormant?: true };
@@ -47,13 +46,13 @@ export class SchemaRecords {
   readonly #transactions: Transactions;
   readonly #schema: LibrarySchema;
 
-  constructor(transactions: Transactions, schema: LibrarySchema = LIBRARY_SCHEMA) {
+  constructor(transactions: Transactions, schema: LibrarySchema) {
     this.#transactions = transactions;
     this.#schema = schema;
   }
 
   async create<T extends RecordType>(type: T, fields: FieldsOf<T>, options: CreateOptions = {}): Promise<SchemaRecord<T>> {
-    if (!this.#isRecordType(type)) throw new UnknownTypeError(type);
+    if (!this.#isRecordType(type)) throw new UnknownTypeError(type, this.#known());
     const record = await this.#transactions.save({
       id: options.id ?? newId(type),
       type,
@@ -73,7 +72,7 @@ export class SchemaRecords {
   async createAll<T extends RecordType>(records: readonly { type: T; fields: FieldsOf<T>; options?: Omit<CreateOptions, "sequence" | "sequenceFloor" | "sequenceNeverHeld" | "onlyIfNew" | "signal"> }[], signal?: AbortSignal): Promise<SchemaRecord<T>[]> {
     const inputs = [];
     for (const { type, fields, options = {} } of records) {
-      if (!this.#isRecordType(type)) throw new UnknownTypeError(type);
+      if (!this.#isRecordType(type)) throw new UnknownTypeError(type, this.#known());
       inputs.push({ id: options.id ?? newId(type), type, fields, version: this.#version(type), validate: this.#check, ...writeOptionsOf(options), ...(await outsideReadFor(options, type)) });
     }
     return (await this.#transactions.saveAll(inputs, signal)) as SchemaRecord<T>[];
@@ -87,7 +86,7 @@ export class SchemaRecords {
   async list<T extends RecordType>(type: T | readonly T[], filter?: Omit<ListFilter, "projection">): Promise<SchemaRecord<T>[]> {
     const kinds = (typeof type === "string" ? [type] : type).filter((kind) => !this.isDormant(kind));
     for (const kind of kinds) {
-      if (!this.#isRecordType(kind)) throw new UnknownTypeError(kind);
+      if (!this.#isRecordType(kind)) throw new UnknownTypeError(kind, this.#known());
     }
     if (kinds.length === 0) return [];
     const records = await this.#transactions.list(typeof type === "string" ? kinds[0]! : kinds, filter);
@@ -98,7 +97,7 @@ export class SchemaRecords {
     type: T, fields: readonly K[], filter: Omit<ListFilter, "projection"> = {},
   ): Promise<(Omit<SchemaRecord<T>, "fields"> & { fields: Pick<FieldsOf<T>, K> })[]> {
     if (this.isDormant(type)) return [];
-    if (!this.#isRecordType(type)) throw new UnknownTypeError(type);
+    if (!this.#isRecordType(type)) throw new UnknownTypeError(type, this.#known());
     const records = await this.#transactions.list(type, { ...filter, projection: { version: this.#version(type), fields, older: this.#olderProjections(type, fields) } });
     return records.map((record) => {
       const current = this.current(record) as SchemaRecord<T>;
@@ -179,7 +178,7 @@ export class SchemaRecords {
   readonly current = (record: RecordEnvelope): SchemaRecord => {
     const { id, type } = record;
     if (this.isDormant(type)) return { ...record, dormant: true } as SchemaRecord;
-    if (!this.#isRecordType(type)) throw new UnknownTypeError(type, id);
+    if (!this.#isRecordType(type)) throw new UnknownTypeError(type, this.#known(), id);
     const known = this.#version(type);
     if (record.version > known) throw new NewerSchemaError(id, type, record.version, known);
     let { version, fields } = record;
@@ -194,7 +193,7 @@ export class SchemaRecords {
   };
 
   readonly #check = (candidate: RecordEnvelope): void => {
-    if (this.isDormant(candidate.type)) throw new UnknownTypeError(candidate.type, candidate.id || undefined);
+    if (this.isDormant(candidate.type)) throw new UnknownTypeError(candidate.type, this.#known(), candidate.id || undefined);
     const { type, fields } = this.current(candidate);
     const problems = [...this.#shapeProblems(type, fields), ...unstorableText(fields)];
     if (problems.length > 0) throw new SchemaError(type, problems);
@@ -223,6 +222,10 @@ export class SchemaRecords {
 
   isDormant(type: string): boolean {
     return isPluginKind(type) && !this.#isRecordType(type);
+  }
+
+  #known(): string[] {
+    return Object.keys(this.#schema.versions).filter((type) => !isPluginKind(type));
   }
 
   #version(type: RecordType): number {

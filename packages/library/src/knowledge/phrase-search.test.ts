@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { MemoryTransactions, SchemaRecords } from "../records/index.js";
+import { LIBRARY_SCHEMA } from "../schema/index.js";
 import { withCountedProject } from "../testing/pg.js";
 import { Knowledge } from "./index.js";
 
@@ -60,7 +61,7 @@ async function exercise(knowledge: Knowledge, records: SchemaRecords): Promise<v
 }
 
 test("14.11 · [memory] literal phrase pages find every current match independently of ranking", async () => {
-  const records = new SchemaRecords(new MemoryTransactions());
+  const records = new SchemaRecords(new MemoryTransactions(), LIBRARY_SCHEMA);
   const knowledge = new Knowledge(records, undefined, { embedder: async () => ({ model: "constant", embed: async (texts) => texts.map(() => Float32Array.of(1)) }) });
   await exercise(knowledge, records);
 });

@@ -5,7 +5,8 @@ import { test } from "node:test";
 import { waitUntil } from "@storytree/test-waits";
 
 import { connect } from "../project/index.js";
-import { MemoryTransactions, MissingReferenceError, SCHEMA_VERSIONS, SchemaError, SchemaRecords, type RecordEnvelope, type RecordType, type Transactions } from "../records/index.js";
+import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type RecordEnvelope, type RecordType, type Transactions } from "../records/index.js";
+import { LIBRARY_SCHEMA, SCHEMA_VERSIONS } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { Knowledge, type NewDefinition } from "./index.js";
 
@@ -25,7 +26,7 @@ const memory: Backend = {
   label: "memory",
   async open() {
     const transactions = new MemoryTransactions();
-    const records = new SchemaRecords(transactions);
+    const records = new SchemaRecords(transactions, LIBRARY_SCHEMA);
     return { knowledge: new Knowledge(records), records, transactions, cleanup: async () => {} };
   },
 };

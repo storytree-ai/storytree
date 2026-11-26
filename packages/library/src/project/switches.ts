@@ -30,7 +30,7 @@ export class SwitchedRecords extends SchemaRecords {
   readonly #records: SchemaRecords;
   readonly #switches: SystemSwitches;
 
-  constructor(transactions: Transactions, records: SchemaRecords, switches: SystemSwitches, schema?: LibrarySchema) {
+  constructor(transactions: Transactions, records: SchemaRecords, switches: SystemSwitches, schema: LibrarySchema) {
     super(transactions, schema);
     this.#records = records;
     this.#switches = switches;

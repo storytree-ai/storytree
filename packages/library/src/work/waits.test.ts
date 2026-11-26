@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 import { connect } from "../project/index.js";
 import { MemoryTransactions, MissingReferenceError, SchemaRecords, type Transactions } from "../records/index.js";
+import { LIBRARY_SCHEMA } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { WorkModel } from "../plan/index.js";
 import { WaitLoopError, WorkInFlight } from "./index.js";
@@ -25,7 +26,7 @@ const memory: Backend = {
   label: "memory",
   async open() {
     const transactions = new MemoryTransactions();
-    const records = new SchemaRecords(transactions);
+    const records = new SchemaRecords(transactions, LIBRARY_SCHEMA);
     return { work: new WorkModel(records), flight: new WorkInFlight(records), records, transactions, cleanup: async () => {} };
   },
 };

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { byCreation, MemoryTransactions, NumberTakenError, SchemaError, SchemaRecords, type Transactions } from "../records/index.js";
+import { LIBRARY_SCHEMA } from "../schema/index.js";
 import { connect } from "../project/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { Knowledge, SupersessionLoopError } from "../knowledge/index.js";
@@ -24,10 +25,10 @@ const memory: Backend = {
   label: "memory",
   async open() {
     const transactions = new MemoryTransactions();
-    const records = new SchemaRecords(transactions);
+    const records = new SchemaRecords(transactions, LIBRARY_SCHEMA);
     return {
       knowledge: new Knowledge(records),
-      other: new Knowledge(new SchemaRecords(transactions)),
+      other: new Knowledge(new SchemaRecords(transactions, LIBRARY_SCHEMA)),
       records,
       transactions,
       cleanup: async () => {},
@@ -163,7 +164,7 @@ for (const backend of [memory, postgres]) {
 
   contract("13.6", "storytree switches once to a stored floor; concurrent decisions exceed it and every held number", async ({ records, transactions, knowledge }) => {
     const own = new Knowledge(records, "storytree");
-    const other = new Knowledge(new SchemaRecords(transactions), "storytree");
+    const other = new Knowledge(new SchemaRecords(transactions, LIBRARY_SCHEMA), "storytree");
     const before = await transactions.history();
     await assert.rejects(own.recordDecision(DECIDE), /floor.*unset/i);
     await assert.rejects(knowledge.setDecisionNumberFloor(662, { apply: true }), /storytree project/);
@@ -236,7 +237,7 @@ for (const backend of [memory, postgres]) {
 
   contract("13.8", "concurrent founding moves cannot share numbers or move a book twice", async ({ records, transactions }) => {
     const own = new Knowledge(records, "storytree");
-    const other = new Knowledge(new SchemaRecords(transactions), "storytree");
+    const other = new Knowledge(new SchemaRecords(transactions, LIBRARY_SCHEMA), "storytree");
     const book = await records.create("decision", { ...DECIDE, number: 1 });
     await own.setDecisionNumberFloor(662, { apply: true });
     await Promise.all([own.numberFoundingDecisions({ apply: true }), other.numberFoundingDecisions({ apply: true })]);

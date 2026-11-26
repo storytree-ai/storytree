@@ -6,7 +6,8 @@ import { isDeepStrictEqual } from "node:util";
 import { waitUntil } from "@storytree/test-waits";
 
 import { connect } from "../project/index.js";
-import { DependencyLoopError, MemoryTransactions, MissingReferenceError, SCHEMA_VERSIONS, SchemaError, SchemaRecords, type RecordEnvelope, type RecordType, type SchemaRecord, type Transactions } from "../records/index.js";
+import { DependencyLoopError, MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type RecordEnvelope, type RecordType, type SchemaRecord, type Transactions } from "../records/index.js";
+import { LIBRARY_SCHEMA, SCHEMA_VERSIONS } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { ANCHOR_ID, anchorGaps, WorkModel, type PluginPlan } from "./index.js";
 
@@ -26,7 +27,7 @@ const memory: Backend = {
   label: "memory",
   async open() {
     const transactions = new MemoryTransactions();
-    const records = new SchemaRecords(transactions);
+    const records = new SchemaRecords(transactions, LIBRARY_SCHEMA);
     return { work: new WorkModel(records), records, transactions, cleanup: async () => {} };
   },
 };

@@ -1,8 +1,8 @@
 // Capability 5 · Health record
 import { createHash } from "node:crypto";
 
-import { byCreation, couldBeId, type FieldsOf, FRESHNESS, liveRecord, MissingReferenceError, recordNamed, type RecordType, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
-import type { Anchor, ArcNode, CapabilityNode, ContractNode, EdgeNode, ProjectTree, StoryNode, WorkModel } from "../plan/index.js";
+import { byCreation, couldBeId, type FieldsOf, liveRecord, MissingReferenceError, recordNamed, type RecordType, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
+import { type Anchor, type ArcNode, type CapabilityNode, type ContractNode, type EdgeNode, FRESHNESS, type ProjectTree, type StoryNode, type WorkModel } from "../plan/index.js";
 import type { Holds, ParkedOn, WorkInFlight } from "../work/index.js";
 
 export type HealthState = FieldsOf<"health">["state"];

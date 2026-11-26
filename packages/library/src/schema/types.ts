@@ -5,7 +5,7 @@ import { PLAN_RECORD_SCHEMAS } from "../plan/schema.js";
 import { day, ids, nonEmpty, scale } from "../records/rules/fields.js";
 import { isTimeZone, parseSchedule, PRECHECKS } from "../records/rules/schedule.js";
 
-export type RecordType =
+type ComposedType =
   | "arc"
   | "story"
   | "capability"
@@ -682,9 +682,9 @@ export const RECORD_SCHEMAS = {
     }),
   fyi: z.object({ title: nonEmpty, what: nonEmpty, at: nonEmpty, about: nonEmpty, by: nonEmpty, heardAt: nonEmpty.optional() }).strict(),
   pin: PLAN_RECORD_SCHEMAS.pin,
-} as const satisfies Record<RecordType, z.ZodType>;
+} as const satisfies Record<ComposedType, z.ZodType>;
 
-export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
+export const SCHEMA_VERSIONS: Readonly<Record<ComposedType, number>> = {
   arc: 2,
   story: 1,
   capability: 2,
@@ -718,18 +718,8 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   pin: 1,
 };
 
-export type FieldsOf<T extends RecordType> = z.infer<(typeof RECORD_SCHEMAS)[T]>;
+type Composed = typeof RECORD_SCHEMAS;
 
-export interface UpgradeStep {
-  readonly type: string;
-  readonly from: number;
-  readonly name: string;
-  readonly reads?: readonly string[];
-  up(fields: Record<string, unknown>): Record<string, unknown>;
-}
-
-export interface LibrarySchema {
-  readonly versions: Readonly<Record<string, number>>;
-  readonly schemas: Readonly<Record<string, z.ZodType>>;
-  readonly upgrades: readonly UpgradeStep[];
+declare module "../records/rules/schema.js" {
+  interface RecordSchemas extends Composed {}
 }

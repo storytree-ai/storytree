@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { connect, NewerSchemaError, UnknownTypeError, type HistoryEntry, type HistoryFilter, type Library, type SchemaRecord } from "@storytree/library";
 import { connect as connectProject } from "../project/index.js";
 import { MemoryTransactions, SchemaRecords } from "../records/index.js";
+import { LIBRARY_SCHEMA } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
 for (const backend of ["memory", "public postgres"] as const) {
@@ -14,7 +15,7 @@ for (const backend of ["memory", "public postgres"] as const) {
     try {
       const project = await server?.openProject(name);
       const transactions = project?.transactions ?? new MemoryTransactions();
-      const records = project?.records ?? new SchemaRecords(transactions);
+      const records = project?.records ?? new SchemaRecords(transactions, LIBRARY_SCHEMA);
       const reader: Pick<Library, "get" | "list" | "history"> = await api?.openProject(name) ?? records;
       assert.equal(await reader.get("missing"), null);
       assert.deepEqual(await reader.list("story"), []);

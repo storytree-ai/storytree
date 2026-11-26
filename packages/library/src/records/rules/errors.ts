@@ -1,7 +1,6 @@
 // Capability 3 · Record rules
 import { fileURLToPath } from "node:url";
 import { codeDistance } from "./code-distance.js";
-import { SCHEMA_VERSIONS } from "../../schema/types.js";
 
 const runningCodeDistance = import.meta.url === undefined
   ? () => undefined
@@ -31,8 +30,8 @@ export class UnknownTypeError extends Error {
   readonly type: string;
   readonly id: string | undefined;
 
-  constructor(type: string, id?: string) {
-    const known = `the record types are ${Object.keys(SCHEMA_VERSIONS).join(", ")}`;
+  constructor(type: string, types: readonly string[], id?: string) {
+    const known = `the record types are ${types.join(", ")}`;
     super(
       type.includes(".")
         ? `${id === undefined ? "" : `record ${JSON.stringify(id)} is of `}record kind ${JSON.stringify(type)}, a plugin's, which no plugin loaded here declares${id === undefined ? "" : ": it reads dormant and cannot be written"} (ADR-1178 D3)`

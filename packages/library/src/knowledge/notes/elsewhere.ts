@@ -1,5 +1,5 @@
-// Capability 17 · The library's commands
-import { VerbRefusal, type VerbContext } from "../verbs/verb.js";
+// Capability 6 · Notes
+import { VerbRefusal, type VerbContext } from "../../verbs/verb.js";
 
 export type Reach<L> = { readonly project: string; readonly opened: L; readonly unopened?: undefined } | { readonly project: string; readonly opened?: undefined; readonly unopened: string };
 

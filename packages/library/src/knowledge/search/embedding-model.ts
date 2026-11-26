@@ -1,4 +1,4 @@
-// Capability 14 · Ranked search
+// Capability 14 · Search
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";

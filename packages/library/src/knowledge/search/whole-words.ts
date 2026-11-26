@@ -1,4 +1,4 @@
-// Capability 14 · Ranked search
+// Capability 14 · Search
 
 export function normalisedWords(text: string): string {
   return text.toLowerCase().replace(/[-_\s]+/g, " ").trim();

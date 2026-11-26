@@ -1,9 +1,10 @@
-// Capability 17 · The library's commands
-import { isPluginKind, type NewLine, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
-import type { KnowledgeKind } from "../schema/index.js";
-import { ARTIFACT_KINDS, KNOWLEDGE_KINDS, WRITTEN_KINDS, type Knowledge, type Note, type NoteEdit, type PhraseKind } from "../knowledge/index.js";
-import { justificationSaid, supersededLines, type DecisionLibrary } from "../decisions/index.js";
-import { verb, VerbRefusal, type VerbAnswer, type VerbContext, type Verb, type VerbInputs } from "../verbs/verb.js";
+// Capability 6 · Notes
+import { isPluginKind, type NewLine, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../records/index.js";
+import type { KnowledgeKind } from "../../schema/index.js";
+import { ARTIFACT_KINDS, WRITTEN_KINDS } from "./kinds.js";
+import { KNOWLEDGE_KINDS, type Knowledge, type Note, type NoteEdit, type PhraseKind } from "./knowledge.js";
+import { justificationSaid, supersededLines, type DecisionLibrary } from "../../decisions/index.js";
+import { verb, VerbRefusal, type VerbAnswer, type VerbContext, type Verb, type VerbInputs } from "../../verbs/verb.js";
 import { narrowedSaid, rankedSearch } from "./ranked.js";
 import { refuseStaleEdit } from "./stale-edit.js";
 import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid, type Reachable } from "./elsewhere.js";

@@ -1,6 +1,6 @@
-// Capability 17 · The library's commands
-import { KNOWLEDGE_KINDS, type Findable, type Knowledge, type NarrowingDecision, type NoteType, type PlanKind, type Ranked } from "../knowledge/index.js";
-import { VerbRefusal } from "../verbs/verb.js";
+// Capability 6 · Notes
+import { KNOWLEDGE_KINDS, type Findable, type Knowledge, type NarrowingDecision, type NoteType, type PlanKind, type Ranked } from "./knowledge.js";
+import { VerbRefusal } from "../../verbs/verb.js";
 
 const SEARCHABLE: readonly string[] = ["decision", "definition", ...KNOWLEDGE_KINDS, "story", "capability", "contract", "arc", "increment"];
 

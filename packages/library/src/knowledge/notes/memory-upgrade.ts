@@ -1,8 +1,8 @@
-// Capability 6 · Knowledge artifacts
+// Capability 6 · Notes
 import type { PoolClient } from "pg";
 
-import type { RecordEnvelope } from "../records/index.js";
-import { RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../schema/index.js";
+import type { RecordEnvelope } from "../../records/index.js";
+import { RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../../schema/index.js";
 import type { NoteType } from "./knowledge.js";
 import { KNOWLEDGE_KINDS, REFERENCE_FIELD_NAMES } from "./knowledge.js";
 

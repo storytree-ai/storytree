@@ -1,4 +1,4 @@
-// Capability 6 · Knowledge artifacts
+// Capability 6 · Notes
 
 export interface SimilarityDoc {
   readonly id: string;

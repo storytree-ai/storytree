@@ -6,19 +6,15 @@ import { isDeepStrictEqual } from "node:util";
 import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type Storytree, type WriteOptions } from "../index.js";
 import { PR_CUTOVER_ID } from "../plan/index.js";
 import { editPlanRecord, FYI_FAMILY, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, refuseHeldPlanWrite, type PlanEdit } from "../work/index.js";
-import { fieldValue, verb, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamily, type VerbInputs } from "../verbs/verb.js";
+import { fieldValue, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { MEDIA_FAMILY } from "./media.js";
 export { mediaGuidance } from "./media.js";
 import { ADR_FAMILY, editDecision, justificationSaid, recordDecision, supersededLines } from "../decisions/index.js";
-import { ARTIFACT_KINDS, WRITTEN_KINDS } from "../knowledge/index.js";
-import { attachedTo, everyHolding, holdingLines, labelOf, NOTE_TOOLS as NOTES_TOOLS, partsBeside, recordLines, type HeldClaim, type NoteToolContext as NotesToolContext } from "./notes.js";
+import { ARTIFACT_KINDS, attachedTo, everyHolding, holdingLines, labelOf, librariesNamed, libraryNamed, narrowedSaid, partsBeside, PROJECT_INPUT, PROJECTS_INPUT, rankedSearch, recordLines, refuseStaleEdit, unopenedSaid, WRITTEN_KINDS, type HeldClaim } from "../knowledge/index.js";
 import { LaterWriterError, StaleRevertError } from "../records/index.js";
 import { RECORD_SCHEMAS } from "../schema/index.js";
-import { narrowedSaid, rankedSearch } from "./ranked.js";
-import { refuseStaleEdit } from "./stale-edit.js";
-import { libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
-export { contextIn, libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./elsewhere.js";
+export { contextIn, libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "../knowledge/index.js";
 
 export interface LibraryVerbContext extends VerbContext<Library, Pick<Storytree, "ownDatabase">> {
   claims(): Promise<readonly HeldClaim[]>;
@@ -645,12 +641,8 @@ const undo = verb({
   },
 });
 
-export { everyHolding, holdingLines, type Found, type HeldClaim, type NoteRead, type PhraseHit, type Presenter } from "./notes.js";
+export { everyHolding, holdingLines, NOTE_TOOLS, type Found, type HeldClaim, type NoteRead, type NoteToolContext, type PhraseHit, type Presenter } from "../knowledge/index.js";
 export { justificationSaid, supersededLines } from "../decisions/index.js";
-
-export type NoteToolContext = NotesToolContext<Library, Pick<Storytree, "ownDatabase">>;
-
-export const NOTE_TOOLS: readonly Verb<VerbInputs, NoteToolContext>[] = NOTES_TOOLS;
 export { editPlanRecord, heldPending, heldSaid, holdPlanChange, refuseHeldPlanWrite } from "../work/index.js";
 
 export async function bareSaid(library: Library, capability: string | undefined, plan: string): Promise<string> {

@@ -18,3 +18,5 @@ export function deafIfHandingOffAtOnce(): boolean {
   deaf = true;
   return true;
 }
+
+export { refuseUnloaded, unloadedRefusal } from "./unloaded.js";

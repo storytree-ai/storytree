@@ -1,5 +1,6 @@
 // Capability 17 · The library's commands
-import { isPluginKind, type KnowledgeKind, type NewLine, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
+import { isPluginKind, type NewLine, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../records/index.js";
+import type { KnowledgeKind } from "../schema/index.js";
 import { ARTIFACT_KINDS, KNOWLEDGE_KINDS, WRITTEN_KINDS, type Knowledge, type Note, type NoteEdit, type PhraseKind } from "../knowledge/index.js";
 import { justificationSaid, supersededLines, type DecisionLibrary } from "../decisions/index.js";
 import { verb, VerbRefusal, type VerbAnswer, type VerbContext, type Verb, type VerbInputs } from "../verbs/verb.js";

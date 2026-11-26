@@ -3,7 +3,10 @@
   "story": "story_754e87e7d531",
   "private": true,
   "type": "module",
-  "exports": {},
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing/pg": "./src/testing/pg.ts"
+  },
   "scripts": {
     "typecheck": "tsc -p ."
   },

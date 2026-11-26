@@ -10,7 +10,10 @@
         "packages/library/src/api/index.ts",
         "packages/library/src/api/library.ts",
         "packages/library/src/api/printable.ts",
-        "packages/library/src/index.ts"
+        "packages/library/src/index.ts",
+        "packages/library/src/schema/index.ts",
+        "packages/library/src/schema/types.ts",
+        "packages/library/src/schema/upgrades.ts"
       ],
       "entry": "packages/library/src/index.ts",
       "was": [
@@ -58,8 +61,7 @@
       "files": [
         "packages/library/src/records/rules/index.ts",
         "packages/library/src/records/rules/records.ts",
-        "packages/library/src/schema/types.ts",
-        "packages/library/src/records/rules/upgrades.ts",
+        "packages/library/src/records/rules/schema.ts",
         "packages/library/src/records/rules/plugin-kinds.ts",
         "packages/library/src/records/rules/errors.ts",
         "packages/library/src/records/rules/code-distance.ts",

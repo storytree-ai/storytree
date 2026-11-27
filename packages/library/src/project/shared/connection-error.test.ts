@@ -1,4 +1,4 @@
-// Capability 28 · Shared server
+// Capability 28 · Shared library
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

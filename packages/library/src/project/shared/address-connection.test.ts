@@ -1,4 +1,4 @@
-// Capability 15 · Connection by address
+// Capability 28 · Shared library
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
@@ -12,7 +12,7 @@ import { saveKey } from "@storytree/keys";
 import pg from "pg";
 import { connect, ConnectionError, connectionString, type Storytree } from "@storytree/library";
 
-import { dropTestDatabases, dropTestRoles, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
+import { dropTestDatabases, dropTestRoles, testServerUrl, uniqueProjectName, withTestClient } from "../../testing/pg.js";
 
 const PASSWORD_GROUP = "storytree_password_auth";
 const PASSWORD_LINE = `host all +${PASSWORD_GROUP} all scram-sha-256`;
@@ -76,7 +76,7 @@ async function closedPort(): Promise<number> {
   return port;
 }
 
-test("15.1 a library at a Postgres address, its password the postgres key, opens, writes and reads a project", async () => {
+test("28.19 a library at a Postgres address, its password the postgres key, opens, writes and reads a project", async () => {
   const run = uniqueProjectName();
   const [role, project, keys] = [`${run}-pw`, `${run}-address`, home()];
   let storytree: Storytree | undefined;
@@ -115,7 +115,7 @@ test("28.10 a local password URL still opens admin and project connections throu
   }
 });
 
-test("15.2 with no password saved for the library, connecting is refused saying how to save one, before reaching the server", async () => {
+test("28.20 with no password saved for the library, connecting is refused saying how to save one, before reaching the server", async () => {
   const keys = home();
   try {
     await assert.rejects(
@@ -133,7 +133,7 @@ test("15.2 with no password saved for the library, connecting is refused saying 
   }
 });
 
-test("15.3 a refused password and an unreachable host are each their own refusal, never showing the password", async () => {
+test("28.21 a refused password and an unreachable host are each their own refusal, never showing the password", async () => {
   const run = uniqueProjectName();
   const [role, keys] = [`${run}-pw`, home()];
   const opened: Storytree[] = [];
@@ -165,7 +165,7 @@ test("15.3 a refused password and an unreachable host are each their own refusal
   }
 });
 
-test("15.5 the library's connection string, signed in with its password, reaches the database it names; a library with no password saved is refused", async () => {
+test("28.23 the library's connection string, signed in with its password, reaches the database it names; a library with no password saved is refused", async () => {
   const run = uniqueProjectName();
   const [role, keys] = [`${run}-pw`, home()];
   assert.throws(() => connectionString({ address: address(role) }), (error: unknown) => error instanceof ConnectionError && error.problem === "no-password");

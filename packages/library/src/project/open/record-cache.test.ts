@@ -1,3 +1,4 @@
+// Capability 1 · Opening a project
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp } from "node:fs/promises";
@@ -8,8 +9,8 @@ import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../testing/pg.js";
-import type { Project } from "./index.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../../testing/pg.js";
+import type { Project } from "../index.js";
 import { connect } from "./storytree.js";
 
 const BODY = "words ".repeat(170);

@@ -1,12 +1,12 @@
-// Capability 30 · Outside writers
+// Capability 28 · Shared library
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import type { Client } from "pg";
 
-import { connect } from "./index.js";
+import { connect } from "../index.js";
 import { fenceOutsideWriter, fenceProject, type OutsideWriter } from "./outside-writer.js";
-import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
+import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, uniqueProjectName, withTestClient, withTestClientAs } from "../../testing/pg.js";
 
 interface Fenced {
   readonly asWriter: <T>(fn: (client: Client) => Promise<T>) => Promise<T>;
@@ -71,7 +71,7 @@ async function put(client: Client, id: string, type: string, action: "created" |
   }
 }
 
-test("30.1 · An outside writer's role, fenced to its plugin's kinds, inserts a record of its own kind, and each history entry carries its role in recorded_by", async () => {
+test("28.25 · An outside writer's role, fenced to its plugin's kinds, inserts a record of its own kind, and each history entry carries its role in recorded_by", async () => {
   await withFencedWriter({ kinds: ["voice.note"] }, async ({ asWriter, adminSql, writer }) => {
     await asWriter((client) => put(client, "note-1", "voice.note"));
     await asWriter((client) => put(client, "note-2", "voice.note"));
@@ -87,7 +87,7 @@ test("30.1 · An outside writer's role, fenced to its plugin's kinds, inserts a 
   });
 });
 
-test("30.2 · An outside writer's role is refused a core kind, another plugin's kind, an update, a delete and any change to the tables", async () => {
+test("28.26 · An outside writer's role is refused a core kind, another plugin's kind, an update, a delete and any change to the tables", async () => {
   await withFencedWriter({ kinds: ["voice.note"] }, async ({ asWriter, writerSql, adminSql, refence, writer, story }) => {
     await assert.rejects(refence({ kinds: ["decision"] }), /only a plugin's kinds/);
     await assert.rejects(refence({ kinds: ["voice.note", "diary.entry"] }), /one plugin, not voice and diary/);
@@ -129,7 +129,7 @@ test("30.2 · An outside writer's role is refused a core kind, another plugin's 
   });
 });
 
-test("30.3 · An outside writer whose plugin declares updates may change its own kind's records, and still no other record nor another kind", async () => {
+test("28.27 · An outside writer whose plugin declares updates may change its own kind's records, and still no other record nor another kind", async () => {
   await withFencedWriter({ kinds: ["voice.note"], update: true, reads: ["story"] }, async ({ asWriter, writerSql, adminSql, refence, story }) => {
     await asWriter((client) => put(client, "note-1", "voice.note"));
     await asWriter((client) => put(client, "note-1", "voice.note", "updated"));
@@ -152,7 +152,7 @@ test("30.3 · An outside writer whose plugin declares updates may change its own
   });
 });
 
-test("30.5 · fenceProject fences each writer it is handed in a live project's library, reached as the library setting reaches it with an account that may act as the owner; a role the server lacks, or an account that may not act as the owner, is refused saying so, and what it fenced first stays fenced", async () => {
+test("28.28 · fenceProject fences each writer it is handed in a live project's library, reached as the library setting reaches it with an account that may act as the owner; a role the server lacks, or an account that may not act as the owner, is refused saying so, and what it fenced first stays fenced", async () => {
   const run = uniqueProjectName();
   const [owner, door, librarian, stranger, creator] = [`${run}-owner`, `${run}-door`, `${run}-librarian`, `${run}-stranger`, `${run}-creator`];
   const database = `storytree_${run}`;

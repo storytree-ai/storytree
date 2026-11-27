@@ -1,4 +1,4 @@
-// Capability 28 · Shared server
+// Capability 28 · Shared library
 import assert from "node:assert/strict";
 import { createServer, connect as openSocket, type AddressInfo, type Socket } from "node:net";
 import { after, before, describe, mock, test } from "node:test";
@@ -13,10 +13,10 @@ import {
   testServerUrl,
   uniqueProjectName,
   withTestClient,
-} from "../testing/pg.js";
-import { transactionsBehaviourSuite } from "../records/store/behaviour-suite.js";
-import { PgTransactions } from "../records/index.js";
-import { ConnectionError, connect, type ConnectionProblem, type Project, type Storytree } from "./index.js";
+} from "../../testing/pg.js";
+import { transactionsBehaviourSuite } from "../../records/store/behaviour-suite.js";
+import { PgTransactions } from "../../records/index.js";
+import { ConnectionError, connect, type ConnectionProblem, type Project, type Storytree } from "../index.js";
 
 test("28.14 opening a new project as a server user that may not create databases, with no role to borrow, is refused with the two lines that let it", async () => {
   const run = uniqueProjectName();

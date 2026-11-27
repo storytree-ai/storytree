@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { MemoryTransactions, SchemaRecords } from "../records/index.js";
-import { LIBRARY_SCHEMA } from "../schema/index.js";
-import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { MemoryTransactions, SchemaRecords } from "../../records/index.js";
+import { LIBRARY_SCHEMA } from "../../schema/index.js";
+import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
 import { connect } from "./storytree.js";
 
 test("6.8 saving memory is refused with the reason and writes nothing", async () => {

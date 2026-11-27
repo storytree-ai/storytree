@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { connect, RestoreRefusedError, type Library, type ProjectSnapshot, type Storytree } from "../index.js";
-import { connect as connectWithSeams } from "../project/storytree.js";
+import { connect as connectWithSeams } from "../project/open/storytree.js";
 
 async function withServer(projects: readonly string[], body: (storytree: Storytree) => Promise<void>): Promise<void> {
   const storytree = await connect({ url: testServerUrl() });

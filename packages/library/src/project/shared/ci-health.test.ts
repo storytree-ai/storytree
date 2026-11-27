@@ -1,14 +1,14 @@
-// Capability 28 · Shared server
+// Capability 28 · Shared library
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
 
-import { Knowledge } from "../knowledge/index.js";
-import { connect as connectProjects } from "./index.js";
-import { NumberTakenError } from "../records/index.js";
-import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
+import { Knowledge } from "../../knowledge/index.js";
+import { connect as connectProjects } from "../index.js";
+import { NumberTakenError } from "../../records/index.js";
+import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, uniqueProjectName, withTestClient, withTestClientAs } from "../../testing/pg.js";
 
 const GRANTS_FILES = ["ci-health", "library-host"];
 
@@ -30,7 +30,7 @@ for (const source of GRANTS_FILES) test(`28.16 CI's health account (${source}/gr
     const capability = await onLaptop.addCapability({ title: "1 · Card payment", story: story.id });
     const contract = await onLaptop.addContract({ title: "1.1 · A declined card is refused", capability: capability.id });
 
-    const grants = readFileSync(new URL(`../../../../infra/${source}/grants.sql`, import.meta.url), "utf8")
+    const grants = readFileSync(new URL(`../../../../../infra/${source}/grants.sql`, import.meta.url), "utf8")
       .replaceAll("storytree_storytree", database).replaceAll(':"ci_role"', `"${ci}"`).replaceAll(":'ci_role'", `'${ci}'`);
     await withTestClientAs(owner, (client) => client.query(grants), database);
 
@@ -122,7 +122,7 @@ for (const source of GRANTS_FILES) test(`28.16 Granted (${source}/grants.sql) be
     opened.push(ownerProjects);
     const ownerProject = await ownerProjects.openProject(run);
     const decisions = new Knowledge(ownerProject.records, "storytree");
-    const grants = readFileSync(new URL(`../../../../infra/${source}/grants.sql`, import.meta.url), "utf8")
+    const grants = readFileSync(new URL(`../../../../../infra/${source}/grants.sql`, import.meta.url), "utf8")
       .replaceAll("storytree_storytree", database).replaceAll(':"ci_role"', `"${ci}"`).replaceAll(":'ci_role'", `'${ci}'`);
     await withTestClientAs(owner, (client) => client.query(grants), database);
 

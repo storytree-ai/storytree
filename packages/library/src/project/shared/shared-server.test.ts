@@ -1,4 +1,4 @@
-// Capability 28 · Shared server
+// Capability 28 · Shared library
 import assert from "node:assert/strict";
 import { createServer, connect as openSocket, type Server } from "node:net";
 import { hostname } from "node:os";
@@ -9,9 +9,9 @@ import { waitUntil } from "@storytree/test-waits";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
 
-import { WRITE_LOCK } from "../records/index.js";
+import { WRITE_LOCK } from "../../records/index.js";
 import { localServer } from "./server.js";
-import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
+import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient } from "../../testing/pg.js";
 
 test("28.1 two accounts sharing the creator role both open, write and read one project, and one's own database, on one server", async () => {
   const run = uniqueProjectName();

@@ -1,4 +1,4 @@
-// Capability 15 · Connection by address
+// Capability 28 · Shared library
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { createServer as createHttpServer, type IncomingHttpHeaders } from "node:http";
@@ -14,13 +14,13 @@ import { removeTemp } from "@storytree/test-waits";
 import { saveKey } from "@storytree/keys";
 import { WebSocketServer } from "ws";
 
-import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
 import { addressServer, connectionString } from "./address.js";
 import { ConnectionError } from "./connection-error.js";
-import { vectorServerIdentity } from "../knowledge/index.js";
+import { vectorServerIdentity } from "../../knowledge/index.js";
 import { proxyFor } from "./websocket.js";
 
-const TLS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "testing", "tls");
+const TLS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "testing", "tls");
 const CA = readFileSync(path.join(TLS, "trusted-ca.crt"), "utf8");
 const [TOKEN_ID, TOKEN_SECRET] = ["synthetic-id.access", "synthetic-access-secret"];
 
@@ -107,7 +107,7 @@ function testServer(): { host: string; port: number } {
   return { host: url.hostname.replace(/^\[(.*)\]$/, "$1"), port: Number(url.port || 5432) };
 }
 
-test("15.6 a wss:// address is reached through HTTPS_PROXY and the gate with the Access token, at wsproxy's /v1 for 127.0.0.1:5432, signing in by SCRAM with the postgres key", async () => {
+test("28.24 a wss:// address is reached through HTTPS_PROXY and the gate with the Access token, at wsproxy's /v1 for 127.0.0.1:5432, signing in by SCRAM with the postgres key", async () => {
   const run = uniqueProjectName();
   const [role, project, keys] = [`${run}-wss`, `storytree_${run}-wss`, home()];
   const [front, agent] = [await gate(testServer()), await proxy()];
@@ -142,7 +142,7 @@ test("15.6 a wss:// address is reached through HTTPS_PROXY and the gate with the
   }
 });
 
-test("15.6 a wss:// address with no Access token is refused before anything is dialled, naming the variable to set and no secret", async () => {
+test("28.24 a wss:// address with no Access token is refused before anything is dialled, naming the variable to set and no secret", async () => {
   const keys = home();
   try {
     saveKey("postgres", "synthetic-password", { home: keys });
@@ -161,7 +161,7 @@ test("15.6 a wss:// address with no Access token is refused before anything is d
   }
 });
 
-test("15.6 a wss:// address that sets sslmode or sslrootcert is refused, and has no connection string for psql", async () => {
+test("28.24 a wss:// address that sets sslmode or sslrootcert is refused, and has no connection string for psql", async () => {
   const keys = home();
   try {
     saveKey("postgres", "synthetic-password", { home: keys });
@@ -177,7 +177,7 @@ test("15.6 a wss:// address that sets sslmode or sslrootcert is refused, and has
   }
 });
 
-test("15.6 an upgrade the agent proxy refuses and one the gate refuses each say which hop refused it, never showing a secret", async () => {
+test("28.24 an upgrade the agent proxy refuses and one the gate refuses each say which hop refused it, never showing a secret", async () => {
   const keys = home();
   const front = await gate(testServer());
   const agents = [await proxy([]), await proxy()];
@@ -219,7 +219,7 @@ test("15.6 an upgrade the agent proxy refuses and one the gate refuses each say 
   }
 });
 
-test("15.6 a wss:// library that asks for the password in plain text is refused before the password is sent", async () => {
+test("28.24 a wss:// library that asks for the password in plain text is refused before the password is sent", async () => {
   const keys = home();
   const received: Buffer[] = [];
   const sockets = new Set<Socket>();
@@ -258,7 +258,7 @@ test("15.6 a wss:// library that asks for the password in plain text is refused 
   }
 });
 
-test("15.6 a wss:// address skips HTTPS_PROXY for a loopback host and for a host NO_PROXY names, in its usual forms", () => {
+test("28.24 a wss:// address skips HTTPS_PROXY for a loopback host and for a host NO_PROXY names, in its usual forms", () => {
   const proxy = "http://proxy.example:8080";
   const via = (address: string, noProxy?: string, lower = false) =>
     proxyFor(new URL(address), { HTTPS_PROXY: lower ? undefined : proxy, https_proxy: lower ? proxy : undefined, NO_PROXY: lower ? undefined : noProxy, no_proxy: lower ? noProxy : undefined });
@@ -301,7 +301,7 @@ async function listener(): Promise<{ port: number; dialled: () => number; close:
   };
 }
 
-test("15.6 with HTTPS_PROXY set, a wss:// address on a loopback host or one NO_PROXY names is dialled directly, and a remote one still through the proxy", async () => {
+test("28.24 with HTTPS_PROXY set, a wss:// address on a loopback host or one NO_PROXY names is dialled directly, and a remote one still through the proxy", async () => {
   const keys = home();
   const direct = await listener();
   const agent = await proxy(["library.test", "127.0.0.1"]);

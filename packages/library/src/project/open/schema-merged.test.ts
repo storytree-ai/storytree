@@ -1,4 +1,4 @@
-// Capability 1 · Project libraries
+// Capability 1 · Opening a project
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";

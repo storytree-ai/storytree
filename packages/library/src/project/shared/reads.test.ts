@@ -1,10 +1,10 @@
-// Capability 28 · Shared server
+// Capability 28 · Shared library
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { asReader, nameReader, scriptReader, takeReads } from "@storytree/library/reads";
 
-import { withCountedProject, withTestClient } from "../testing/pg.js";
+import { withCountedProject, withTestClient } from "../../testing/pg.js";
 
 test("28.12 every byte a library connection receives, its handshake included, is counted against the reader that asked: the process's named reader, or the one a call runs as; and each connection is named for the process's reader", async () => {
   takeReads();

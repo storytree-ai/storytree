@@ -1,4 +1,4 @@
-// Capability 34 · Project storage
+// Capability 34 · Projects
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { createServer } from "node:net";

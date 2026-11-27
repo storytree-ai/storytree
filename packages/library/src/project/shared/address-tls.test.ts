@@ -1,4 +1,4 @@
-// Capability 15 · Connection by address
+// Capability 28 · Shared library
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -17,7 +17,7 @@ import { saveKey } from "@storytree/keys";
 import { addressServer } from "./address.js";
 import { ConnectionError } from "./connection-error.js";
 
-const TLS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "testing", "tls");
+const TLS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "testing", "tls");
 const SECRET = "synthetic-remote-secret";
 const SSL_REQUEST = 80877103;
 
@@ -131,34 +131,34 @@ function assertRefused(outcome: unknown, problem: string, pattern: RegExp): void
   assert.ok(!outcome.message.includes(SECRET), outcome.message);
 }
 
-test("15.4 a remote address that answers without TLS is refused before the password is sent, on the admin and project pools", async () => {
+test("28.22 a remote address that answers without TLS is refused before the password is sent, on the admin and project pools", async () => {
   const { admin, project, received } = await connectBoth({ then: "cleartext" }, "");
   assert.ok(!received.includes(SECRET), "the peer received the password");
   assertRefused(admin, "untrusted-server", /TLS/);
   assertRefused(project, "untrusted-server", /TLS/);
 });
 
-test("15.4 a remote address whose certificate no trusted authority signed is refused before the password is sent", async () => {
+test("28.22 a remote address whose certificate no trusted authority signed is refused before the password is sent", async () => {
   const { admin, project, received } = await connectBoth({ tls: "impostor", then: "cleartext" });
   assert.ok(!received.includes(SECRET), "the peer received the password");
   assertRefused(admin, "untrusted-server", /certificate/);
   assertRefused(project, "untrusted-server", /certificate/);
 });
 
-test("15.4 a remote address whose trusted certificate names another host is refused before the password is sent", async () => {
+test("28.22 a remote address whose trusted certificate names another host is refused before the password is sent", async () => {
   const { admin, project, received } = await connectBoth({ tls: "elsewhere", then: "cleartext" });
   assert.ok(!received.includes(SECRET), "the peer received the password");
   assertRefused(admin, "untrusted-server", /library\.test/);
   assertRefused(project, "untrusted-server", /library\.test/);
 });
 
-test("15.4 a remote address presenting the pinned certificate for its name connects, on the admin and project pools", async () => {
+test("28.22 a remote address presenting the pinned certificate for its name connects, on the admin and project pools", async () => {
   const { admin, project } = await connectBoth({ tls: "library", then: "let-in" });
   assert.equal(admin, "connected");
   assert.equal(project, "connected");
 });
 
-test("15.4 a remote address presenting exactly a certificate its sslrootcert holds, though no authority signed it, connects, on the admin and project pools", async () => {
+test("28.22 a remote address presenting exactly a certificate its sslrootcert holds, though no authority signed it, connects, on the admin and project pools", async () => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-address-tls-pins-"));
   const pins = path.join(folder, "pins.crt");
   writeFileSync(pins, [readFileSync(path.join(TLS, "trusted-ca.crt"), "utf8"), readFileSync(path.join(TLS, "self-signed-library.crt"), "utf8")].join(""));
@@ -171,21 +171,21 @@ test("15.4 a remote address presenting exactly a certificate its sslrootcert hol
   }
 });
 
-test("15.4 a remote address presenting exactly the certificate its sslrootcert holds, but naming another host, is refused before the password is sent", async () => {
+test("28.22 a remote address presenting exactly the certificate its sslrootcert holds, but naming another host, is refused before the password is sent", async () => {
   const { admin, project, received } = await connectBoth({ tls: "self-signed-elsewhere", then: "cleartext" }, pinning(path.join(TLS, "self-signed-elsewhere.crt")));
   assert.ok(!received.includes(SECRET), "the peer received the password");
   assertRefused(admin, "untrusted-server", /library\.test/);
   assertRefused(project, "untrusted-server", /library\.test/);
 });
 
-test("15.4 a remote address that proves itself but asks for the password in plain text is refused before the password is sent", async () => {
+test("28.22 a remote address that proves itself but asks for the password in plain text is refused before the password is sent", async () => {
   const { admin, project, received } = await connectBoth({ tls: "library", then: "cleartext" });
   assert.ok(!received.includes(SECRET), "the peer received the password");
   assertRefused(admin, "untrusted-server", /plain text/);
   assertRefused(project, "untrusted-server", /plain text/);
 });
 
-test("15.4 an address asking for a weaker check, or overriding the host it dials, is refused before reaching any server", async () => {
+test("28.22 an address asking for a weaker check, or overriding the host it dials, is refused before reaching any server", async () => {
   const keys = home();
   try {
     for (const query of ["sslmode=disable", "sslmode=require", "sslmode=no-verify", "ssl=true", "sslcert=client.crt", "host=elsewhere.test", "port=6543"]) {
@@ -219,14 +219,14 @@ const skip = process.env[UNDER_ELECTRON] !== undefined
   ? "other: this run is the one under Electron, which does not start another"
   : electron instanceof Error && process.env.CI === undefined ? `other: Electron is not installed here (${electron.message.split("\n")[0]})` : false;
 
-test("15.4 every check in this file holds under the desktop app's runtime, Electron, whose TLS is not Node's", { skip, timeout: 150_000 }, async () => {
+test("28.22 every check in this file holds under the desktop app's runtime, Electron, whose TLS is not Node's", { skip, timeout: 150_000 }, async () => {
   assert.ok(typeof electron === "string", `Electron is not installed: ${String(electron)}`);
   const { NODE_TEST_CONTEXT: _parent, NODE_OPTIONS: options, ...env } = process.env;
   const kept = (options ?? "").split(/\s+/).filter((flag) => flag !== "" && !/^--use-(openssl|bundled)-ca$/.test(flag));
   if (kept.length > 0) env.NODE_OPTIONS = kept.join(" ");
   const run = await new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve, reject) => {
     const child = spawn(electron, ["--import", "tsx", "--test", "--test-reporter=spec", fileURLToPath(import.meta.url)], {
-      cwd: fileURLToPath(new URL("../..", import.meta.url)),
+      cwd: fileURLToPath(new URL("../../..", import.meta.url)),
       timeout: 120_000,
       env: { ...env, ELECTRON_RUN_AS_NODE: "1", [UNDER_ELECTRON]: "1" },
     });

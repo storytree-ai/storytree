@@ -1,9 +1,9 @@
-// Capability 28 · Shared server
+// Capability 28 · Shared library
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Library } from "../api/index.js";
-import { VerbRefusal } from "../verbs/verb.js";
+import type { Library } from "../../api/index.js";
+import { VerbRefusal } from "../../verbs/verb.js";
 import { whereOf, writtenLibrary } from "./where.js";
 
 test("28.17 · a write names where it goes, a project, an arc or an increment: none is refused saying what to give, a project is read from the folder's factory's circle, and an arc or increment lands in the library holding it (ADR-1348 D3)", async () => {

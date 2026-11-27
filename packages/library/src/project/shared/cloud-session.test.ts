@@ -1,14 +1,14 @@
-// Capability 30 · Outside writers
+// Capability 28 · Shared library
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { connect as connectLibrary, type Library } from "@storytree/library";
 
-import { Knowledge, PgVectors } from "../knowledge/index.js";
-import { connect } from "./index.js";
-import type { Project } from "./storytree.js";
-import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, uniqueProjectName, withTestClient, withTestClientAs } from "../testing/pg.js";
+import { Knowledge, PgVectors } from "../../knowledge/index.js";
+import { connect } from "../index.js";
+import type { Project } from "../open/storytree.js";
+import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, uniqueProjectName, withTestClient, withTestClientAs } from "../../testing/pg.js";
 
 interface Granted {
   readonly owner: Project;
@@ -36,7 +36,7 @@ async function withCloudAccount(body: (granted: Granted) => Promise<void>): Prom
     await new Knowledge(ownerProject.records, "storytree").setDecisionNumberFloor(1263, { apply: true });
     await ownerProject.transactions.save({ id: "agent-orchestrator", type: "agent", fields: { title: "Orchestrator" } });
 
-    const grants = readFileSync(new URL("../../../../infra/library-host/cloud-session-grants.sql", import.meta.url), "utf8")
+    const grants = readFileSync(new URL("../../../../../infra/library-host/cloud-session-grants.sql", import.meta.url), "utf8")
       .replaceAll("storytree_storytree", database).replaceAll(':"cloud_role"', `"${cloud}"`).replaceAll(":'cloud_role'", `'${cloud}'`);
     await withTestClientAs(owner, (client) => client.query(grants), database);
 
@@ -57,7 +57,7 @@ async function withCloudAccount(body: (granted: Granted) => Promise<void>): Prom
   }
 }
 
-test("30.6 · The cloud sessions' account opens the project as itself, reads every record, and writes, edits and retires through storytree's own writes the kinds a pool lane writes", async () => {
+test("28.29 · The cloud sessions' account opens the project as itself, reads every record, and writes, edits and retires through storytree's own writes the kinds a pool lane writes", async () => {
   await withCloudAccount(async ({ owner, ownerPlan, cloud, cloudPlan, cloudSql, role }) => {
     const story = await ownerPlan.addStory({ title: "Checkout", description: "Paying for an order." });
     const capability = await ownerPlan.addCapability({ title: "1 · Card payment", story: story.id });
@@ -92,7 +92,7 @@ test("30.6 · The cloud sessions' account opens the project as itself, reads eve
   });
 });
 
-test("30.7 · The cloud sessions' account is refused a kind it is not granted, a change of kind, history under another kind's id, a removal that is not a retirement, and any change to history or the tables", async () => {
+test("28.30 · The cloud sessions' account is refused a kind it is not granted, a change of kind, history under another kind's id, a removal that is not a retirement, and any change to history or the tables", async () => {
   await withCloudAccount(async ({ owner, ownerPlan, cloud, cloudSql }) => {
     const story = await ownerPlan.addStory({ title: "Checkout", description: "Paying for an order." });
 

@@ -399,13 +399,14 @@ const edit = verb({
     read: { kind: "text", optional: true, describe: "the seq of the record's newest history entry when you read it: the edit is refused if it has changed since" },
     live: { kind: "switch", describe: "edit a story, capability or contract live while you hold an increment, keeping its claim" },
   },
-  async act({ "<id>": given, "<fields>": values, remove = [], read: readGiven, live }, context: LibraryVerbContext) {
+  async act({ "<id>": given, "<fields>": named, remove = [], read: readGiven, live }, context: LibraryVerbContext) {
     const id = needed(given, "the record's id");
     const library = context.library;
-    if (id === ANCHOR_ID) return editAnchor(fieldsOf(values), context);
-    if (id === PR_CUTOVER_ID) return editCutover(fieldsOf(values), context);
+    if (id === ANCHOR_ID) return editAnchor(fieldsOf(named), context);
+    if (id === PR_CUTOVER_ID) return editCutover(fieldsOf(named), context);
     const record = await library.get(id);
     if (record === null) throw new VerbRefusal(`no record "${id}" in this project`);
+    const values = PLAN_TYPES.has(record.type) ? Object.fromEntries(Object.entries(named).filter(([field]) => field !== "increment")) : named;
     if (record.type === "question" && record.fields.lifecycle === "settled" && (remove.length > 0 || Object.keys(values).some((field) => field !== "links" && field !== "unbuilt"))) {
       throw new VerbRefusal(`question ${id} is settled, so its wording cannot change: its answer stands (it may only gain --links, and record --unbuilt)`);
     }

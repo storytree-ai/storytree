@@ -83,7 +83,7 @@ function standingOf(declaredIn: readonly (string | undefined)[] | undefined, pro
   return { merged: true };
 }
 
-const APPLIED = "storytree_applied";
+const APPLIED = "storytree_setup";
 
 async function setUpOwn(pool: Pool, tables: readonly string[]): Promise<void> {
   const unapplied = async (ask: Pick<Pool, "query">): Promise<string[]> => {

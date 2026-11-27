@@ -2,7 +2,7 @@
 import type { LaneRow, LaneWindow, Touched } from "./lanes.js";
 
 export const MEASURES: readonly { readonly name: string; readonly means: string }[] = [
-  { name: "tokens", means: "every own request's input, cache and output tokens, its subagents' included, of the agent sessions that claimed the increment or a capability under it (9.18's count)" },
+  { name: "tokens", means: "every own request's input, cache and output tokens, its subagents' included, of the agent sessions that claimed the increment or a capability under it, a session that drove several increments counting each request toward the one it had claimed most recently (9.18's count)" },
   { name: "dollars", means: "those tokens at Anthropic's list price for the model that answered each request (cache writes at 1.25 times input for five minutes, twice for an hour)" },
   { name: "review rounds", means: "the change-reviewer's reviews the QA ledger recorded as taken for the increment" },
   { name: "landed", means: "the share of lanes whose increment closed landed, rather than failed or withdrawn" },
@@ -106,6 +106,11 @@ export function measuresText(rows: readonly LaneRow[], window: LaneWindow): stri
   if (missing.length > 0) {
     lines.push("", "Not attributed:");
     for (const row of missing) lines.push(`  ${row.increment} (${row.title}): ${Object.entries(row.unattributed).map(([measure, why]) => `${measure}: ${why}`).join("; ")}`);
+  }
+  const caveated = rows.filter((row) => Object.keys(row.caveats).length > 0);
+  if (caveated.length > 0) {
+    lines.push("", "Counted with a caveat:");
+    for (const row of caveated) lines.push(`  ${row.increment} (${row.title}): ${Object.entries(row.caveats).map(([measure, why]) => `${measure}: ${why}`).join("; ")}`);
   }
   return lines.join("\n");
 }

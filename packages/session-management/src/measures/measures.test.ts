@@ -128,6 +128,7 @@ test("20.1 a closed increment's lane is joined to its sessions' spend and list-p
     const shared = by.get(inc.sharedA)!;
     assert.equal(shared.tokens, 10, "a session that drove two increments is split between them, not left unattributed");
     assert.equal(shared.unattributed.tokens, undefined);
+    assert.match(shared.caveats.tokens!, /Z drove 2 increments/);
 
     const unpriced = by.get(inc.unpriced)!;
     assert.equal(unpriced.tokens, 10, "its tokens are found");

@@ -14,9 +14,9 @@ import { laneRows, type LaneRow } from "./lanes.js";
 import { groupMeasures, measuresText, spreadOf } from "./summary.js";
 import { MEASURES_FAMILIES } from "./verbs.js";
 
-function claudeLine(requestId: string, model: string, usage: { input: number; read?: number; created?: number; hour?: number; output: number }, sidechain = false): string {
+function claudeLine(requestId: string, model: string, usage: { input: number; read?: number; created?: number; hour?: number; output: number }, sidechain = false, timestamp?: string): string {
   return JSON.stringify({
-    type: "assistant", requestId, isSidechain: sidechain,
+    type: "assistant", requestId, isSidechain: sidechain, ...(timestamp === undefined ? {} : { timestamp }),
     message: {
       model, role: "assistant",
       usage: {
@@ -82,8 +82,8 @@ test("20.1 a closed increment's lane is joined to its sessions' spend and list-p
     await log.append(project, { session: "pull-request-5", harness: "watcher", source: "tool", kind: "pr-red", pr: 5, increment: inc.built, conflict: false, checks: ["test"] });
     await log.append(project, { session: "watcher", harness: "watcher", source: "tool", kind: "queue-red", pr: 5, increment: inc.built, removedAt: "2026-11-10T01:00:00Z", commit: "abc", checks: ["test"], tests: [], outcome: "flake" });
     await log.append(project, { ...hook, session: "Y", kind: "claimed", increment: inc.abandoned, reason: "try it" });
-    await log.append(project, { ...hook, session: "Z", kind: "claimed", increment: inc.sharedA, reason: "both" });
-    await log.append(project, { ...hook, session: "Z", kind: "claimed", increment: inc.sharedB, reason: "both" });
+    await log.append(project, { ...hook, session: "Z", kind: "claimed", increment: inc.sharedA, reason: "both" }, { at: "2026-11-05T10:00:00.000Z" });
+    await log.append(project, { ...hook, session: "Z", kind: "claimed", increment: inc.sharedB, reason: "both" }, { at: "2026-11-05T11:00:00.000Z" });
     await log.append(project, { ...hook, session: "M", kind: "claimed", increment: inc.unpriced, reason: "a new model" });
 
     await log.transcripts.store(project, "L", records([
@@ -93,7 +93,7 @@ test("20.1 a closed increment's lane is joined to its sessions' spend and list-p
     ]));
     await log.transcripts.store(project, "L", records([claudeLine("req_a", "claude-haiku-4-5", { input: 2, read: 3_000, output: 8 }, true)], "a1"));
     await log.transcripts.store(project, "F", records([claudeLine("req_f", "claude-opus-5-5", { input: 1_000, output: 100 })]));
-    await log.transcripts.store(project, "Z", records([claudeLine("req_z", "claude-opus-5-5", { input: 5, output: 5 })]));
+    await log.transcripts.store(project, "Z", records([claudeLine("req_z", "claude-opus-5-5", { input: 5, output: 5 }, false, "2026-11-05T10:30:00.000Z")]));
     await log.transcripts.store(project, "M", records([claudeLine("req_m", "claude-unreleased-9", { input: 7, output: 3 })]));
 
     const window = { from: "2026-11-01", to: "2026-11-15" };
@@ -117,6 +117,7 @@ test("20.1 a closed increment's lane is joined to its sessions' spend and list-p
     assert.deepEqual(built.stories.map((one) => [one.id, one.by]).sort(), [[mail, "files"], [signUp, "list"]].sort());
     assert.deepEqual(built.capabilities.map((one) => [one.id, one.by]).sort(), [[emailForm, "list"], [sender, "files"]].sort());
     assert.deepEqual(built.unattributed, {});
+    assert.deepEqual(built.caveats, {}, "every session read, each driving only this increment: no caveat");
 
     const abandoned = by.get(inc.abandoned)!;
     assert.equal(abandoned.tokens, undefined, "a session with no stored transcript leaves the spend unattributed, not zero");
@@ -125,8 +126,8 @@ test("20.1 a closed increment's lane is joined to its sessions' spend and list-p
     assert.match(abandoned.unattributed.files!, /names no pull request/);
 
     const shared = by.get(inc.sharedA)!;
-    assert.equal(shared.tokens, undefined);
-    assert.match(shared.unattributed.tokens!, /Z drove 2 increments/);
+    assert.equal(shared.tokens, 10, "a session that drove two increments is split between them, not left unattributed");
+    assert.equal(shared.unattributed.tokens, undefined);
 
     const unpriced = by.get(inc.unpriced)!;
     assert.equal(unpriced.tokens, 10, "its tokens are found");
@@ -145,7 +146,7 @@ test("20.1 a closed increment's lane is joined to its sessions' spend and list-p
 function row(id: string, measures: Partial<LaneRow>): LaneRow {
   return {
     increment: id, title: id, closed: "2026-11-10", disposition: "landed", sessions: ["s"], fixSessions: 0, queueReds: 0,
-    stories: [{ id: "story_s", title: "Sign up", by: "list" }], capabilities: [{ id: "capability_c", title: "Email form", by: "list" }], unattributed: {}, ...measures,
+    stories: [{ id: "story_s", title: "Sign up", by: "list" }], capabilities: [{ id: "capability_c", title: "Email form", by: "list" }], unattributed: {}, caveats: {}, ...measures,
   };
 }
 
@@ -193,4 +194,65 @@ test("20.2 the measures print per story and per capability as median, middle hal
       await removeTemp(folder);
     }
   });
+});
+
+test("20.7 a session that claimed several increments is split among them by the increment it claimed most recently at each request, and an increment with an unread session counts its readable ones as a lower bound naming it", async () => {
+  await withWorld(async ({ log, library, project, emailForm, sender, inc }) => {
+    const hook = { source: "hook", folder: "/work", harness: "claude-code" } as const;
+    await log.append(project, { ...hook, session: "S", kind: "claimed", increment: inc.sharedA, reason: "first" }, { at: "2026-11-05T10:00:00.000Z" });
+    await log.append(project, { ...hook, session: "S", kind: "claimed", capability: sender, under: inc.sharedB, reason: "then" }, { at: "2026-11-05T12:00:00.000Z" });
+    await log.append(project, { ...hook, session: "S", kind: "claimed", increment: inc.sharedA, reason: "again" }, { at: "2026-11-05T14:00:00.000Z" });
+    await log.transcripts.store(project, "S", records([
+      claudeLine("req_s0", "claude-opus-5-5", { input: 1, output: 0 }, false, "2026-11-05T09:00:00.000Z"),
+      claudeLine("req_s1", "claude-opus-5-5", { input: 10, output: 2 }, false, "2026-11-05T11:00:00.000Z"),
+      claudeLine("req_s2", "claude-opus-5-5", { input: 100, output: 0 }, false, "2026-11-05T13:00:00.000Z"),
+      claudeLine("req_s3", "claude-opus-5-5", { input: 1_000, output: 0 }),
+      claudeLine("req_s4", "claude-opus-5-5", { input: 10_000, output: 0 }, false, "2026-11-05T15:00:00.000Z"),
+    ]));
+    await log.transcripts.store(project, "S", records([claudeLine("req_s5", "claude-opus-5-5", { input: 100_000, output: 0 }, true, "2026-11-05T13:30:00.000Z")], "a1"));
+
+    await log.append(project, { ...hook, session: "R", kind: "claimed", increment: inc.built, reason: "build it" });
+    await log.append(project, { ...hook, session: "U", kind: "claimed", capability: emailForm, under: inc.built, reason: "help" });
+    await log.transcripts.store(project, "R", records([claudeLine("req_r", "claude-opus-5-5", { input: 7, output: 1 }, false, "2026-11-06T09:00:00.000Z")]));
+
+    const window = { from: "2026-11-01", to: "2026-11-30" };
+    const rows = await laneRows({ log, library, project }, window);
+    const by = new Map(rows.map((one) => [one.increment, one]));
+
+    const first = by.get(inc.sharedA)!;
+    assert.equal(first.tokens, 1 + 12, "the request before every claim and the one after the first claim on Shared A");
+    assert.ok(Math.abs(first.dollars! - (11 * 4 + 2 * 20) / 1_000_000) < 1e-12, `Shared A's own requests at list price, got ${first.dollars}`);
+    assert.equal(first.unattributed.tokens, undefined);
+    assert.equal(first.unattributed.dollars, undefined);
+    assert.match(first.caveats.tokens!, /session S drove 2 increments/);
+    assert.match(first.caveats.tokens!, /claimed most recently/);
+    assert.match(first.caveats.dollars!, /session S drove 2 increments/);
+    assert.match(first.caveats.dollars!, /claimed most recently/);
+
+    const second = by.get(inc.sharedB)!;
+    assert.equal(second.tokens, 100 + 1_000 + 10_000 + 100_000, "after the capability claimed under Shared B: a request with no time goes with the one before, a re-claim of Shared A moves nothing back, and the subagent's request is split too");
+    assert.ok(Math.abs(second.dollars! - 111_100 * 4 / 1_000_000) < 1e-12, `Shared B's requests at list price, got ${second.dollars}`);
+    assert.equal(second.unattributed.tokens, undefined);
+    assert.equal(second.unattributed.dollars, undefined);
+    assert.match(second.caveats.tokens!, /session S drove 2 increments/);
+    assert.match(second.caveats.dollars!, /claimed most recently/);
+
+    const built = by.get(inc.built)!;
+    assert.deepEqual(built.sessions, ["R", "U"]);
+    assert.equal(built.tokens, 8, "the readable session's tokens, the unread one's left out");
+    assert.ok(Math.abs(built.dollars! - (7 * 4 + 1 * 20) / 1_000_000) < 1e-12, `the readable session's dollars, got ${built.dollars}`);
+    assert.equal(built.unattributed.tokens, undefined);
+    assert.equal(built.unattributed.dollars, undefined);
+    assert.match(built.caveats.tokens!, /a lower bound/);
+    assert.match(built.caveats.tokens!, /U has no transcript stored/);
+    assert.match(built.caveats.dollars!, /a lower bound/);
+    assert.match(built.caveats.dollars!, /U has no transcript stored/);
+  });
+
+  const text = measuresText([
+    row("increment_d", { title: "Driven", tokens: 8, dollars: 1, rounds: 1, caveats: { tokens: "a lower bound: session U has no transcript stored", dollars: "a lower bound: session U has no transcript stored" } }),
+  ], { from: "2026-11-04", to: "2026-11-10" });
+  assert.match(text, /Attributed: tokens 1 of 1 \(100%\), dollars 1 of 1 \(100%\)/, "a caveated measure is counted");
+  assert.match(text, /\nCounted with a caveat:\n {2}increment_d \(Driven\): tokens: a lower bound: session U has no transcript stored; dollars: a lower bound: session U has no transcript stored(\n|$)/);
+  assert.doesNotMatch(text, /Not attributed:/);
 });

@@ -2,6 +2,7 @@
 import { createHash } from "node:crypto";
 
 import { RECORD_SCHEMAS, type RecordType, type SchemaRecord, type SchemaRecords } from "../../storage/rules/index.js";
+import { singulars, wordsIn } from "../whole-words.js";
 import type { Embedder, EmbedderSource } from "./model.js";
 import { chunksOf, renderNote, searchableText, titleOf } from "./render.js";
 import type { VectorStore } from "./vectors.js";
@@ -190,20 +191,8 @@ function closedOf(record: SchemaRecord, increments: readonly SchemaRecord[], que
 const NUMBER = /^\d+(?:\.\d+)+$/;
 const NUMBERED = /^\s*(\d+(?:\.\d+)+)\s*·\s*/;
 
-function wordsIn(text: string): string[] {
-  return text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-}
-
 function plain(title: string): string {
   return title.replace(NUMBERED, "").toLowerCase().split(/\s+/).filter(Boolean).join(" ");
-}
-
-function singulars(word: string): string[] {
-  const forms = [word];
-  if (word.endsWith("ies")) forms.push(`${word.slice(0, -3)}y`);
-  if (word.endsWith("es")) forms.push(word.slice(0, -2));
-  if (word.endsWith("s")) forms.push(word.slice(0, -1));
-  return forms;
 }
 
 function titleLift(query: string): (record: SchemaRecord) => number {

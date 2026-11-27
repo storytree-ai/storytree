@@ -1,4 +1,4 @@
-// Capability 16 · Commands protocol
+// Capability 17 · Commands
 import type { Library, Storytree } from "../index.js";
 import { verb as protocolVerb, type VerbContext as ProtocolContext, type Verb as ProtocolVerb, type VerbFamilies as ProtocolFamilies, type VerbFamily as ProtocolFamily, type VerbInputs, type VerbPlace } from "../verbs/verb.js";
 

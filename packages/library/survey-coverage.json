@@ -111,6 +111,50 @@
   "17": 84,
   "22": 2
  },
+ "src/knowledge/librarian/catalogue.ts": {
+  "21": 72,
+  "23": 85,
+  "26": 104
+ },
+ "src/knowledge/librarian/graduation.ts": {
+  "21": 6,
+  "23": 5,
+  "24": 68,
+  "26": 56
+ },
+ "src/knowledge/librarian/links.ts": {
+  "21": 78,
+  "23": 45,
+  "26": 88
+ },
+ "src/knowledge/librarian/notes.ts": {
+  "12": 1,
+  "13": 18,
+  "17": 29,
+  "21": 54,
+  "22": 4,
+  "23": 45,
+  "24": 12,
+  "26": 40,
+  "27": 6
+ },
+ "src/knowledge/librarian/rounds/rounds.ts": {
+  "21": 24,
+  "23": 55,
+  "26": 128
+ },
+ "src/knowledge/librarian/rounds/tools.ts": {
+  "13": 24,
+  "26": 56
+ },
+ "src/knowledge/librarian/testing/pg.ts": {
+  "13": 24,
+  "21": 18,
+  "22": 6,
+  "23": 15,
+  "24": 12,
+  "26": 96
+ },
  "src/knowledge/notes/front-covers.ts": {
   "1": 53,
   "2": 5,
@@ -276,50 +320,6 @@
  "src/knowledge/search/whole-words.ts": {
   "1": 3,
   "14": 39
- },
- "src/librarian/catalogue/catalogue.ts": {
-  "21": 72,
-  "23": 85,
-  "26": 104
- },
- "src/librarian/graduation/graduation.ts": {
-  "21": 6,
-  "23": 5,
-  "24": 68,
-  "26": 56
- },
- "src/librarian/links/links.ts": {
-  "21": 78,
-  "23": 45,
-  "26": 88
- },
- "src/librarian/notes.ts": {
-  "12": 1,
-  "13": 18,
-  "17": 29,
-  "21": 54,
-  "22": 4,
-  "23": 45,
-  "24": 12,
-  "26": 40,
-  "27": 6
- },
- "src/librarian/rounds/rounds.ts": {
-  "21": 24,
-  "23": 55,
-  "26": 128
- },
- "src/librarian/rounds/tools.ts": {
-  "13": 24,
-  "26": 56
- },
- "src/librarian/testing/pg.ts": {
-  "13": 24,
-  "21": 18,
-  "22": 6,
-  "23": 15,
-  "24": 12,
-  "26": 96
  },
  "src/plan/pr-cutover.ts": {
   "4": 4,
@@ -741,12 +741,6 @@
   "3": 4,
   "17": 84
  },
- "src/schema/upgrades.ts": {
-  "3": 6,
-  "7": 1,
-  "10": 6,
-  "30": 2
- },
  "src/records/store/behaviour-suite.ts": {
   "2": 178,
   "28": 534
@@ -846,6 +840,12 @@
   "28": 25,
   "29": 14,
   "30": 12
+ },
+ "src/schema/upgrades.ts": {
+  "3": 6,
+  "7": 1,
+  "10": 6,
+  "30": 2
  },
  "src/testing/pg.ts": {
   "1": 449,

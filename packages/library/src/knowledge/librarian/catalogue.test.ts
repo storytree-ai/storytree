@@ -1,12 +1,12 @@
-// Capability 23 · Catalogue
+// Capability 35 · The librarian
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { withLibrary } from "../testing/pg.js";
-import { worklist, worklistView } from "../rounds/rounds.js";
-import { newNotes, retire } from "./index.js";
+import { withLibrary } from "./testing/pg.js";
+import { worklist, worklistView } from "./rounds/rounds.js";
+import { newNotes, retire } from "./catalogue.js";
 
-test("23.1 retire retires a note nothing points at, and refuses one a live record points at, naming it", async () => {
+test("35.7 retire retires a note nothing points at, and refuses one a live record points at, naming it", async () => {
   await withLibrary(async (library) => {
     const decision = await library.recordDecision({ title: "Send through Mailgun", text: "Simplest API.", status: "accepted" });
     const definition = await library.defineTerm({ term: "Verified domain", meaning: "Mailgun needs a verified domain.", links: [decision.id] });
@@ -35,7 +35,7 @@ test("23.1 retire retires a note nothing points at, and refuses one a live recor
   });
 });
 
-test("23.1 retire reads every arc's increments and questions in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
+test("35.7 retire reads every arc's increments and questions in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
   await withLibrary(async (library) => {
     for (const title of ["Launch v1", "Launch v2", "Launch v3"]) {
       const arc = await library.createArc({ title, intent: "Ship sign-up", endState: "Visitors sign up" });
@@ -56,7 +56,7 @@ test("23.1 retire reads every arc's increments and questions in one ask, however
   });
 });
 
-test("23.1 retire refuses a principle a live check enforces, naming the check and its enforces field", async () => {
+test("35.7 retire refuses a principle a live check enforces, naming the check and its enforces field", async () => {
   await withLibrary(async (library) => {
     const principle = await library.writeKnowledge("principle", {
       title: "Send from a verified domain",
@@ -80,7 +80,7 @@ test("23.1 retire refuses a principle a live check enforces, naming the check an
   });
 });
 
-test("23.2 the worklist lists each note written new since a cursor, with the live notes a plain search for any word of its title finds", async () => {
+test("35.8 the worklist lists each note written new since a cursor, with the live notes a plain search for any word of its title finds", async () => {
   await withLibrary(async (library) => {
     const principle = await library.writeKnowledge("principle", {
       title: "Send from a verified domain",
@@ -103,7 +103,7 @@ test("23.2 the worklist lists each note written new since a cursor, with the liv
   });
 });
 
-test("23.3 the worklist lists each write to an agent role or a principle since its cursor that was made after its session read outside text, with what was read", async () => {
+test("35.9 the worklist lists each write to an agent role or a principle since its cursor that was made after its session read outside text, with what was read", async () => {
   await withLibrary(async (library) => {
     const read = async () => ["gh issue view 7"];
     const before = await library.writeKnowledge("principle", {

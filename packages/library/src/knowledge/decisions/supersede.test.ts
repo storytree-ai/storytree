@@ -10,7 +10,7 @@ import { LIBRARY_FAMILIES, type LibraryVerbContext } from "../../commands/index.
 import type { DoorWords } from "../../verbs/verb.js";
 
 import { withLibrary } from "../../testing/pg.js";
-import { librarianTools, type ToolAnswer, type ToolCall } from "../../librarian/index.js";
+import { librarianTools, type ToolAnswer, type ToolCall } from "../librarian/index.js";
 import { ADR_FAMILY, supersede } from "./index.js";
 
 

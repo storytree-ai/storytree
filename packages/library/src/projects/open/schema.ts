@@ -77,7 +77,7 @@ END $$`,
   "ALTER TABLE record_event FORCE ROW LEVEL SECURITY",
 ];
 
-export const SCHEMA_FILE = fileURLToPath(import.meta.url);
+const SCHEMA_FILE = typeof import.meta.url === "string" ? fileURLToPath(import.meta.url) : undefined;
 
 const VERSION = String(PROJECT_SCHEMA.length);
 
@@ -102,7 +102,7 @@ export interface SetUp {
 export async function setUp(pool: Pool, project: string, meta: Meta | undefined, how: SetUp): Promise<Meta | undefined> {
   if (meta !== undefined && Number(meta["schema"]) >= PROJECT_SCHEMA.length) return meta;
   if (how.shared) {
-    const standing = how.schemaMerged(SCHEMA_FILE);
+    const standing: SchemaStanding = SCHEMA_FILE === undefined ? { merged: true } : how.schemaMerged(SCHEMA_FILE);
     if (!standing.merged) {
       if (meta === undefined) {
         throw new ConnectionError("config", `The project "${project}" has no tables yet, and this code's schema is not merged, so it sets none up in a shared library: ${standing.why}`);

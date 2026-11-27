@@ -1,4 +1,5 @@
 // Capability 1 · Project libraries
+import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,7 +15,7 @@ import { PgBackend, PgTransactions, Store } from "../../storage/store/index.js";
 import { FactoryCircle } from "./circle.js";
 import { WorkModel } from "../../plan/index.js";
 import { WorkInFlight } from "../../work/arcs/index.js";
-import { ConnectionError, createDatabase, isInsufficientPrivilege, serverOf, type ConnectOptions } from "../shared/index.js";
+import { ConnectionError, createDatabase, isInsufficientPrivilege, isUnreachable, serverOf, sqlState, type ConnectOptions } from "../shared/index.js";
 import { linkOf, ProjectLineage } from "./lineage.js";
 import { checkName, databaseOf, ProjectGoneError } from "./names.js";
 import type { Project } from "./project.js";
@@ -36,6 +37,7 @@ export interface Seams {
 
 export interface OpenOptions {
   readonly create?: boolean;
+  readonly identity?: string;
   readonly system?: SystemSwitches;
   readonly kinds?: readonly PluginRecordKind[];
 }
@@ -85,12 +87,21 @@ function standingOf(declaredIn: readonly (string | undefined)[] | undefined, pro
 
 const APPLIED = "storytree_setup";
 
+function lostConnection(error: unknown): boolean {
+  if (isUnreachable(error) || ["57P01", "3D000"].includes(sqlState(error) ?? "")) return true;
+  return error instanceof Error && /connection error|terminating connection/i.test(error.message);
+}
+
+function digestOf(statement: string): string {
+  return createHash("md5").update(statement).digest("hex");
+}
+
 async function setUpOwn(pool: Pool, tables: readonly string[]): Promise<void> {
   const unapplied = async (ask: Pick<Pool, "query">): Promise<string[]> => {
     const { rows } = await ask.query<{ there: boolean }>("SELECT to_regclass($1) IS NOT NULL AS there", [APPLIED]);
     if (!rows[0]!.there) return [...tables];
-    const done = new Set((await ask.query<{ statement: string }>(`SELECT statement FROM ${APPLIED}`)).rows.map((row) => row.statement));
-    return tables.filter((statement) => !done.has(statement));
+    const done = new Set((await ask.query<{ digest: string }>(`SELECT digest FROM ${APPLIED}`)).rows.map((row) => row.digest));
+    return tables.filter((statement) => !done.has(digestOf(statement)));
   };
   if ((await unapplied(pool)).length === 0) return;
   const client = await pool.connect();
@@ -100,10 +111,10 @@ async function setUpOwn(pool: Pool, tables: readonly string[]): Promise<void> {
       await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.own-database'))");
       const left = await unapplied(client);
       if (left.length > 0) {
-        await client.query(`CREATE TABLE IF NOT EXISTS ${APPLIED} (statement text PRIMARY KEY, at timestamptz NOT NULL DEFAULT clock_timestamp())`);
+        await client.query(`CREATE TABLE IF NOT EXISTS ${APPLIED} (digest text PRIMARY KEY, at timestamptz NOT NULL DEFAULT now())`);
         for (const statement of left) {
           await client.query(statement);
-          await client.query(`INSERT INTO ${APPLIED} (statement) VALUES ($1) ON CONFLICT DO NOTHING`, [statement]);
+          await client.query(`INSERT INTO ${APPLIED} (digest) VALUES ($1) ON CONFLICT DO NOTHING`, [digestOf(statement)]);
         }
       }
       await client.query("COMMIT");
@@ -132,7 +143,9 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
   const dropping = new Set<string>();
   let closing: Promise<void> | undefined;
 
-  const ask = <R extends QueryResultRow>(text: string, values?: unknown[]): Promise<QueryResult<R>> => admin.query<R>(text, values);
+  let closed = false;
+  const ask = <R extends QueryResultRow>(text: string, values?: unknown[]): Promise<QueryResult<R>> =>
+    closed ? Promise.reject(new Error("this storytree connection is closed, so it reads nothing more")) : admin.query<R>(text, values);
 
   const poolFor = (database: string): Pool => {
     const pool = server.pool(database);
@@ -180,7 +193,7 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
     const transactions = cache === undefined
       ? new PgTransactions(pool)
       : new Store(cache.backend(new PgBackend(pool), pool, JSON.stringify(domain)));
-    const link = linkOf(name, meta?.["factory"]);
+    const link = linkOf(name, meta);
     let factory: Project | undefined;
     if (link.kind === "product") {
       try {
@@ -214,8 +227,17 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
         await end(pool);
       },
     };
-    circle = new FactoryCircle(project, (other) => openProject(other, { ...open, create: false }), listProjects);
+    circle = new FactoryCircle(project, (other) => openProject(other, { ...(open.system === undefined ? {} : { system: open.system }), ...(open.kinds === undefined ? {} : { kinds: open.kinds }), create: false }), listProjects);
     return project;
+  };
+
+  const goneSoon = async (database: string, error: unknown): Promise<boolean> => {
+    for (let tries = 0; tries < 40; tries++) {
+      if (!(await exists(database, false).catch(() => true))) return true;
+      if (!lostConnection(error)) return false;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return false;
   };
 
   const openProject = (name: string, open: OpenOptions = {}): Promise<Project> =>
@@ -224,13 +246,17 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
       const database = databaseOf(name);
       const create = open.create !== false;
       if (!(await exists(database, create))) throw new ProjectGoneError(name);
+      if (open.identity !== undefined) {
+        const { rows } = await ask<{ identity: string }>("SELECT oid::text AS identity FROM pg_database WHERE datname = $1", [database]);
+        if (rows[0]?.identity !== open.identity) throw new ProjectGoneError(name);
+      }
       const pool = poolFor(database);
       try {
         const meta = await setUp(pool, name, await readMeta(pool), { shared, schemaMerged: probe, warn: warnOnce });
         return await assemble(name, pool, meta, open);
       } catch (error) {
         await end(pool);
-        if (!create && (dropping.has(database) || !(await exists(database, false).catch(() => true)))) throw new ProjectGoneError(name);
+        if (!create && (dropping.has(database) || (await goneSoon(database, error)))) throw new ProjectGoneError(name);
         throw error;
       }
     });
@@ -329,6 +355,7 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
       closing ??= (async () => {
         await Promise.allSettled([...inFlight]);
         await Promise.all([...pools.keys()].map(end));
+        closed = true;
         await server.close();
         cache?.close();
       })();

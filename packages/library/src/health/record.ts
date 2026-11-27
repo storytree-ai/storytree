@@ -279,7 +279,7 @@ export class HealthRecord {
 
   async #saveMain(fields: HealthFields, options: HealthOptions): Promise<Saved> {
     const existing = (await this.#records.list("health", { where: { node: fields.node, column: fields.column } })).find(({ id }) => sideOf(id) === undefined);
-    return await this.#saveAt(existing?.id, fields, options);
+    return await this.#saveAt(existing?.id ?? `health_${fields.node}_${fields.column}`, fields, options);
   }
 
   async #saveAt(id: string | undefined, fields: HealthFields, options: HealthOptions): Promise<Saved> {

@@ -866,6 +866,69 @@ test("4.9 · retiring a capability refuses live dependents without writing, then
   });
 });
 
+test("4.61 · retiring a capability live decisions name as frontCoverOf is refused naming each and frontCoverOf, nothing written, superseded and retired covers left out; succeeds once each is moved to a capability or a story", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const story = await lib.addStory({ title: "Visitor can sign up" });
+    const target = await lib.addCapability({ story: story.id, title: "Email form" });
+    const elsewhere = await lib.addCapability({ story: story.id, title: "Phone form" });
+    const first = await lib.recordDecision({ status: "accepted", title: "Ask for the address once", text: "One field.", frontCoverOf: target.id });
+    const second = await lib.recordDecision({ status: "accepted", title: "Check the address on the server", text: "The server checks it.", frontCoverOf: target.id });
+    const overtaken = await lib.recordDecision({ status: "accepted", title: "Ask for the address twice", text: "Two fields.", frontCoverOf: target.id });
+    const phone = await lib.recordDecision({ status: "accepted", title: "Ask for the phone once", text: "One field.", frontCoverOf: elsewhere.id, supersedes: [overtaken.id], justifications: { [overtaken.id]: "One field replaces two." } } as never);
+    const gone = await lib.recordDecision({ status: "accepted", title: "Once on the shelf", text: "Overtaken.", frontCoverOf: target.id });
+    await lib.retire(gone.id, "overtaken");
+    const before = await lib.changesSince(0);
+
+    await assert.rejects(lib.retire(target.id, "Replaced by the phone form"), (error: unknown) => {
+      assert.ok(error instanceof RetireRefusedError);
+      assert.equal(error.id, target.id);
+      assert.deepEqual([...error.heldBy].sort(), [first.id, second.id].sort());
+      for (const id of [target.id, first.id, second.id]) assert.ok(error.message.includes(id), error.message);
+      assert.match(error.message, /frontCoverOf/);
+      assert.ok(!error.message.includes(overtaken.id), error.message);
+      assert.ok(!error.message.includes(gone.id), error.message);
+      return true;
+    });
+    assert.deepEqual(await lib.changesSince(before.cursor), { changes: [], cursor: before.cursor });
+    assert.deepEqual(await lib.get(target.id), target);
+
+    await lib.editNote(first.id, { frontCoverOf: elsewhere.id });
+    await lib.editNote(second.id, { frontCoverOf: story.id });
+    await lib.retire(target.id, "Replaced by the phone form");
+    assert.equal(await lib.get(target.id), null);
+    assert.deepEqual((await lib.frontCovers(elsewhere.id)).map(({ id }) => id).sort(), [first.id, phone.id].sort());
+    assert.deepEqual((await lib.frontCovers(story.id)).map(({ id }) => id), [second.id]);
+  });
+});
+
+test("4.61 · at a merge a pending retire of a capability live decisions name as frontCoverOf is refused and parked as the landing's residue naming the capability, each cover and frontCoverOf, the capability left live", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const story = await lib.addStory({ title: "Visitor can sign up" });
+    const target = await lib.addCapability({ story: story.id, title: "Email form" });
+    const first = await lib.recordDecision({ status: "accepted", title: "Ask for the address once", text: "One field.", frontCoverOf: target.id });
+    const second = await lib.recordDecision({ status: "accepted", title: "Check the address on the server", text: "The server checks it.", frontCoverOf: target.id });
+    const arc = await lib.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+    const increment = await lib.addIncrement({ arc: arc.id, title: "Drop the email form", objective: "Retire it", body: "Red then green" });
+    await lib.advanceIncrement(increment.id, "active");
+    await lib.pendChange(increment.id, { record: target.id, retire: "Replaced by the phone form" });
+
+    const landed = await lib.applyPending(increment.id, "#42");
+    assert.deepEqual(landed?.applied, []);
+    assert.deepEqual(landed?.residue?.changes.map(({ record, why }) => [record, why]), [[target.id, "refused"]]);
+    const residue = await lib.get(landed!.residue!.increment);
+    assert.equal(residue?.type, "increment");
+    assert.equal((residue?.fields as { arc?: unknown }).arc, arc.id);
+    const body = String((residue?.fields as { body?: unknown }).body);
+    for (const id of [target.id, first.id, second.id]) assert.ok(body.includes(id), body);
+    assert.match(body, /frontCoverOf/);
+    assert.deepEqual(await lib.get(target.id), target, "the refused retire left the capability live and unchanged");
+  });
+});
+
 type ErrorClass = new (...args: never[]) => Error;
 
 async function withStorytree(projects: readonly string[], body: (storytree: Storytree) => Promise<void>): Promise<void> {

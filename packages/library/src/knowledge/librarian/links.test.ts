@@ -136,8 +136,11 @@ test("35.6 the health report names a front cover naming a retired story or capab
     const { capability, cover } = await shelf(library);
     assert.deepEqual(await brokenEdges(library), []);
 
+    const recorded = (await library.history({ id: cover.id }))[0]!.seq;
+    await library.editNote(cover.id, { frontCoverOf: capability.fields.story });
     await library.retire(story.id, "wrongly recorded");
     await library.retire(capability.id, "wrongly recorded");
+    await library.revert(cover.id, recorded, (await library.history({ id: cover.id })).at(-1)!.seq);
     assert.deepEqual(await brokenEdges(library), [
       { from: storyCover.id, field: "frontCoverOf", to: story.id },
       { from: cover.id, field: "frontCoverOf", to: capability.id },

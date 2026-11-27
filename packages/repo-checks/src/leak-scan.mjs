@@ -224,16 +224,28 @@ export function trackedFiles(root) {
 function branchChanges(root, check, error) {
   let files;
   let base;
+  const renamedFrom = new Map();
   try {
     files = changedFiles(root);
     base = git(root, ["merge-base", "origin/main", "HEAD"]).trim();
+    const committed = git(root, ["log", "--reverse", "--format=", "-M", "--name-status", "-z", `${base}..HEAD`]);
+    const fields = (committed + git(root, ["diff", "-M", "--name-status", "-z", "HEAD"])).split("\0");
+    for (let at = 0; at < fields.length - 1; ) {
+      if (fields[at].startsWith("R")) {
+        const [from, to] = [fields[at + 1], fields[at + 2]];
+        const origin = renamedFrom.get(from) ?? from;
+        renamedFrom.delete(from);
+        renamedFrom.set(to, origin);
+        at += 3;
+      } else at += 2;
+    }
   } catch (failure) {
     error(`${check}: the changes against origin/main could not be read (${String(failure.stderr ?? failure.message).trim().split("\n")[0]})`);
     return undefined;
   }
   const before = (file) => {
     try {
-      return git(root, ["show", `${base}:${file}`], "buffer");
+      return git(root, ["show", `${base}:${renamedFrom.get(file) ?? file}`], "buffer");
     } catch {
       return undefined;
     }

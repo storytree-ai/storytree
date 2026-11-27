@@ -4,6 +4,7 @@ import { refuseStaleEdit, refusing, verb, VerbRefusal, type VerbAnswer } from ".
 import { correct, recordDecision } from "../../decisions/door.js";
 import { filedOnSaid, shelfOf } from "../../../plan/index.js";
 import type { KnowledgeKind } from "../../search/index.js";
+import { NOTE_REFUSALS } from "../kinds.js";
 import { ARTIFACT_KINDS, NOTE_TYPES } from "../links.js";
 import type { HeldClaim, NoteToolContext } from "./context.js";
 
@@ -26,13 +27,25 @@ async function titleOf(library: Library, id: string): Promise<string> {
   return JSON.stringify(String(((await library.get(id))?.fields as { title?: unknown } | undefined)?.title));
 }
 
-async function placedLinks(context: NoteToolContext): Promise<string[] | undefined> {
+const UNSHELVED: readonly string[] = ["escape", "drill", "measure"];
+
+interface Placed {
+  readonly links?: string[];
+  readonly empty: boolean;
+}
+
+async function placedLinks(context: NoteToolContext, given: readonly string[]): Promise<Placed> {
+  if (given.length > 0) return { links: [...given], empty: false };
   const capability = (await heldParts(context)).at(-1);
-  if (capability === undefined) return undefined;
+  if (capability === undefined) return { empty: false };
   const shelf = (await shelfOf(context.library, capability)).map(({ id }) => id);
   const opened = (await context.notesRead()).filter(({ note, read }) => read === "whole" && shelf.includes(note)).at(-1)?.note;
   const cover = opened ?? shelf[0];
-  return cover === undefined ? undefined : [cover];
+  return cover === undefined ? { empty: true } : { links: [cover], empty: false };
+}
+
+function placedData(id: string, placed: Placed): Record<string, unknown> {
+  return placed.empty ? { id, shelf: "empty" } : { id };
 }
 
 async function writeDecision(context: NoteToolContext, title: string | undefined, text: string | undefined, links: readonly string[], frontCoverOf: string | undefined, justifications: Readonly<Record<string, unknown>>): Promise<VerbAnswer> {
@@ -82,17 +95,19 @@ export const WRITE_NOTE = verb({
     }
     if (kind === "decision") return await writeDecision(context, input.title ?? (fields["title"] as string | undefined), input.text ?? (fields["text"] as string | undefined), links, input.front_cover_of, input.justifications ?? {});
     if (kind === "definition") {
-      const placed = links.length > 0 ? [...links] : await placedLinks(context);
-      const written = await refusing(() => context.library.defineTerm(present({ term: input.term, meaning: input.meaning, links: placed }) as never, context.writer));
-      return { text: `Wrote definition ${written.id}.`, data: { id: written.id } };
+      const placed = await placedLinks(context, links);
+      const written = await refusing(() => context.library.defineTerm(present({ term: input.term, meaning: input.meaning, links: placed.links }) as never, context.writer));
+      return { text: `Wrote definition ${written.id}.`, data: placedData(written.id, placed) };
     }
+    if (Object.hasOwn(NOTE_REFUSALS, kind)) throw new VerbRefusal(`write_note does not write a ${kind}: ${NOTE_REFUSALS[kind]}; nothing was written`, { misuse: true });
     if (!Object.hasOwn(ARTIFACT_KINDS, kind)) {
       throw new VerbRefusal(`${kind} is no kind write_note writes: give decision, definition or one of ${Object.keys(ARTIFACT_KINDS).join(", ")}`, { misuse: true });
     }
     if (Object.keys(fields).length === 0) throw new VerbRefusal(`Give the required fields for a ${kind} in fields.`, { misuse: true });
-    const shaped = links.length > 0 || fields["links"] === undefined ? { ...fields, links: [...links] } : fields;
+    const placed = fields["links"] !== undefined && links.length === 0 ? { links: fields["links"] as string[], empty: false } : UNSHELVED.includes(kind) ? { links: [...links], empty: false } : await placedLinks(context, links);
+    const shaped = { ...fields, links: placed.links ?? [] };
     const written = await refusing(() => context.library.writeKnowledge(kind as KnowledgeKind, shaped as never, context.writer));
-    return { text: `Wrote ${kind} ${written.id}.`, data: { id: written.id } };
+    return { text: `Wrote ${kind} ${written.id}.`, data: placedData(written.id, placed) };
   },
 });
 

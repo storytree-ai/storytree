@@ -14,6 +14,16 @@ function narrowing(narrowedBy: readonly NarrowingDecision[]): NarrowingDecision[
   return narrowedBy.map(({ id, number, clauses }) => ({ id, ...(number === undefined ? {} : { number }), ...(clauses === undefined ? {} : { clauses }) }));
 }
 
+function stateOf(note: { readonly type: string; readonly fields: object }): string | undefined {
+  return note.type === "friction" ? (note.fields as { readonly state?: string }).state : undefined;
+}
+
+function firstLineOf(note: { readonly fields: object }): string {
+  const fields = note.fields as Readonly<Record<string, unknown>>;
+  const text = [fields["description"], fields["meaning"], fields["text"], fields["statement"]].find((one): one is string => typeof one === "string" && one.trim() !== "");
+  return text?.split(/\r?\n/).find((line) => line.trim() !== "")?.trim() ?? "";
+}
+
 export const SEARCH_NOTES = verb({
   command: { absent: "library search ranks the library on the command line" },
   tool: { name: "search_notes", description: "Search the library's notes, decisions and plan by meaning; give history for resteers, friction and superseded decisions, kinds to rank only those kinds, projects to search other libraries of this factory's circle" },
@@ -34,13 +44,18 @@ export const SEARCH_NOTES = verb({
         sections.push(unopenedSaid(reached.project, reached.unopened));
         continue;
       }
-      const ranked = await refusing(() => reached.opened.rankAll(query, { limit: limit ?? 10, history, ...(named === undefined ? {} : { kinds: named }) }));
-      const lines = ranked.hits.map(({ note }) => `${note.id}  [${note.type}]  ${titleOf(note)}`);
+      const ranked = await refusing(() => reached.opened.rankAll(query, { limit: limit ?? 10, ...(history ? { history: true } : {}), ...(named === undefined ? {} : { kinds: named }) }));
+      const lines = ranked.hits.map(({ note }) => {
+        const state = stateOf(note);
+        const first = firstLineOf(note);
+        return `[${note.type}] ${JSON.stringify(titleOf(note))} (${note.id}${state === undefined ? "" : `, ${state}`})${first === "" ? "" : `: ${first}`}`;
+      });
       if (reached.opened === context.library && ranked.hits.length > 0) {
         await context.recordReads(ranked.hits.map(({ note }) => ({ note: note.id, found: "search", read: "peek" })));
       }
       for (const { note, score, narrowedBy } of ranked.hits) {
-        notes.push({ id: note.id, type: note.type, title: titleOf(note), ...(score === undefined ? {} : { score }), ...(narrowedBy === undefined ? {} : { narrowedBy: narrowing(narrowedBy) }), ...(across ? { project: reached.project } : {}) });
+        const state = stateOf(note);
+        notes.push({ id: note.id, type: note.type, kind: note.type, title: titleOf(note), spine: titleOf(note), firstLine: firstLineOf(note), ...(state === undefined ? {} : { state }), ...(score === undefined ? {} : { score }), ...(narrowedBy === undefined ? {} : { narrowedBy: narrowing(narrowedBy) }), ...(across ? { project: reached.project } : {}) });
       }
       const said = [...(ranked.why === undefined ? [] : [ranked.why]), ...(lines.length === 0 ? [`Nothing matches ${JSON.stringify(query)}.`] : lines)].join("\n");
       sections.push(across ? `project ${reached.project}:\n${said}` : said);

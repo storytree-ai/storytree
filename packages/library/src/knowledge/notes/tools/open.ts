@@ -6,7 +6,7 @@ import type { SchemaRecord } from "../../../storage/rules/index.js";
 import { titleOf } from "../../search/index.js";
 import { NOTE_TYPES } from "../links.js";
 import { adrSaid, fieldOf, fieldsHeld, justificationOf, supersededLines, valueSaid, wholeRecord } from "../reading.js";
-import { foundAs, type NoteRead, type NoteToolContext } from "./context.js";
+import { foundAs, type NoteRead, type NoteToolContext, type Presenter } from "./context.js";
 
 type Stored = NonNullable<Awaited<ReturnType<Library["get"]>>>;
 
@@ -57,12 +57,12 @@ async function contractShown(library: Library, record: SchemaRecord<"contract">)
     ? `It sits on the edge ${edge.id}: Capability ${JSON.stringify(edge.from.title)} (${edge.from.id}) depends on Capability ${JSON.stringify(edge.to.title)} (${edge.to.id}).`
     : `It is a contract of Capability ${JSON.stringify(capability?.title)} (${capability?.id}).`;
   return {
-    lines: [`Contract ${JSON.stringify(fields.title)}`, ...(fields.description === undefined ? [] : [fields.description]), placed, `Health: verified ${health.verified.state}, reported ${health.reported.state}.`],
-    data: { contract: { id: record.id, title: fields.title, ...(edge === undefined ? {} : { edge }), ...(capability === undefined ? {} : { capability }) }, health },
+    lines: [`Contract ${JSON.stringify(fields.title)} (${record.id}):`, ...(fields.description === undefined ? [] : [fields.description]), placed, `Health: verified ${health.verified.state}, reported ${health.reported.state}.`],
+    data: { contract: { id: record.id, title: fields.title, ...(fields.description === undefined ? {} : { description: fields.description }), ...(edge === undefined ? {} : { edge }), ...(capability === undefined ? {} : { capability }) }, health },
   };
 }
 
-async function questionShown(library: Library, record: SchemaRecord<"question">): Promise<Shown> {
+async function questionShown(library: Library, record: SchemaRecord<"question">, presenter: Presenter | undefined): Promise<Shown> {
   const { fields } = record;
   const holding = (await library.list("increment")).filter((increment) => increment.fields.status !== "closed" && (increment.fields.heldOn ?? []).includes(record.id)).map(({ id }) => id);
   const evidence = [];
@@ -73,16 +73,19 @@ async function questionShown(library: Library, record: SchemaRecord<"question">)
   const said = (label: string, value: string | undefined) => (value === undefined ? [] : [`${label}: ${value}`]);
   return {
     lines: [
-      `Question ${JSON.stringify(fields.title)} (${fields.lifecycle})`,
+      `Question ${JSON.stringify(fields.title)} (${record.id})`,
+      `On ${fields.arc}, ${fields.lifecycle}`,
       ...said("Stakes", fields.stakes),
       ...said("Statement", fields.statement),
       ...said("Context", fields.context),
       ...said("Options", fields.options),
       ...said("Recommendation", fields.recommendation),
       ...said("Answer", fields.answer),
+      ...(presenter === undefined ? [] : [`Being put to the owner by ${presenter.label} session ${presenter.session} since ${presenter.since}`]),
       ...(holding.length === 0 ? [] : [`Holding: ${holding.join(", ")}`]),
       ...(evidence.length === 0 ? [] : [`Evidence: ${evidence.join("; ")}`]),
     ],
+    data: { question: { id: record.id, arc: fields.arc, lifecycle: fields.lifecycle, holding } },
   };
 }
 
@@ -95,10 +98,18 @@ async function partShown(library: Library, record: SchemaRecord<"story" | "capab
   };
 }
 
-async function shown(library: Library, record: Stored): Promise<Shown> {
+async function linkedNotes(library: Library, record: Stored): Promise<string[]> {
+  const out = ((record.fields as { readonly links?: readonly string[] }).links ?? []);
+  const linked: string[] = [];
+  for (const id of out) if (NOTE_TYPES.includes((await library.get(id))?.type ?? "")) linked.push(id);
+  for (const one of await library.linkingIn(record.id)) if (NOTE_TYPES.includes(one.type)) linked.push(one.id);
+  return [...new Set(linked)].filter((id) => id !== record.id);
+}
+
+async function shown(library: Library, record: Stored, context: NoteToolContext): Promise<Shown> {
   if (record.type === "decision") return await decisionShown(library, record);
   if (record.type === "contract") return await contractShown(library, record);
-  if (record.type === "question") return await questionShown(library, record);
+  if (record.type === "question") return await questionShown(library, record, await context.presenterOf(record));
   if (record.type === "story" || record.type === "capability") return await partShown(library, record);
   if (NOTE_TYPES.includes(record.type)) return { lines: [`${kindSaid(record.type)} ${JSON.stringify(titleOf(record))}`, ...fieldLines(record, ["title", "term"])] };
   return { lines: [wholeRecord(record)] };
@@ -117,6 +128,7 @@ export const OPEN = verb({
     const own = there === context;
     const record = await there.library.get(id);
     if (record === null) throw new VerbRefusal(`no record ${id} in this project${own ? "" : ` (${there.project})`}`);
+    if (record.type === "arc") throw new VerbRefusal(`${id} is an arc, which open does not read: show_plan lists its increments, and storytree arc show ${id} reads it whole`);
     const note = NOTE_TYPES.includes(record.type);
     const reads: NoteRead[] = [];
     if (field !== undefined) {
@@ -124,10 +136,11 @@ export const OPEN = verb({
       if (own && note) await context.recordReads([{ note: id, found: await foundAs(context, id), read: "whole" }]);
       return { text: valueSaid(await fieldOf(there.library, record, field)), raw: true };
     }
-    const { lines, data, peeks = [] } = await refusing(() => shown(there.library, record));
+    const { lines, data, peeks = [] } = await refusing(() => shown(there.library, record, there));
     if (own) {
       if (note) reads.push({ note: id, found: await foundAs(context, id), read: "whole" });
       reads.push(...peeks.map((peek) => ({ note: peek, found: "shelf" as const, read: "peek" as const })));
+      if (note) reads.push(...(await linkedNotes(there.library, record)).map((peek) => ({ note: peek, found: "link" as const, read: "peek" as const })));
       if (reads.length > 0) await context.recordReads(reads);
     }
     const text = lines.join("\n");

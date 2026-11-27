@@ -6,7 +6,9 @@ export const CONTRACT_PLACEMENT = "A contract goes on the part whose behaviour i
 export const LONG_CONTRACT_TITLE = 300;
 
 export const planGuidance: readonly string[] = [
-  "Plan before you build: a story for what the user will be able to do, a capability for each part of it, and a contract for each behaviour a test can check.",
+  "When the user asks you to build or change something, plan it in storytree before you build it, even when they never mention storytree and the work is small: a story for what they will be able to do (`plan_story`), a capability for each part of it (`plan_capability`), a contract for each behaviour a test can check (`plan_contract`), and an edge where one capability of a story depends on another (`plan_edge`). `show_plan` reads the plan back with each part's health, `focus` narrows it to the files you will change, `edit_plan` corrects a record and `retire_from_plan` retires one with its reason.",
   CONTRACT_DEFINITION,
   CONTRACT_PLACEMENT,
+  "Work goes in arcs of increments: `plan_arc` starts an arc for a goal and `park_arc` parks one for later. Park the change's increment with `park_increment` and `claim` it before you build, never afterwards to record work already done. A small fix, one that adds or changes no contract, is one increment with a one-line objective on this project's standing small-fixes arc \"small-fixes\": it plans no new story, capability or contract, and anything bigger goes on an arc of its own. `move_increment` moves an increment to another arc, `set_wait` says what it waits on and `clear_wait` clears that, and `add_remedies` names the friction it fixes. `health_worklist` gives the capabilities that are not healthy, oldest first, with each one's reason and who moves it.",
+  "A choice only the user can make is a question on its arc: `raise_question` writes it, `present_question` marks it as being put to them, `correct_question` corrects its wording, `settle_question` records their answer in their words, `move_question` moves it to another arc and `retire_question` retires one that was wrong to ask.",
 ];

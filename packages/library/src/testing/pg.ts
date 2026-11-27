@@ -6,7 +6,7 @@ import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { waitUntil } from "@storytree/test-waits";
 
 import { connect as connectLibrary, type Library } from "../index.js";
-import { connect, type Project } from "../project/index.js";
+import { connect, type Project } from "../projects/open/index.js";
 
 import pg from "pg";
 import type { Client } from "pg";

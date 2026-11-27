@@ -1,30 +1,32 @@
 // Capability 5 · Health record
-export { capabilityStatus, capabilityWhy, HealthRecord, heldBack, NOT_VERIFIED, wordAndWhy } from "./health-record.js";
+export { HEALTH_KINDS } from "./kinds.js";
+export { HealthRecord } from "./record.js";
+export { capabilityStatus, capabilityWhy, heldBack, NOT_VERIFIED, wordAndWhy } from "./word.js";
 export type {
   AnnotatedCapability,
-  OpenIncrement,
-  OpenWait,
   AnnotatedContract,
   AnnotatedEdge,
   AnnotatedStory,
   AnnotatedTree,
   CapabilityStatus,
   CapabilityWhy,
-  HealthWorkItem,
+  ChangedOnMain,
   EarlierVerdict,
+  FlakeSeen,
   HealthColumn,
   HealthColumnName,
   HealthEntry,
   HealthOptions,
   HealthReason,
-  HealthState,
-  NodeHealth,
-  ChangedOnMain,
-  NamedOnMain,
-  PendingRun,
   HealthSource,
+  HealthState,
+  HealthWorkItem,
+  NamedOnMain,
+  NodeHealth,
+  OpenIncrement,
+  OpenWait,
+  PendingRun,
   SkipKind,
   ToldTurn,
-  FlakeSeen,
   VerifiedVerdict,
-} from "./health-record.js";
+} from "./types.js";

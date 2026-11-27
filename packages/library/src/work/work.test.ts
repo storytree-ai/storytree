@@ -1,4 +1,3 @@
-// Capability 32 · Questions and work
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

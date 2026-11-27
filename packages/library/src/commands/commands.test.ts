@@ -1,4 +1,3 @@
-// Capability 17 · The library's commands
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,12 +7,12 @@ import { test } from "node:test";
 import { removeTemp } from "@storytree/test-waits";
 
 import { connect } from "../index.js";
-import { ARTIFACT_KINDS } from "../knowledge/index.js";
-import { connect as connectProject } from "../project/index.js";
+import { ARTIFACT_KINDS } from "../knowledge/notes/index.js";
+import { connect as connectProject } from "../projects/open/index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
+import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "./kit/index.js";
 import { narrowedSaid } from "./ranked.js";
-import { RECENT_MS, refuseStaleEdit } from "./stale-edit.js";
+import { RECENT_MS, refuseStaleEdit } from "./kit/stale-edit.js";
 import { LIBRARY_FAMILIES, NOTE_TOOLS, type HeldClaim, type LibraryVerbContext, type NoteRead, type NoteToolContext } from "./index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };

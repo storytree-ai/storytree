@@ -1,15 +1,14 @@
-// Capability 5 · Health record
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { waitUntil } from "@storytree/test-waits";
 
-import { connect } from "../project/index.js";
-import { MissingReferenceError } from "../references.js";
-import { NewerSchemaError, SchemaError, SchemaRecords, type RecordType, type SchemaRecord } from "../schema/index.js";
+import { connect } from "../projects/open/index.js";
+import { MissingReferenceError, NewerSchemaError, SchemaError, SchemaRecords, type RecordType, type SchemaRecord } from "../storage/rules/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../transactions/index.js";
-import { WorkInFlight, WorkModel, type ProjectTree } from "../work/index.js";
+import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../storage/store/index.js";
+import { WorkModel, type ProjectTree } from "../plan/index.js";
+import { WorkInFlight } from "../work/arcs/index.js";
 import { capabilityStatus, capabilityWhy, HealthRecord, wordAndWhy, type AnnotatedTree, type HealthColumn, type HealthEntry, type NodeHealth } from "./index.js";
 
 interface Library {

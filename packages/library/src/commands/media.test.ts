@@ -1,4 +1,3 @@
-// Capability 17 · The library's commands
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,7 +6,7 @@ import { test } from "node:test";
 
 import { connect } from "../index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
+import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "./kit/index.js";
 import { LIBRARY_FAMILIES, type LibraryVerbContext } from "./index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };

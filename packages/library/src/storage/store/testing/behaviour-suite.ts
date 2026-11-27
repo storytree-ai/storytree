@@ -27,7 +27,8 @@ export function transactionsBehaviourSuite(label: string, open: () => Promise<Op
     const first = await store.save({ id: "note-1", type: "note", fields: { title: "First", body: "Kept?" } });
     assert.deepEqual({ id: first.id, type: first.type, fields: first.fields }, { id: "note-1", type: "note", fields: { title: "First", body: "Kept?" } });
     assert.deepEqual(await store.get("note-1"), first);
-    assert.equal((await store.history()).length, 1, "the first save appends one entry");
+    const afterFirst = await store.history();
+    assert.equal(afterFirst.length, 1, "the first save appends one entry");
 
     const second = await store.save({ id: "note-1", type: "note", fields: { title: "Second" } });
     assert.deepEqual(second.fields, { title: "Second" }, "replaced whole, not merged");
@@ -36,6 +37,15 @@ export function transactionsBehaviourSuite(label: string, open: () => Promise<Op
     const history = await store.history({ id: "note-1" });
     assert.equal(history.length, 2, "one entry per save");
     assert.deepEqual(history.map((entry) => entry.record), [first, second]);
+
+    const third = await store.save({ id: "note-1", type: "principle", version: 2, fields: { name: "Third" } });
+    assert.deepEqual({ id: third.id, type: third.type, version: third.version, fields: third.fields }, { id: "note-1", type: "principle", version: 2, fields: { name: "Third" } });
+    assert.deepEqual(await store.get("note-1"), third);
+    assert.deepEqual(await store.list("note"), [], "replaced under its new type");
+    assert.deepEqual(await store.list("principle"), [third]);
+    const all = await store.history();
+    assert.deepEqual(all.slice(0, 1), afterFirst, "appended, never rewritten");
+    assert.deepEqual(all.map((entry) => [entry.recordId, entry.record]), [["note-1", first], ["note-1", second], ["note-1", third]], "one entry per save, three saves");
   });
 
   contract("2.2", "`edit` changes only the fields it names; every other field keeps its stored value.", async (store) => {
@@ -58,6 +68,11 @@ export function transactionsBehaviourSuite(label: string, open: () => Promise<Op
       store.edit({ id: "note-1", fields: { body: "Raced body" } }),
     ]);
     assert.deepEqual((await store.get("note-1"))?.fields, { title: "Raced title", body: "Raced body", status: "closed" });
+
+    await Promise.all(["title", "body", "status", "a", "b", "c", "d", "e"].map((field) => store.edit({ id: "note-1", fields: { [field]: `raced ${field}` } })));
+    assert.deepEqual((await store.get("note-1"))?.fields, {
+      title: "raced title", body: "raced body", status: "raced status", a: "raced a", b: "raced b", c: "raced c", d: "raced d", e: "raced e",
+    }, "eight racing edits of different fields all survive");
   });
 
   contract("2.4", "`edit` of a missing record returns `null` and creates nothing.", async (store) => {
@@ -65,6 +80,17 @@ export function transactionsBehaviourSuite(label: string, open: () => Promise<Op
     assert.equal(await store.get("note-missing"), null);
     assert.deepEqual(await store.list("note"), []);
     assert.deepEqual(await store.history(), []);
+
+    const kept = await store.save({ id: "note-1", type: "note", fields: { title: "Kept" } });
+    await store.save({ id: "note-gone", type: "note", fields: { title: "Gone" } });
+    await store.retire({ id: "note-gone", reason: "gone" });
+    const before = await store.history();
+    assert.equal(await store.edit({ id: "note-missing", fields: { title: "Never" } }), null, "missing beside stored records");
+    assert.equal(await store.edit({ id: "note", fields: { title: "Never" } }), null, "a prefix of a stored id is missing");
+    assert.equal(await store.edit({ id: "note-gone", fields: { title: "Back?" } }), null, "a retired record is missing to edit");
+    for (const id of ["note-missing", "note", "note-gone"]) assert.equal(await store.get(id), null, id);
+    assert.deepEqual(await store.list("note"), [kept]);
+    assert.deepEqual(await store.history(), before);
   });
 
   contract("2.5", "`get` of a missing record returns `null` and never throws.", async (store) => {
@@ -72,6 +98,12 @@ export function transactionsBehaviourSuite(label: string, open: () => Promise<Op
     await store.save({ id: "note-gone", type: "note", fields: {} });
     await store.retire({ id: "note-gone", reason: "gone" });
     assert.equal(await store.get("note-gone"), null, "a retired record reads as missing too");
+
+    const stored = await store.save({ id: "note-1", type: "note", fields: { title: "Stored" } });
+    for (const id of ["note", "note-1 ", "NOTE-1", "note-%", "note-_", "", "'; DROP TABLE record; --", "ñote-1", "x".repeat(10_000), "\u0000"]) {
+      assert.equal(await store.get(id), null, JSON.stringify(id).slice(0, 40));
+    }
+    assert.deepEqual(await store.get("note-1"), stored);
   });
 
   contract("2.6", "`list(type)` returns only that type's current records (none retired), and `[]` when there are none.", async (store) => {
@@ -421,25 +453,46 @@ export function transactionsBehaviourSuite(label: string, open: () => Promise<Op
 
   contract("2.24", "inOneWrite commits every write its work makes together, or none when the work throws", async (store) => {
     await store.save({ id: "note-0", type: "note", fields: { v: 0 } });
+    const kept = await store.save({ id: "note-2", type: "note", fields: { v: 2 } });
     const before = await store.history();
     await assert.rejects(store.inOneWrite(async () => {
       await store.save({ id: "note-1", type: "note", fields: { v: 1 } });
       await store.edit({ id: "note-0", fields: { v: 1 } });
+      await store.retire({ id: "note-2", reason: "inside the work" });
       throw new Error("the work failed");
     }), /the work failed/);
     assert.equal(await store.get("note-1"), null);
     assert.deepEqual((await store.get("note-0"))?.fields, { v: 0 });
+    assert.deepEqual(await store.get("note-2"), kept, "its retirement is not committed either");
     assert.deepEqual(await store.history(), before, "none of its writes committed");
 
-    const result = await store.inOneWrite(async () => {
+    let reached!: () => void;
+    const midway = new Promise<void>((resolve) => { reached = resolve; });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const working = store.inOneWrite(async () => {
       await store.save({ id: "note-1", type: "note", fields: { v: 1 } });
       await store.edit({ id: "note-0", fields: { v: 1 } });
+      await store.retire({ id: "note-2", reason: "inside the work" });
+      reached();
+      await gate;
       return "done";
     });
+    try {
+      await midway;
+      assert.equal(await store.get("note-1"), null, "a read outside the work sees none of its writes before they commit");
+      assert.deepEqual((await store.get("note-0"))?.fields, { v: 0 });
+      assert.deepEqual(await store.get("note-2"), kept);
+      assert.deepEqual(await store.history(), before);
+    } finally {
+      release();
+    }
+    const result = await working;
     assert.equal(result, "done");
     assert.deepEqual((await store.get("note-1"))?.fields, { v: 1 });
     assert.deepEqual((await store.get("note-0"))?.fields, { v: 1 });
-    assert.deepEqual((await store.history()).slice(before.length).map((entry) => [entry.recordId, entry.action]), [["note-1", "created"], ["note-0", "updated"]]);
+    assert.equal(await store.get("note-2"), null);
+    assert.deepEqual((await store.history()).slice(before.length).map((entry) => [entry.recordId, entry.action]), [["note-1", "created"], ["note-0", "updated"], ["note-2", "retired"]]);
   });
 
   contract("2.25", "saveAll saves every record given in one write, each with its history entry in the order given, or none when one is refused", async (store) => {
@@ -461,6 +514,39 @@ export function transactionsBehaviourSuite(label: string, open: () => Promise<Op
     assert.equal(await store.get("note-d"), null);
     assert.equal(await store.get("note-f"), null);
     assert.deepEqual(await store.history(), history, "the history is unchanged");
+
+    const [g, a] = await store.saveAll([
+      { id: "note-g", type: "note", fields: { v: "g" } },
+      { id: "note-a", type: "note", fields: { v: "a again" } },
+    ]);
+    assert.deepEqual([g?.fields, a?.fields], [{ v: "g" }, { v: "a again" }]);
+    assert.deepEqual(await store.get("note-a"), a, "a stored record given again is replaced");
+    const replaced = await store.history();
+    assert.deepEqual(replaced.slice(history.length).map((entry) => [entry.recordId, entry.record]), [["note-g", g], ["note-a", a]]);
+
+    const c = await store.get("note-c");
+    await assert.rejects(store.saveAll([
+      { id: "note-c", type: "note", fields: { v: "c replaced" } },
+      { id: "note-h", type: "note", fields: { v: "h" } },
+      { id: "note-i", type: "note", fields: { v: "i" }, validate: () => { throw new Error("note-i refused"); } },
+    ]), /note-i refused/);
+    assert.deepEqual(await store.get("note-c"), c, "a replacement in a refused batch is not written");
+    assert.equal(await store.get("note-h"), null);
+    assert.equal(await store.get("note-i"), null);
+    assert.deepEqual(await store.history(), replaced, "the history is unchanged");
+
+    await Promise.all([
+      store.saveAll([
+        { id: "batch-1", type: "note", fields: {} },
+        { id: "batch-2", type: "note", fields: {} },
+        { id: "batch-3", type: "note", fields: {} },
+      ]),
+      store.save({ id: "alongside", type: "note", fields: {} }),
+    ]);
+    const ids = (await store.history()).slice(replaced.length).map((entry) => entry.recordId);
+    const at = ids.indexOf("batch-1");
+    assert.deepEqual(ids.slice(at, at + 3), ["batch-1", "batch-2", "batch-3"], `one write: no other write's entry falls between the batch's (${ids.join(", ")})`);
+    assert.equal(ids.length, 4);
   });
 }
 

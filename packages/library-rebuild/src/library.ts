@@ -80,6 +80,32 @@ export interface DormantKind {
   readonly count: number;
 }
 
+export interface KindCount {
+  readonly kind: string;
+  readonly count: number;
+  readonly statuses: readonly { readonly status: string; readonly count: number }[];
+}
+
+export interface Counts {
+  readonly kinds: readonly KindCount[];
+  readonly openByArc: readonly { readonly arc: string; readonly title: string | null; readonly open: number }[];
+}
+
+export interface RecentChange {
+  readonly seq: number;
+  readonly at: string;
+  readonly action: string;
+  readonly type: string;
+  readonly id: string;
+  readonly title: string | null;
+}
+
+export interface TitleHit {
+  readonly id: string;
+  readonly type: string;
+  readonly title: string | null;
+}
+
 export type FyiNote = Omit<NewFyi, "by"> & { readonly by: string };
 
 type NotYetBuilt = { readonly [K in (typeof LATER)[number]]: (...args: unknown[]) => Promise<never> };

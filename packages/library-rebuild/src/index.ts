@@ -2,6 +2,7 @@
 import type { Pool } from "pg";
 
 import { libraryOf, type Library } from "./library.js";
+import type { FieldsOf } from "./storage/rules/index.js";
 import { connect as connectServer, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type ProjectSnapshot } from "./projects/open/index.js";
 
 export { NOT_VERIFIED, heldBack, wordAndWhy } from "./health/index.js";
@@ -64,17 +65,21 @@ export type {
 } from "./health/index.js";
 export type { ClauseSupersession, DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision } from "./knowledge/decisions/index.js";
 export type { KnowledgeKind, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, Precheck, Related, RelatedHit, RelatedOptions, ScheduleRule } from "./knowledge/notes/index.js";
-export type { Change, Changes, ChangesFilter, DormantKind, FyiNote, Library, PluginRecords } from "./library.js";
+export type { Change, Changes, ChangesFilter, Counts, DormantKind, FyiNote, KindCount, Library, PluginRecords, RecentChange, TitleHit } from "./library.js";
+export type { NarrowingDecision, PhraseKind, PhraseOptions, PhrasePage, Ranked, RankOptions } from "./knowledge/search/index.js";
 export type {
   Anchor,
   AnchorEdit,
   AnchorGaps,
   ArcNode,
   CapabilityEdit,
+  CodeEdge,
   ContractEdit,
   ContractWriteOptions,
   EdgeEdit,
+  EdgeFile,
   EdgeNode,
+  FileImport,
   ImportedPluginPlan,
   MappedPackage,
   MappedStories,
@@ -83,13 +88,21 @@ export type {
   NewContract,
   NewEdge,
   NewStory,
+  PartClash,
   PinNote,
   PluginPlan,
   PluginPlanCapability,
   PluginPlanHeld,
   PrCutover,
+  SharedStore,
   StoreLink,
+  StoreTable,
   StoryEdit,
+  StorySurvey,
+  SurveyedFile,
+  SurveyedPart,
+  SurveyedParts,
+  SurveyedTest,
 } from "./plan/index.js";
 export type { ConnectOptions, ConnectionProblem, FactoryLink, OpenOptions, OwnDatabaseOptions, ProjectSnapshot, Reached, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./projects/open/index.js";
 export type { FieldsOf, Line, LineKind, LinesSince, NewLine, PluginRecordKind, PluginUpgradeStep, RecordType, SchemaRecord, WriteOptions } from "./storage/rules/index.js";
@@ -117,6 +130,10 @@ export type {
   WaitFor,
 } from "./work/arcs/index.js";
 export type { FeedbackNote, FeedbackRoute, NewQuestion, QuestionLease, Settlement } from "./work/inbox/index.js";
+
+export type Agent = FieldsOf<"agent">;
+
+export type PendingChange = NonNullable<FieldsOf<"increment">["pending"]>[number];
 
 export interface Storytree {
   openProject(name: string, options?: OpenOptions): Promise<Library>;

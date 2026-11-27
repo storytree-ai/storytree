@@ -4,7 +4,30 @@ export { CONTRACT_PROOFS, PIN_ICONS, PLAN_KINDS, PLAN_PENDING_CHANGE, STORE_LINK
 export { recordPin, type PinNote } from "./pin.js";
 export type { ImportedPluginPlan, PluginImportOptions, PluginPlan, PluginPlanCapability, PluginPlanHeld } from "./plugin-plan.js";
 export { beforeCutover, pullRepository, pullSaid, type PrCutover } from "./pr-cutover.js";
-export { ANCHOR_ID, anchorGaps, type Anchor, type AnchorGaps, type ArcNode, type CapabilityNode, type ContractNode, type EdgeNode, type ProjectTree, type StoreLink, type StoryNode } from "./tree.js";
+export {
+  ANCHOR_ID,
+  anchorGaps,
+  type Anchor,
+  type AnchorGaps,
+  type ArcNode,
+  type CapabilityNode,
+  type CodeEdge,
+  type ContractNode,
+  type EdgeFile,
+  type EdgeNode,
+  type FileImport,
+  type PartClash,
+  type ProjectTree,
+  type SharedStore,
+  type StoreLink,
+  type StoreTable,
+  type StoryNode,
+  type StorySurvey,
+  type SurveyedFile,
+  type SurveyedPart,
+  type SurveyedParts,
+  type SurveyedTest,
+} from "./tree.js";
 export {
   WorkModel,
   type AnchorEdit,

@@ -240,3 +240,32 @@ test("1.5 · check:secrets refuses a branch that adds a credential, even inside 
   assert.equal(checkSecrets({ root, ...capture }), 1, "a branch whose changes cannot be read fails");
   assert.match(lines.at(-1), /check:secrets: the changes against origin\/main could not be read/);
 });
+
+test("1.5 · check:secrets passes a branch that only moves a file holding a credential already on main, and refuses one that moves it and adds another, naming the new path and the added kind only", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "secret-move-"));
+  t.after(() => removeTemp(root));
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  git("init", "-q");
+  git("config", "user.name", "t");
+  git("config", "user.email", "t@example.com");
+  mkdirSync(path.join(root, "src"));
+  writeFileSync(path.join(root, "src", "db.test.mjs"), `const url = "${CREDENTIALS["a password in a link"]}";\n`);
+  git("add", ".");
+  git("commit", "-q", "-m", "main");
+  git("update-ref", "refs/remotes/origin/main", "HEAD");
+  git("checkout", "-q", "-b", "move");
+  mkdirSync(path.join(root, "test"));
+  git("mv", "src/db.test.mjs", "test/db.test.mjs");
+  git("commit", "-q", "-m", "move");
+  const lines = [];
+  const capture = { log: (line) => lines.push(line), error: (line) => lines.push(line) };
+  assert.equal(checkSecrets({ root, ...capture }), 0, lines.at(-1));
+  assert.match(lines.at(-1), /none adding a credential/);
+  writeFileSync(path.join(root, "test", "db.test.mjs"), `const url = "${CREDENTIALS["a password in a link"]}";\nconst token = "${CREDENTIALS["a GitHub token"]}";\n`);
+  git("commit", "-q", "-am", "add a token");
+  assert.equal(checkSecrets({ root, ...capture }), 1);
+  const said = lines.at(-1);
+  assert.match(said, /test\/db\.test\.mjs adds 1 more × a GitHub token/);
+  assert.doesNotMatch(said, /a password in a link/);
+  assert.doesNotMatch(said, /src\/db\.test\.mjs/);
+});

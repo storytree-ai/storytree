@@ -10,7 +10,7 @@ import { removeTemp } from "@storytree/test-waits";
 import { connect } from "../index.js";
 import { connect as connectProject } from "../project/index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
+import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "./verbs.js";
 import { LIBRARY_FAMILIES, NOTE_TOOLS, type HeldClaim, type LibraryVerbContext, type NoteToolContext } from "./index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };

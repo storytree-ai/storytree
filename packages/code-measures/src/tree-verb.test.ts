@@ -299,3 +299,35 @@ test("5.16 · storytree code-measures tree <story> without --tree names an inver
     assert.match(text.slice(0, text.search(/^Guidance\b/m)), /^ {2}inverted .*under the top level, 1 · Alpha \(fan-in 2\) → 2 · Gamma \(fan-in 1\).*1 · Alpha → 2 · Gamma: Queue/m);
   });
 });
+
+test("5.2 · storytree code-measures tree <story> --tree <file> on a checkout behind origin/main reads co-change from the checked-out commit's merges, not origin/main's", async (t) => {
+  const tree = treeVerb();
+  const folder = checkout(t);
+  const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=Tree test", "-c", "user.email=tree@example.test", "-c", "commit.gpgsign=false", ...args], { cwd: folder, encoding: "utf8" }).trim();
+  git("checkout", "-q", "-b", "ahead");
+  for (let round = 11; round <= 15; round++) {
+    git("checkout", "-q", "-b", `round-${round}`);
+    for (const name of ["a", "e"]) writeFileSync(path.join(folder, PACKAGE, "src", `${name}.ts`), `export const ${name} = ${round};\n`);
+    git("add", "-A");
+    git("commit", "-q", "-m", `round ${round}`);
+    git("checkout", "-q", "ahead");
+    git("merge", "-q", "--no-ff", "-m", `Merge round ${round}`, `round-${round}`);
+  }
+  git("update-ref", "refs/remotes/origin/main", "ahead");
+  git("checkout", "-q", "main");
+  git("config", "remote.origin.url", "https://example.test/tree-fixture.git");
+  const proposal = path.join(folder, "proposal.json");
+  writeFileSync(proposal, JSON.stringify({
+    nodes: [
+      { id: "A", title: "Alpha", files: [`${PACKAGE}/src/a.ts`] },
+      { id: "C", title: "Gamma", files: [`${PACKAGE}/src/c.ts`] },
+      { id: "E", title: "Epsilon", files: [`${PACKAGE}/src/e.ts`] },
+    ],
+  }));
+  await withLibrary(async (library) => {
+    await library.addStory({ title: "Tree fixture" });
+    const context: VerbContext = { folder, project: library.name, session: "s", library };
+    const card = JSON.parse((await tree.act({ story: "Tree fixture", tree: proposal, json: true }, context, WORDS)).text) as Scorecard & { readings: { pairs: { a: string; b: string; support: number }[] } };
+    assert.deepEqual(card.readings.pairs.map(({ a, b, support }) => [[a, b].sort(), support]), [[["A", "C"], 5]], "HEAD's ten merges pair Alpha with Gamma five times; origin/main's five later merges pairing Alpha with Epsilon are not on HEAD's history");
+  });
+});

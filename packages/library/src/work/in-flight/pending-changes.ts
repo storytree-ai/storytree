@@ -114,7 +114,8 @@ export async function applyPending(records: SchemaRecords, work: WorkModel, reti
   const number = pr?.replace(/^#/, "");
   const mark = number === undefined || number === "" ? `applied at the landing of ${increment.id}` : `applied at the merge of PR #${number} (${increment.id})`;
   const applied: string[] = [];
-  const unapplied: UnappliedPending[] = [];
+  const stale = new Map<string, UnappliedPending>();
+  let tryable: PendingChange[] = [];
   for (const change of pending) {
     const { record, type, base } = change;
     const [latest] = await records.history({ id: record, newest: 1 });
@@ -126,28 +127,44 @@ export async function applyPending(records: SchemaRecords, work: WorkModel, reti
       const moved = latest === undefined
         ? { seq: base, action: "retired" as const, at: "", actor: undefined }
         : { seq: latest.seq, action: latest.action, at: latest.at, actor: latest.actor };
-      unapplied.push({ record, type, base, moved: { seq: moved.seq, action: moved.action, at: moved.at, ...(moved.actor === undefined ? {} : { actor: moved.actor }) }, why: "stale" });
+      stale.set(record, { record, type, base, moved: { seq: moved.seq, action: moved.action, at: moved.at, ...(moved.actor === undefined ? {} : { actor: moved.actor }) }, why: "stale" });
       continue;
     }
-    try {
-      if ("retire" in change) {
-        await retire(record, `${change.retire} (${mark})`, options);
-      } else {
-        const fields = Object.fromEntries(Object.entries(change.after).map(([field, value]) => [field, value ?? undefined]));
-        const write = { ...options, reason: mark };
-        if (type === "story") await work.editStory(record, fields, write);
-        else if (type === "capability") await work.editCapability(record, fields, write);
-        else if (type === "edge") await work.editEdge(record, fields, write);
-        else await work.editContract(record, fields, write);
-      }
-      applied.push(record);
-    } catch (error) {
-      unapplied.push({ record, type, base, why: "refused", refusal: error instanceof Error ? error.message : String(error) });
-      continue;
-    }
-    const left = pending.filter((other) => !applied.includes(other.record));
-    if (left.length > 0) await records.edit(increment.id, { pending: left }, { ...options, reason: `${mark}: ${record}` });
+    tryable.push(change);
   }
+  const refused = new Map<string, UnappliedPending>();
+  let progressed = true;
+  while (tryable.length > 0 && progressed) {
+    progressed = false;
+    refused.clear();
+    for (const change of tryable) {
+      const { record, type, base } = change;
+      try {
+        if ("retire" in change) {
+          await retire(record, `${change.retire} (${mark})`, options);
+        } else {
+          const fields = Object.fromEntries(Object.entries(change.after).map(([field, value]) => [field, value ?? undefined]));
+          const write = { ...options, reason: mark };
+          if (type === "story") await work.editStory(record, fields, write);
+          else if (type === "capability") await work.editCapability(record, fields, write);
+          else if (type === "edge") await work.editEdge(record, fields, write);
+          else await work.editContract(record, fields, write);
+        }
+        applied.push(record);
+        progressed = true;
+      } catch (error) {
+        refused.set(record, { record, type, base, why: "refused", refusal: error instanceof Error ? error.message : String(error) });
+        continue;
+      }
+      const left = pending.filter((other) => !applied.includes(other.record));
+      if (left.length > 0) await records.edit(increment.id, { pending: left }, { ...options, reason: `${mark}: ${record}` });
+    }
+    tryable = tryable.filter((change) => refused.has(change.record));
+  }
+  const unapplied = pending.flatMap((change) => {
+    const one = stale.get(change.record) ?? refused.get(change.record);
+    return one === undefined ? [] : [one];
+  });
   let residue: AppliedPending["residue"];
   if (unapplied.length > 0) {
     const changes = new Map(pending.map((change) => [change.record, change]));

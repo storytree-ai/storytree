@@ -198,7 +198,10 @@ test("13.3 it corrects a note's wording in place: the note keeps its id with the
 test("9.2 it retires a contract and then a capability with a reason, and each is gone from the plan; an id that is not a capability or a contract gets a readable refusal and nothing is retired", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
-      const { arc, capability } = await planned(agent);
+      const { story, arc, capability } = await planned(agent);
+      const uncover = async (id: string) => {
+        for (const cover of await library.frontCovers(id)) await library.editNote(cover.id, { frontCoverOf: story });
+      };
       const kept = idOf(await agent.call("plan_contract", { capability, title: "Rejects a bad email" }));
       const dropped = idOf(await agent.call("plan_contract", { capability, title: "Rejects a long email" }));
       const contractsOf = async () => (await library.projectTree()).stories[0]?.capabilities.find((node) => node.id === capability)?.contracts.map((node) => node.id);
@@ -223,8 +226,10 @@ test("9.2 it retires a contract and then a capability with a reason, and each is
       assert.equal((await library.projectTree()).stories[0]?.edges, undefined, "the edge is gone from the live plan");
       const released = await agent.call("release", { increment });
       assert.equal(released.isError, false, released.text);
+      await uncover(link);
       await agent.call("retire_from_plan", { id: link, reason: "folded into the sign-up page" });
 
+      await uncover(capability);
       assert.equal((await agent.call("retire_from_plan", { id: capability, reason: "folded into the sign-up page" })).isError, false);
       assert.deepEqual((await library.projectTree()).stories[0]?.capabilities, []);
     });
@@ -499,6 +504,7 @@ test("6.16 every library write from a tool names the calling session, including 
       const friction = await write("record_friction", { title: "Slow mail", description: "Delay", statement: "Timeout", evidence: "src/mail.ts: Error", impact: "Delayed signup" });
       await write("reinforce", { friction, evidence: "#82: Timeout again" });
       await write("record_resteer", { title: "Simpler", description: "Less UI", doing: "Many fields", redirect: "Just email", evidence: '"Use just email"', disposition: "taste", "judged-by": "owner" });
+      for (const cover of await library.frontCovers(capability)) await library.editNote(cover.id, { frontCoverOf: story });
       for (const id of [contract, capability]) await write("retire_from_plan", { id, reason: "Replaced" });
 
       await log.append(project, { session: "after-clear", harness: "claude-code", source: "hook", kind: "tool-requested", tool: "write_note", call: "new-window", agent: "orchestrator" });

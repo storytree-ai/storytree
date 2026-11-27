@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { connect } from "@storytree/library-rebuild";
+import { connect } from "@storytree/library";
 
 import { Knowledge } from "../../knowledge/decisions/index.js";
 import { connect as connectProjects } from "../open/index.js";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { connect, type Library } from "@storytree/library-rebuild";
+import { connect, type Library } from "@storytree/library";
 import { HealthRecord } from "./health/index.js";
 import { Knowledge } from "./knowledge/decisions/index.js";
 import { connect as connectProject } from "./projects/open/index.js";

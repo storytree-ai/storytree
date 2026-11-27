@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { waitUntil } from "@storytree/test-waits";
 
-import { connect } from "@storytree/library-rebuild";
+import { connect } from "@storytree/library";
 
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "./testing/pg.js";
 

@@ -1,6 +1,6 @@
 // Capability 17 · The library's commands
 import type { Library } from "../../index.js";
-import { correct } from "../../knowledge/decisions/index.js";
+import { editDecision } from "../../knowledge/decisions/index.js";
 import { NOTE_TYPES } from "../../knowledge/notes/index.js";
 import { titleOf } from "../../knowledge/search/index.js";
 import { ANCHOR_ID, bareSaid } from "../../plan/index.js";
@@ -60,7 +60,7 @@ async function planEdit(context: LibraryVerbContext, record: Stored, fields: Rec
 async function noteEdit(context: LibraryVerbContext, record: Stored, fields: Record<string, unknown>, removed: readonly string[], read: string | undefined): Promise<string> {
   await refuseStaleEdit(context.library, record.id, context.writer, read);
   const edit = { ...fields, ...Object.fromEntries(removed.map((field) => [field, undefined])) };
-  await refusing(() => (record.type === "decision" ? correct(context.library, record.id, edit, context.writer) : context.library.editNote(record.id, edit as never, context.writer)));
+  await refusing(() => (record.type === "decision" ? editDecision(context.library, record.id, edit, context.writer) : context.library.editNote(record.id, edit as never, context.writer)));
   return editedSaid(record.type, record.id, Object.keys(fields), removed);
 }
 

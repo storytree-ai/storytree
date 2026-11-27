@@ -38,13 +38,10 @@ const FROM_KNOWLEDGE = [
   "recordDecision", "numberDecision", "decisionNumberPlan", "numberDecisionsFromFullRecord", "setDecisionNumberFloor",
   "numberFoundingDecisions", "writeKnowledge", "defineTerm", "editNote", "search", "searchEach", "rank", "rankAll", "findPhrase",
   "relatedNotes", "related", "relatedEach", "definitions", "measures", "frontCovers", "decision", "decisions", "composeStatement", "refile",
+  "moveNarrowsToClauses", "supersessionPairs", "decisionLinkBacklog", "decisionLinkChanges", "archivedLinks", "pruneLink", "restoreLink",
 ] as const;
 
 const FROM_LINEAGE = ["factory", "markFactory", "recordFactory"] as const;
-
-const LATER = [
-  "moveNarrowsToClauses", "supersessionPairs", "decisionLinkBacklog", "decisionLinkChanges", "archivedLinks", "pruneLink", "restoreLink",
-] as const;
 
 const ACTIONS: readonly HistoryEntry["action"][] = ["created", "updated", "retired"];
 
@@ -84,8 +81,6 @@ export interface DormantKind {
 
 export type FyiNote = Omit<NewFyi, "by"> & { readonly by: string };
 
-type NotYetBuilt = { readonly [K in (typeof LATER)[number]]: (...args: unknown[]) => Promise<never> };
-
 export interface Library
   extends Pick<ProjectRecords, (typeof FROM_RECORDS)[number]>,
     Pick<WorkModel, (typeof FROM_WORK)[number]>,
@@ -93,8 +88,7 @@ export interface Library
     Pick<HealthRecord, (typeof FROM_HEALTH)[number]>,
     Pick<Knowledge, (typeof FROM_KNOWLEDGE)[number]>,
     Pick<ProjectLineage, (typeof FROM_LINEAGE)[number]>,
-    DataQuestions,
-    NotYetBuilt {
+    DataQuestions {
   readonly name: string;
   readonly identity: string;
   writtenBy(of: string): Promise<WriterChange[]>;
@@ -162,9 +156,6 @@ export function libraryOf(project: Project, kinds: readonly PluginRecordKind[] =
   const { records, work, flight, health, knowledge, lineage, transactions, pool } = project;
   const wrap = (other: Project): Library => libraryOf(other, kinds);
   const declared = new Set(kinds.map(({ kind }) => kind));
-  const later = Object.fromEntries(LATER.map((name) => [name, async () => {
-    throw new Error(`${name} is not built in this library yet`);
-  }])) as unknown as NotYetBuilt;
 
   const library: Library = {
     name: project.name,
@@ -175,7 +166,6 @@ export function libraryOf(project: Project, kinds: readonly PluginRecordKind[] =
     ...delegate(health, FROM_HEALTH),
     ...delegate(knowledge, FROM_KNOWLEDGE),
     ...delegate(lineage, FROM_LINEAGE),
-    ...later,
     ...dataQuestions(pool),
     writtenBy: (of) => writtenBy(records, of),
     list: (kind) => records.list(kind),

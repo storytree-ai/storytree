@@ -33,7 +33,29 @@ export async function recordDecision(library: Library, decision: NewDecision, wr
   if (decision.status === "proposed") {
     throw new Error("a new decision is never written proposed (ADR-1232): what needs the owner's call is an open question, so raise it with question new; nothing was written");
   }
-  return await library.recordDecision(decision, writer);
+  const { supersedes = [], status: _status, ...successor } = decision;
+  if (supersedes.length === 0) return await library.recordDecision(decision, writer);
+  return await supersede(library, supersedes, successor, writer);
+}
+
+export async function editDecision(library: Library, id: string, fields: Readonly<Record<string, unknown>>, writer?: WriteOptions): Promise<Decision> {
+  const view = await live(library, id, "only a decision is edited");
+  const had = view.record.fields.supersedes ?? [];
+  const given = Array.isArray(fields["supersedes"]) ? (fields["supersedes"] as string[]) : undefined;
+  const gained = (given ?? []).filter((old) => !had.includes(old));
+  if (gained.length === 0) return await correct(library, id, fields as Correction, writer);
+  const { supersedes: _supersedes, justifications, ...rest } = fields;
+  const why = (justifications ?? {}) as Readonly<Record<string, string>>;
+  const kept = given!.filter((old) => had.includes(old));
+  const others = {
+    ...rest,
+    ...(kept.length === had.length ? {} : { supersedes: kept.length === 0 ? undefined : kept }),
+    ...(Object.keys(why).some((target) => !gained.includes(target)) ? { justifications: Object.fromEntries(Object.entries(why).filter(([target]) => !gained.includes(target))) } : {}),
+  };
+  return await library.inOneWrite(async () => {
+    if (Object.keys(others).length > 0) await correct(library, id, others as Correction, writer);
+    return await supersede(library, gained, id, writer, Object.fromEntries(Object.entries(why).filter(([target]) => gained.includes(target))));
+  }, writer?.signal === undefined ? {} : { signal: writer.signal });
 }
 
 export async function correct(library: Library, id: string, fields: Correction, writer?: WriteOptions): Promise<Decision> {

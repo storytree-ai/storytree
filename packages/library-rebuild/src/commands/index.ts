@@ -1,4 +1,5 @@
 // Capability 17 · The library's commands
+import { ADR_FAMILY } from "../knowledge/decisions/index.js";
 import { FYI_FAMILY } from "../work/inbox/index.js";
 import type { LibraryVerbContext } from "./context.js";
 import type { VerbFamily } from "./kit/index.js";
@@ -15,4 +16,4 @@ export { everyHolding, holdingLines, type PhraseHit } from "../knowledge/search/
 export { bareSaid } from "../plan/index.js";
 export { editPlanRecord, heldPending, heldSaid, holdPlanChange, refuseHeldPlanWrite } from "../work/arcs/index.js";
 
-export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [LIBRARY_FAMILY, FYI_FAMILY, MEDIA_FAMILY];
+export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [LIBRARY_FAMILY, ADR_FAMILY, FYI_FAMILY, MEDIA_FAMILY];

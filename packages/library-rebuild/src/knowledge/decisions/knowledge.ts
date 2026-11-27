@@ -5,7 +5,9 @@ import { Knowledge as Notes, type Note, type NoteEdit } from "../notes/index.js"
 import type { Ranking } from "../search/index.js";
 import { checkReferences, findLoop, liveOf, SchemaError, type EditOptions, type FieldsOf, type Reference, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../storage/rules/index.js";
 import { NumberTakenError } from "../../storage/store/index.js";
+import { archivedLinksOf, linkBacklog, linkChanges, pruneLink, restoreLink, type ArchivedDecisionLink, type DecisionLinkBacklog, type DecisionLinkChanges, type DecisionLinkSpan } from "./links.js";
 import { adr, fullRecordNumber, heldNumbers, mentionsFullRecord, renumbered, STORYTREE, switchedOn, type DecisionNumberPlan } from "./numbering.js";
+import { moveNarrows, supersessionPairs, type NarrowsMove, type SupersessionPairs } from "./pairs.js";
 
 export type NewDecision = Omit<FieldsOf<"decision">, "composed">;
 export type DecisionStatus = FieldsOf<"decision">["status"] | "superseded";
@@ -65,8 +67,10 @@ function writer(options: WriteOptions): WriteOptions {
 function viewOf(record: Decision, all: readonly Decision[]): DecisionView {
   const accepted = all.filter(({ fields }) => fields.status === "accepted").sort(byCreation);
   const supersededBy = accepted.filter(({ fields }) => (fields.supersedes ?? []).includes(record.id)).map(({ id }) => id);
-  const supersededInPart = accepted.flatMap(({ id, fields }) =>
-    (fields.supersedesClauses ?? []).filter(({ decision }) => decision === record.id).map(({ clauses }) => ({ decision: id, ...(clauses === undefined ? {} : { clauses }) })));
+  const supersededInPart = accepted.flatMap(({ id, fields }) => [
+    ...(fields.supersedesClauses ?? []).filter(({ decision }) => decision === record.id).map(({ clauses }) => ({ decision: id, ...(clauses === undefined ? {} : { clauses }) })),
+    ...(fields.narrows ?? []).filter((narrowed) => narrowed === record.id).map(() => ({ decision: id })),
+  ]);
   const composed = record.fields.composed;
   return {
     record,
@@ -143,6 +147,34 @@ export class Knowledge extends Notes {
     if (record === null) return null;
     const composed = { statement, composedAt: new Date().toISOString(), fingerprint: fingerprint(record.fields.text) };
     return (await this.#records.edit(id, { composed }, writer(options))) as Decision | null;
+  }
+
+  async moveNarrowsToClauses(options: WriteOptions = {}): Promise<NarrowsMove> {
+    return await moveNarrows(this.#records, writer(options));
+  }
+
+  async supersessionPairs(): Promise<SupersessionPairs> {
+    return supersessionPairs(await this.#records.list("decision"));
+  }
+
+  async decisionLinkBacklog(): Promise<DecisionLinkBacklog> {
+    return linkBacklog(await this.#records.list("decision"));
+  }
+
+  async decisionLinkChanges(span: DecisionLinkSpan = {}): Promise<DecisionLinkChanges> {
+    return linkChanges(await this.#records.history({ types: ["decision"] }), span);
+  }
+
+  async archivedLinks(from?: string): Promise<ArchivedDecisionLink[]> {
+    return archivedLinksOf(await this.#records.list("decision"), from);
+  }
+
+  async pruneLink(from: string, to: string, reason: string, options: WriteOptions = {}): Promise<Decision> {
+    return await pruneLink(this.#records, (id, fields, edit) => this.editNote(id, fields, edit), from, to, reason, options);
+  }
+
+  async restoreLink(from: string, to: string, justification?: string, options: WriteOptions = {}): Promise<Decision> {
+    return await restoreLink(this.#records, (id, fields, edit) => this.editNote(id, fields, edit), from, to, justification, options);
   }
 
   async setDecisionNumberFloor(floor: number, options: Apply = {}): Promise<number> {

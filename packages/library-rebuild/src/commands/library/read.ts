@@ -8,6 +8,7 @@ import { titleOf } from "../../knowledge/search/index.js";
 import { attachedLines, attachedTo } from "../../plan/index.js";
 import type { LibraryVerbContext } from "../context.js";
 import { contextIn, PROJECT_INPUT, verb, VerbRefusal, type VerbAnswer } from "../kit/index.js";
+import { decisionNamed } from "../queries/index.js";
 
 type Stored = NonNullable<Awaited<ReturnType<Library["get"]>>>;
 
@@ -23,10 +24,10 @@ async function block(library: Library, record: Stored): Promise<string> {
 }
 
 export const READ = verb({
-  command: { family: "library", name: "read", summary: "read records whole by id, or one field exactly as stored", usage: "library read <id> … [--linked] [--field <field> [--out <file>]] [--project <project>]" },
+  command: { family: "library", name: "read", summary: "read records whole by id or a decision by its number, or one field exactly as stored", usage: "library read <id|decision number> … [--linked] [--field <field> [--out <file>]] [--project <project>]" },
   tool: { absent: "open reads a record on the tool door", twin: "open" },
   inputs: {
-    ids: { kind: "text", word: 0, many: true, describe: "The ids of the records to read" },
+    ids: { kind: "text", word: 0, many: true, describe: "The ids of the records to read, or a decision's number (1103 or ADR-1103)" },
     linked: { kind: "switch", describe: "Read too each record their id lists name, once" },
     field: { kind: "text", optional: true, describe: "One field to give exactly as stored" },
     out: { kind: "text", optional: true, describe: "A file in this folder to write the one field to" },
@@ -39,7 +40,7 @@ export const READ = verb({
     const records: Stored[] = [];
     const missing: string[] = [];
     for (const id of ids) {
-      const record = await library.get(id);
+      const record = await library.get(await decisionNamed(library, id));
       if (record === null) missing.push(id);
       else records.push(record);
     }

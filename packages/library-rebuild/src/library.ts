@@ -2,6 +2,7 @@
 import type { Pool } from "pg";
 
 import { attachMedia, media, mediaFile, type AttachedMedia, type MediaEntry, type MediaFile, type NewMedia } from "./commands/index.js";
+import { dataQuestions, writtenBy, type DataQuestions, type WriterChange } from "./commands/queries/index.js";
 import type { ChangedOnMain, HealthRecord, HealthWorkItem, NamedOnMain } from "./health/index.js";
 import type { Knowledge } from "./knowledge/decisions/index.js";
 import { recordPin, type PinNote, type WorkModel } from "./plan/index.js";
@@ -42,11 +43,12 @@ const FROM_KNOWLEDGE = [
 const FROM_LINEAGE = ["factory", "markFactory", "recordFactory"] as const;
 
 const LATER = [
-  "writtenBy", "moveNarrowsToClauses", "supersessionPairs", "decisionLinkBacklog", "decisionLinkChanges", "archivedLinks", "pruneLink",
-  "restoreLink", "counts", "latestChanges", "findByTitle", "decisionNumbered",
+  "moveNarrowsToClauses", "supersessionPairs", "decisionLinkBacklog", "decisionLinkChanges", "archivedLinks", "pruneLink", "restoreLink",
 ] as const;
 
 const ACTIONS: readonly HistoryEntry["action"][] = ["created", "updated", "retired"];
+
+export type { Counts, KindCount, RecentChange, TitleHit } from "./commands/queries/index.js";
 
 const LIBRARY_KINDS = Object.keys(RECORD_SCHEMAS).filter((kind) => kind !== "health") as RecordType[];
 
@@ -80,32 +82,6 @@ export interface DormantKind {
   readonly count: number;
 }
 
-export interface KindCount {
-  readonly kind: string;
-  readonly count: number;
-  readonly statuses: readonly { readonly status: string; readonly count: number }[];
-}
-
-export interface Counts {
-  readonly kinds: readonly KindCount[];
-  readonly openByArc: readonly { readonly arc: string; readonly title: string | null; readonly open: number }[];
-}
-
-export interface RecentChange {
-  readonly seq: number;
-  readonly at: string;
-  readonly action: string;
-  readonly type: string;
-  readonly id: string;
-  readonly title: string | null;
-}
-
-export interface TitleHit {
-  readonly id: string;
-  readonly type: string;
-  readonly title: string | null;
-}
-
 export type FyiNote = Omit<NewFyi, "by"> & { readonly by: string };
 
 type NotYetBuilt = { readonly [K in (typeof LATER)[number]]: (...args: unknown[]) => Promise<never> };
@@ -117,9 +93,11 @@ export interface Library
     Pick<HealthRecord, (typeof FROM_HEALTH)[number]>,
     Pick<Knowledge, (typeof FROM_KNOWLEDGE)[number]>,
     Pick<ProjectLineage, (typeof FROM_LINEAGE)[number]>,
+    DataQuestions,
     NotYetBuilt {
   readonly name: string;
   readonly identity: string;
+  writtenBy(of: string): Promise<WriterChange[]>;
   list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]>;
   inherited(): Promise<SchemaRecord[]>;
   naming(id: string): Promise<SchemaRecord[]>;
@@ -198,6 +176,8 @@ export function libraryOf(project: Project, kinds: readonly PluginRecordKind[] =
     ...delegate(knowledge, FROM_KNOWLEDGE),
     ...delegate(lineage, FROM_LINEAGE),
     ...later,
+    ...dataQuestions(pool),
+    writtenBy: (of) => writtenBy(records, of),
     list: (kind) => records.list(kind),
     inherited: () => records.inherited(),
     async naming(id) {

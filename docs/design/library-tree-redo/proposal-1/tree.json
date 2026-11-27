@@ -259,16 +259,13 @@
       "title": "The librarian",
       "parent": "r1-knowledge",
       "files": [
-        "packages/library/src/librarian/index.ts",
-        "packages/library/src/librarian/notes.ts",
-        "packages/library/src/librarian/links/index.ts",
-        "packages/library/src/librarian/links/links.ts",
-        "packages/library/src/librarian/catalogue/catalogue.ts",
-        "packages/library/src/librarian/catalogue/index.ts",
-        "packages/library/src/librarian/graduation/graduation.ts",
-        "packages/library/src/librarian/graduation/index.ts"
+        "packages/library/src/knowledge/librarian/index.ts",
+        "packages/library/src/knowledge/librarian/notes.ts",
+        "packages/library/src/knowledge/librarian/links.ts",
+        "packages/library/src/knowledge/librarian/catalogue.ts",
+        "packages/library/src/knowledge/librarian/graduation.ts"
       ],
-      "entry": "packages/library/src/librarian/index.ts",
+      "entry": "packages/library/src/knowledge/librarian/index.ts",
       "was": [
         35,
         21,
@@ -282,12 +279,12 @@
       "title": "Rounds",
       "parent": "r1-know-librarian",
       "files": [
-        "packages/library/src/librarian/rounds/host.ts",
-        "packages/library/src/librarian/rounds/index.ts",
-        "packages/library/src/librarian/rounds/rounds.ts",
-        "packages/library/src/librarian/rounds/tools.ts"
+        "packages/library/src/knowledge/librarian/rounds/host.ts",
+        "packages/library/src/knowledge/librarian/rounds/index.ts",
+        "packages/library/src/knowledge/librarian/rounds/rounds.ts",
+        "packages/library/src/knowledge/librarian/rounds/tools.ts"
       ],
-      "entry": "packages/library/src/librarian/rounds/index.ts",
+      "entry": "packages/library/src/knowledge/librarian/rounds/index.ts",
       "was": [
         26
       ],

@@ -1,5 +1,5 @@
 // Capability 26 · Rounds
-import type { WriteOptions } from "../../records/index.js";
+import type { WriteOptions } from "../../../records/index.js";
 import type { LibrarianLibrary } from "../notes.js";
 import type { z } from "zod";
 

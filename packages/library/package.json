@@ -8,7 +8,7 @@
     "./verbs": "./src/commands/verbs.ts",
     "./commands": "./src/commands/index.ts",
     "./whole-words": "./src/knowledge/search/whole-words.ts",
-    "./librarian": "./src/librarian/index.ts",
+    "./librarian": "./src/knowledge/librarian/index.ts",
     "./pr-cutover": "./src/plan/pr-cutover.ts",
     "./connection-error": "./src/project/connection-error.ts",
     "./reads": "./src/project/reads.ts",

@@ -1,4 +1,4 @@
-// Capability 17 · The library's commands
+// Capability 17 · Commands
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 

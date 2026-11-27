@@ -1,4 +1,4 @@
-// Capability 7 · Library API
+// Capability 7 · Front door
 
 export const UNPRINTABLE = "�";
 

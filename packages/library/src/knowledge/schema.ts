@@ -315,3 +315,37 @@ export const KNOWLEDGE_RECORD_SCHEMAS = {
     })
     .strict(),
 } as const;
+
+export type KnowledgeKind =
+  | "principle"
+  | "guardrail"
+  | "pattern"
+  | "process"
+  | "agent"
+  | "friction"
+  | "resteer"
+  | "techstack"
+  | "check"
+  | "research"
+  | "experiment"
+  | "escape"
+  | "drill"
+  | "measure";
+
+export const KNOWLEDGE_SCHEMA_VERSIONS: Readonly<Record<keyof typeof KNOWLEDGE_RECORD_SCHEMAS, number>> = {
+  definition: 1,
+  principle: 1,
+  guardrail: 1,
+  pattern: 1,
+  process: 1,
+  agent: 1,
+  friction: 2,
+  resteer: 1,
+  techstack: 1,
+  check: 1,
+  research: 1,
+  experiment: 1,
+  escape: 1,
+  drill: 1,
+  measure: 1,
+};

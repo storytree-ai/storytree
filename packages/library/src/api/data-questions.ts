@@ -1,4 +1,4 @@
-// Capability 27 · Fixed data questions
+// Capability 7 · Front door
 import type { Pool } from "pg";
 
 export const ANSWER_ROWS = 20;

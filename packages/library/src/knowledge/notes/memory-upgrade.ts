@@ -2,11 +2,16 @@
 import type { PoolClient } from "pg";
 
 import type { RecordEnvelope } from "../../records/index.js";
-import { RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../../schema/index.js";
+import { DECISION_RECORD_SCHEMAS, DECISION_SCHEMA_VERSIONS } from "../decisions/schema.js";
+import { KNOWLEDGE_RECORD_SCHEMAS, KNOWLEDGE_SCHEMA_VERSIONS } from "../schema.js";
 import type { NoteType } from "./knowledge.js";
 import { KNOWLEDGE_KINDS, REFERENCE_FIELD_NAMES } from "./knowledge.js";
 
 const KINDS: readonly string[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
+
+const NOTE_SCHEMAS = { ...KNOWLEDGE_RECORD_SCHEMAS, decision: DECISION_RECORD_SCHEMAS.decision };
+
+const NOTE_VERSIONS: Readonly<Record<NoteType, number>> = { ...KNOWLEDGE_SCHEMA_VERSIONS, decision: DECISION_SCHEMA_VERSIONS.decision };
 
 export async function upgradeMemories(client: PoolClient, project: string): Promise<string[]> {
   const { convertible, warnings } = await pendingMemories(client, project, true);
@@ -79,6 +84,6 @@ function classify(record: RecordEnvelope): Pick<RecordEnvelope, "type" | "versio
   if (["frontCoverOf", "number", ...REFERENCE_FIELD_NAMES.filter((key) => key !== "links")].some((key) => key in fields)) return undefined;
   if (fields.links !== undefined && JSON.stringify(fields.links) !== JSON.stringify(record.fields.links)) return undefined;
   const type = kind as NoteType;
-  if (!RECORD_SCHEMAS[type].safeParse(fields).success) return undefined;
-  return { type, version: SCHEMA_VERSIONS[type], fields };
+  if (!NOTE_SCHEMAS[type].safeParse(fields).success) return undefined;
+  return { type, version: NOTE_VERSIONS[type], fields };
 }

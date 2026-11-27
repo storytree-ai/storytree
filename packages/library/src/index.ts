@@ -1,4 +1,4 @@
-// Capability 7 · Library API. @storytree/library: the project library every later storytree story reads and writes, and the
+// Capability 7 · Front door. @storytree/library: the project library every later storytree story reads and writes, and the
 export { connect } from "./api/index.js";
 export type { AttachedMedia, Change, Changes, ChangesFilter, FeedbackNote, FeedbackRoute, FyiNote, Library, PinNote, MediaEntry, MediaFile, NewMedia, PluginRecords, Storytree } from "./api/index.js";
 export type { ConnectionProblem, ConnectOptions, FactoryLink, OpenOptions, Reached, OwnDatabaseOptions, ProjectSnapshot, SnapshotEmbedding, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./project/index.js";
@@ -7,13 +7,13 @@ export { CONNECT_TIMEOUT_MS, ConnectionError, connectionString, explainConnectTi
 export { knowledgeGuidance, LinkLoopError, referenceEdgesOf, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./records/index.js";
 export { NumberTakenError } from "./records/index.js";
-export type { Counts, KindCount, RecentChange, TitleHit } from "./data/data-questions.js";
+export type { Counts, KindCount, RecentChange, TitleHit } from "./api/index.js";
 export { ANCHOR_ID, anchorGaps, beforeCutover, CONTRACT_DEFINITION, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE, planGuidance, pullSaid } from "./plan/index.js";
 export { LifecycleError, RetireRefusedError, WaitLoopError } from "./work/index.js";
 export { MissingUpgradeError, NewerSchemaError, NEW_LINE, OWNER_TIME_ZONE, parseSchedule, SchemaError, UnknownTypeError } from "./records/index.js";
 export { CONTRACT_PROOFS, STORE_LINK_DIRECTIONS } from "./plan/index.js";
-export { pluginSchema } from "./schema/index.js";
-export type { KnowledgeKind } from "./schema/index.js";
+export { pluginSchema } from "./project/index.js";
+export type { KnowledgeKind } from "./knowledge/index.js";
 
 export type { Agent, FieldsOf, Line, LineKind, LinesSince, NewLine, PluginRecordKind, PluginUpgradeStep, Precheck, RecordType, ScheduleRule, SchemaRecord, WriteOptions } from "./records/index.js";
 export type { CodeEdge, EdgeFile, FileImport, PartClash, SharedStore, StoreTable, StorySurvey, SurveyedFile, SurveyedPart, SurveyedParts, SurveyedTest } from "./plan/story-survey.js";

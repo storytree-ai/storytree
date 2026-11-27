@@ -1,4 +1,4 @@
-// Capability 17 · The library's commands
+// Capability 17 · Commands
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -6,13 +6,13 @@ import { isDeepStrictEqual } from "node:util";
 import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type Storytree, type WriteOptions } from "../index.js";
 import { PR_CUTOVER_ID } from "../plan/index.js";
 import { editPlanRecord, FYI_FAMILY, heldIncrement, heldPending, heldSaid, holdPlanChange, isPlanRecordType, PLAN_TYPES, refuseHeldPlanWrite, type PlanEdit } from "../work/index.js";
-import { fieldValue, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily } from "../verbs/verb.js";
-import { changes, count, decisionNamed, find } from "../data/commands.js";
+import { fieldValue, verb, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamily, type VerbInputs } from "../verbs/verb.js";
+import { changes, count, decisionNamed, find } from "./data/commands.js";
 import { MEDIA_FAMILY } from "./media.js";
 export { mediaGuidance } from "./media.js";
-import { ADR_FAMILY, ARTIFACT_KINDS, attachedTo, editDecision, everyHolding, holdingLines, justificationSaid, labelOf, librariesNamed, libraryNamed, narrowedSaid, partsBeside, PROJECT_INPUT, PROJECTS_INPUT, rankedSearch, recordDecision, recordLines, refuseStaleEdit, supersededLines, unopenedSaid, WRITTEN_KINDS, type HeldClaim } from "../knowledge/index.js";
+import { ADR_FAMILY, ARTIFACT_KINDS, attachedTo, editDecision, everyHolding, holdingLines, justificationSaid, labelOf, librariesNamed, libraryNamed, narrowedSaid, partsBeside, PROJECT_INPUT, PROJECTS_INPUT, rankedSearch, recordDecision, recordLines, refuseStaleEdit, supersededLines, unopenedSaid, WRITTEN_KINDS, NOTE_TOOLS as NOTES_TOOLS, type HeldClaim, type NoteToolContext as NotesToolContext } from "../knowledge/index.js";
 import { LaterWriterError, StaleRevertError } from "../records/index.js";
-import { RECORD_SCHEMAS } from "../schema/index.js";
+import { RECORD_SCHEMAS } from "../project/index.js";
 export { contextIn, libraryNamed, librariesNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "../knowledge/index.js";
 
 export interface LibraryVerbContext extends VerbContext<Library, Pick<Storytree, "ownDatabase">> {
@@ -641,7 +641,11 @@ const undo = verb({
   },
 });
 
-export { everyHolding, holdingLines, NOTE_TOOLS, type Found, type HeldClaim, type NoteRead, type NoteToolContext, type PhraseHit, type Presenter } from "../knowledge/index.js";
+export { everyHolding, holdingLines, type Found, type HeldClaim, type NoteRead, type PhraseHit, type Presenter } from "../knowledge/index.js";
+
+export type NoteToolContext = NotesToolContext<Library, Pick<Storytree, "ownDatabase">>;
+
+export const NOTE_TOOLS: readonly Verb<VerbInputs, NoteToolContext>[] = NOTES_TOOLS;
 export { justificationSaid, supersededLines } from "../knowledge/index.js";
 export { editPlanRecord, heldPending, heldSaid, holdPlanChange, refuseHeldPlanWrite } from "../work/index.js";
 

@@ -5,16 +5,13 @@
   "nodes": [
     {
       "id": "r1-front",
-      "title": "The library's front door",
+      "title": "Front door",
       "files": [
         "packages/library/src/api/index.ts",
         "packages/library/src/api/library.ts",
         "packages/library/src/api/printable.ts",
         "packages/library/src/index.ts",
-        "packages/library/src/data/data-questions.ts",
-        "packages/library/src/schema/index.ts",
-        "packages/library/src/schema/types.ts",
-        "packages/library/src/schema/upgrades.ts"
+        "packages/library/src/api/data-questions.ts"
       ],
       "entry": "packages/library/src/index.ts",
       "was": [
@@ -24,7 +21,7 @@
     },
     {
       "id": "r1-records",
-      "title": "Records",
+      "title": "Storage",
       "files": [
         "packages/library/src/records/index.ts"
       ],
@@ -37,7 +34,7 @@
     },
     {
       "id": "r1-records-tx",
-      "title": "Transactions",
+      "title": "The store",
       "parent": "r1-records",
       "files": [
         "packages/library/src/records/store/behaviour-suite.ts",
@@ -57,7 +54,7 @@
     },
     {
       "id": "r1-records-valid",
-      "title": "Valid records",
+      "title": "Record rules",
       "parent": "r1-records",
       "files": [
         "packages/library/src/records/rules/index.ts",
@@ -295,7 +292,8 @@
       "title": "Health",
       "files": [
         "packages/library/src/health/health-record.ts",
-        "packages/library/src/health/index.ts"
+        "packages/library/src/health/index.ts",
+        "packages/library/src/health/schema.ts"
       ],
       "entry": "packages/library/src/health/index.ts",
       "schema": [
@@ -330,7 +328,9 @@
         "packages/library/src/project/open/schema-merged.ts",
         "packages/library/src/project/open/snapshot.ts",
         "packages/library/src/project/open/factory.ts",
-        "packages/library/src/project/open/switches.ts"
+        "packages/library/src/project/open/switches.ts",
+        "packages/library/src/project/open/record-schemas.ts",
+        "packages/library/src/project/open/upgrades.ts"
       ],
       "entry": "packages/library/src/project/open/storytree.ts",
       "was": [
@@ -389,12 +389,12 @@
     },
     {
       "id": "r1-cmd-data",
-      "title": "Fixed data questions",
+      "title": "Saved queries",
       "parent": "r1-commands",
       "files": [
-        "packages/library/src/data/commands.ts"
+        "packages/library/src/commands/data/commands.ts"
       ],
-      "entry": "packages/library/src/data/commands.ts",
+      "entry": "packages/library/src/commands/data/commands.ts",
       "was": [
         27
       ],

@@ -1,6 +1,6 @@
 // Capability 6 · Notes
 import { isPluginKind, type NewLine, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../records/index.js";
-import type { KnowledgeKind } from "../../schema/index.js";
+import type { KnowledgeKind } from "../schema.js";
 import { ARTIFACT_KINDS, WRITTEN_KINDS } from "./kinds.js";
 import { KNOWLEDGE_KINDS, type Knowledge, type Note, type NoteEdit, type PhraseKind } from "./knowledge.js";
 import { justificationSaid, supersededLines, type DecisionLibrary } from "../decisions/index.js";

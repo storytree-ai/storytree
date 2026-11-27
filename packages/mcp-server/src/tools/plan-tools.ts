@@ -397,7 +397,7 @@ async function editPlan(target: string, changes: Changes, call: Call, live = fal
   const levels = story === undefined || parent === "none" ? {} : { levels: await levelsBehind(call, story, parent!) };
   const options = move === undefined ? { ...writer, ...levels } : { ...writer, testedNumbers: move.tested };
   const leaves = kind === "contract" && changes.edge !== undefined ? ((await library.get(target))?.fields as { capability?: string } | undefined)?.capability : undefined;
-  const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live: live || story !== undefined }, options);
+  const done = await editPlanRecord(library, await claimsOf(call), call.caller.session, { type: kind, id: target, fields, live, nests: story !== undefined }, options);
   if (done === null) return { text: `Nothing in the plan has the id ${target} any more.`, refused: true };
   if ("refused" in done) return { text: done.refused, refused: true };
   if ("held" in done) {

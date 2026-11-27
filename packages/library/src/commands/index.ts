@@ -422,7 +422,7 @@ const edit = verb({
     const story = typeof fields.story === "string" ? fields.story : String((record.fields as { story?: string }).story);
     const levels = nesting && fields.parent !== undefined ? { levels: (await context.levelsBehind?.(story, fields.parent as string)) ?? [] } : {};
     const done = await withIdLists(fields, async (fields): Promise<PlanEdit | null> => {
-      if (isPlanRecordType(record.type)) return editPlanRecord(library, await context.claims(), context.session, { type: record.type, id, fields, live: live || nesting }, { ...writer, ...levels });
+      if (isPlanRecordType(record.type)) return editPlanRecord(library, await context.claims(), context.session, { type: record.type, id, fields, live, nests: nesting }, { ...writer, ...levels });
       const edited =
         record.type === "question"
           ? await library.editQuestion(id, fields as never, writer)

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { connect, NewerSchemaError, UnknownTypeError, type HistoryEntry, type HistoryFilter, type Library, type SchemaRecord } from "@storytree/library-rebuild";
+import { connect, NewerSchemaError, UnknownTypeError, type HistoryEntry, type HistoryFilter, type Library, type SchemaRecord } from "@storytree/library";
 import { connect as connectProject } from "./projects/open/index.js";
 import { SchemaRecords } from "./storage/rules/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "./testing/pg.js";

@@ -2,23 +2,23 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
 
-import { connect, MissingReferenceError, RetireRefusedError, type Change, type NodeHealth, type RecordEnvelope, type Storytree } from "@storytree/library-rebuild";
+import { connect, MissingReferenceError, RetireRefusedError, type Change, type NodeHealth, type RecordEnvelope, type Storytree } from "@storytree/library";
 // @ts-expect-error the project handle, which holds the connection pool
-import type { Project } from "@storytree/library-rebuild";
+import type { Project } from "@storytree/library";
 // @ts-expect-error a store: the only data actions, over a table
-import type { Transactions } from "@storytree/library-rebuild";
+import type { Transactions } from "@storytree/library";
 // @ts-expect-error the Postgres store
-import type { PgTransactions } from "@storytree/library-rebuild";
+import type { PgTransactions } from "@storytree/library";
 // @ts-expect-error the in-memory store
-import type { MemoryTransactions } from "@storytree/library-rebuild";
+import type { MemoryTransactions } from "@storytree/library";
 // @ts-expect-error the typed records, over a store
-import type { SchemaRecords } from "@storytree/library-rebuild";
+import type { SchemaRecords } from "@storytree/library";
 // @ts-expect-error the work model, over the typed records
-import type { WorkModel } from "@storytree/library-rebuild";
+import type { WorkModel } from "@storytree/library";
 // @ts-expect-error the knowledge layer, over the typed records
-import type { Knowledge } from "@storytree/library-rebuild";
+import type { Knowledge } from "@storytree/library";
 // @ts-expect-error the health record, over the typed records
-import type { HealthRecord } from "@storytree/library-rebuild";
+import type { HealthRecord } from "@storytree/library";
 
 import { dropTestDatabases, testServerUrl, uniqueProjectName, withTestClient } from "./testing/pg.js";
 
@@ -435,7 +435,7 @@ test("7.2 changesSince(n) returns only the changes after n, in order, each carry
 });
 
 test("7.3 the package's public entry exports exactly the API and nothing else, and its internals cannot be imported through the package", async () => {
-  const api: Record<string, unknown> = { ...(await import("@storytree/library-rebuild")) };
+  const api: Record<string, unknown> = { ...(await import("@storytree/library")) };
   assert.deepEqual(Object.keys(api).sort(), RUNTIME_EXPORTS);
   assert.equal(api.connect, connect, "the entry's connect is the connect imported above");
   const errorClass = (exported: string): ErrorClass => {
@@ -476,13 +476,13 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
   });
 
   for (const internal of [
-    "@storytree/library-rebuild/src/storage/store/pg.ts",
-    "@storytree/library-rebuild/src/storage/store/pg.js",
-    "@storytree/library-rebuild/src/projects/open/storytree.ts",
-    "@storytree/library-rebuild/src/storage/rules/records.ts",
-    "@storytree/library-rebuild/src/testing/pg.ts",
-    "@storytree/library-rebuild/src/index.ts",
-    "@storytree/library-rebuild/package.json",
+    "@storytree/library/src/storage/store/pg.ts",
+    "@storytree/library/src/storage/store/pg.js",
+    "@storytree/library/src/projects/open/storytree.ts",
+    "@storytree/library/src/storage/rules/records.ts",
+    "@storytree/library/src/testing/pg.ts",
+    "@storytree/library/src/index.ts",
+    "@storytree/library/package.json",
   ]) {
     await assert.rejects(import(internal), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" }, internal);
   }

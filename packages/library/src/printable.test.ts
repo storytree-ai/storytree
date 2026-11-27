@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { printable } from "@storytree/library-rebuild/printable";
+import { printable } from "@storytree/library/printable";
 
 test("7.20 · printable keeps text, line breaks and tabs, and turns every other control character into a placeholder", () => {
   const title = "Mailer\u001b]52;c;aGk=\u0007 done";

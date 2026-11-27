@@ -1,4 +1,4 @@
-// Capability 28 · Shared server
+// Capability 28 · Shared library
 import { AsyncLocalStorage } from "node:async_hooks";
 import { win32 } from "node:path";
 

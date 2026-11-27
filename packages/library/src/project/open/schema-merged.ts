@@ -1,4 +1,4 @@
-// Capability 1 · Project libraries
+// Capability 1 · Opening a project
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";

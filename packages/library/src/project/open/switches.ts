@@ -1,5 +1,5 @@
-// Capability 29 · Factory and product
-import { type CreateOptions, type FieldsOf, type HistoryEntry, type HistoryFilter, type LibrarySchema, type ListFilter, type RecordType, type SchemaRecord, SchemaRecords, type Transactions } from "../records/index.js";
+// Capability 1 · Opening a project
+import { type CreateOptions, type FieldsOf, type HistoryEntry, type HistoryFilter, type LibrarySchema, type ListFilter, type RecordType, type SchemaRecord, SchemaRecords, type Transactions } from "../../records/index.js";
 import { SYSTEM_KINDS } from "./factory.js";
 
 export interface SystemSwitches {

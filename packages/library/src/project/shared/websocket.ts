@@ -1,4 +1,4 @@
-// Capability 15 · Connection by address
+// Capability 28 · Shared library
 import { isIPv4 } from "node:net";
 
 import { Client as NeonClient, Pool as NeonPool } from "@neondatabase/serverless";

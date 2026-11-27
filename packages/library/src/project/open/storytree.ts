@@ -1,26 +1,26 @@
-// Capability 1 · Project libraries
+// Capability 1 · Opening a project
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Pool, PoolClient } from "pg";
 
-import { HealthRecord } from "../health/index.js";
-import { Knowledge, modelsFolder, PgVectors, pendingMemories, upgradeMemories, vectorServerIdentity, type EmbedderSource, type VectorDomain } from "../knowledge/index.js";
-import { PgTransactions, type PluginRecordKind, SchemaRecords, takeWriteLock, type Transactions } from "../records/index.js";
-import { pluginSchema } from "../schema/index.js";
-import { WorkModel } from "../plan/index.js";
-import { WorkInFlight } from "../work/index.js";
-import { addressServer, type ConnectOptions } from "./address.js";
+import { HealthRecord } from "../../health/index.js";
+import { Knowledge, modelsFolder, PgVectors, pendingMemories, upgradeMemories, vectorServerIdentity, type EmbedderSource, type VectorDomain } from "../../knowledge/index.js";
+import { PgTransactions, type PluginRecordKind, SchemaRecords, takeWriteLock, type Transactions } from "../../records/index.js";
+import { pluginSchema } from "../../schema/index.js";
+import { WorkModel } from "../../plan/index.js";
+import { WorkInFlight } from "../../work/index.js";
+import { addressServer, type ConnectOptions } from "../shared/address.js";
 import { CachedTransactions } from "./record-cache.js";
-import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "./connection-error.js";
+import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "../shared/connection-error.js";
 import { assertProjectName, ProjectGoneError } from "./names.js";
 import { FactoryCircle, InheritedRecords, OutsideCircleError, ProjectLineage, type Reached } from "./factory.js";
 import { SwitchedRecords, type SystemSwitches } from "./switches.js";
 import { PROJECT_SCHEMA } from "./schema.js";
 import { schemaMerged, type SchemaMerged } from "./schema-merged.js";
 import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js";
-import { localServer, PROJECT_DATABASE_PREFIX, projectDatabase, type ServerAccess, type WaitBounds } from "./server.js";
+import { localServer, PROJECT_DATABASE_PREFIX, projectDatabase, type ServerAccess, type WaitBounds } from "../shared/server.js";
 
 export type { ConnectOptions };
 

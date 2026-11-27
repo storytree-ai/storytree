@@ -16,7 +16,7 @@
 --
 -- WHAT IT SETS, on each role:
 --   - CONNECTION LIMIT: 15 for the health role, 25 for plan-read. storytree's pool waits for a free
---     slot rather than failing (packages/library/src/project/server.ts), so a busy run queues; it
+--     slot rather than failing (packages/library/src/project/shared/server.ts), so a busy run queues; it
 --     never takes the owner's slots.
 --   - statement_timeout 60s: no CI query runs longer; the owner's do not change.
 --   - temp_file_limit 1GB: a query that would spill more to disk is cancelled.

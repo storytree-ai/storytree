@@ -1,4 +1,4 @@
-// Capability 1 · Project libraries
+// Capability 1 · Opening a project
 
 const PROJECT_NAME = /^[a-z0-9](?:[a-z0-9]|-(?!-)){0,39}$/;
 

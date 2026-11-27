@@ -1,4 +1,4 @@
-// Capability 30 · Outside writers
+// Capability 28 · Shared library
 import type { ClientBase } from "pg";
 
 import { addressServer, type ConnectOptions } from "./address.js";

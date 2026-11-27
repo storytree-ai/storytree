@@ -1,4 +1,4 @@
-// Capability 15 · Connection by address
+// Capability 28 · Shared library
 import { readFileSync } from "node:fs";
 import { isIP } from "node:net";
 import { X509Certificate } from "node:crypto";

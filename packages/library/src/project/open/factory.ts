@@ -1,7 +1,7 @@
-// Capability 29 · Factory and product
+// Capability 1 · Opening a project
 import type { Pool } from "pg";
 
-import { type FieldEdit, type LibrarySchema, type ListFilter, type RecordType, type SchemaRecord, SchemaRecords, type Transactions, type WriteOptions } from "../records/index.js";
+import { type FieldEdit, type LibrarySchema, type ListFilter, type RecordType, type SchemaRecord, SchemaRecords, type Transactions, type WriteOptions } from "../../records/index.js";
 import { assertProjectName } from "./names.js";
 
 export const SYSTEM_KINDS: readonly RecordType[] = ["agent", "check", "principle", "guardrail", "pattern", "process"];

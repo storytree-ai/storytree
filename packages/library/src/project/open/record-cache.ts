@@ -1,4 +1,4 @@
-// Capability 1 · Project libraries
+// Capability 1 · Opening a project
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -7,8 +7,8 @@ import type { DatabaseSync } from "node:sqlite";
 
 import type { Pool } from "pg";
 
-import { listed, type EditInput, type HistoryEntry, type HistoryFilter, type ListFilter, type RecordEnvelope, type RetireInput, type RevertedWrite, type RevertInput, type RevertWritesInput, type SaveInput, type Transactions } from "../records/index.js";
-import type { VectorDomain } from "../knowledge/index.js";
+import { listed, type EditInput, type HistoryEntry, type HistoryFilter, type ListFilter, type RecordEnvelope, type RetireInput, type RevertedWrite, type RevertInput, type RevertWritesInput, type SaveInput, type Transactions } from "../../records/index.js";
+import type { VectorDomain } from "../../knowledge/index.js";
 
 interface CachedRow {
   id: string;

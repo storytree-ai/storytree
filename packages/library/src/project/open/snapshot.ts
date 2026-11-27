@@ -1,8 +1,8 @@
-// Capability 1 · Project libraries
+// Capability 1 · Opening a project
 import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 
-import { marksOutsideRead, takeWriteLock } from "../records/index.js";
+import { marksOutsideRead, takeWriteLock } from "../../records/index.js";
 
 export interface SnapshotRecord {
   id: string;

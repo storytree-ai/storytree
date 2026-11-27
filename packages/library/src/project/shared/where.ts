@@ -1,6 +1,6 @@
-// Capability 28 · Shared server
+// Capability 28 · Shared library
 import { sqlState } from "./connection-error.js";
-import { VerbRefusal, type VerbInputs } from "../verbs/verb.js";
+import { VerbRefusal, type VerbInputs } from "../../verbs/verb.js";
 
 export interface WhereLibrary<L> {
   readonly name: string;

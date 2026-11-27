@@ -1,15 +1,15 @@
-// Capability 34 · Project storage
-export { connectionString, PASSWORD_KEY } from "./address.js";
-export { ConnectionError } from "./connection-error.js";
-export { InheritedRecords } from "./factory.js";
-export type { FactoryLink, Reached } from "./factory.js";
+// Capability 34 · Projects
+export { connectionString, PASSWORD_KEY } from "./shared/address.js";
+export { ConnectionError } from "./shared/connection-error.js";
+export { InheritedRecords } from "./open/factory.js";
+export type { FactoryLink, Reached } from "./open/factory.js";
 export { SEED_CONNECTION } from "../records/index.js";
-export type { ConnectionProblem } from "./connection-error.js";
-export { ProjectGoneError, ProjectNameError } from "./names.js";
-export { fenceOutsideWriter } from "./outside-writer.js";
-export type { OutsideWriter } from "./outside-writer.js";
-export { RestoreRefusedError } from "./snapshot.js";
-export { CONNECT_TIMEOUT_MS, explainConnectTimeout } from "./server.js";
-export type { ProjectSnapshot, SnapshotEmbedding, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./snapshot.js";
-export { connect } from "./storytree.js";
-export type { ConnectOptions, OpenOptions, OwnDatabaseOptions, Project, Storytree } from "./storytree.js";
+export type { ConnectionProblem } from "./shared/connection-error.js";
+export { ProjectGoneError, ProjectNameError } from "./open/names.js";
+export { fenceOutsideWriter } from "./shared/outside-writer.js";
+export type { OutsideWriter } from "./shared/outside-writer.js";
+export { RestoreRefusedError } from "./open/snapshot.js";
+export { CONNECT_TIMEOUT_MS, explainConnectTimeout } from "./shared/server.js";
+export type { ProjectSnapshot, SnapshotEmbedding, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./open/snapshot.js";
+export { connect } from "./open/storytree.js";
+export type { ConnectOptions, OpenOptions, OwnDatabaseOptions, Project, Storytree } from "./open/storytree.js";

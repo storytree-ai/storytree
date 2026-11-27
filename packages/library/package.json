@@ -10,10 +10,10 @@
     "./whole-words": "./src/knowledge/search/whole-words.ts",
     "./librarian": "./src/knowledge/librarian/index.ts",
     "./pr-cutover": "./src/plan/pr-cutover.ts",
-    "./connection-error": "./src/project/connection-error.ts",
-    "./reads": "./src/project/reads.ts",
+    "./connection-error": "./src/project/shared/connection-error.ts",
+    "./reads": "./src/project/shared/reads.ts",
     "./printable": "./src/api/printable.ts",
-    "./outside-writer": "./src/project/outside-writer.ts",
+    "./outside-writer": "./src/project/shared/outside-writer.ts",
     "./testing/pg": "./src/testing/pg.ts"
   },
   "scripts": {

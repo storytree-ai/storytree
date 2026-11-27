@@ -1,4 +1,4 @@
-// Capability 28 · Shared server
+// Capability 28 · Shared library
 
 export type ConnectionProblem =
   | "config"

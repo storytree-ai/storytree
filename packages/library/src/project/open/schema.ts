@@ -1,4 +1,4 @@
-// Capability 1 · Project libraries
+// Capability 1 · Opening a project
 export const PROJECT_SCHEMA: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS library_meta (
     key   text PRIMARY KEY,

@@ -470,6 +470,8 @@ export class WorkInFlight {
       const byEdge = (await this.#records.list("edge")).filter((edge) => edge.fields.to === id && live.has(edge.fields.from)).map((edge) => edge.fields.from);
       const dependents = [...new Set([...capabilities.filter((capability) => capability.fields.dependsOn?.includes(id) === true).map((capability) => capability.id), ...byEdge])];
       if (dependents.length > 0) throw new questions.RetireRefusedError(id, dependents, "dependsOn");
+      const covers = await this.#knowledge.frontCovers(id);
+      if (covers.length > 0) throw new questions.RetireRefusedError(id, covers.map((cover) => cover.id), "frontCoverOf");
     }
     await this.#records.retire(id, reason, options);
   }

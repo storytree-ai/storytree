@@ -1,3 +1,4 @@
+// Capability 16 · The command schema
 import type { Library, Storytree } from "../../index.js";
 import type { WriteOptions } from "../../storage/rules/index.js";
 

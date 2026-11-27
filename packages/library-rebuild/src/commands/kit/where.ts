@@ -1,3 +1,4 @@
+// Capability 16 · The command schema
 import type { Library } from "../../index.js";
 import { VerbRefusal } from "./verb.js";
 
@@ -79,7 +80,7 @@ async function holding(library: Library, held: Held): Promise<Library> {
 }
 
 export async function writtenLibrary(library: Library, given: WhereNamed): Promise<Library> {
-  const { project, arc, increment } = whereOf(given);
+  const { project, arc, increment } = whereOf({ ...given });
   const held: Held[] = [...(arc === undefined ? [] : [["arc", arc] as const]), ...(increment === undefined ? [] : [["increment", increment] as const])];
   if (project === undefined && held.length === 0) {
     throw new VerbRefusal(`This write names where it goes: give project (this folder's is ${JSON.stringify(library.name)}), or the arc or the increment it is about.`, { misuse: true });

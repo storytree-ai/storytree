@@ -1,3 +1,4 @@
+// Capability 17 · The library's commands
 import type { Library, Reached } from "../../index.js";
 import { VerbRefusal, type VerbContext } from "./verb.js";
 import { outsideCircle } from "./where.js";

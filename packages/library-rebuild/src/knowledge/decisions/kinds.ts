@@ -39,6 +39,7 @@ export const DECISION_KINDS = {
     narrows: z.array(z.string()).optional(),
     justifications: z.record(z.string(), justification).optional(),
     loadBearing: z.boolean().optional(),
+    decided: z.string().optional(),
     authority: authority.optional(),
     composed: z.object({ statement: z.string(), composedAt: z.string(), fingerprint: z.string() }).strict().optional(),
   }).strict(),

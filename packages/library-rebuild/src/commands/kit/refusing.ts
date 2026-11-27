@@ -1,3 +1,4 @@
+// Capability 17 · The library's commands
 import { VerbRefusal } from "./verb.js";
 
 export function refusalOf(error: unknown): unknown {

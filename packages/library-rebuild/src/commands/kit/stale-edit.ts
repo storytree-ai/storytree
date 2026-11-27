@@ -1,3 +1,4 @@
+// Capability 17 · The library's commands
 import type { Library } from "../../index.js";
 import type { WriteOptions } from "../../storage/rules/index.js";
 import { VerbRefusal } from "./verb.js";

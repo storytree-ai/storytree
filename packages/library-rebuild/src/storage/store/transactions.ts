@@ -219,7 +219,7 @@ export class Store implements Transactions {
       if (target === undefined) throw new Error(`entry ${input.to} is not a state of ${input.id} to revert to`);
       const record = { ...target.record, updatedAt: new Date().toISOString() };
       input.validate?.(record);
-      const why = `reverted to entry ${input.to}, written by ${writerOf(target)}`;
+      const why = `reverted to ${input.to}`;
       await writer.put(record);
       await writer.append(entry("updated", record, input, input.reason === undefined ? why : `${why}: ${input.reason}`));
       return record;
@@ -248,7 +248,7 @@ export class Store implements Transactions {
       if (later.length > 0) throw new LaterWriterError(`${input.of}'s writes cannot be reverted: another writer wrote later to ${later.join("; ")}`);
       for (const { write, record } of plan) if (write.action === "updated") input.validate?.(record);
       for (const { write, record } of plan) {
-        const back = write.to === undefined ? `reverting ${input.of}'s writes, which made it` : `reverting ${input.of}'s writes, back to entry ${write.to}`;
+        const back = write.to === undefined ? `reverted ${input.of}'s writes, which made it` : `reverted ${input.of}'s writes, to ${write.to}`;
         const reason = input.reason === undefined ? back : `${back}: ${input.reason}`;
         if (write.action === "retired") await writer.remove(write.id);
         else await writer.put(record);

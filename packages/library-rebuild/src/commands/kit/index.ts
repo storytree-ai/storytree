@@ -1,3 +1,4 @@
+// Capability 16 · The command schema
 export { refuseStaleEdit, RECENT_MS } from "./stale-edit.js";
 export { contextIn, librariesNamed, libraryNamed, PROJECT_INPUT, PROJECTS_INPUT, unopenedSaid } from "./projects.js";
 export { refusalOf, refusing } from "./refusing.js";

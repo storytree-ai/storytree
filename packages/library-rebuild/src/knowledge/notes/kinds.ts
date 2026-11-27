@@ -53,10 +53,11 @@ export const NOTE_KINDS = {
     meaning: z.string().min(1),
     links: z.array(z.string()).optional(),
   }).strict(),
-  principle: z.object({ statement: z.string(), why: z.string(), howToApply: z.string(), ...artifact }).strict(),
-  guardrail: z.object({ statement: z.string(), rule: z.string(), enforcedBy: z.string(), failureMode: z.string(), ...artifact }).strict(),
-  pattern: z.object({ statement: z.string(), problem: z.string(), approach: z.string(), tradeoffs: z.string().optional(), ...artifact }).strict(),
+  principle: z.object({ ...artifact, statement: z.string(), why: z.string(), howToApply: z.string() }).strict(),
+  guardrail: z.object({ ...artifact, statement: z.string(), rule: z.string(), enforcedBy: z.string(), failureMode: z.string() }).strict(),
+  pattern: z.object({ ...artifact, statement: z.string(), problem: z.string(), approach: z.string(), tradeoffs: z.string().optional() }).strict(),
   process: z.object({
+    ...artifact,
     statement: z.string(),
     trigger: z.string(),
     steps: z.string(),
@@ -68,7 +69,6 @@ export const NOTE_KINDS = {
     schedule: z.string().optional(),
     timeZone: z.string().optional(),
     precheck: z.enum(PRECHECKS).optional(),
-    ...artifact,
   }).strict().superRefine((process, ctx) => {
     if (process.schedule !== undefined) {
       const parsed = parseSchedule(process.schedule);
@@ -81,6 +81,7 @@ export const NOTE_KINDS = {
     if (process.precheck !== undefined && process.schedule === undefined) refuse(ctx, "precheck", "a precheck is given only with a schedule");
   }),
   agent: z.object({
+    ...artifact,
     oneLine: z.string(),
     role: z.string(),
     outcome: z.string(),
@@ -94,9 +95,9 @@ export const NOTE_KINDS = {
     model: z.enum(["inherit", "sonnet", "opus"]).optional(),
     effort: z.enum(["low", "medium", "high", "xhigh"]).optional(),
     aliases: z.array(z.string()).optional(),
-    ...artifact,
   }).strict(),
   friction: z.object({
+    ...artifact,
     statement: z.string().min(1),
     evidence: z.string().min(1),
     impact: z.string().min(1),
@@ -107,9 +108,9 @@ export const NOTE_KINDS = {
     reinforcedBy: z.array(z.object({ branch: z.string(), date: z.string(), evidence: z.string() }).strict()).optional(),
     dischargedBy: z.string().optional(),
     increment: z.string().optional(),
-    ...artifact,
   }).strict(),
   resteer: z.object({
+    ...artifact,
     doing: z.string().min(1),
     redirect: z.string().min(1),
     evidence: z.string().min(1),
@@ -119,12 +120,12 @@ export const NOTE_KINDS = {
     mode: z.enum(MASTS).optional(),
     provenance: provenance.optional(),
     increment: z.string().optional(),
-    ...artifact,
   }).strict().superRefine((resteer, ctx) => {
     if (resteer.disposition === "defect" && resteer.mode === undefined) refuse(ctx, "mode", "a re-steer marked a defect names its failure mode");
   }),
-  techstack: z.object({ statement: z.string(), whatItIs: z.string(), whyThis: z.string(), constraints: z.string().optional(), ...artifact }).strict(),
+  techstack: z.object({ ...artifact, statement: z.string(), whatItIs: z.string(), whyThis: z.string(), constraints: z.string().optional() }).strict(),
   check: z.object({
+    ...artifact,
     question: z.string().min(1),
     enforces: z.array(z.string()).min(1),
     howToAnswer: z.string().optional(),
@@ -138,10 +139,10 @@ export const NOTE_KINDS = {
       arc: z.string().optional(),
     }).strict()).optional(),
     projects: z.array(z.string()).optional(),
-    ...artifact,
   }).strict(),
-  research: z.object({ researched: day, findings: z.string().min(1), ...artifact }).strict(),
+  research: z.object({ ...artifact, researched: day, findings: z.string().min(1) }).strict(),
   experiment: z.object({
+    ...artifact,
     arms: z.array(z.object({
       name: z.string(),
       description: z.string(),
@@ -154,12 +155,12 @@ export const NOTE_KINDS = {
     stopRules: z.array(z.string()),
     frozen: z.iso.datetime().optional(),
     outcome: z.string().optional(),
-    ...artifact,
   }).strict().superRefine((experiment, ctx) => {
     if (new Set(experiment.arms.map(({ name }) => name)).size !== experiment.arms.length) refuse(ctx, "arms", "no two arms share a name");
     if (experiment.outcome !== undefined && experiment.frozen === undefined) refuse(ctx, "outcome", "an outcome is added only once the experiment is frozen");
   }),
   escape: z.object({
+    ...artifact,
     instance: z.object({
       run: z.number().optional(),
       pr: z.number().optional(),
@@ -180,7 +181,6 @@ export const NOTE_KINDS = {
     rungWhy: z.string().min(1).optional(),
     defences: z.array(z.string()).optional(),
     plants: z.array(z.string()).optional(),
-    ...artifact,
   }).strict().superRefine((escape, ctx) => {
     if (escape.caughtAt === "escaped" && escape.instance.escape === undefined) refuse(ctx, "instance", "an escaped pattern names the increment carrying its escape");
     if (escape.caughtAt === "ci" && escape.instance.run === undefined && escape.instance.pr === undefined) refuse(ctx, "instance", "a pattern CI caught names its run or pull request");
@@ -192,6 +192,9 @@ export const NOTE_KINDS = {
     else if (escape.rung !== undefined && escape.rung !== "none" && (escape.defences ?? []).length === 0) refuse(ctx, "defences", "a rung other than none names its defences");
   }),
   drill: z.object({
+    title: z.string().min(1),
+    description: z.string().min(1),
+    links: z.array(z.string()).optional(),
     pattern: z.string(),
     plant: z.object({ story: z.string(), capability: z.string(), file: z.string().min(1), shape: z.string().min(1) }).strict(),
     mode: z.enum(["defect", "task"]),
@@ -201,9 +204,6 @@ export const NOTE_KINDS = {
     sameModel: z.boolean().optional(),
     session: z.string().min(1),
     date: day,
-    title: z.string().min(1),
-    description: z.string().min(1),
-    links: z.array(z.string()).optional(),
   }).strict().superRefine((drill, ctx) => {
     const layers = drill.layers.map(({ layer }) => layer);
     const result = (layer: string) => drill.layers.find((row) => row.layer === layer)?.result;
@@ -216,6 +216,7 @@ export const NOTE_KINDS = {
     if (REVIEWERS.includes(drill.caughtBy) !== (drill.sameModel !== undefined)) refuse(ctx, "sameModel", "a reviewer's catch, and only a reviewer's, says whether the reviewer was the planter's model");
   }),
   measure: z.object({
+    ...artifact,
     story: z.string(),
     base: z.boolean().optional(),
     reads: z.string(),
@@ -225,7 +226,6 @@ export const NOTE_KINDS = {
     machine: z.string(),
     runs: z.number().int().min(1),
     version: z.number().int().min(1),
-    ...artifact,
   }).strict(),
 };
 

@@ -2,6 +2,7 @@
 export { defaultEmbedder, modelsFolder, verifyModelFolder, type Embedder, type EmbedderSource } from "./model.js";
 export { throughProxy } from "./proxy.js";
 export { findPhrase, type PhraseKind, type PhraseOptions, type PhrasePage } from "./phrase.js";
+export { everyHolding, holdingLines, type PhraseHit } from "./holding.js";
 export {
   RankedSearch,
   SEARCHABLE_KINDS,
@@ -15,5 +16,5 @@ export {
   type Ranking,
   type RankOptions,
 } from "./rank.js";
-export { chunksOf, renderNote } from "./render.js";
+export { chunksOf, renderNote, titleOf } from "./render.js";
 export { MemoryVectors, PgVectors, VECTOR_TABLES, vectorServerIdentity, type VectorDomain, type VectorStore } from "./vectors.js";

@@ -1,6 +1,6 @@
 // Capability 23 · Catalogue
 import type { Library, WriteOptions } from "../../index.js";
-import { ARTIFACT_KINDS, matches, type Note } from "../notes/index.js";
+import { matches, NOTE_TYPES, type Note } from "../notes/index.js";
 import { edgesOf, LibrarianRefusal, notesOf, type NotesRead } from "./links.js";
 
 export interface NewNote {
@@ -46,7 +46,7 @@ export async function retire(library: Library, id: string, reason: string, write
 export async function newNotes(library: Library, cursor: number, read?: NotesRead): Promise<NewNote[]> {
   const notes = await notesOf(library, read);
   const live = new Map(notes.map((note) => [note.id, note]));
-  const created = await library.history({ since: cursor, types: ARTIFACT_KINDS, actions: ["created"] });
+  const created = await library.history({ since: cursor, types: NOTE_TYPES, actions: ["created"] });
   return [...new Set(created.map(({ recordId }) => recordId))].flatMap((id) => {
     const note = live.get(id);
     if (note === undefined) return [];

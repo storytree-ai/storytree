@@ -1,7 +1,7 @@
 // Capability 21 · Links
 import type { Library, SchemaRecord, WriteOptions } from "../../index.js";
 import { byCreation } from "../decisions/index.js";
-import { ARTIFACT_KINDS, relatedOf, type Note, type Related } from "../notes/index.js";
+import { NOTE_TYPES, relatedOf, type Note, type Related } from "../notes/index.js";
 
 export class LibrarianRefusal extends Error {
   override readonly name = "LibrarianRefusal";
@@ -43,7 +43,7 @@ export function edgesOf(fields: object): { field: string; to: string }[] {
 }
 
 export function isNote(record: { readonly type: string }): boolean {
-  return ARTIFACT_KINDS.includes(record.type);
+  return NOTE_TYPES.includes(record.type);
 }
 
 export async function notesOf(library: Library, read?: NotesRead): Promise<readonly Note[]> {
@@ -85,7 +85,7 @@ export async function unrestedDecisions(library: Library, read?: NotesRead): Pro
 export async function relatedUnlinked(library: Library, cursor: number, read?: NotesRead): Promise<Related[]> {
   const notes = await notesOf(library, read);
   const live = new Map(notes.map((note) => [note.id, note]));
-  const written = await library.history({ since: cursor, types: ARTIFACT_KINDS });
+  const written = await library.history({ since: cursor, types: NOTE_TYPES });
   const sources = [...new Set(written.map(({ recordId }) => recordId))].flatMap((id) => live.get(id) ?? []);
   return sources.map((source) => relatedOf(source, notes, { unlinked: true }));
 }

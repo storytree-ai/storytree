@@ -1,4 +1,7 @@
 // Capability 4 · Work model
+export { attachedLines, attachedTo, shelfOf, type Attached, type ShelfEntry } from "./attached.js";
+export { bareSaid } from "./bare.js";
+export { filedOnSaid } from "./filed.js";
 export { CONTRACT_DEFINITION, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE, planGuidance } from "./guidance.js";
 export { CONTRACT_PROOFS, PIN_ICONS, PLAN_KINDS, PLAN_PENDING_CHANGE, STORE_LINK_DIRECTIONS, type PendingPlanChange } from "./kinds.js";
 export { recordPin, type PinNote } from "./pin.js";

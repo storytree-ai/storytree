@@ -19,7 +19,7 @@ import {
   type RankOptions,
 } from "../search/index.js";
 import { frictionState } from "./kinds.js";
-import { ARTIFACT_KINDS, checkLoops, gained, referencesOf } from "./links.js";
+import { checkLoops, gained, NOTE_TYPES, referencesOf } from "./links.js";
 import { matches, relatedOf, type Related, type RelatedOptions } from "./related.js";
 
 export type NewKnowledge<K extends KnowledgeKind = KnowledgeKind> = K extends "friction" ? Omit<FieldsOf<K>, "state"> : FieldsOf<K>;
@@ -176,13 +176,13 @@ export class Knowledge {
   }
 
   async #notes(): Promise<Note[]> {
-    return oldestFirst(await this.#records.list(ARTIFACT_KINDS as NoteType[]));
+    return oldestFirst(await this.#records.list(NOTE_TYPES as NoteType[]));
   }
 
   async #note(id: string): Promise<Note | null> {
     if (id.includes("\u0000")) return null;
     const record = await this.#records.get(id);
-    return record !== null && ARTIFACT_KINDS.includes(record.type) ? (record as Note) : null;
+    return record !== null && NOTE_TYPES.includes(record.type) ? (record as Note) : null;
   }
 
   async #nextNumber(): Promise<number> {

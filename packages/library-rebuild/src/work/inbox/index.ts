@@ -1,6 +1,7 @@
 // Capability 12 · Owner questions
 export { feedbackScreenshot, routeFeedback, sendFeedback, type FeedbackNote, type FeedbackPictures, type FeedbackRoute } from "./feedback.js";
 export { markFyisHeard, recordFyi, unheardFyis, type NewFyi } from "./fyi.js";
+export { FYI_FAMILY } from "./fyi-verbs.js";
 export {
   checkQuestion,
   editQuestion,

@@ -98,14 +98,8 @@ export class PgBackend implements Backend {
 
   #on(db: Queryable | PoolClient): Writer {
     return {
-      get: async (id) => {
-        const { rows } = await db.query<RecordRow>("SELECT * FROM record WHERE id = $1", [id]);
-        return rows[0] === undefined ? null : envelope(rows[0]);
-      },
-      lock: async (id) => {
-        const { rows } = await db.query<RecordRow>("SELECT * FROM record WHERE id = $1 FOR UPDATE", [id]);
-        return rows[0] === undefined ? null : envelope(rows[0]);
-      },
+      get: async (id) => await one(db, "SELECT * FROM record WHERE id = $1", id),
+      lock: async (id) => await one(db, "SELECT * FROM record WHERE id = $1 FOR UPDATE", id),
       list: async (types, filter) => this.#list(db, types, filter),
       history: async (filter) => this.#history(db, filter),
       put: async (record) => {
@@ -214,6 +208,12 @@ export class PgBackend implements Backend {
     const entries = rows.map(historyEntry);
     return newest ? entries.reverse() : entries;
   }
+}
+
+async function one(db: Queryable, sql: string, id: string): Promise<RecordEnvelope | null> {
+  if (id.includes("\0")) return null;
+  const { rows } = await db.query<RecordRow>(sql, [id]);
+  return rows[0] === undefined ? null : envelope(rows[0]);
 }
 
 function envelope(row: RecordRow): RecordEnvelope {

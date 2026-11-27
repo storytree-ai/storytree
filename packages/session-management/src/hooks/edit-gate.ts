@@ -3,7 +3,7 @@ import path from "node:path";
 
 import type { DeclaredCapabilities, GateContext, ImportedFolderPlace, ReadsCode } from "../claims/edit-gate.js";
 import type { LocateOptions } from "@storytree/project-and-caller";
-import { patchEdits } from "./codex.js";
+import { patchEdits } from "./patch-files.js";
 import { cursorSession } from "./cursor.js";
 import { piEdit, piSession } from "./pi.js";
 import { antigravityEdit, antigravitySession } from "./antigravity.js";

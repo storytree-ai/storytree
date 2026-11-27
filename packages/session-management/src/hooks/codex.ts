@@ -3,8 +3,7 @@ import type { NewLine } from "@storytree/library";
 import type { HookLines } from "./hooks.js";
 import { outsideTextLine } from "./outside-text.js";
 import { toolRequestedLine } from "./requests.js";
-
-const PATCH_FILE = /^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+)$/;
+import { patchFiles } from "./patch-files.js";
 
 export function codexLines(input: Record<string, unknown>): HookLines | undefined {
   const { session_id: session, cwd: folder, hook_event_name: event } = input;
@@ -73,29 +72,6 @@ function commandStartedLine(common: Pick<NewLine, "session" | "harness" | "sourc
   if (tool !== "Bash" || typeof toolInput !== "object" || toolInput === null || !isText(call)) return undefined;
   const { command } = toolInput as Record<string, unknown>;
   return typeof command === "string" && !command.includes("*** Begin Patch") ? { ...common, kind: "command-started", command, call } : undefined;
-}
-
-export function patchEdits(patch: string): { path: string; text?: string }[] {
-  const edits: { path: string; text?: string }[] = [];
-  let adding: { path: string; text: string } | undefined;
-  for (const line of patch.split(/\r?\n/)) {
-    if (line.startsWith("***")) adding = undefined;
-    else if (adding !== undefined && line.startsWith("+")) adding.text += `${line.slice(1)}\n`;
-    const file = PATCH_FILE.exec(line)?.[1]?.trimEnd();
-    if (file === undefined || edits.some((edit) => edit.path === file)) continue;
-    if (line.startsWith("*** Add File:")) edits.push((adding = { path: file, text: "" }));
-    else edits.push({ path: file });
-  }
-  return edits;
-}
-
-function patchFiles(patch: string): string[] {
-  const files: string[] = [];
-  for (const line of patch.split(/\r?\n/)) {
-    const file = PATCH_FILE.exec(line)?.[1]?.trimEnd();
-    if (file !== undefined && !files.includes(file)) files.push(file);
-  }
-  return files;
 }
 
 function isText(value: unknown): value is string {

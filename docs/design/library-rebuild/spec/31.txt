@@ -1,0 +1,5 @@
+Story "The library" (story_754e87e7d531): reported not checked, verified passing
+  Capability "31 · Decisions" (capability_c5b8fdaaeea1): reported not checked, verified passing; healthy; nobody holds it
+    About: The decision register as one part, reached through its entry file (packages/library/src/decisions/index.ts): a decision is recorded, numbered, corrected, annotated and superseded there. It holds the decision log and decision corrections.
+    Decisions: founded on "The decision register is one part behind one entry file" (decision_b674ae602858, ADR-1381).
+    Contract "31.1 · Through the decisions entry, one decision's life runs end to end" (contract_43149cf4ac2c): reported not checked, verified passing; proved by a test criterion: the stored decisions and the log's reading are returned values a test can see

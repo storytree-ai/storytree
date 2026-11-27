@@ -1,0 +1,5 @@
+Story "The library" (story_754e87e7d531): reported not checked, verified passing
+  Capability "35 · The librarian" (capability_e1dd321b2bf0): reported not checked, verified passing; healthy; held by Claude Code 84b4e8a8-ed5a-4efc-b504-bc5a83494f0e: Library refactor step 1: close the picked tree's cycle sets
+    About: The librarian's curation as one part, reached through its entry file (packages/library/src/librarian/index.ts) and its shared note reading (librarian/notes.ts): links, the catalogue, graduation and rounds.
+    Decisions: founded on "The librarian is one part behind one entry file" (decision_6072aa3d9614, ADR-1385).
+    Contract "35.1 · Through the librarian entry, a link or retire naming no live note is refused and writes nothing" (contract_5f561faf3439): reported not checked, verified passing; proved by a test criterion: the refusal and the unchanged records are returned values a test can see

@@ -1,0 +1,11 @@
+Story "The library" (story_754e87e7d531): reported not checked, verified passing
+  Capability "23 · Catalogue" (capability_36bcae448803): reported not checked, verified passing; healthy; held by Claude Code 84b4e8a8-ed5a-4efc-b504-bc5a83494f0e: Library refactor step 1: close the picked tree's cycle sets
+    About: Every artifact that lands is either genuinely new or an edit to the artifact that already covers it, and never a near-copy. Guidance any capable agent would work out for itself is pruned.
+    Decisions: founded on "23 · Catalogue: founding book (proposed, approved; 0.2's `edit-first-curation`)" (decision_da37f3db9903, ADR-0695).
+    Contract "23.1 · `retire(id, reason)` retires an artifact nothing points at. An artifact that another live record points at (a link, a supersession, a process's hand-on, an agent role's reading, rules or anti-patterns, an increment's remedies, or a question it settled) is refused, naming what points at it, and nothing is written." (contract_ec022e101e9f): reported not checked, verified passing; proved by a test criterion: A test can retire an artifact something points at and read the refusal naming what points at it.
+    Contract "23.2 · The worklist lists each artifact written new since a cursor, with the live artifacts a plain search for any word of its title finds, so the agent can see what might already cover it." (contract_570dac9dfb81): reported not checked, verified passing; proved by a test criterion: A test can write a new artifact and check the worklist shows it with notes a title-word search finds.
+    Contract "23.3 · The worklist lists each write to an agent role or a principle since its cursor that was made after its session read outside text, with what was read" (contract_268c1419ea75): reported not checked, verified passing; proved by a test criterion: A test can write to a role after reading outside text and check the worklist lists the write with what was read.
+  Edge (edge_867fe57a3394): "23 · Catalogue" depends on "7 · Library API"
+  Edge (edge_378143924165): "23 · Catalogue" depends on "21 · Links"
+  Edge (edge_6480250a132c): "24 · Graduation" depends on "23 · Catalogue"
+  Edge (edge_91de2b52ac53): "26 · Rounds" depends on "23 · Catalogue"

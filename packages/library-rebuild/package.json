@@ -1,0 +1,40 @@
+{
+  "name": "@storytree/library-rebuild",
+  "story": "story_754e87e7d531",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./commands": "./src/commands/index.ts",
+    "./connection-error": "./src/projects/shared/connection-error.ts",
+    "./librarian": "./src/knowledge/librarian/index.ts",
+    "./outside-writer": "./src/projects/shared/outside-writer.ts",
+    "./pr-cutover": "./src/plan/pr-cutover.ts",
+    "./printable": "./src/printable.ts",
+    "./reads": "./src/projects/shared/reads.ts",
+    "./testing/pg": "./src/testing/pg.ts",
+    "./verbs": "./src/commands/kit/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.3.0",
+    "@neondatabase/serverless": "^1.2.0",
+    "@storytree/keys": "workspace:*",
+    "https-proxy-agent": "^9.1.0",
+    "pg": "^8.23.0",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
+    "@types/node": "^24.13.6",
+    "@types/pg": "^8.23.1",
+    "@types/ws": "^8.18.2",
+    "electron": "44.9.3",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

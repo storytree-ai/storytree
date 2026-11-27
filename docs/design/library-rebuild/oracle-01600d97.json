@@ -1,0 +1,3010 @@
+{
+  "tests": [
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.1 an agent's day against a real local Postgres: every step is visible where the next step expects it",
+      "contract": "7.1"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.2 changesSince(n) returns only the changes after n, in order, each carrying the cursor to pass next time",
+      "contract": "7.2"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.3 the package's public entry exports exactly the API and nothing else, and its internals cannot be imported through the package",
+      "contract": "7.3"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.18 sendFeedback writes a feedback record, with the element it points at, and keeps its screenshot and the crop to that element beside it, out of the record's history; feedbackScreenshot returns the bytes, and none for a note sent without one",
+      "contract": "7.18"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.22 pluginRecords lists a switched-off plugin's records by kind, with how many and their ids, and removePluginRecords removes exactly what it was handed and nothing else, refusing a listing that no longer matches with nothing removed",
+      "contract": "7.22"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.19 routeFeedback marks a new feedback record routed with its route, target and reason; a missing, non-feedback or already routed record is refused with nothing written, and a routed record must carry its route and reason",
+      "contract": "7.19"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.23 recordFyi keeps what the owner should know with its title, what happened, when, what it is about and who noticed it; unheardFyis lists those he has not heard, oldest first; markFyisHeard marks them heard, so they are listed no more but stay in history, and refuses an id that is no FYI with nothing written (ADR-1184 D3)",
+      "contract": "7.23"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.28 recordPin keeps an agent's pin as a pin record, its anchor on a capability, part, exported name or store, a preset icon, a short label, its evidence, a commit and when; fields that do not fit are refused with nothing written",
+      "contract": "7.28"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.29 · naming(id) returns every live record but health that names the id in a field or among a list field's members, whole and in id order, leaving out prose mentions, and none for an id nothing names",
+      "contract": "7.29"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.30 · linkingIn(id) returns every live record whose stored links hold the id (an increment, a question, a note) and every friction whose dischargedBy is the id, whole and in id order, leaving out a record naming it only in its text or in another field, and none for an id nothing links to",
+      "contract": "7.30"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.10 projectTree marks a capability not proven that a parked arc's open work names with that arc, and drops the mark once the arc is unparked (ADR-0992)",
+      "contract": "7.10"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.4 editStory, editContract and editArc change only the fields they name, check a new reference as adding does, and give null for an id that is not a live record of their type",
+      "contract": "7.4"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "4.9 · retiring a capability refuses live dependents without writing, then succeeds once their links are gone",
+      "contract": "4.9"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.21 createPluginRecord saves a record of a plugin's kind the project was opened with, with the writer on its history; a kind it was not opened with, a core kind and fields outside the declared shape are refused with nothing written (ADR-1178 D3)",
+      "contract": "7.21"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.24 editPluginRecord changes the named fields of a record of a plugin's kind the project was opened with, its writer on the history, and checkCurrent refuses an edit the record as it stands rules out; a core kind's record, a kind it was not opened with and fields outside the declared shape are refused with nothing written, and an id that is no live record is null",
+      "contract": "7.24"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.25 changesSince(n, { types, actions }) hands out only the changes of those types and actions after n, oldest first, with the cursor of the last one it kept",
+      "contract": "7.25"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.27 changesSince(n, { fields, healthColumns }) keeps only those record fields, and of health only those columns' changes, with the cursor of the latest change it read past",
+      "contract": "7.27"
+    },
+    {
+      "file": "packages/library/src/api/library-api.test.ts",
+      "sha256": "936208f5bbc0b9a25491c797e57161fd83cd3ce2279ba7abbd96340b32017909",
+      "title": "7.26 attachMedia keeps a file beside a live record, with its type, size and SHA-256, out of the record's history; media lists them and mediaFile reads one back exactly; a record that is not live, a file past 10 MB and a name taken by other bytes are refused, unless replacing",
+      "contract": "7.26"
+    },
+    {
+      "file": "packages/library/src/api/own-database.test.ts",
+      "sha256": "505c8c381ab569a4cec5c61cc18ab6c89f95e00481800ab59c0a014212ba57fc",
+      "title": "7.7 a connection's own database is made the first time, is never a project, and closes with the connection",
+      "contract": "7.7"
+    },
+    {
+      "file": "packages/library/src/api/own-database.test.ts",
+      "sha256": "505c8c381ab569a4cec5c61cc18ab6c89f95e00481800ab59c0a014212ba57fc",
+      "title": "7.7 a caller hands in its tables and gets its own database set up: connections setting it up at once all succeed, and every table is there",
+      "contract": "7.7"
+    },
+    {
+      "file": "packages/library/src/api/own-database.test.ts",
+      "sha256": "505c8c381ab569a4cec5c61cc18ab6c89f95e00481800ab59c0a014212ba57fc",
+      "title": "7.7 once its tables are there, a new connection's set-up runs no DDL, so it never waits behind a writer's open transaction",
+      "contract": "7.7"
+    },
+    {
+      "file": "packages/library/src/api/printable.test.ts",
+      "sha256": "5628321b05d092fbc238f3a7c87ab969f2f247a8fddec04b745671112121f8e5",
+      "title": "7.20 · printable keeps text, line breaks and tabs, and turns every other control character into a placeholder",
+      "contract": "7.20"
+    },
+    {
+      "file": "packages/library/src/api/public-reads.test.ts",
+      "sha256": "4297ede3b273211906545e55fc349cbb89d285ba5f612adf3a823e3226398949",
+      "title": "7.5 [${backend}] get/list read live records whole and history keeps every original write",
+      "contract": "7.5"
+    },
+    {
+      "file": "packages/library/src/api/snapshot.test.ts",
+      "sha256": "8d5d2b4f76343e6d4513a56d7792139f6edd24a2e7e68e4b508d0fa5cbd3aeb6",
+      "title": "1.6 snapshot returns every record of the project and its whole history, as they stood at one moment",
+      "contract": "1.6"
+    },
+    {
+      "file": "packages/library/src/api/snapshot.test.ts",
+      "sha256": "8d5d2b4f76343e6d4513a56d7792139f6edd24a2e7e68e4b508d0fa5cbd3aeb6",
+      "title": "1.7 restore into an empty project gives back the same records and history, and the next write continues after them",
+      "contract": "1.7"
+    },
+    {
+      "file": "packages/library/src/api/snapshot.test.ts",
+      "sha256": "8d5d2b4f76343e6d4513a56d7792139f6edd24a2e7e68e4b508d0fa5cbd3aeb6",
+      "title": "1.8 restoring into a project that holds any record or history is refused, naming it, and writes nothing",
+      "contract": "1.8"
+    },
+    {
+      "file": "packages/library/src/api/snapshot.test.ts",
+      "sha256": "8d5d2b4f76343e6d4513a56d7792139f6edd24a2e7e68e4b508d0fa5cbd3aeb6",
+      "title": "1.30 a snapshot carries the media kept beside the project's records, and a restore gives each file back exactly, refusing one whose bytes do not match its SHA-256 with nothing written",
+      "contract": "1.30"
+    },
+    {
+      "file": "packages/library/src/api/snapshot.test.ts",
+      "sha256": "8d5d2b4f76343e6d4513a56d7792139f6edd24a2e7e68e4b508d0fa5cbd3aeb6",
+      "title": "1.7 a restore over a slow link finishes in seconds, not a round trip per record",
+      "contract": "1.7"
+    },
+    {
+      "file": "packages/library/src/api/writer.test.ts",
+      "sha256": "40944a7a86ec8a77903f3390a4baf8f7a64d64b8c6a8c62e3428d9a084edc314",
+      "title": "2.10 / 7.6 [${backend}] every write keeps its optional writer in history",
+      "contract": "2.10"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.1 · The library declares the library family first among storytree's families, its fourteen verbs as commands, then capability 27's three, and none as a tool; a verb reads a phrase from @file in the caller's folder and refile rewrites an artifact as another kind under its id (holding a planned record's edit on the caller's increment is 10.29's)",
+      "contract": "17.1"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.3 · library edit project-anchor --what … --audience … writes the project's anchor, making it on its first write and refusing any other field with nothing written, and library read reads it back; a story takes no audience (ADR-1085 D1, ADR-1096)",
+      "contract": "17.3"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.5 · library edit pr-cutover --at … --repository … writes the repository cut-over, the old repository by default the name's -history and none when it was deleted; it is refused without both, or with another field, with nothing written (increment_7f7599b35fe4)",
+      "contract": "17.5"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.2 · The library declares search_notes, find_text, open, write_note and correct_note as tools and none as a command; each artifact they show is handed to the door as a read, found as the session last saw it, and an artifact written with no place goes onto the shelf of the capability the session claimed last, inside the cover it opened last",
+      "contract": "17.2"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.26 · write_note files a decision on no guessed part: a part in links is refused naming front_cover_of, and two held parts with none named is refused asking which",
+      "contract": "17.26"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.28 · A decision filed on a part answers with that part's and each part one link from it on the map: their descriptions and contract titles quoted, a part with none said so, the edit_plan sentence, and nothing of a part two links away",
+      "contract": "17.28"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.4 · One field round-trips byte for byte: library read --field and the open tool's field give a record's stored value exactly, and library edit @file writes it back unchanged",
+      "contract": "17.4"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.6 · library read says a record of a plugin's kind no mounted plugin declares is dormant, and reads it as stored; with the plugin mounted it reads as any other record (ADR-1178 D3)",
+      "contract": "17.6"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.14 · library list, search, phrase and exact say how many records of a plugin's kind no mounted plugin declares the library holds, that they are dormant here, and the command that mounts the plugin, or that this computer's factory has no such plugin; with it mounted, nothing changes (ADR-1178 D3)",
+      "contract": "17.14"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.7 · The open tool opens a record of a plugin's kind whole, as library read does, said dormant when no mounted plugin declares it (ADR-1178 D3)",
+      "contract": "17.7"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.8 · library revert writes a record back to an entry library history shows, whole and under its id, bringing a retired one back; the entry names what it reverted to and who, and a revert read before a later write is refused with nothing written",
+      "contract": "17.8"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.9 · library undo <actor> writes every record one writer wrote back to before that writer's first write, retiring what it made; where another writer wrote since, it is refused naming the record, with nothing written",
+      "contract": "17.9"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.10 · The library declares the fyi family: fyi new records an FYI, by the caller unless --by names another, fyi list lists the unheard ones oldest first, and fyi heard marks them heard so the list no longer shows them; none is a tool (ADR-1184 D3)",
+      "contract": "17.10"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.11 · library history shows, under each write made after its session read outside text, what was read",
+      "contract": "17.11"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.12 · library edit --remove <field> removes an optional field, keeping the record and its other fields; a field the kind requires, one also given a value, or one on a story, capability or contract is refused with nothing written",
+      "contract": "17.12"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.29 · library edit <question> --unbuilt records on a settled question the capabilities the owner's answer leaves unbuilt, as a comma-separated list; its wording stays refused",
+      "contract": "17.29"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.13 · library new capability, run by a session holding an increment, judges the story's capability numbers as that increment's pending changes would leave it: a number a pending move out of the story or a pending retirement frees is given, and one a pending move into the story brings is refused",
+      "contract": "17.13"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.15 · library list --where on a list field matches the records whose list holds the value, and --open keeps only open increments (proposal or active), so one call finds the open increments that name a capability; --open on another kind is refused",
+      "contract": "17.15"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.16 · library edit --live, run by a session holding an increment, edits a story, capability or contract live, writing no pending change on the increment, so the session corrects the live plan without letting its increment go (ADR-0966 D1's note)",
+      "contract": "17.16"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.20 · library edit's answer for an edit held on the caller's increment says the way out when that increment will have no branch (arc increment drop-pending of that increment and record, then the edit again with --live) in its text, and offers neither as a next step (friction_2c24f3dcea45)",
+      "contract": "17.20"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.17 · library exact and the find_text tool list every live record holding a phrase exactly, each with its id, kind, title and the fields that hold it, following the cursor to the end",
+      "contract": "17.17"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.24 · library search and search_notes give current state unless told: --history (history) brings back resteers, friction and superseded decisions, --kind (kinds) ranks only the kinds named, an unknown kind is refused as misuse, and a narrowed decision's line names the decision that narrows it",
+      "contract": "17.24"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.33 · A search hit on a decision superseded in part says so after its title: \"(D2, D3 superseded by ADR-1379)\" with the clauses named, \"(partly superseded by ADR-1379)\" with none",
+      "contract": "17.33"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "14.19 · library search --kind arc|increment and search_notes kinds arc|increment rank only that kind, never refusing it",
+      "contract": "14.19"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.19 · library new decision refuses an accepted decision with no authority, with nothing written, naming adr new; with an authority it writes it (friction_b2b343a7a75e)",
+      "contract": "17.19"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.21 · library edit and correct_note refuse, naming the newer change and writing nothing, a whole-field write whose record changed since --read <seq>, or, with no --read, that another writer changed in the last 15 minutes (friction_90ff039d8cce)",
+      "contract": "17.21"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.22 · library new edge and library new contract --edge write an edge and its contract, library edit corrects an edge's description, library read of a capability gives its dependsOn as the plan's tree does, and library move-to-edges moves stored same-story dependsOn ids onto edges",
+      "contract": "17.22"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.27 · library edit --edge moving a contract onto a link that leaves its part with no live contracts of its own names that part and says to plan its own behaviour contract or leave it bare knowingly; a move that leaves it contracts says nothing of it",
+      "contract": "17.27"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.23 · The open tool opens a contract on an edge whole, as it does a capability's: its title, its statement, the edge and the two capabilities it joins, and its health (increment_fb8e17883110)",
+      "contract": "17.23"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.25 · The open tool reads a question with an Evidence line naming each record it links by title, after Holding, or as no longer live once retired, and none when it links nothing",
+      "contract": "17.25"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.30 · library search and read, and the search_notes and open tools, read the factory's library or a project it builds when named, from the factory's folder or a project's, each result under its project; all searches every one, naming one that could not be opened; a project outside is refused (ADR-1348 D2)",
+      "contract": "17.30"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.31 · Every kind ARTIFACT_KINDS registers is ranked by library search --kind; one it marks captured is refused by library new and write_note naming its capture command and tool (friction and resteer only), and any other reaches its writer, refused only for its missing fields",
+      "contract": "17.31"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.32 · The open tool and library read, on a story or a capability, list everything attached to it: its covers, a story's capabilities with theirs, the open increments naming it or a capability of the story with the questions holding them, and every other record naming it in a field; a closed increment and a prose mention are not listed",
+      "contract": "17.32"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.34 · library read of a decision lists each link to a decision with its field, its target and its justification on one line, an old-shape one said to have none; library links shows each linking decision's justification beside it; library edit --justifications writes one, and an edit adding a decision link without one is refused naming it",
+      "contract": "17.34"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.35 · The open tool shows each decision a decision links to with its justification on the same line, and in its data; write_note writes a decision's justifications, and refuses a decision linking a decision without one, naming it",
+      "contract": "17.35"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.36 · library links, library read's \"Linked from:\" and the open tool's \"Linked from:\" list every record linking to a decision, an increment, a question and a friction it discharged beside a note, and not a note citing it only in its text; reading or opening a decision says \"Superseded by ADR-n\" when a later one supersedes it whole and \"Superseded in part by ADR-n (D2, D3)\" when one supersedes those clauses",
+      "contract": "17.36"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.37 · library new and library edit store a one-line field (title, term) without one final line break (\\n or \\r\\n), as a file given with @file ends; a multi-line field such as text keeps it, byte for byte",
+      "contract": "17.37"
+    },
+    {
+      "file": "packages/library/src/commands/commands.test.ts",
+      "sha256": "440a42acc19a3f50babdf700db6e630fb2a95e0a780564c607522f417832256b",
+      "title": "17.38 · Given another live session claims a capability, when library new contract, library edit or library retire writes a contract on it, then the command is refused naming the holder's session and the capability, and nothing is written",
+      "contract": "17.38"
+    },
+    {
+      "file": "packages/library/src/commands/media.test.ts",
+      "sha256": "40cf4db79ce1669c4924b43a9cc4417ca807733843f60bcb65bc129939eedfdd",
+      "title": "17.18 · media attach keeps a file from the caller's folder beside a record, its type read from its extension unless given, media list names a record's files with their type, size and hash, and media get saves one back exactly; each is also a tool (attach_media, list_media, fetch_media), and the library's refusals are said",
+      "contract": "17.18"
+    },
+    {
+      "file": "packages/library/src/data/data-questions.test.ts",
+      "sha256": "d3a74d6a5d1fcbf13b0c93fbdec8ea3fe0ec0e64d4c869ee8ecc4fefcb756600",
+      "title": "27.6 · library find gives current state: other records, then decisions superseded in part (clause-scoped, or a narrows not yet moved), each most recently changed first; resteers, friction and superseded decisions come back, last and most recently changed first, only with --history",
+      "contract": "27.6"
+    },
+    {
+      "file": "packages/library/src/data/data-questions.test.ts",
+      "sha256": "d3a74d6a5d1fcbf13b0c93fbdec8ea3fe0ec0e64d4c869ee8ecc4fefcb756600",
+      "title": "27.1 · library count tallies live records by kind and status, and open increments by arc, leaving health out",
+      "contract": "27.1"
+    },
+    {
+      "file": "packages/library/src/data/data-questions.test.ts",
+      "sha256": "d3a74d6a5d1fcbf13b0c93fbdec8ea3fe0ec0e64d4c869ee8ecc4fefcb756600",
+      "title": "27.2 · library changes lists the latest changes newest first by sequence number, at most 20, health left out",
+      "contract": "27.2"
+    },
+    {
+      "file": "packages/library/src/data/data-questions.test.ts",
+      "sha256": "d3a74d6a5d1fcbf13b0c93fbdec8ea3fe0ec0e64d4c869ee8ecc4fefcb756600",
+      "title": "27.3 · library find lists live records whose title holds every word, at most 20, long titles cut",
+      "contract": "27.3"
+    },
+    {
+      "file": "packages/library/src/data/data-questions.test.ts",
+      "sha256": "d3a74d6a5d1fcbf13b0c93fbdec8ea3fe0ec0e64d4c869ee8ecc4fefcb756600",
+      "title": "27.4 · library read takes a decision's number, 1103 or ADR-1103, in place of its id",
+      "contract": "27.4"
+    },
+    {
+      "file": "packages/library/src/data/data-questions.test.ts",
+      "sha256": "d3a74d6a5d1fcbf13b0c93fbdec8ea3fe0ec0e64d4c869ee8ecc4fefcb756600",
+      "title": "27.5 · library changes --actor lists each record one writer wrote, health left out, with each field from before its first write to after its last, and names a later writer",
+      "contract": "27.5"
+    },
+    {
+      "file": "packages/library/src/decisions/adr.test.ts",
+      "sha256": "48da6184d6529dddee34ef075b24ca310d59c9cfe798153370590e5fa5a7b418",
+      "title": "13.10 · the library declares the `adr` family the command line lists 4th: a pulled decision pushed back unedited writes nothing and never asks for the writer, and an edited title writes that field alone",
+      "contract": "13.10"
+    },
+    {
+      "file": "packages/library/src/decisions/adr.test.ts",
+      "sha256": "48da6184d6529dddee34ef075b24ca310d59c9cfe798153370590e5fa5a7b418",
+      "title": "13.11 · `adr new --basis brought-across` takes the 0.2 record it points at and the basis 0.2 gave, and refuses the label without them",
+      "contract": "13.11"
+    },
+    {
+      "file": "packages/library/src/decisions/adr.test.ts",
+      "sha256": "48da6184d6529dddee34ef075b24ca310d59c9cfe798153370590e5fa5a7b418",
+      "title": "13.16 · moveNarrowsToClauses and `adr move-narrows` move each stored narrows onto a supersedesClauses entry, its clauses those the narrowing text names beside the narrowed decision's ADR number, partial where it names none, leaving no narrows; a second run writes nothing",
+      "contract": "13.16"
+    },
+    {
+      "file": "packages/library/src/decisions/adr.test.ts",
+      "sha256": "48da6184d6529dddee34ef075b24ca310d59c9cfe798153370590e5fa5a7b418",
+      "title": "13.17 · supersessionPairs and `adr pairs` flag a clause-scoped supersedes with no in-place note naming it and an in-place note with no edge behind it, failing while any is flagged; a pair whose superseding decision was recorded before 2026-11-20 is counted as backlog",
+      "contract": "13.17"
+    },
+    {
+      "file": "packages/library/src/decisions/adr.test.ts",
+      "sha256": "48da6184d6529dddee34ef075b24ca310d59c9cfe798153370590e5fa5a7b418",
+      "title": "13.20 · `adr new --why <target>=<text>` writes each decision link's and supersession's justification, split on the first =; `adr new` linking or superseding a decision with no --why for it is refused naming justification and the target, with nothing written",
+      "contract": "13.20"
+    },
+    {
+      "file": "packages/library/src/decisions/adr.test.ts",
+      "sha256": "48da6184d6529dddee34ef075b24ca310d59c9cfe798153370590e5fa5a7b418",
+      "title": "13.21 · `adr pull` shows a decision's justifications as an editable front-matter line keyed by target, and `adr push` writes an edited one back",
+      "contract": "13.21"
+    },
+    {
+      "file": "packages/library/src/decisions/adr.test.ts",
+      "sha256": "48da6184d6529dddee34ef075b24ca310d59c9cfe798153370590e5fa5a7b418",
+      "title": "13.22 · decisionLinkBacklog and `adr backlog` count the old-shape decision links, stored with no justification, and the decisions holding them, never failing on them; a justified link or a link to a story is not counted, and an old-shape decision's text still edits",
+      "contract": "13.22"
+    },
+    {
+      "file": "packages/library/src/decisions/adr.test.ts",
+      "sha256": "48da6184d6529dddee34ef075b24ca310d59c9cfe798153370590e5fa5a7b418",
+      "title": "13.25 · decisionLinkBacklog's targets and `adr backlog --by-target` list each decision old-shape links point at with its number, title and count, most links in first and ties by number, counting no justified link and no link to a story; the plain `adr backlog` keeps its two counts",
+      "contract": "13.25"
+    },
+    {
+      "file": "packages/library/src/decisions/adr.test.ts",
+      "sha256": "48da6184d6529dddee34ef075b24ca310d59c9cfe798153370590e5fa5a7b418",
+      "title": "13.23 · `adr prune` archives a decision link with who, when and why and its justification, so links, `library links` and the backlog no longer show it, `adr pruned` lists it, and `adr restore` puts it back with its justification, or --why for one that had none; a prune with no reason or no such link is refused",
+      "contract": "13.23"
+    },
+    {
+      "file": "packages/library/src/decisions/adr.test.ts",
+      "sha256": "48da6184d6529dddee34ef075b24ca310d59c9cfe798153370590e5fa5a7b418",
+      "title": "13.28 · `adr prune` and `adr restore` move one decision link even when the decision's other links or supersedes name a retired or missing record, and a restore whose own target was retired is refused naming it, with nothing written",
+      "contract": "13.28"
+    },
+    {
+      "file": "packages/library/src/decisions/adr.test.ts",
+      "sha256": "48da6184d6529dddee34ef075b24ca310d59c9cfe798153370590e5fa5a7b418",
+      "title": "13.24 · decision(id) carries supersededInPart, each accepted decision superseding it in named clauses with those clauses and an old-shape narrows with none, its status kept as stored; `adr pull` prints them and the records linking in as read-only superseded-in-part and linked-from lines, and `adr push` of the pulled file writes nothing",
+      "contract": "13.24"
+    },
+    {
+      "file": "packages/library/src/decisions/adr.test.ts",
+      "sha256": "48da6184d6529dddee34ef075b24ca310d59c9cfe798153370590e5fa5a7b418",
+      "title": "13.27 · decisionLinkChanges and `adr changes` count, per UTC day and in total, decision links pruned, restored (not also added), justified, corrected and added and the decisions touched, never a link to a story or a text edit; --by keeps one writer's writes, a span with none says so, and pruned matches the archive",
+      "contract": "13.27"
+    },
+    {
+      "file": "packages/library/src/decisions/corrections.test.ts",
+      "sha256": "2a09d24477d554e1676b26d2f683dfc1a0c9289938b920c2788124cc81aa23b7",
+      "title": "22.2 correct changes a decision in place, keeping the old wording in history, and refuses turning an accepted decision back to proposed",
+      "contract": "22.2"
+    },
+    {
+      "file": "packages/library/src/decisions/corrections.test.ts",
+      "sha256": "2a09d24477d554e1676b26d2f683dfc1a0c9289938b920c2788124cc81aa23b7",
+      "title": "22.3 · annotate adds a dated note to the target naming the decision that supersedes clauses of it, names the target once in that decision's supersedesClauses with the clauses given added (partial when none are given), and refuses a superseding record that is not a live decision",
+      "contract": "22.3"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "decisions recorded at once from separate connections get distinct numbers, each higher than any before, never reused",
+      "contract": "13.1"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "storytree repairs a number once from its own Full record line, preserving history and refusing unsafe repairs",
+      "contract": "13.5"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "simultaneous repairs cannot share a number or repair the same decision twice",
+      "contract": "13.5"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "storytree switches once to a stored floor; concurrent decisions exceed it and every held number",
+      "contract": "13.6"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "founding books preview in creation order, preserve history, skip Full record decisions and finish once",
+      "contract": "13.8"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "concurrent founding moves cannot share numbers or move a book twice",
+      "contract": "13.8"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "Full record bulk repair previews by default, reports refusals, and skips completed repairs",
+      "contract": "13.7"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "health history cannot reserve a Full record repair in preview or under the write lock",
+      "contract": "13.5"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "repair refuses numbers non-health records ever held, including a collision arriving after preview",
+      "contract": "13.5"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "a decision is superseded exactly when an accepted decision names it in supersedes; it stays readable, and a supersession loop is refused",
+      "contract": "13.2"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "decisions() gives every live decision's view in one reading, oldest first, as decision(id) does",
+      "contract": "13.9"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "status and the load-bearing mark are stored and read back, and a decision written before status was is upgraded to carry one",
+      "contract": "13.3"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "a decision may carry one composed statement, read as stale once the decision's text changed after it, and the full text is always readable",
+      "contract": "13.4"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "a decision carried over from 0.2 is stamped brought-across, pointing at its 0.2 record and the basis 0.2 gave, in place of the owner's words",
+      "contract": "13.11"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "a supersedesClauses entry names a live decision and clauses D<n>, or nothing is written; one naming no clause is partial and leaves the decision current",
+      "contract": "13.15"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "a decision given a new narrows, recorded or edited, is refused naming supersedesClauses, and nothing is written",
+      "contract": "13.18"
+    },
+    {
+      "file": "packages/library/src/decisions/decision-log.test.ts",
+      "sha256": "369ae355cbddab1fc23810be14a64741a47d7092c1266f3a2f2700f57f78b05e",
+      "title": "a decision recorded with a link, supersedes or supersedesClauses entry to a decision and no justification for that target is refused, naming justification, the target and the justifications to pass, with nothing written; recorded with one it is stored, and a link to a definition needs none",
+      "contract": "13.19"
+    },
+    {
+      "file": "packages/library/src/decisions/decisions.test.ts",
+      "sha256": "80f3809ab0d3a8b2c16ac4731f9f66eddd95a68fa08a13922b9543cec29f4a4d",
+      "title": "31.1 · through the decisions entry, a decision recorded accepted is corrected, annotated by a later decision naming its clauses, then superseded: it reads superseded by its successor, names the annotating decision and its clauses, and its history keeps the corrected wording",
+      "contract": "31.1"
+    },
+    {
+      "file": "packages/library/src/decisions/supersede.test.ts",
+      "sha256": "2e513b86660a7f56565910296565c55adee9ac8fc08f7d8fbab07c952aa04ffb",
+      "title": "13.12 supersede records an accepted successor that takes the old one's shelf and load-bearing mark, and the old one stays readable as superseded",
+      "contract": "13.12"
+    },
+    {
+      "file": "packages/library/src/decisions/supersede.test.ts",
+      "sha256": "2e513b86660a7f56565910296565c55adee9ac8fc08f7d8fbab07c952aa04ffb",
+      "title": "13.12 supersede accepts an existing successor through the tool, preserving its history and links without making a duplicate",
+      "contract": "13.12"
+    },
+    {
+      "file": "packages/library/src/decisions/supersede.test.ts",
+      "sha256": "2e513b86660a7f56565910296565c55adee9ac8fc08f7d8fbab07c952aa04ffb",
+      "title": "13.12 an existing successor keeps its own shelf and load-bearing mark when another decision is added",
+      "contract": "13.12"
+    },
+    {
+      "file": "packages/library/src/decisions/supersede.test.ts",
+      "sha256": "2e513b86660a7f56565910296565c55adee9ac8fc08f7d8fbab07c952aa04ffb",
+      "title": "13.12 existing supersession refuses invalid decisions and loops before any write",
+      "contract": "13.12"
+    },
+    {
+      "file": "packages/library/src/decisions/supersede.test.ts",
+      "sha256": "2e513b86660a7f56565910296565c55adee9ac8fc08f7d8fbab07c952aa04ffb",
+      "title": "13.13 a decision superseded by `adr new --supersedes` leaves `adr list --load-bearing`, and its successor takes the mark and the shelf as supersede leaves them",
+      "contract": "13.13"
+    },
+    {
+      "file": "packages/library/src/decisions/supersede.test.ts",
+      "sha256": "2e513b86660a7f56565910296565c55adee9ac8fc08f7d8fbab07c952aa04ffb",
+      "title": "13.13 a decision superseded through `library new`, `library edit` or `adr push` leaves `adr list --load-bearing`, its successor carrying the mark and the shelf",
+      "contract": "13.13"
+    },
+    {
+      "file": "packages/library/src/decisions/supersede.test.ts",
+      "sha256": "2e513b86660a7f56565910296565c55adee9ac8fc08f7d8fbab07c952aa04ffb",
+      "title": "13.13 a supersede that fails part-way leaves neither the successor nor the old decision changed",
+      "contract": "13.13"
+    },
+    {
+      "file": "packages/library/src/decisions/supersede.test.ts",
+      "sha256": "2e513b86660a7f56565910296565c55adee9ac8fc08f7d8fbab07c952aa04ffb",
+      "title": "13.14 a new decision written proposed, through `adr new` or `library new decision`, is refused pointing to an open question, and nothing is written",
+      "contract": "13.14"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a node with no health entries reads reported: not-checked, verified: not-checked",
+      "contract": "5.1"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "after an agent reports a contract passing, it reads reported: passing, verified: not-checked",
+      "contract": "5.2"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "after storytree records the same contract verified failing, both columns are kept side by side (reported: passing, verified: failing)",
+      "contract": "5.3"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a capability or story's health is rolled up from its contracts, column by column: failing if any is failing, passing only if there is one and all are passing, otherwise not-checked",
+      "contract": "5.4"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "every health entry is kept in history with who wrote it and when, and an entry for a node that does not exist is refused",
+      "contract": "5.5"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a capability's word is proposed while its flag is on, and once the agent switches it off comes from the verified column alone: healthy, unhealthy or untested",
+      "contract": "5.6"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a verified entry carries the kind of skip that left it not checked and the earlier verdict it did not reproduce, read back as written",
+      "contract": "5.7"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a verified entry carries where it was seen, verified locally or read from CI, read back as written; one written without it has none",
+      "contract": "5.17"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a verified entry keeps the names of the tests that judged it, read back as written; one written without them has none",
+      "contract": "5.25"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a contract's newest verified entry read from CI is kept beside its newest verified entry, so a later local entry never replaces it; one CI never read carries none",
+      "contract": "5.27"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "recordVerifiedAll writes in one write each verdict that tells nothing, as recordVerified would, leaves each that would tell for recordVerified, and refuses them all for one that names no live contract",
+      "contract": "5.29"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a capability that is not healthy carries its reason in the annotated tree, and a healthy one none",
+      "contract": "5.8"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "in a project whose health nothing verifies, a built capability carries no reason, is marked as shown by the agent's report, says so, and is off the worklist",
+      "contract": "5.10"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "the health worklist lists each capability not healthy with its reason and since when, oldest first, leaving off one an open increment lists among its capabilities",
+      "contract": "5.9"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a capability a settled owner question records its answer leaves unbuilt is routed by that question: off the health worklist while the question stands",
+      "contract": "5.30"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a live reading recorded for a contract proved by observability is its verified state: passing while within its freshness, not re-run once older, failing when it saw a fail",
+      "contract": "5.31"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "for a contract proved by observability a test run's skip or pass does not stand in for its live reading, a test's fail still fails it, and with no reading its reason is no live reading",
+      "contract": "5.32"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a capability whose every contract carrying its reason a run in progress will record says it waits on that run; once the run records it, or the run's time is up, it is offered by what it records",
+      "contract": "5.11"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a capability whose story's code changed on main after its contracts carrying its reason were last verified waits on that commit's run; once they are verified after it, or the time is up, it is offered by what is recorded",
+      "contract": "5.12"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a capability not proven carries the arcs that park it in the annotated tree; a healthy or unhealthy one, or one not parked, carries none (ADR-0992)",
+      "contract": "5.13"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "each capability in the annotated tree carries the open increments naming it, the active ones first, then the rest in parked order; one no open increment names carries none (ADR-1253 D1)",
+      "contract": "5.19"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "the open increment that moves a capability, its first, says what still holds it: the work it waits on, by title and whether that is under way or ready to take, a claim, a question, or a wait for the owner or an event; the increments behind it say nothing",
+      "contract": "5.28"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a capability one of whose contracts an open increment links carries that increment among its open work, as one the increment names does, once and in the same order",
+      "contract": "5.26"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a proposed capability with at least one contract and every contract verified passing is on the worklist still not built and the agent's, marked that its contracts already pass; one with no contract or any contract not passing is not so marked",
+      "contract": "5.14"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a capability whose every contract carrying \"no test names it\" a test on main names is held back, saying so with main's commit, until a run records it; one with any such contract unnamed on main is offered as before",
+      "contract": "5.15"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a health worklist item whose reason is failing carries the verified note of the first contract carrying it, with the failure's message that note holds; an item with any other reason carries none",
+      "contract": "5.18"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "an explored capability of an imported story has no health until it has a contract: no reason, and off the worklist; given a contract, it is read as any capability",
+      "contract": "5.16"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a capability's reading from tests no contract claims rolls into its verified health, its word and its story's, and when failing makes its reason failing with the reading's note on its worklist item; a not-checked reading counts for nothing, and the reading is refused on anything but a live capability",
+      "contract": "5.20"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "an explored capability of an imported story with a verified result tied to it takes its verified word and reason even while proposed; with none tied it stays proposed, and a built story's stays proposed whatever its health",
+      "contract": "5.21"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "each edge in the annotated tree carries its contracts with their own health; an edge contract's health rolls into neither capability's nor its story's",
+      "contract": "5.22"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a verified verdict that turns failing, or stays failing but releases a fix waiting on it, records one FYI for the owner with the contract, its cause and what is being done; one that turns passing again records one; a verdict that stays as it was records none",
+      "contract": "5.23"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a verified verdict's turn since a given time that told nothing, its writer's role refusing the FYI (3.20), is told at the verdict's own time: red, green again, and a fix it was waiting on released as still red; a turn told when it was written, a verdict that stayed as it was and a second telling tell nothing more",
+      "contract": "5.24"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a failing verified verdict naming a flaky test parks one investigation increment for that test, on that test's own arc, or attaches the flake as evidence to the investigation already open for it; telling again adds nothing, and a failing verdict naming no flaky test parks none",
+      "contract": "5.33"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a flake whose verdict predates the landed close of its test's investigation parks nothing and adds no evidence when told again; a flake verdict after that close parks a new investigation on the same arc",
+      "contract": "5.34"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a parent capability's health in the annotated tree is the worst of its own contracts and every capability inside it, at any depth; a child's own health is not changed by its parent",
+      "contract": "5.35"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "a parent capability red only from a capability inside it gives its why as failing inside that capability, naming it and its failing contracts; a parent whose own contract fails keeps its own why",
+      "contract": "5.36"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "5.6 the word of a capability, from its flag and its contracts' verified states",
+      "contract": "5.6"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "5.8 one reason per capability that is not healthy, the agent's work ranked before the owner's",
+      "contract": "5.8"
+    },
+    {
+      "file": "packages/library/src/health/health-record.test.ts",
+      "sha256": "3bed263e63e06fc6314846775e4d125f1223ee91e13f5f11947b170a4083861f",
+      "title": "5.29 [postgres] recordVerifiedAll writes a story's verdicts in as many round trips to the server for thirty contracts as for two",
+      "contract": "5.29"
+    },
+    {
+      "file": "packages/library/src/knowledge/embedding-model.test.ts",
+      "sha256": "6e30d9e53a962d8f11d7c1a1252f7fe49726ff7af0e8a27abcd8a53fb02d7fe2",
+      "title": "14.13 · behind HTTPS_PROXY the model's download goes through the proxy, and a refused load names the hosts the proxy must allow",
+      "contract": "14.13"
+    },
+    {
+      "file": "packages/library/src/knowledge/embedding-model.test.ts",
+      "sha256": "6e30d9e53a962d8f11d7c1a1252f7fe49726ff7af0e8a27abcd8a53fb02d7fe2",
+      "title": "14.13 · a fetch inside throughProxy goes by the proxy, NO_PROXY is honoured, and no fetch after it does",
+      "contract": "14.13"
+    },
+    {
+      "file": "packages/library/src/knowledge/embedding-model.test.ts",
+      "sha256": "6e30d9e53a962d8f11d7c1a1252f7fe49726ff7af0e8a27abcd8a53fb02d7fe2",
+      "title": "14.14 · model files matching their committed SHA-256 load; a tampered file is deleted and refused with its name and both hashes, even after a clean check",
+      "contract": "14.14"
+    },
+    {
+      "file": "packages/library/src/knowledge/embedding-model.test.ts",
+      "sha256": "6e30d9e53a962d8f11d7c1a1252f7fe49726ff7af0e8a27abcd8a53fb02d7fe2",
+      "title": "14.14 · a model folder holding a file the pinned model does not list is refused, naming it",
+      "contract": "14.14"
+    },
+    {
+      "file": "packages/library/src/knowledge/embedding.test.ts",
+      "sha256": "25d61318464f495ca2150cb143bc0323c53b610e1c2c666137becf038d317ad0",
+      "title": "14.17 · a check's embedded text holds its question, never the ids of the principles it enforces",
+      "contract": "14.17"
+    },
+    {
+      "file": "packages/library/src/knowledge/embeddings.test.ts",
+      "sha256": "779a0a857bb76c4c8d52b756b136ed15c3e53c3495a6b7d881b773def889379c",
+      "title": "14.10 · ${method} fetches only vectors this machine lacks, including after another machine adds a note",
+      "contract": "14.10"
+    },
+    {
+      "file": "packages/library/src/knowledge/embeddings.test.ts",
+      "sha256": "779a0a857bb76c4c8d52b756b136ed15c3e53c3495a6b7d881b773def889379c",
+      "title": "14.10 · vector writes reach both stores, keys are model-scoped, and a missing server key is retried",
+      "contract": "14.10"
+    },
+    {
+      "file": "packages/library/src/knowledge/embeddings.test.ts",
+      "sha256": "779a0a857bb76c4c8d52b756b136ed15c3e53c3495a6b7d881b773def889379c",
+      "title": "14.10 · no local place, an inaccessible path or a corrupt cache still reads and writes Postgres",
+      "contract": "14.10"
+    },
+    {
+      "file": "packages/library/src/knowledge/embeddings.test.ts",
+      "sha256": "779a0a857bb76c4c8d52b756b136ed15c3e53c3495a6b7d881b773def889379c",
+      "title": "14.10 · independent processes write one cache concurrently and a fresh process reuses every vector",
+      "contract": "14.10"
+    },
+    {
+      "file": "packages/library/src/knowledge/embeddings.test.ts",
+      "sha256": "779a0a857bb76c4c8d52b756b136ed15c3e53c3495a6b7d881b773def889379c",
+      "title": "14.10 · a vector put while another connection holds the cache's write lock waits without blocking the event loop and is kept locally",
+      "contract": "14.10"
+    },
+    {
+      "file": "packages/library/src/knowledge/embeddings.test.ts",
+      "sha256": "779a0a857bb76c4c8d52b756b136ed15c3e53c3495a6b7d881b773def889379c",
+      "title": "14.10 · a vector put while the cache's write lock is held past the 60 s wait resolves without an error and the vector is in Postgres",
+      "contract": "14.10"
+    },
+    {
+      "file": "packages/library/src/knowledge/embeddings.test.ts",
+      "sha256": "779a0a857bb76c4c8d52b756b136ed15c3e53c3495a6b7d881b773def889379c",
+      "title": "14.10 · a cache opened while another connection's read lock refuses its WAL switch is opened again until it is in WAL mode, and its vectors are read locally",
+      "contract": "14.10"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-entrances.test.ts",
+      "sha256": "9ec4a8dfb641c4b4be870b5964408481bc33f6ecdf6c552dd7dedaabf4768b9d",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-entrances.test.ts",
+      "sha256": "9ec4a8dfb641c4b4be870b5964408481bc33f6ecdf6c552dd7dedaabf4768b9d",
+      "title": "a decision can be the front cover of a story or a capability, and frontCovers lists a node's covers, founding first",
+      "contract": "9.1"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-entrances.test.ts",
+      "sha256": "9ec4a8dfb641c4b4be870b5964408481bc33f6ecdf6c552dd7dedaabf4768b9d",
+      "title": "a front cover naming anything but a live story or capability is refused, and nothing is written",
+      "contract": "13.26"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-entrances.test.ts",
+      "sha256": "9ec4a8dfb641c4b4be870b5964408481bc33f6ecdf6c552dd7dedaabf4768b9d",
+      "title": "a note linking to a story, capability, contract, arc or health entry is refused, and nothing is written",
+      "contract": "9.3"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-entrances.test.ts",
+      "sha256": "9ec4a8dfb641c4b4be870b5964408481bc33f6ecdf6c552dd7dedaabf4768b9d",
+      "title": "a link that would close a loop between notes, a note linking to itself included, is refused, naming the chain it closes, and nothing is written",
+      "contract": "6.28"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "each of the eight kinds is saved with its required fields, and refused, naming the field, without one",
+      "contract": "6.6"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "friction with no evidence is refused, and so is a re-steer marked a defect with no failure mode",
+      "contract": "6.7"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "a friction report is filed open, refuses an edit naming its state, and routing moves it: nothing dismisses it, a route routes it, a delivery stamp resolves it",
+      "contract": "6.13"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "a recurrence on a resolved or dismissed friction report reopens it, clearing its judgement from its fields and keeping it in history; on an open or routed one it leaves the state",
+      "contract": "6.14"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "a quality control check is saved with its question, the principles or guardrails it enforces and what graduated, each part with the day its trial started or it was struck and the arc a leak parks on, and refused without its question or enforcing none or anything else",
+      "contract": "6.12"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "a research note is saved with its title, description, the day the research was done and its findings, and refused without its findings or day, or with a day that is not one",
+      "contract": "6.15"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "an artifact refiled as another kind keeps its id, creation date and links, reads as the new kind, and its history keeps what it was; fields that do not fit the new kind, a friction or re-steer, or an id that is no live artifact are refused with nothing written",
+      "contract": "6.16"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "a research note written, or refiled as research, also records an FYI about it, so it is offered to the owner until heard",
+      "contract": "6.20"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "6.17 [${backend.label}] an experiment record is saved with its arms, hypotheses, measures, criteria, budget and stop rules; once frozen, only an outcome may be added",
+      "contract": "6.17"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "6.21 [${backend.label}] an escape pattern is saved with its instance, where it was caught and its reasoning, judged later with its reason; a judgement without its reason, a yes without its construct and places, or an escape naming no increment is refused",
+      "contract": "6.21"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "6.22 [${backend.label}] an escape pattern judged yes takes the blue team's rung with its reason and, but for none, its defences; a rung without its reason, a reason without its rung, a defended rung naming no defence, an unknown rung, or a rung on a pattern not judged yes is refused",
+      "contract": "6.22"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "6.23 [${backend.label}] a red-team drill is saved with the live escape it replants, its plant, mode, each layer's result in the fixed order, the first catching layer, the fixer from the fixed table, a same-model flag on a reviewer catch, its session and date; a drill naming no live escape, a disagreeing first layer or fixer, a Windows leg that ran, or a defect drill whose test writer or builder ran is refused",
+      "contract": "6.23"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "6.24 [${backend.label}] a measure is saved with its live story, what it reads, its unit, its better direction, how and where it is read, its runs and its version; one missing a field, naming no live story, with a direction outside higher, lower and neither, or runs or a version that is not a whole number from 1 is refused naming the field",
+      "contract": "6.24"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "6.24 [${backend.label}] measures(story) lists that story's live measures oldest first, and measures() every live measure oldest first, a retired one in neither",
+      "contract": "6.24"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "6.25 [${backend.label}] a measure's edit that changes what it reads without raising its version, or that lowers it, is refused naming version with nothing written; a title, description or links edit needs no new version",
+      "contract": "6.25"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "6.26 [${backend.label}] a decision edited to gain a link, supersedes or supersedesClauses entry to a decision with no justification for it is refused, naming justification, the target and the justifications to pass, with nothing written; justifications given on an edit join the stored ones by target, and one whose target is no longer linked is dropped",
+      "contract": "6.26"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-kinds.test.ts",
+      "sha256": "1cb3839d52eb42e64a519d720e867716a04583e846fb3ab15dc8909ee408a7ae",
+      "title": "6.27 [${backend.label}] an old-shape decision link, stored with no justification, never refuses a later edit: the decision's text and title change, and a new justified link is added beside it",
+      "contract": "6.27"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-memory.test.ts",
+      "sha256": "2109cf3b4232930358aff3c3bf18517fc4342623a6e12cfa687f61770ff7cff8",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-memory.test.ts",
+      "sha256": "2109cf3b4232930358aff3c3bf18517fc4342623a6e12cfa687f61770ff7cff8",
+      "title": "a definition is found by search on any word it contains, whatever its case",
+      "contract": "6.1"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-memory.test.ts",
+      "sha256": "2109cf3b4232930358aff3c3bf18517fc4342623a6e12cfa687f61770ff7cff8",
+      "title": "relatedNotes(noteId) returns every note, decision and definition that links to that note",
+      "contract": "6.2"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-memory.test.ts",
+      "sha256": "2109cf3b4232930358aff3c3bf18517fc4342623a6e12cfa687f61770ff7cff8",
+      "title": "editing a decision keeps its old wording in history",
+      "contract": "6.3"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-memory.test.ts",
+      "sha256": "2109cf3b4232930358aff3c3bf18517fc4342623a6e12cfa687f61770ff7cff8",
+      "title": "a link to a record that does not exist is refused",
+      "contract": "6.4"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge-memory.test.ts",
+      "sha256": "2109cf3b4232930358aff3c3bf18517fc4342623a6e12cfa687f61770ff7cff8",
+      "title": "definitions() returns every live definition, and nothing else, in creation order",
+      "contract": "6.5"
+    },
+    {
+      "file": "packages/library/src/knowledge/knowledge.test.ts",
+      "sha256": "e0e6d8df1e6ee8aad86fc23633f908f57c0b6e399469064beee93115bb025673",
+      "title": "33.1 · through the notes-and-search entry, a saved note is found by search on a word it holds and by rank on its words, saying why when no embedding model is available; a decision saved as a capability's front cover is listed among its front covers",
+      "contract": "33.1"
+    },
+    {
+      "file": "packages/library/src/knowledge/phrase-search.test.ts",
+      "sha256": "96a1e13084f4c0ce7fb3f2b580def232e219ddfd5930ea06329f651955793ab5",
+      "title": "14.11 · [memory] literal phrase pages find every current match independently of ranking",
+      "contract": "14.11"
+    },
+    {
+      "file": "packages/library/src/knowledge/phrase-search.test.ts",
+      "sha256": "96a1e13084f4c0ce7fb3f2b580def232e219ddfd5930ea06329f651955793ab5",
+      "title": "14.11 · [postgres] literal phrase pages are complete and small reads do not transfer unrelated records",
+      "contract": "14.11"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "rank orders artifacts by meaning, best first, finding one that shares no word with the question",
+      "contract": "14.1"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "an artifact scores by its best chunk, and at most `limit` come back",
+      "contract": "14.2"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "an edited artifact ranks by its new words, and kept vectors are not embedded again, even by a new process",
+      "contract": "14.3"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "rankAll ranks the plan's stories, capabilities and contracts by their own wording, with the artifacts",
+      "contract": "14.8"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "a record whose title holds every word of the search, or that the search names by its contract number, ranks first",
+      "contract": "14.7"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "the title lift matches whole words, a plural finding its singular, never letters inside a word",
+      "contract": "14.7"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "a record whose title is the search, its contract number aside, ranks above one whose title only holds its words",
+      "contract": "14.7"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "the patterns a ranked search compiles do not grow with the records it ranks",
+      "contract": "14.16"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "rankAll ranks current state unless told: resteers, friction and superseded decisions come back with history, a resteer or friction when its kind is named, and a decision superseded in part (clause-scoped, or a narrows not yet moved) names the decisions that supersede its clauses, and the clauses each names",
+      "contract": "14.18"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "rankAll finds an arc by its title, intent or end state and an increment by its title, objective or body, each ranked under its own type with the rest",
+      "contract": "14.19"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "a kind naming arc or increment narrows rankAll to that kind, closed ones included, and naming both gives both",
+      "contract": "14.19"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "a closed increment, and an arc whose increments are all closed with no open question, rank after every open record, however well they match; within each group the meaning order holds",
+      "contract": "14.19"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "a long note's late paragraph is embedded, so a search finds the note by what that paragraph says",
+      "contract": "14.12"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "14.15 [${backend.label}] the question is embedded after the model's query prefix, and an artifact's chunks without it",
+      "contract": "14.15"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "14.4 [${backend.label}] with no embedding model, rank gives the word matches and says why",
+      "contract": "14.4"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "14.9 [${backend.label}] with no embedding model, rankAll's word matches include a contract holding the words",
+      "contract": "14.9"
+    },
+    {
+      "file": "packages/library/src/knowledge/ranked-search.test.ts",
+      "sha256": "97d2ae6277849ccfe1cdc53a3865bf4a8d0225f30c8a6fd1d5448c89f63536c0",
+      "title": "14.19 [${backend.label}] with no embedding model, rankAll's word matches include an arc by its intent or end state and an increment by its objective and body, a closed increment after an open one",
+      "contract": "14.19"
+    },
+    {
+      "file": "packages/library/src/knowledge/related-unlinked.test.ts",
+      "sha256": "e7379d318f9785c0a9a6b80bb78dd50fafc36197209856af787e23ad313473eb",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/knowledge/related-unlinked.test.ts",
+      "sha256": "e7379d318f9785c0a9a6b80bb78dd50fafc36197209856af787e23ad313473eb",
+      "title": "related ranks the other artifacts by likeness to one, saying of each whether a link joins them either way; unlinked shows only those no link reaches",
+      "contract": "6.10"
+    },
+    {
+      "file": "packages/library/src/knowledge/related-unlinked.test.ts",
+      "sha256": "e7379d318f9785c0a9a6b80bb78dd50fafc36197209856af787e23ad313473eb",
+      "title": "searchEach and relatedEach answer as search and related would for each, in order, from one reading of the artifacts; relatedEach leaves out an id that is no live artifact",
+      "contract": "6.11"
+    },
+    {
+      "file": "packages/library/src/librarian/catalogue/catalogue.test.ts",
+      "sha256": "d9995c181b5a5851a45b7a6352567c4c94b6198a40353ed226e0496ad5887273",
+      "title": "23.1 retire retires a note nothing points at, and refuses one a live record points at, naming it",
+      "contract": "23.1"
+    },
+    {
+      "file": "packages/library/src/librarian/catalogue/catalogue.test.ts",
+      "sha256": "d9995c181b5a5851a45b7a6352567c4c94b6198a40353ed226e0496ad5887273",
+      "title": "23.1 retire reads every arc's increments and questions in one ask, however many arcs the project has (ADR-0836 D3)",
+      "contract": "23.1"
+    },
+    {
+      "file": "packages/library/src/librarian/catalogue/catalogue.test.ts",
+      "sha256": "d9995c181b5a5851a45b7a6352567c4c94b6198a40353ed226e0496ad5887273",
+      "title": "23.1 retire refuses a principle a live check enforces, naming the check and its enforces field",
+      "contract": "23.1"
+    },
+    {
+      "file": "packages/library/src/librarian/catalogue/catalogue.test.ts",
+      "sha256": "d9995c181b5a5851a45b7a6352567c4c94b6198a40353ed226e0496ad5887273",
+      "title": "23.2 the worklist lists each note written new since a cursor, with the live notes a plain search for any word of its title finds",
+      "contract": "23.2"
+    },
+    {
+      "file": "packages/library/src/librarian/catalogue/catalogue.test.ts",
+      "sha256": "d9995c181b5a5851a45b7a6352567c4c94b6198a40353ed226e0496ad5887273",
+      "title": "23.3 the worklist lists each write to an agent role or a principle since its cursor that was made after its session read outside text, with what was read",
+      "contract": "23.3"
+    },
+    {
+      "file": "packages/library/src/librarian/graduation/graduation.test.ts",
+      "sha256": "5989578a1733555339e11479e81270bc3b23c104a05b023f996d1e8e0ab438c1",
+      "title": "24.1 the worklist lists each memory that is new, changed since it was parked, or parked more than 60 days ago",
+      "contract": "24.1"
+    },
+    {
+      "file": "packages/library/src/librarian/graduation/graduation.test.ts",
+      "sha256": "5989578a1733555339e11479e81270bc3b23c104a05b023f996d1e8e0ab438c1",
+      "title": "24.2 park keeps the reason, the date and what the memory said beside the memory folder, never in the library",
+      "contract": "24.2"
+    },
+    {
+      "file": "packages/library/src/librarian/graduation/graduation.test.ts",
+      "sha256": "5989578a1733555339e11479e81270bc3b23c104a05b023f996d1e8e0ab438c1",
+      "title": "24.3 graduate writes the lesson as a principle, process or definition and only then deletes the memory",
+      "contract": "24.3"
+    },
+    {
+      "file": "packages/library/src/librarian/graduation/graduation.test.ts",
+      "sha256": "5989578a1733555339e11479e81270bc3b23c104a05b023f996d1e8e0ab438c1",
+      "title": "24.4 the worklist lists each process naming none of the tools served, and each tool no process names",
+      "contract": "24.4"
+    },
+    {
+      "file": "packages/library/src/librarian/librarian.test.ts",
+      "sha256": "d88443ee520a6d09a124641e2469b4bc3274119ada55443252fbb0c2e8ff2407",
+      "title": "35.1 · through the librarian entry, link and retire refuse an id no live note carries with a librarian refusal naming that id, and nothing is written",
+      "contract": "35.1"
+    },
+    {
+      "file": "packages/library/src/librarian/links/links.test.ts",
+      "sha256": "5cbf81bc82b46aac537dffd073bd7fbbb6ce0c5b681450954429e8acbc4f4db8",
+      "title": "21.1 link makes a note, or a question open or settled, rest on another note, keeping its other links, and linking again writes nothing; a question linking the plan is refused",
+      "contract": "21.1"
+    },
+    {
+      "file": "packages/library/src/librarian/links/links.test.ts",
+      "sha256": "5cbf81bc82b46aac537dffd073bd7fbbb6ce0c5b681450954429e8acbc4f4db8",
+      "title": "21.2 a definition rests only on a decision, and friction or a re-steer on nothing: other links are refused, naming the rule",
+      "contract": "21.2"
+    },
+    {
+      "file": "packages/library/src/librarian/links/links.test.ts",
+      "sha256": "5cbf81bc82b46aac537dffd073bd7fbbb6ce0c5b681450954429e8acbc4f4db8",
+      "title": "21.3 the worklist names each accepted decision on no shelf that no note rests on, and drops it once one does",
+      "contract": "21.3"
+    },
+    {
+      "file": "packages/library/src/librarian/links/links.test.ts",
+      "sha256": "5cbf81bc82b46aac537dffd073bd7fbbb6ce0c5b681450954429e8acbc4f4db8",
+      "title": "21.4 the worklist finds related but unlinked neighbours for live notes written since the cursor, including edits",
+      "contract": "21.4"
+    },
+    {
+      "file": "packages/library/src/librarian/links/links.test.ts",
+      "sha256": "5cbf81bc82b46aac537dffd073bd7fbbb6ce0c5b681450954429e8acbc4f4db8",
+      "title": "21.5 the health report names each link or supersession pointing at a record no longer live, with both ends",
+      "contract": "21.5"
+    },
+    {
+      "file": "packages/library/src/librarian/links/links.test.ts",
+      "sha256": "5cbf81bc82b46aac537dffd073bd7fbbb6ce0c5b681450954429e8acbc4f4db8",
+      "title": "21.5 the health report names a front cover naming a retired story or capability, with both ends, and no front cover of a live one",
+      "contract": "21.5"
+    },
+    {
+      "file": "packages/library/src/librarian/links/links.test.ts",
+      "sha256": "5cbf81bc82b46aac537dffd073bd7fbbb6ce0c5b681450954429e8acbc4f4db8",
+      "title": "21.5 the health report names a check's enforces edge pointing at a principle no longer live",
+      "contract": "21.5"
+    },
+    {
+      "file": "packages/library/src/librarian/rounds/rounds.test.ts",
+      "sha256": "fcaa6632ec3e054b77ad0f6da84c74764f793fcf60c4650c4f41a2210b76fc0c",
+      "title": "26.1 the trigger fires on a write to a curated kind since the session started, and when there is no start; graduation is due either way",
+      "contract": "26.1"
+    },
+    {
+      "file": "packages/library/src/librarian/rounds/rounds.test.ts",
+      "sha256": "fcaa6632ec3e054b77ad0f6da84c74764f793fcf60c4650c4f41a2210b76fc0c",
+      "title": "26.2 the worklist gathers each capability's list: graduation's always, the rest only when the trigger fired, and never the friction drain, which is Friction's",
+      "contract": "26.2"
+    },
+    {
+      "file": "packages/library/src/librarian/rounds/rounds.test.ts",
+      "sha256": "fcaa6632ec3e054b77ad0f6da84c74764f793fcf60c4650c4f41a2210b76fc0c",
+      "title": "26.6 the worklist and land's next-line check take about as much from a library whose history holds weeks of changes, and health piling up since the session started, as from one whose history holds an hour's",
+      "contract": "26.6"
+    },
+    {
+      "file": "packages/library/src/librarian/rounds/rounds.test.ts",
+      "sha256": "fcaa6632ec3e054b77ad0f6da84c74764f793fcf60c4650c4f41a2210b76fc0c",
+      "title": "26.7 the worklist reads the live notes about once however many notes the session wrote, and with no recorded start leaves the catalogue and related lists unread, saying why, rather than reading every note's history",
+      "contract": "26.7"
+    },
+    {
+      "file": "packages/library/src/librarian/rounds/rounds.test.ts",
+      "sha256": "fcaa6632ec3e054b77ad0f6da84c74764f793fcf60c4650c4f41a2210b76fc0c",
+      "title": "26.8 a worklist call names each phase through the call's progress before it answers, and stops at its next phase once progress rejects, reading nothing more",
+      "contract": "26.8"
+    },
+    {
+      "file": "packages/library/src/librarian/rounds/rounds.test.ts",
+      "sha256": "fcaa6632ec3e054b77ad0f6da84c74764f793fcf60c4650c4f41a2210b76fc0c",
+      "title": "26.9 the worklist tool answers in a size a session can read, including when creation timestamps tie: each list's first few notes named, with how many it holds",
+      "contract": "26.9"
+    },
+    {
+      "file": "packages/library/src/librarian/rounds/rounds.test.ts",
+      "sha256": "fcaa6632ec3e054b77ad0f6da84c74764f793fcf60c4650c4f41a2210b76fc0c",
+      "title": "26.10 a plugin's curation guidance is offered only when its own kinds were written, beneath the core lists and framed as plugin-supplied, and a plugin kind's write makes nothing else due",
+      "contract": "26.10"
+    },
+    {
+      "file": "packages/library/src/librarian/rounds/rounds.test.ts",
+      "sha256": "fcaa6632ec3e054b77ad0f6da84c74764f793fcf60c4650c4f41a2210b76fc0c",
+      "title": "26.5 the librarian's subagent definition names every tool the librarian serves",
+      "contract": "26.5"
+    },
+    {
+      "file": "packages/library/src/librarian/rounds/rounds.test.ts",
+      "sha256": "fcaa6632ec3e054b77ad0f6da84c74764f793fcf60c4650c4f41a2210b76fc0c",
+      "title": "26.12 · the link tool takes why, the supersede tool justifications and the annotate tool why, each stored as the justification of the decision edge it writes; the link tool joining two decisions with no why is refused naming justification and the target, and a definition rests on a decision with none",
+      "contract": "26.12"
+    },
+    {
+      "file": "packages/library/src/project/address-connection.test.ts",
+      "sha256": "f3775ade8555180e4c0abface40f639e1647e470369e8d17a5dfe699ae29ab2e",
+      "title": "15.1 a library at a Postgres address, its password the postgres key, opens, writes and reads a project",
+      "contract": "15.1"
+    },
+    {
+      "file": "packages/library/src/project/address-connection.test.ts",
+      "sha256": "f3775ade8555180e4c0abface40f639e1647e470369e8d17a5dfe699ae29ab2e",
+      "title": "28.10 a local password URL still opens admin and project connections through SCRAM",
+      "contract": "28.10"
+    },
+    {
+      "file": "packages/library/src/project/address-connection.test.ts",
+      "sha256": "f3775ade8555180e4c0abface40f639e1647e470369e8d17a5dfe699ae29ab2e",
+      "title": "15.2 with no password saved for the library, connecting is refused saying how to save one, before reaching the server",
+      "contract": "15.2"
+    },
+    {
+      "file": "packages/library/src/project/address-connection.test.ts",
+      "sha256": "f3775ade8555180e4c0abface40f639e1647e470369e8d17a5dfe699ae29ab2e",
+      "title": "15.3 a refused password and an unreachable host are each their own refusal, never showing the password",
+      "contract": "15.3"
+    },
+    {
+      "file": "packages/library/src/project/address-connection.test.ts",
+      "sha256": "f3775ade8555180e4c0abface40f639e1647e470369e8d17a5dfe699ae29ab2e",
+      "title": "15.5 the library's connection string, signed in with its password, reaches the database it names; a library with no password saved is refused",
+      "contract": "15.5"
+    },
+    {
+      "file": "packages/library/src/project/address-tls.test.ts",
+      "sha256": "7ebb6e7544321ac2fcf172fac5d84dc345343bcd2adc6a3f383440ee836e2b86",
+      "title": "15.4 a remote address that answers without TLS is refused before the password is sent, on the admin and project pools",
+      "contract": "15.4"
+    },
+    {
+      "file": "packages/library/src/project/address-tls.test.ts",
+      "sha256": "7ebb6e7544321ac2fcf172fac5d84dc345343bcd2adc6a3f383440ee836e2b86",
+      "title": "15.4 a remote address whose certificate no trusted authority signed is refused before the password is sent",
+      "contract": "15.4"
+    },
+    {
+      "file": "packages/library/src/project/address-tls.test.ts",
+      "sha256": "7ebb6e7544321ac2fcf172fac5d84dc345343bcd2adc6a3f383440ee836e2b86",
+      "title": "15.4 a remote address whose trusted certificate names another host is refused before the password is sent",
+      "contract": "15.4"
+    },
+    {
+      "file": "packages/library/src/project/address-tls.test.ts",
+      "sha256": "7ebb6e7544321ac2fcf172fac5d84dc345343bcd2adc6a3f383440ee836e2b86",
+      "title": "15.4 a remote address presenting the pinned certificate for its name connects, on the admin and project pools",
+      "contract": "15.4"
+    },
+    {
+      "file": "packages/library/src/project/address-tls.test.ts",
+      "sha256": "7ebb6e7544321ac2fcf172fac5d84dc345343bcd2adc6a3f383440ee836e2b86",
+      "title": "15.4 a remote address presenting exactly a certificate its sslrootcert holds, though no authority signed it, connects, on the admin and project pools",
+      "contract": "15.4"
+    },
+    {
+      "file": "packages/library/src/project/address-tls.test.ts",
+      "sha256": "7ebb6e7544321ac2fcf172fac5d84dc345343bcd2adc6a3f383440ee836e2b86",
+      "title": "15.4 a remote address presenting exactly the certificate its sslrootcert holds, but naming another host, is refused before the password is sent",
+      "contract": "15.4"
+    },
+    {
+      "file": "packages/library/src/project/address-tls.test.ts",
+      "sha256": "7ebb6e7544321ac2fcf172fac5d84dc345343bcd2adc6a3f383440ee836e2b86",
+      "title": "15.4 a remote address that proves itself but asks for the password in plain text is refused before the password is sent",
+      "contract": "15.4"
+    },
+    {
+      "file": "packages/library/src/project/address-tls.test.ts",
+      "sha256": "7ebb6e7544321ac2fcf172fac5d84dc345343bcd2adc6a3f383440ee836e2b86",
+      "title": "15.4 an address asking for a weaker check, or overriding the host it dials, is refused before reaching any server",
+      "contract": "15.4"
+    },
+    {
+      "file": "packages/library/src/project/address-tls.test.ts",
+      "sha256": "7ebb6e7544321ac2fcf172fac5d84dc345343bcd2adc6a3f383440ee836e2b86",
+      "title": "15.4 every check in this file holds under the desktop app's runtime, Electron, whose TLS is not Node's",
+      "contract": "15.4"
+    },
+    {
+      "file": "packages/library/src/project/address-websocket.test.ts",
+      "sha256": "030d0a3297082214b2c2fa8f87e78765c6afdb685b5e6771edb9e819909e936e",
+      "title": "15.6 a wss:// address is reached through HTTPS_PROXY and the gate with the Access token, at wsproxy's /v1 for 127.0.0.1:5432, signing in by SCRAM with the postgres key",
+      "contract": "15.6"
+    },
+    {
+      "file": "packages/library/src/project/address-websocket.test.ts",
+      "sha256": "030d0a3297082214b2c2fa8f87e78765c6afdb685b5e6771edb9e819909e936e",
+      "title": "15.6 a wss:// address with no Access token is refused before anything is dialled, naming the variable to set and no secret",
+      "contract": "15.6"
+    },
+    {
+      "file": "packages/library/src/project/address-websocket.test.ts",
+      "sha256": "030d0a3297082214b2c2fa8f87e78765c6afdb685b5e6771edb9e819909e936e",
+      "title": "15.6 a wss:// address that sets sslmode or sslrootcert is refused, and has no connection string for psql",
+      "contract": "15.6"
+    },
+    {
+      "file": "packages/library/src/project/address-websocket.test.ts",
+      "sha256": "030d0a3297082214b2c2fa8f87e78765c6afdb685b5e6771edb9e819909e936e",
+      "title": "15.6 an upgrade the agent proxy refuses and one the gate refuses each say which hop refused it, never showing a secret",
+      "contract": "15.6"
+    },
+    {
+      "file": "packages/library/src/project/address-websocket.test.ts",
+      "sha256": "030d0a3297082214b2c2fa8f87e78765c6afdb685b5e6771edb9e819909e936e",
+      "title": "15.6 a wss:// library that asks for the password in plain text is refused before the password is sent",
+      "contract": "15.6"
+    },
+    {
+      "file": "packages/library/src/project/address-websocket.test.ts",
+      "sha256": "030d0a3297082214b2c2fa8f87e78765c6afdb685b5e6771edb9e819909e936e",
+      "title": "15.6 a wss:// address skips HTTPS_PROXY for a loopback host and for a host NO_PROXY names, in its usual forms",
+      "contract": "15.6"
+    },
+    {
+      "file": "packages/library/src/project/address-websocket.test.ts",
+      "sha256": "030d0a3297082214b2c2fa8f87e78765c6afdb685b5e6771edb9e819909e936e",
+      "title": "15.6 with HTTPS_PROXY set, a wss:// address on a loopback host or one NO_PROXY names is dialled directly, and a remote one still through the proxy",
+      "contract": "15.6"
+    },
+    {
+      "file": "packages/library/src/project/ci-health.test.ts",
+      "sha256": "87c445e24d93b3fb3a676867269f63fab8b14f46a9f0fc26031ba121da59e229",
+      "title": "28.16 CI's health account (${source}/grants.sql) writes health without controlling storytree decision numbers",
+      "contract": "28.16"
+    },
+    {
+      "file": "packages/library/src/project/ci-health.test.ts",
+      "sha256": "87c445e24d93b3fb3a676867269f63fab8b14f46a9f0fc26031ba121da59e229",
+      "title": "28.16 Granted (${source}/grants.sql) before the floor is set, CI's health at the floor's id neither sets nor blocks it",
+      "contract": "28.16"
+    },
+    {
+      "file": "packages/library/src/project/cloud-session.test.ts",
+      "sha256": "1df0efb2372adbe5d2d16bde78fc5f5d876012f00006d259feed816bcd44e9f8",
+      "title": "30.6 · The cloud sessions' account opens the project as itself, reads every record, and writes, edits and retires through storytree's own writes the kinds a pool lane writes",
+      "contract": "30.6"
+    },
+    {
+      "file": "packages/library/src/project/cloud-session.test.ts",
+      "sha256": "1df0efb2372adbe5d2d16bde78fc5f5d876012f00006d259feed816bcd44e9f8",
+      "title": "30.7 · The cloud sessions' account is refused a kind it is not granted, a change of kind, history under another kind's id, a removal that is not a retirement, and any change to history or the tables",
+      "contract": "30.7"
+    },
+    {
+      "file": "packages/library/src/project/connection-error.test.ts",
+      "sha256": "f0ae478d59fd0f5ebcd575aae989d3c96c69ca29a950c78d7ae872c0e50bebb3",
+      "title": "28.7 · a failure is told apart as the library being unreachable: a refusal for an unreachable or silent server, a network code, or pg's words for a connection timed out, lost or ended; one the user must fix is not",
+      "contract": "28.7"
+    },
+    {
+      "file": "packages/library/src/project/connection-error.test.ts",
+      "sha256": "f0ae478d59fd0f5ebcd575aae989d3c96c69ca29a950c78d7ae872c0e50bebb3",
+      "title": "28.8 · a polling surface says an unreachable library once per outage, as one line with no error, and its recovery once; any other failure each time, with its error",
+      "contract": "28.8"
+    },
+    {
+      "file": "packages/library/src/project/embedding-isolation.test.ts",
+      "sha256": "c0b85c269728c4adea4eb020bd9bb67730f9f2eea592ddc629e4e85137ee98a8",
+      "title": "14.10 · ${method} ignores another server, project or database incarnation's cached remote vectors",
+      "contract": "14.10"
+    },
+    {
+      "file": "packages/library/src/project/embedding-isolation.test.ts",
+      "sha256": "c0b85c269728c4adea4eb020bd9bb67730f9f2eea592ddc629e4e85137ee98a8",
+      "title": "14.10 · legacy unscoped entries are ignored, and a store without an identity uses only Postgres",
+      "contract": "14.10"
+    },
+    {
+      "file": "packages/library/src/project/embedding-isolation.test.ts",
+      "sha256": "c0b85c269728c4adea4eb020bd9bb67730f9f2eea592ddc629e4e85137ee98a8",
+      "title": "14.10 · server domains follow pg endpoint overrides, user and TLS trust without retaining passwords",
+      "contract": "14.10"
+    },
+    {
+      "file": "packages/library/src/project/embedding-isolation.test.ts",
+      "sha256": "c0b85c269728c4adea4eb020bd9bb67730f9f2eea592ddc629e4e85137ee98a8",
+      "title": "1.4, 14.10 · opened projects isolate identical restored chunks and a recreated database, while a reopened project stays warm",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/project/embedding-isolation.test.ts",
+      "sha256": "c0b85c269728c4adea4eb020bd9bb67730f9f2eea592ddc629e4e85137ee98a8",
+      "title": "14.10 · project openings scope the cache to the server reached, even with identical database identities",
+      "contract": "14.10"
+    },
+    {
+      "file": "packages/library/src/project/local-authentication.test.ts",
+      "sha256": "4969ebd45a1f475a85a94374d36e236dc2be88d7ccd149ee809230ca7d9842bc",
+      "title": "28.10 local admin and project pools reject ${method} authentication without sending credentials",
+      "contract": "28.10"
+    },
+    {
+      "file": "packages/library/src/project/local-authentication.test.ts",
+      "sha256": "4969ebd45a1f475a85a94374d36e236dc2be88d7ccd149ee809230ca7d9842bc",
+      "title": "28.10 a local password URL refuses a listener that skips authentication, sending it no query",
+      "contract": "28.10"
+    },
+    {
+      "file": "packages/library/src/project/no-memory-type.test.ts",
+      "sha256": "a40752f5c79c33adcb40a687f513b7327c4640906422a7c0f57076d1451bda47",
+      "title": "6.8 saving memory is refused with the reason and writes nothing",
+      "contract": "6.8"
+    },
+    {
+      "file": "packages/library/src/project/no-memory-type.test.ts",
+      "sha256": "a40752f5c79c33adcb40a687f513b7327c4640906422a7c0f57076d1451bda47",
+      "title": "6.9 a memory whose fields name an enforced note is reported unclassified, not converted: classification invents no reference",
+      "contract": "6.9"
+    },
+    {
+      "file": "packages/library/src/project/no-memory-type.test.ts",
+      "sha256": "a40752f5c79c33adcb40a687f513b7327c4640906422a7c0f57076d1451bda47",
+      "title": "6.9 opening an old project converts explicit kinds once and reports unclassified memories without losing history",
+      "contract": "6.9"
+    },
+    {
+      "file": "packages/library/src/project/outside-writer.test.ts",
+      "sha256": "5ef17444b5d3d2da7c56bd8a7efda5afed8b61126e7d118f37f33b1c5e3593e5",
+      "title": "30.1 · An outside writer's role, fenced to its plugin's kinds, inserts a record of its own kind, and each history entry carries its role in recorded_by",
+      "contract": "30.1"
+    },
+    {
+      "file": "packages/library/src/project/outside-writer.test.ts",
+      "sha256": "5ef17444b5d3d2da7c56bd8a7efda5afed8b61126e7d118f37f33b1c5e3593e5",
+      "title": "30.2 · An outside writer's role is refused a core kind, another plugin's kind, an update, a delete and any change to the tables",
+      "contract": "30.2"
+    },
+    {
+      "file": "packages/library/src/project/outside-writer.test.ts",
+      "sha256": "5ef17444b5d3d2da7c56bd8a7efda5afed8b61126e7d118f37f33b1c5e3593e5",
+      "title": "30.3 · An outside writer whose plugin declares updates may change its own kind's records, and still no other record nor another kind",
+      "contract": "30.3"
+    },
+    {
+      "file": "packages/library/src/project/outside-writer.test.ts",
+      "sha256": "5ef17444b5d3d2da7c56bd8a7efda5afed8b61126e7d118f37f33b1c5e3593e5",
+      "title": "30.5 · fenceProject fences each writer it is handed in a live project's library, reached as the library setting reaches it with an account that may act as the owner; a role the server lacks, or an account that may not act as the owner, is refused saying so, and what it fenced first stays fenced",
+      "contract": "30.5"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.1 openProject creates the project's database and its tables, and gives a project set up before a table changed what was added since",
+      "contract": "1.1"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.2 opening the same project again succeeds and changes nothing",
+      "contract": "1.2"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.13 closing waits for an opening project and concurrent closers, then releases its connections",
+      "contract": "1.13"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.13 closing refuses new openings and every caller waits for an own-database client to return",
+      "contract": "1.13"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.2 reopening while a record write is in flight does not deadlock (PR 75 macOS CLI incident)",
+      "contract": "1.2"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.3 listProjects returns exactly the storytree projects, sorted, and no other database",
+      "contract": "1.3"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.12 dropProject deletes a project's database and every record in it; it is listed no more, and an unknown project is refused",
+      "contract": "1.12"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.12 dropProject waits out a connection to the project it may not end, and deletes the project once that connection has gone",
+      "contract": "1.12"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.12 a project once deleted is not made again by an open that only reaches an existing project: it is refused as gone, and no database appears",
+      "contract": "1.12"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.12 a project whose database a drop has marked invalid is refused as gone by an open that only reaches an existing project, and no usable database is made again",
+      "contract": "1.12"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.12 an open that only reaches an existing project, racing that project's deletion, opens it or is refused as gone",
+      "contract": "1.12"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.12 a connection a caller holds when another computer deletes its project fails its next query, and the process does not crash",
+      "contract": "1.12"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.4 a record saved in one project cannot be read from another",
+      "contract": "1.4"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.5 a bad project name is refused before anything touches the server, and the error names the rule",
+      "contract": "1.5"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.10 opening a project whose tables are current runs no table setup, so it needs no owner's rights",
+      "contract": "1.10"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.11 an account that may not change a project's tables opens it set up, behind, with one warning and no table change; one never set up is refused saying so",
+      "contract": "1.11"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "29.1 a project records whether it is the user's factory or a product naming its factory, and refuses to be both (ADR-1040)",
+      "contract": "29.1"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "29.2 a product project reads its factory's roles, notes and checks, and its own record of the same kind and title wins (ADR-1040)",
+      "contract": "29.2"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "29.3 a product's link to a system record it retired, as moving onto its factory drops a copy, reads the record of that kind and title: its own, else the factory's (ADR-1040)",
+      "contract": "29.3"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "29.2 a change to the factory's system after a product was set up is in the factory's history and reaches the product's next session, the product's own edits still winning (ADR-1040)",
+      "contract": "29.2"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "29.4 an edit through a product of a system record it reads from its factory writes the product's own copy, which wins, and retiring one hides it from the product; the factory is unchanged (ADR-1040)",
+      "contract": "29.4"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "29.5 a product's inherited records are the factory's system records it reads and holds no record of its own for: its copies, shadows, retirements and the factory's memory left out (ADR-1040)",
+      "contract": "29.5"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "29.6 a project opened with system switches leaves each switched-off role, check and note out of its lists, selections and searches, a record's own title or id beating its group and a group beating all, while reading one by id still finds it and the plan stays whole (ADR-1092 D2)",
+      "contract": "29.6"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "30.4 a project opened with a plugin's kinds writes and reads them, its system switches and its factory beside; opened without them, a record of that kind reads dormant, as stored, in no list, and a write of it is refused (ADR-1178 D3)",
+      "contract": "30.4"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "29.7 from a factory or any product naming it, a project reaches each library of that factory's circle by name, refuses one outside it, and lists the circle naming each project it cannot open (ADR-1348 D2)",
+      "contract": "29.7"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.28 · a change to the history goes only through the logged repair switch, for the owner too, and the owner's ordinary writes pass under the row-level security the project forces",
+      "contract": "1.28"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.29 · a shared library gets schema statements only from merged code: a branch-only statement is not applied there, and is applied to a throwaway library",
+      "contract": "1.29"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.29 · a shared library gets an own database's table statements only from merged code: a branch-only statement is not applied there, and is applied to a throwaway one",
+      "contract": "1.29"
+    },
+    {
+      "file": "packages/library/src/project/project-libraries.test.ts",
+      "sha256": "bf0abcea0e169908b5d557807c50a4a13b65bc5e59397022dbce8e408a87b984",
+      "title": "1.22 each history entry carries the server's own time and the account that wrote it, whatever the writer sends, and no writer may change or remove an entry",
+      "contract": "1.22"
+    },
+    {
+      "file": "packages/library/src/project/project.test.ts",
+      "sha256": "0254ff99946d905e7c413a91dea1b755f141549baa30ce4421b9943fa0596cff",
+      "title": "34.1 · through the project entry, two projects on one server each read only their own records, and a project's snapshot restored into an empty project reads the same",
+      "contract": "34.1"
+    },
+    {
+      "file": "packages/library/src/project/project.test.ts",
+      "sha256": "0254ff99946d905e7c413a91dea1b755f141549baa30ce4421b9943fa0596cff",
+      "title": "34.1 · through the project entry, an unreachable server is refused as a connection error saying it is unreachable, never showing the password",
+      "contract": "34.1"
+    },
+    {
+      "file": "packages/library/src/project/reads.test.ts",
+      "sha256": "6e7726a328e62d08343185ac45cc03c59218a61b441b70c65afc5f77e4952fa2",
+      "title": "28.12 every byte a library connection receives, its handshake included, is counted against the reader that asked: the process's named reader, or the one a call runs as; and each connection is named for the process's reader",
+      "contract": "28.12"
+    },
+    {
+      "file": "packages/library/src/project/reads.test.ts",
+      "sha256": "6e7726a328e62d08343185ac45cc03c59218a61b441b70c65afc5f77e4952fa2",
+      "title": "28.13 a process that names no reader is counted as the script it runs, or, running none (argv[1] empty or a flag), as having no script, never under a flag",
+      "contract": "28.13"
+    },
+    {
+      "file": "packages/library/src/project/record-cache.test.ts",
+      "sha256": "7cb2a22b475620c90b75bed848245b9ddf24d7c20896f103a2e2cca3826dfe6c",
+      "title": "1.31 · a second identical read with nothing changed takes under 4 KB from the server, from the machine's own copy",
+      "contract": "1.31"
+    },
+    {
+      "file": "packages/library/src/project/record-cache.test.ts",
+      "sha256": "7cb2a22b475620c90b75bed848245b9ddf24d7c20896f103a2e2cca3826dfe6c",
+      "title": "1.32 · a cached read sees every change committed before it, by this connection or any other, retirements included",
+      "contract": "1.32"
+    },
+    {
+      "file": "packages/library/src/project/record-cache.test.ts",
+      "sha256": "7cb2a22b475620c90b75bed848245b9ddf24d7c20896f103a2e2cca3826dfe6c",
+      "title": "1.33 · a cached read inside inOneWrite sees that write's own changes, and an unusable cache leaves reads to the server",
+      "contract": "1.33"
+    },
+    {
+      "file": "packages/library/src/project/record-cache.test.ts",
+      "sha256": "7cb2a22b475620c90b75bed848245b9ddf24d7c20896f103a2e2cca3826dfe6c",
+      "title": "1.31 · by default a shared library keeps the copy in the storytree home, and a throwaway one, or one under a test run, keeps none",
+      "contract": "1.31"
+    },
+    {
+      "file": "packages/library/src/project/schema-merged.test.ts",
+      "sha256": "71bec04ce87a345fc7d78276693018bc4599e63972f1d142505ff89aa7b94cc0",
+      "title": "1.29 · the schema counts as merged outside a checkout or in a bundle, or when its last change is on origin/main with nothing uncommitted",
+      "contract": "1.29"
+    },
+    {
+      "file": "packages/library/src/project/server-connection.test.ts",
+      "sha256": "121cb6d452f6e8292929e6c209c2384c59fd594533435165903f24f02441704d",
+      "title": "28.14 opening a new project as a server user that may not create databases, with no role to borrow, is refused with the two lines that let it",
+      "contract": "28.14"
+    },
+    {
+      "file": "packages/library/src/project/server-connection.test.ts",
+      "sha256": "121cb6d452f6e8292929e6c209c2384c59fd594533435165903f24f02441704d",
+      "title": "28.15 a user that may not create databases opens a new project by borrowing a role that may, and hands the role back",
+      "contract": "28.15"
+    },
+    {
+      "file": "packages/library/src/project/server-connection.test.ts",
+      "sha256": "121cb6d452f6e8292929e6c209c2384c59fd594533435165903f24f02441704d",
+      "title": "28.15 of the roles a user may take on that may create databases, it borrows the first by name, reached directly or through another role, and never one it may not SET ROLE to",
+      "contract": "28.15"
+    },
+    {
+      "file": "packages/library/src/project/server-connection.test.ts",
+      "sha256": "121cb6d452f6e8292929e6c209c2384c59fd594533435165903f24f02441704d",
+      "title": "28.9 a stalled local handshake is refused at ten seconds by default, or at the deadline the caller gives, on both admin and project pools, saying the computer may be busy, and the next call recovers",
+      "contract": "28.9"
+    },
+    {
+      "file": "packages/library/src/project/server-connection.test.ts",
+      "sha256": "121cb6d452f6e8292929e6c209c2384c59fd594533435165903f24f02441704d",
+      "title": "28.11 a local url naming a connect_timeout longer than the given deadline is given it, as a test run's throwaway server is; one naming a shorter one keeps the given deadline",
+      "contract": "28.11"
+    },
+    {
+      "file": "packages/library/src/project/shared-server.test.ts",
+      "sha256": "04f2266a596f1838d2696fadb564720dba5ea8a9234d40d448d0dfd19155b20f",
+      "title": "28.1 two accounts sharing the creator role both open, write and read one project, and one's own database, on one server",
+      "contract": "28.1"
+    },
+    {
+      "file": "packages/library/src/project/shared-server.test.ts",
+      "sha256": "04f2266a596f1838d2696fadb564720dba5ea8a9234d40d448d0dfd19155b20f",
+      "title": "28.2 a library read refused for want of a connection slot waits for one and then succeeds",
+      "contract": "28.2"
+    },
+    {
+      "file": "packages/library/src/project/shared-server.test.ts",
+      "sha256": "04f2266a596f1838d2696fadb564720dba5ea8a9234d40d448d0dfd19155b20f",
+      "title": "28.2 a connection reset while it is being opened, as Windows delivers a full server's refusal, is asked for again and the read succeeds",
+      "contract": "28.2"
+    },
+    {
+      "file": "packages/library/src/project/shared-server.test.ts",
+      "sha256": "04f2266a596f1838d2696fadb564720dba5ea8a9234d40d448d0dfd19155b20f",
+      "title": "28.3 on a shared server, each of a library's connections names the machine and process that hold it, in at most Postgres's 63 characters",
+      "contract": "28.3"
+    },
+    {
+      "file": "packages/library/src/project/shared-server.test.ts",
+      "sha256": "04f2266a596f1838d2696fadb564720dba5ea8a9234d40d448d0dfd19155b20f",
+      "title": "28.4 a caller that may be cut off bounds each statement, and the server ends one still running at the bound, so a cut-off process's slot comes free",
+      "contract": "28.4"
+    },
+    {
+      "file": "packages/library/src/project/shared-server.test.ts",
+      "sha256": "04f2266a596f1838d2696fadb564720dba5ea8a9234d40d448d0dfd19155b20f",
+      "title": "28.5 a library call kept waiting for a connection slot says once what it waits for, then goes on when one comes free",
+      "contract": "28.5"
+    },
+    {
+      "file": "packages/library/src/project/shared-server.test.ts",
+      "sha256": "04f2266a596f1838d2696fadb564720dba5ea8a9234d40d448d0dfd19155b20f",
+      "title": "28.5 a library call still refused a connection slot at its wait bound fails with the server's reason",
+      "contract": "28.5"
+    },
+    {
+      "file": "packages/library/src/project/shared-server.test.ts",
+      "sha256": "04f2266a596f1838d2696fadb564720dba5ea8a9234d40d448d0dfd19155b20f",
+      "title": "28.5 a write kept waiting for another session's write says what it waits for, then is written when that ends",
+      "contract": "28.5"
+    },
+    {
+      "file": "packages/library/src/project/shared-server.test.ts",
+      "sha256": "04f2266a596f1838d2696fadb564720dba5ea8a9234d40d448d0dfd19155b20f",
+      "title": "28.5 a write still kept waiting for another session's write at its wait bound fails with the reason and writes nothing",
+      "contract": "28.5"
+    },
+    {
+      "file": "packages/library/src/project/shared-server.test.ts",
+      "sha256": "04f2266a596f1838d2696fadb564720dba5ea8a9234d40d448d0dfd19155b20f",
+      "title": "28.6 a writer cut off holding the project's write lock holds it at most 10 s: the server ends its idle transaction, and another session's waiting write is written",
+      "contract": "28.6"
+    },
+    {
+      "file": "packages/library/src/schema/code-distance.test.ts",
+      "sha256": "588e06819e4d8c6f59da80bb7b04f10b04a8b52374389c3fd26e9c8ca39ffc2e",
+      "title": "3.5 · CommonJS bundled schema errors load and explain recovery with unknown code distance",
+      "contract": "3.5"
+    },
+    {
+      "file": "packages/library/src/schema/code-distance.test.ts",
+      "sha256": "588e06819e4d8c6f59da80bb7b04f10b04a8b52374389c3fd26e9c8ca39ffc2e",
+      "title": "3.5 · code distance stays pinned to loaded code after the checkout advances, and follows fetched main",
+      "contract": "3.5"
+    },
+    {
+      "file": "packages/library/src/schema/code-distance.test.ts",
+      "sha256": "588e06819e4d8c6f59da80bb7b04f10b04a8b52374389c3fd26e9c8ca39ffc2e",
+      "title": "3.5 · code outside a checkout has no invented commit distance",
+      "contract": "3.5"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "saving a story with no title is refused, the error names title, and nothing is written",
+      "contract": "3.1"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "an unknown field (for example titel) is refused and named",
+      "contract": "3.2"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "an unknown type is refused",
+      "contract": "3.3"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "every stored record carries its schema version (1 today)",
+      "contract": "3.4"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "reading a record stamped with a version newer than this code knows is refused, saying so, never guessed at",
+      "contract": "3.5"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "an edit that would leave the record invalid is refused, and nothing is written",
+      "contract": "3.6"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a NUL character or a lone UTF-16 surrogate in any field is refused and named, so both backends agree",
+      "contract": "robustness"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a record written on an older version of its type is read upgraded to the current one, step by step",
+      "contract": "3.7"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "editing an older record merges onto its upgraded fields and stores it on the current version, in place",
+      "contract": "3.8"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a friction report written before reports carried a state reads one worked out from its route and stamp, and its next write stores it so",
+      "contract": "3.10"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "an older record with no upgrade step to the current version is refused, naming the missing step",
+      "contract": "3.9"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a story and a capability carry their prose as text, read back whole and in order; one written without it reads as before",
+      "contract": "3.11"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a contract belongs to exactly one capability or one edge: naming both or neither is refused, naming the field, with nothing written; an edge is a from and a to capability with an optional description",
+      "contract": "3.21"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a contract's proof can name observability as proof with its freshness and the watcher that records its readings; one without them, or another proof carrying them, is refused",
+      "contract": "3.22"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a decision's justification of a link is at most two lines of at most 200 characters each: two lines read back as written, three lines, a 201-character line or a blank one are refused naming justifications, with nothing written",
+      "contract": "3.23"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a process's schedule, time zone and precheck are validated: good words (a daily schedule's grace among them) are kept, bad words, a grace on any but a daily schedule, an unknown time zone, a precheck not on the fixed list, or a time zone or precheck with no schedule are refused and named",
+      "contract": "3.12"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a process's schedule reads back as written and as its rule, a daily schedule's grace in minutes, its times in its own time zone or the owner's, and its precheck as written; one with no schedule reads as before",
+      "contract": "3.13"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a story carries a risk reading, a blast depth and a blast radius each with the day read and a reason, and a story or capability its own guardrails, each a check and the change or release that triggers it; values out of range are refused and named, and one written without them reads as before",
+      "contract": "3.14"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a kind a plugin declares, `<plugin>.<kind>` with its fields' shape as JSON Schema, is written and read back like a core kind, and read upgraded by the steps its plugin declares as data",
+      "contract": "3.15"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a dotted kind no loaded plugin declared is refused on write, and nothing is written",
+      "contract": "3.16"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a write that breaks the shape its plugin declared is refused, naming each field at fault, and nothing is written",
+      "contract": "3.17"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a plugin kind no loaded plugin declares reads dormant: kept intact and readable by id, hidden from lists, refused an edit; declared again, its records read as before",
+      "contract": "3.18"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "a write to a principle, guardrail, pattern, process, agent role or decision carries the mark of the outside text its writer had read; a write of any other kind carries none",
+      "contract": "3.19"
+    },
+    {
+      "file": "packages/library/src/schema/data-schema.test.ts",
+      "sha256": "62e822a6d3fcd71fa1a85073077e01332f63e930e625af307412f0bcb2fdb9d1",
+      "title": "3.20 · a projected read of records stored on an older version of their type comes back as the same fields of them upgraded, and takes no more bytes than of the same records stored on the current one",
+      "contract": "3.20"
+    },
+    {
+      "file": "packages/library/src/transactions/cancellation.test.ts",
+      "sha256": "d76aa3f93c77c06f267a7785adb4cb3d40fd45b46c141cf5d1fc7d31e8232ff6",
+      "title": "2.11 [${backend}] cancellation before a write leaves no change; cancellation after it starts preserves the write and its history",
+      "contract": "2.11"
+    },
+    {
+      "file": "packages/library/src/transactions/names.test.ts",
+      "sha256": "7964999e74432d813f278d05e1a5d7efbbe8e9a05dca26403b8fb6ed59e08fb2",
+      "title": "2.26 · [memory] list narrows to the records naming an id in a top-level field, as its value or a member of its list; prose, nested fields, near misses and retired records do not count",
+      "contract": "2.26"
+    },
+    {
+      "file": "packages/library/src/transactions/names.test.ts",
+      "sha256": "7964999e74432d813f278d05e1a5d7efbbe8e9a05dca26403b8fb6ed59e08fb2",
+      "title": "2.26 · [postgres] list narrows to the records naming an id in a top-level field, as its value or a member of its list; prose, nested fields, near misses and retired records do not count",
+      "contract": "2.26"
+    },
+    {
+      "file": "packages/library/src/transactions/pg.test.ts",
+      "sha256": "05fdc066fe251d99153141f5a00a11c3548b91693d3e85deea0174c6b426a335",
+      "title": "2.21 [postgres] a library whose history has no place for the outside-text mark yet writes and reads its history as before, leaving the mark off",
+      "contract": "2.21"
+    },
+    {
+      "file": "packages/library/src/transactions/pg.test.ts",
+      "sha256": "05fdc066fe251d99153141f5a00a11c3548b91693d3e85deea0174c6b426a335",
+      "title": "2.22 [postgres] each history entry read back names the account the server saw write it (recordedBy), whatever actor the writer gave",
+      "contract": "2.22"
+    },
+    {
+      "file": "packages/library/src/verbs/verb.test.ts",
+      "sha256": "72c1b157e161907655b824c1a9552cdc4671d8b935bf28b5f2f9797a5e95f052",
+      "title": "16.1 · a verb is declared once with a face on each door or why a door lacks one, and its refusal is a misuse only when it says so, carrying the steps that do the job instead",
+      "contract": "16.1"
+    },
+    {
+      "file": "packages/library/src/verbs/verb.test.ts",
+      "sha256": "72c1b157e161907655b824c1a9552cdc4671d8b935bf28b5f2f9797a5e95f052",
+      "title": "16.2 · a verb declares who calls it, an agent, a person, the watcher or several: left out it is an agent and a person, and an agent-only verb is an agent's",
+      "contract": "16.2"
+    },
+    {
+      "file": "packages/library/src/verbs/verb.test.ts",
+      "sha256": "72c1b157e161907655b824c1a9552cdc4671d8b935bf28b5f2f9797a5e95f052",
+      "title": "16.3 · a write names where it goes, a project, an arc or an increment: none is refused saying what to give, a project is read from the folder's factory's circle, and an arc or increment lands in the library holding it (ADR-1348 D3)",
+      "contract": "16.3"
+    },
+    {
+      "file": "packages/library/src/verbs/verb.test.ts",
+      "sha256": "72c1b157e161907655b824c1a9552cdc4671d8b935bf28b5f2f9797a5e95f052",
+      "title": "16.4 · a library of the folder's factory's circle whose database is dropped while it is searched for an arc or increment holds nothing: the write is refused as no library holding it, or lands in a later one holding it, and any other failure reading it is no refusal",
+      "contract": "16.4"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "a question is raised with its required fields, and is open",
+      "contract": "12.1"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "settling needs an answer and keeps it, with the date and the decision that carried it; a settled question stays readable on its arc",
+      "contract": "12.2"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "an open increment held on an open question reads as waiting on the owner; a settled question, or one that does not exist, holds nothing",
+      "contract": "12.3"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "a question an increment is held on cannot be retired",
+      "contract": "12.4"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "a question raised on a parked arc is refused, naming the arc, and nothing is written; once its wake day passes, it is raised",
+      "contract": "12.8"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "an open question carries a review date and a lease, 7 days unless given; it checks fresh until the lease runs out and lapsed after, and renewing re-stamps it",
+      "contract": "12.5"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "renewing a settled question is refused, and nothing is written; a settled question checks settled and is never lapsed",
+      "contract": "12.6"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "an open question's wording is corrected in place, only the named fields; its arc, lifecycle, answer and lease are not edited so, and a settled question refuses a wording edit, or a links edit that drops a link, with nothing written, but takes a links addition",
+      "contract": "12.7"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "a question is raised linking the evidence it cites: the ids it is given, then every live note, decision, increment or other question its words name, each once; a given link to the plan, an arc or no record is refused with nothing written",
+      "contract": "12.17"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "linking a question's named evidence adds every live record its words name that it does not link yet, open or settled, keeping its links and wording; one with nothing new writes nothing",
+      "contract": "12.18"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "a settled question records the capabilities the owner's answer leaves unbuilt, each a live capability; an open question records none, and a wrong one is refused with nothing written",
+      "contract": "12.19"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "an open question carries the session putting it to the owner, set and cleared in place; settling clears it, and a settled question cannot carry one",
+      "contract": "12.10"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "an open question moves to another arc in place, keeping its id, wording and holders, the history recording why; a parked arc takes it, and a closed or missing arc, its own arc or a settled question is refused with nothing written",
+      "contract": "12.11"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "an open question takes a would-be answer, stamped with its time; a later one replaces it while open, and a settled question refuses one",
+      "contract": "12.12"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "a settled question takes one score, for its would-be answer and its raiser's recommendation, with who scored it and when; an open or already scored question refuses it",
+      "contract": "12.13"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "an open question carries a prep mark, set in place: when and its stance, with the reason; edited after its mark it reads unprepared, and settling keeps the mark",
+      "contract": "12.15"
+    },
+    {
+      "file": "packages/library/src/work/owner-questions.test.ts",
+      "sha256": "11ee3a94297966152987ae27469bd2d0d40713d6b44e121d2df2ab0472cab380",
+      "title": "the lapsed list holds only open questions whose lease has lapsed, across every arc, longest lapsed first; fresh and settled ones are left out, and gathering it neither settles nor renews one",
+      "contract": "12.16"
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "an active increment takes a pending change to a story, capability or contract it did not plan, leaving the live record alone; a second change merges; one another open increment holds is refused naming it",
+      "contract": "4.28"
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "an increment's branch reads the plan with its pending changes laid over, every other reader the live plan; a pending change whose record has changed since it was read is named stale with the entry that moved it",
+      "contract": "4.29"
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "pending changes apply through the editors when the increment lands, marked with the pull request; stale or refused ones are parked as residue on its arc; applying again applies nothing twice",
+      "contract": "4.30"
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "a landed close applies the pending changes first; a change already applied under the same mark, as after a crash part-way, counts as applied, not stale",
+      "contract": "4.30"
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "a second change pended to a record on top of the increment's own earlier apply applies at the next merge, not counted applied while the record stays as it was",
+      "contract": "4.30"
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "an apply cut off part-way, as a hook's deadline cuts it, leaves pending only the changes it had not applied; the gate reads none it applied as stale, and the next apply finishes the rest",
+      "contract": "4.34"
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "a live write since a pending edit was read stales it only when it moved a field the edit sets: marking the capability built leaves its pending description to apply at the landing",
+      "contract": "4.30"
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "an increment closed failed or withdrawn drops its pending changes, its history saying so, and the live plan is left as it was",
+      "contract": "4.31"
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "an open increment drops one pending change by its record, with a reason, its history saying so and the live plan left as it was; a record it holds no change for, or a closed increment, is refused with nothing written",
+      "contract": "4.33"
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "a pending edit to a plugin's story, capability or contract is refused before it is staged, naming the plugin's plan file, with nothing written, while another story's record still pends",
+      "contract": "4.35"
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "an edge planned before an active increment takes a pending retirement or edit like a capability: the live edge stays until the landing, the branch's plan drops or shows it, and the landing applies it through the edge's editor",
+      "contract": "4.50"
+    },
+    {
+      "file": "packages/library/src/work/pending-changes.test.ts",
+      "sha256": "73a0e292ce96f4b30b363bc366917a53fcebf1f379f381b69bf316d41eb65b3b",
+      "title": "settling closed increments' leftover pending changes applies those of each that landed and drops those of each that did not, and finds nothing the second time",
+      "contract": "4.32"
+    },
+    {
+      "file": "packages/library/src/work/plan-hold.test.ts",
+      "sha256": "e826f6296428110584ce1186602db4c2771d2a8045f9a6254469bce7e837eef3",
+      "title": "4.36 · a plan edit made from a session holding an increment on a branch waits on it as a pending change until its branch merges, the live record unchanged; one made from a session holding none, an increment claimed on no branch or the main line, or to a record the increment planned, is applied live",
+      "contract": "4.36"
+    },
+    {
+      "file": "packages/library/src/work/plan-hold.test.ts",
+      "sha256": "e826f6296428110584ce1186602db4c2771d2a8045f9a6254469bce7e837eef3",
+      "title": "4.55 · Given another live session claims a capability, directly or on its claimed increment's list, when another session (not a person) adds, edits or retires a contract on it, then the write is refused unwritten, naming the holder and the capability and to wait on its claim; the holder's own write is accepted",
+      "contract": "4.55"
+    },
+    {
+      "file": "packages/library/src/work/plan-hold.test.ts",
+      "sha256": "e826f6296428110584ce1186602db4c2771d2a8045f9a6254469bce7e837eef3",
+      "title": "4.56 · Given another live session claims a capability, directly or on its claimed increment's list, when another session (not a person) edits a contract to move it onto that capability (its capability, or an edge whose from is it), then the edit is refused unwritten, naming the holder and the capability and to wait on its claim; the holder's own move is accepted",
+      "contract": "4.56"
+    },
+    {
+      "file": "packages/library/src/work/pr-cutover.test.ts",
+      "sha256": "26a4cdac6eb2900b6495eca37a2a8165ceb7686cbe9ab171df2a9520e0a632a4",
+      "title": "4.23 · a pull request recorded before the repository cut-over is the old repository's and one recorded on or after it the new one's; a deleted old repository is none; with no cut-over every number is the project's repository's",
+      "contract": "4.23"
+    },
+    {
+      "file": "packages/library/src/work/question-seal.test.ts",
+      "sha256": "73d82c9f5e397e8b4808c0774fc448de6864ed0f14bd14e3ae8673513b2f0156",
+      "title": "12.14 · A would-be answer is sealed: library read of its question, with or without --linked, and the open tool read the same with one recorded as without, while the question is open; only its own read gives it",
+      "contract": "12.14"
+    },
+    {
+      "file": "packages/library/src/work/waits.test.ts",
+      "sha256": "1fe5f6035d8443fc731da85a324211cce578d33f157f5d84723c3c255a790498",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/work/waits.test.ts",
+      "sha256": "1fe5f6035d8443fc731da85a324211cce578d33f157f5d84723c3c255a790498",
+      "title": "an increment wait holds until the blocker closes as landed; a failed, withdrawn or missing blocker holds for good",
+      "contract": "11.1"
+    },
+    {
+      "file": "packages/library/src/work/waits.test.ts",
+      "sha256": "1fe5f6035d8443fc731da85a324211cce578d33f157f5d84723c3c255a790498",
+      "title": "an arc wait holds until that arc closes",
+      "contract": "11.2"
+    },
+    {
+      "file": "packages/library/src/work/waits.test.ts",
+      "sha256": "1fe5f6035d8443fc731da85a324211cce578d33f157f5d84723c3c255a790498",
+      "title": "waitHolds(id) returns the blockers still holding, each with its reason",
+      "contract": "11.4"
+    },
+    {
+      "file": "packages/library/src/work/waits.test.ts",
+      "sha256": "1fe5f6035d8443fc731da85a324211cce578d33f157f5d84723c3c255a790498",
+      "title": "holds() answers every arc's and open increment's holds in one reading, as waitHolds and heldOnQuestion do",
+      "contract": "11.5"
+    },
+    {
+      "file": "packages/library/src/work/waits.test.ts",
+      "sha256": "1fe5f6035d8443fc731da85a324211cce578d33f157f5d84723c3c255a790498",
+      "title": "an increment's wait for the owner holds until cleared, an outside event's until its check-back day, then reads passed",
+      "contract": "11.6"
+    },
+    {
+      "file": "packages/library/src/work/waits.test.ts",
+      "sha256": "1fe5f6035d8443fc731da85a324211cce578d33f157f5d84723c3c255a790498",
+      "title": "an increment waits on a capability's claim: it holds only while a live session holds that capability, and an increment wait still holds until its blocker lands",
+      "contract": "11.12"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an increment belongs to one live arc, created as a proposal with its parked date, or born closed",
+      "contract": "10.1"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an increment moves only forward, and closing records date, pull request, note and outcome; a close with no pull request needs a note",
+      "contract": "10.2"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "a closed outcome can be corrected with a reason kept in history, without reopening it or losing its closure date",
+      "contract": "10.2"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an increment stored as ready, a step ADR-0909 D4 retired, reads as a proposal keeping its parked date, and an edit stores it so",
+      "contract": "10.7"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an increment carries a capabilities list naming live capabilities only, empty by default and editable after parking, and cites anything else through links; one stored with touches reads them split, and an edit stores it so",
+      "contract": "10.11"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an active increment returns to proposal keeping its parked date; a proposal or closed one is refused with nothing written",
+      "contract": "10.9"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an arc reads closed exactly when none of its increments is open, active otherwise or with none, and parked until unparked",
+      "contract": "10.3"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an arc parked until a day reads parked before that day (UTC midnight) and as if unparked from it on, worked out on read with no write in between",
+      "contract": "10.6"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an arc whose every open increment waits only on a dated event, or on its own work so held, reads parked until the earliest check-back day, worked out on read; free work, an owner wait or an open question keeps it active",
+      "contract": "10.10"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "a capability is parked when open increments name it and every one sits on a parked arc and asks nothing of the owner, with those arcs; an open increment on an active arc, an owner wait or an open held-on question leaves it out",
+      "contract": "10.18"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "closing an increment as landed resolves each friction in its remedies, stamped with its pull request or else the increment, and a closure corrected to landed does the same",
+      "contract": "10.46"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "closing an increment failed or withdrawn reopens each friction it left routed unless another open increment remedies it, and a closure corrected from landed reopens those it resolved",
+      "contract": "10.47"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an increment may name the one machine that can take it: parked with it, edited to another, and cleared by an edit that removes the field; an empty name is refused with nothing written",
+      "contract": "10.19"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an increment names the escape it fixes: the pull request or increment that caused it and the story it hit, a pull request also by its merge commit, so a number either repository history could hold names one change; set by parking or editing and cleared by an edit; a cause, commit or story that is not one, or a pull request without its commit, is refused with nothing written",
+      "contract": "10.23"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an escape keeps the story it hit after that story is retired: an edit naming the story the escape already records is accepted, so its commit can still be added, while naming any other story that is not live is refused with nothing written",
+      "contract": "10.41"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an increment from the owner's answer, landed with a note and no pull request, records an FYI of what it found, so it is offered to him until heard; one with a pull request, not landed, not from his answer, or whose note raises a new question to him records none",
+      "contract": "10.42"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "a landed increment says whether it fixed an escape: one naming none is recorded as fixing none when it lands, closed or parked closed, while one naming its escape keeps it and a close that does not land says nothing",
+      "contract": "10.30"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an increment carries a risk line: its tier, rating, depth, radius, depth flags, the stories it touches and the day read, set and cleared by an edit; a tier, number or day out of range, or a story that is not one, is refused with nothing written",
+      "contract": "10.24"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an increment is parked already waiting for the owner, its note written in the parking's one write, so it is never open work without the wait; a wait the owner wait rules refuse, two for one releaser, or one on an increment born closed is refused with nothing written",
+      "contract": "10.25"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "arcViews() answers every live arc's view as arcView does, in a bounded number of reads whatever the number of arcs",
+      "contract": "7.8"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "the board's arcs: live arcs whole plus closed arcs whose closing day falls in a window, and closed arcs alone by a window, each with its closing day and only the increment fields the board draws",
+      "contract": "10.22"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "a work survey reads every live arc's state as arcViews does, its open questions counted and, unless closed, its title and priority; only open increments (and closed ones asked for by id) with the fields a dispatcher decides on, never a body; and the holds as holds() reads them",
+      "contract": "10.43"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an increment moves to another live arc keeping its id, lifecycle and waits, the history recording the move and its reason; only open work moving to a closed arc is refused",
+      "contract": "10.5"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an arc's intent and end state are required, and an arc written before they were is upgraded to carry them",
+      "contract": "10.4"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an arc listing a story is returned by arcsFor(storyId), and an arc listing no stories is accepted; an arc listing a missing, retired or wrong-type story is refused, naming the first, with nothing written",
+      "contract": "10.31"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "a wait that would close a loop across arcs and increments is refused, naming the loop, and nothing is written",
+      "contract": "10.32"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "a wait is cleared from the record that stores it as its blocker lands (an increment) or closes (an arc), with the reason in its history; a failed or withdrawn blocker's wait stays",
+      "contract": "10.33"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an arc waits on an increment of another arc: the wait holds the arc and its open work until that increment lands, and is cleared when it does",
+      "contract": "10.34"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "parking an increment whose capabilities list names one already on another open increment's list is refused, naming every such increment, its title and its arc in the one refusal, and the wait on that capability's claim as a way out, unless it is born waiting on that increment or on the claim of every capability they share",
+      "contract": "10.35"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an increment is made to wait for the owner or an outside event with a note, one per releaser, the latest replacing it: an event wait needs a check-back day not before today, an owner wait takes none, and a closed increment waits for nothing; a refused wait is not written",
+      "contract": "10.36"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "an owner wait needs a why and may carry a rank, 1 first; each write stamps the instant it was read again (a stamp holding only a day still reads), and writing it again keeps the note, why and rank not given; an event wait takes neither",
+      "contract": "10.37"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "clearing an increment's event wait as a pull request it was handed over with merges stamps that pull request on its owner wait in the same write; writing the owner wait again drops it, and only an owner wait carries one",
+      "contract": "10.38"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "settling a question takes it off every increment's heldOn in the same step, keeping their other holds, and returns the open increments it released, by id and title, one held on it just before among them",
+      "contract": "10.39"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "retiring a question releases every increment held on it, open or closed, and retires it in one step",
+      "contract": "10.40"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "a failing verified verdict on a contract releases each open increment whose event wait is about it (one that links the contract or lists its capability): its event wait is cleared and the verdict written at the top of its body, in one write; a passing or not-checked verdict, an owner wait and an increment about other work are left as they were",
+      "contract": "10.44"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "a failing verdict told later, as of its place in history, releases only an increment whose event wait stood unchanged from that place to now: one made to wait, or made to wait again, after it keeps its wait",
+      "contract": "10.45"
+    },
+    {
+      "file": "packages/library/src/work/work-in-flight.test.ts",
+      "sha256": "e7e12770d0a72fbcce198cc75059c916af60488234153ef9ebaef242eeb07c07",
+      "title": "10.8 work reads stay small as unrelated closed history grows, preserving blockers and the arc log",
+      "contract": "10.8"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "${number} [${backend.label}] ${title}",
+      "contract": null
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a story, a capability under it and a contract under that come back from projectTree nested: story › capability › contract",
+      "contract": "4.1"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a capability naming a missing or retired story is refused, as is a contract naming a missing capability",
+      "contract": "4.3"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a capability depending on a capability that does not exist is refused",
+      "contract": "4.4"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a dependency loop between capabilities, A → B → A or longer, is refused and nothing is written",
+      "contract": "4.5"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a capability is born proposed; the agent switches the flag off, and back on, with its writer in history; one written before the flag reads proposed",
+      "contract": "4.6"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a contract planned without a number gets its capability's next free one, and a number another live contract of the capability carries is refused",
+      "contract": "4.7"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a capability planned without a number gets its story's next free one, so a contract planned on it moments later is numbered; a number given is kept",
+      "contract": "4.8"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a contract planned without a number skips the numbers the capability's tests already carry; a number given is kept",
+      "contract": "4.10"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a contract planned without a number never takes the number of a numbered test no live contract carries: it gets the next free number past it, and only a number given binds it to that test",
+      "contract": "4.11"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a capability planned or retitled with a number another live capability of its story carries is refused, naming that one and the story's next free number; nothing is written",
+      "contract": "4.24"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "only mapStories makes an imported story: a mapped field given to addStory or editStory is refused and nothing is written",
+      "contract": "4.12"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "mapStories adds an imported story per new package, retires those of the same import whose package is gone, and leaves every other story as it stands",
+      "contract": "4.13"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "the plan's tree carries an imported story's import, package and folders as mapStories recorded them; a story storytree built carries none",
+      "contract": "4.14"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a story planned with folders keeps them, editStory replaces them, the tree node carries folders and no mapped, and folders given with mapped or a blank folder are refused with nothing written",
+      "contract": "4.54"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a number given in a contract's title without its separator is written as number then \" · \", on planning and on correcting; a title already in that form is kept",
+      "contract": "4.15"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a capability on an imported story is planned with the folders and files of its import it covers, several roots allowed and written plainly; one with none, or a path outside its story's folders, is refused, as are covers on a built story",
+      "contract": "4.16"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "no two capabilities of an imported story cover one file: a path equal to, inside or around another's is refused, naming the capability that covers it, on planning and on correcting",
+      "contract": "4.17"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a capability carries the store links the mapping agent judged, each naming a store, a table, a direction and the file and line that sends the statement; one with no cite, a cite with no line, or another direction is refused with nothing written, a correction replaces them, and the plan's tree carries them",
+      "contract": "4.49"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "the project's anchor is written a half at a time, what it is and who it is for, at one id, and read back by anchor() and the plan's tree; an empty half is refused with nothing written",
+      "contract": "4.19"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "anchorGaps reads what the plan has not said, the anchor's missing halves only, and nothing when both are said; no story is ever named (ADR-1096)",
+      "contract": "4.20"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a story carries no audience (ADR-1096): one given an audience is refused with nothing written, and one stored with an audience before reads without failing, its tree node carries none, and its next edit stores it without one",
+      "contract": "4.21"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "the plan's tree carries a story's risk reading and guardrails, and a capability's guardrails, as stored; one without them carries none",
+      "contract": "4.22"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a contract may name the existing tests that prove it (provedBy, each a pytest node id or a test's title): addContract and editContract store them, projectTree gives them, and an empty list or name is refused",
+      "contract": "4.37"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "importPluginPlan writes a plugin's story, capabilities and contracts from its plan, adopting a live story the first time; a later import matches capabilities by number and contracts by theirs, edits what changed, adds what is new and retires what the plan no longer holds, keeping ids",
+      "contract": "4.25"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a plugin's story, its capabilities and its contracts are refused every plan edit (story, capability, proposed flag, contract), each naming the plugin's plan; nothing is written",
+      "contract": "4.26"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a plugin plan with a capability or contract carrying no number, a number twice, or a contract numbered under another capability is refused, as is adopting an imported story or another plugin's, with nothing written",
+      "contract": "4.27"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "an edge joins two live capabilities of one story and the dependent's dependsOn reads it: a same-story id in dependsOn becomes an edge and only another story's ids are stored; an edge across stories, to itself, twice, to no live capability or closing a loop is refused, with nothing written",
+      "contract": "4.38"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "an edge holds its own contracts: one added to an edge keeps a number given, a number another live contract of its story carries is refused, and one given none gets its dependent capability's next free number, past every number the story's contracts carry, which that capability never gives again; the tree lists it under the story's edge, never among either capability's contracts",
+      "contract": "4.39"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "moving a capability to another story turns its edges and its dependents' edges to it into stored dependsOn ids, and stored ids of its new story into edges; a dependsOn edit or move that would drop an edge holding contracts is refused, with nothing written",
+      "contract": "4.40"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "moveDependsOnToEdges moves every stored same-story dependsOn id onto an edge with no contracts, leaving another story's ids stored, and every capability's dependsOn reads back the same ids; a second run writes nothing",
+      "contract": "4.41"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "importPluginPlan writes a plan capability's same-story dependsOn as edges and another story's as stored ids; a re-import naming the same ids writes nothing",
+      "contract": "4.42"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "importPluginPlan given the numbers its plan's source ever held retires only a live capability or contract among them; any other (one another lane landed after the source was cut) stays live with its id and is reported left, not retired",
+      "contract": "4.43"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "importPluginPlan given the versions of its plan its source ever held edits a kept record's field only from a value one of them held; a field another lane changed since the source was cut stays as it stands and the record is reported stood",
+      "contract": "4.44"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "importPluginPlan given the versions its source held retires a live capability or contract under a held number only when its title is one that source held there; another lane's record under a number the source once held and renumbered stays live and is reported left",
+      "contract": "4.51"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a contract moved to a numbered capability whose number its old one's prefix is not takes the new capability's next free number, past its contracts and tests; one given a title, or moved within its prefix, keeps its own",
+      "contract": "4.45"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a contract may record how it is proved (proof: a test criterion or agentic user acceptance testing, with a one-line reason): addContract and editContract store it, projectTree gives it, and any other proof or an empty reason is refused",
+      "contract": "4.46"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a plugin plan's contract may carry its proof: importPluginPlan writes it, changes it and, when the plan holds none, removes it; a proof another lane landed stands against a stale source; any other proof is refused with nothing written",
+      "contract": "4.47"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a contract moved onto an edge, or retitled there, with a new title carrying no number keeps its own number; one with no number moved onto an edge gets its dependent capability's next free one, past its tests",
+      "contract": "4.48"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a capability names a parent capability of its own story at any depth and keeps the story's next plain number; the tree carries its parent, a parent cleared makes it a top capability again, and a parent that is no live capability of its story, itself or one inside it is refused, as is moving to another story a capability with a parent or with capabilities inside it, with nothing written",
+      "contract": "4.52"
+    },
+    {
+      "file": "packages/library/src/work/work-model.test.ts",
+      "sha256": "3d518506888becaa918717987c5f08aba1f7fed9abb6cebc26d8eb851d23fc99",
+      "title": "a child capability planned or corrected with no folder with its own entry file or nested package behind its parent is refused, naming the parent and why; nothing is written",
+      "contract": "4.53"
+    },
+    {
+      "file": "packages/library/src/work/work.test.ts",
+      "sha256": "d9f051bfb626075c40a3a6e8a374a2ed7f7a98155a12fbd6951aae80c368f994",
+      "title": "32.1 · through the work entry, an increment listing a planned capability, held on a question on its arc, waits on the owner; settling the question releases it, holds name no hold on it, and the plan's tree still carries the capability",
+      "contract": "32.1"
+    }
+  ]
+}

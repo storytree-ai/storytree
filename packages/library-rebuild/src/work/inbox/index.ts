@@ -1,0 +1,35 @@
+// Capability 12 · Owner questions
+export { feedbackScreenshot, routeFeedback, sendFeedback, type FeedbackNote, type FeedbackPictures, type FeedbackRoute } from "./feedback.js";
+export { markFyisHeard, recordFyi, unheardFyis, type NewFyi } from "./fyi.js";
+export { FYI_FAMILY } from "./fyi-verbs.js";
+export {
+  checkQuestion,
+  editQuestion,
+  lapsedQuestions,
+  linkNamedEvidence,
+  moveQuestion,
+  openQuestions,
+  predictQuestion,
+  prepQuestion,
+  questionDeviation,
+  questionPrediction,
+  raiseQuestion,
+  renewQuestion,
+  retireQuestion,
+  retireUnheld,
+  RetireRefusedError,
+  scoreQuestion,
+  settleQuestion,
+  type DeviationBand,
+  type NewQuestion,
+  type Prep,
+  type QuestionDeviation,
+  type QuestionEdit,
+  type QuestionLease,
+  type Released,
+  type Score,
+  type SettledQuestion,
+  type Settlement,
+  type Verdict,
+  type WouldBeAnswer,
+} from "./questions.js";

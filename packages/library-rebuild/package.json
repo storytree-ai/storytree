@@ -9,6 +9,7 @@
     "./librarian": "./src/knowledge/librarian/index.ts",
     "./outside-writer": "./src/projects/shared/outside-writer.ts",
     "./pr-cutover": "./src/plan/pr-cutover.ts",
+    "./printable": "./src/printable.ts",
     "./reads": "./src/projects/shared/reads.ts",
     "./testing/pg": "./src/testing/pg.ts"
   },

@@ -15,6 +15,7 @@ import {
 } from "../storage/rules/index.js";
 import type { PendingPlanChange } from "./kinds.js";
 import { capabilityNumber, contractNumber, separated, unnumbered } from "./numbers.js";
+import type { PrCutover } from "./pr-cutover.js";
 import { importPluginPlan, type ImportedPluginPlan, type PluginImportOptions, type PluginPlan } from "./plugin-plan.js";
 import {
   contractsOfStory,
@@ -292,6 +293,11 @@ export class WorkModel {
     return plan.capabilities.has(id) ? dependsOnOf(plan, id) : null;
   }
 
+  async dependents(id: string): Promise<string[]> {
+    const plan = await readPlan(this.#records);
+    return [...plan.capabilities.keys()].filter((other) => other !== id && dependsOnOf(plan, other).includes(id));
+  }
+
   async moveDependsOnToEdges(options: WriteOptions = {}): Promise<MovedToEdges> {
     return await this.#write(options, async () => {
       const plan = await readPlan(this.#records);
@@ -325,6 +331,18 @@ export class WorkModel {
         return await this.#records.create("anchor", present(fields) as Anchor, { ...writing(options), id: ANCHOR_ID });
       }
       return (await this.#records.edit(ANCHOR_ID, fields, writing(options))) as SchemaRecord<"anchor">;
+    });
+  }
+
+  async prCutover(): Promise<PrCutover | undefined> {
+    return (await this.#records.list("prCutover"))[0]?.fields;
+  }
+
+  async setPrCutover(fields: Partial<PrCutover>, options: WriteOptions = {}): Promise<SchemaRecord<"prCutover">> {
+    return await this.#write(options, async () => {
+      const held = (await this.#records.list("prCutover"))[0];
+      if (held === undefined) return await this.#records.create("prCutover", present(fields) as PrCutover, writing(options));
+      return (await this.#records.edit(held.id, fields, writing(options))) as SchemaRecord<"prCutover">;
     });
   }
 

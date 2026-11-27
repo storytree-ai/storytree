@@ -49,7 +49,7 @@ class MemoryBackend implements Backend {
 
   #append(entry: NewEntry): void {
     const seq = (this.#entries.at(-1)?.seq ?? 0) + 1;
-    this.#entries.push(structuredClone({ ...entry, seq, at: new Date().toISOString() }));
+    this.#entries.push(structuredClone({ ...entry, seq, at: entry.action === "retired" ? new Date().toISOString() : entry.record.updatedAt }));
   }
 
   #list(types: readonly string[], filter: ListFilter): RecordEnvelope[] {

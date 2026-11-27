@@ -1,6 +1,6 @@
 // Capability 12 · Owner questions
 import { PLAN_KINDS } from "../../plan/kinds.js";
-import { MissingReferenceError, referTo, SchemaError, type FieldsOf, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../storage/rules/index.js";
+import { MissingReferenceError, referTo, SchemaError, unstorable, type FieldsOf, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../storage/rules/index.js";
 import { VERDICTS } from "./kinds.js";
 
 export type NewQuestion = Omit<FieldsOf<"question">, "lifecycle" | "answer" | "settledAt" | "settledBy" | "verifiedAt">;
@@ -73,7 +73,7 @@ export class RetireRefusedError extends Error {
   readonly heldBy: readonly string[];
 
   constructor(id: string, heldBy: readonly string[], field: "heldOn" | "dependsOn" = "heldOn") {
-    super(`${id} is not retired: ${heldBy.join(", ")} ${field === "heldOn" ? "is held on it; retireQuestion releases its holders" : "depends on it"}`);
+    super(`${id} is not retired: ${heldBy.join(", ")} ${field === "heldOn" ? "is held on it; retireQuestion releases its holders" : "names it in dependsOn"}`);
     this.id = id;
     this.heldBy = heldBy;
   }
@@ -251,6 +251,7 @@ export async function retireQuestion(records: SchemaRecords, id: string, reason:
 }
 
 export async function retireUnheld(records: SchemaRecords, id: string, reason: string, options: WriteOptions = {}): Promise<void> {
+  if (unstorable(id) !== undefined) return;
   await records.inOneWrite(async () => {
     const holders = (await records.list("increment", { names: id })).filter(({ fields }) => (fields.heldOn ?? []).includes(id));
     if (holders.length > 0) throw new RetireRefusedError(id, holders.map(({ id: held }) => held));

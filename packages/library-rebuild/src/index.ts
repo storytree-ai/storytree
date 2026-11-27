@@ -1,20 +1,41 @@
-// Capability 2 · Library transactions
+// Capability 7 · Library API
 import type { Pool } from "pg";
 
-import type { Knowledge } from "./knowledge/decisions/index.js";
-import type { WorkModel } from "./plan/index.js";
-import { connect as connectServer, type ConnectOptions, type OwnDatabaseOptions, type ProjectSnapshot } from "./projects/open/index.js";
-import type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./storage/store/index.js";
-import type { RecordType, SchemaRecord, WriteOptions } from "./storage/rules/index.js";
-import type { WorkInFlight } from "./work/arcs/index.js";
+import { libraryOf, type Library } from "./library.js";
+import { connect as connectServer, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type ProjectSnapshot } from "./projects/open/index.js";
 
-export { MissingUpgradeError, NewerSchemaError, pluginSchema, SchemaError, UnknownTypeError } from "./storage/rules/index.js";
-export type { FieldsOf, PluginRecordKind, PluginUpgradeStep, RecordType, SchemaRecord, WriteOptions } from "./storage/rules/index.js";
-export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./storage/store/index.js";
-export type { ConnectOptions, ProjectSnapshot } from "./projects/open/index.js";
-export { ConnectionError, connectionString } from "./projects/shared/index.js";
+export { NOT_VERIFIED, heldBack, wordAndWhy } from "./health/index.js";
+export { SupersessionLoopError } from "./knowledge/decisions/index.js";
+export { knowledgeGuidance, LinkLoopError, OWNER_TIME_ZONE, parseSchedule, referenceEdgesOf } from "./knowledge/notes/index.js";
+export {
+  ANCHOR_ID,
+  anchorGaps,
+  beforeCutover,
+  CONTRACT_DEFINITION,
+  CONTRACT_PLACEMENT,
+  CONTRACT_PROOFS,
+  LONG_CONTRACT_TITLE,
+  planGuidance,
+  pullSaid,
+  STORE_LINK_DIRECTIONS,
+} from "./plan/index.js";
+export { ProjectGoneError, ProjectNameError, RestoreRefusedError } from "./projects/open/index.js";
+export { CONNECT_TIMEOUT_MS, ConnectionError, connectionString, explainConnectTimeout } from "./projects/shared/index.js";
+export {
+  DependencyLoopError,
+  MissingReferenceError,
+  MissingUpgradeError,
+  NEW_LINE,
+  NewerSchemaError,
+  pluginSchema,
+  SchemaError,
+  UnknownTypeError,
+} from "./storage/rules/index.js";
+export { NumberTakenError, SEED_CONNECTION } from "./storage/store/index.js";
+export { LifecycleError, listedNotice, listedSaid, WaitLoopError } from "./work/arcs/index.js";
 export { RetireRefusedError } from "./work/inbox/index.js";
-export { NOT_VERIFIED, wordAndWhy } from "./health/index.js";
+
+export type { AttachedMedia, MediaEntry, MediaFile, NewMedia } from "./commands/index.js";
 export type {
   AnnotatedCapability,
   AnnotatedContract,
@@ -41,36 +62,69 @@ export type {
   SkipKind,
   VerifiedVerdict,
 } from "./health/index.js";
-
-export interface Change {
-  seq: number;
-  recordId: string;
-  type: string;
-  action: HistoryEntry["action"];
-  record: RecordEnvelope;
-}
-
-export interface Changes {
-  changes: Change[];
-  cursor: number;
-}
-
-export interface Library extends Pick<WorkModel, "addStory" | "addCapability" | "projectTree">, Pick<Knowledge, "recordDecision" | "defineTerm" | "decision" | "frontCovers" | "editNote" | "writeKnowledge" | "search">,
-  Pick<WorkInFlight, "createArc" | "addIncrement" | "raiseQuestion" | "settleQuestion" | "editQuestion" | "arcViews" | "lapsedQuestions"> {
-  readonly name: string;
-  get(id: string): Promise<SchemaRecord | null>;
-  list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]>;
-  history(filter?: HistoryFilter): Promise<HistoryEntry[]>;
-  retire(id: string, reason: string, options?: WriteOptions): Promise<void>;
-  inOneWrite<T>(work: () => Promise<T>, options?: { readonly signal?: AbortSignal }): Promise<T>;
-  changesSince(cursor: number): Promise<Changes>;
-  close(): Promise<void>;
-}
+export type { ClauseSupersession, DecisionNumberPlan, DecisionStatus, DecisionView, NewDecision } from "./knowledge/decisions/index.js";
+export type { KnowledgeKind, NewDefinition, NewKnowledge, Note, NoteEdit, NoteType, Precheck, Related, RelatedHit, RelatedOptions, ScheduleRule } from "./knowledge/notes/index.js";
+export type { Change, Changes, ChangesFilter, DormantKind, FyiNote, Library, PluginRecords } from "./library.js";
+export type {
+  Anchor,
+  AnchorEdit,
+  AnchorGaps,
+  ArcNode,
+  CapabilityEdit,
+  ContractEdit,
+  ContractWriteOptions,
+  EdgeEdit,
+  EdgeNode,
+  ImportedPluginPlan,
+  MappedPackage,
+  MappedStories,
+  MovedToEdges,
+  NewCapability,
+  NewContract,
+  NewEdge,
+  NewStory,
+  PinNote,
+  PluginPlan,
+  PluginPlanCapability,
+  PluginPlanHeld,
+  PrCutover,
+  StoreLink,
+  StoryEdit,
+} from "./plan/index.js";
+export type { ConnectOptions, ConnectionProblem, FactoryLink, OpenOptions, OwnDatabaseOptions, ProjectSnapshot, Reached, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./projects/open/index.js";
+export type { FieldsOf, Line, LineKind, LinesSince, NewLine, PluginRecordKind, PluginUpgradeStep, RecordType, SchemaRecord, WriteOptions } from "./storage/rules/index.js";
+export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./storage/store/index.js";
+export type {
+  ArcEdit,
+  ArcState,
+  ArcView,
+  BoardArcView,
+  BoardIncrement,
+  CloseInput,
+  DayWindow,
+  Disposition,
+  Hold,
+  Holds,
+  IncrementEdit,
+  IncrementStatus,
+  NewArc,
+  NewIncrement,
+  NoteWait,
+  OpenListing,
+  ParkedOn,
+  Pended,
+  PlanChange,
+  WaitFor,
+} from "./work/arcs/index.js";
+export type { FeedbackNote, FeedbackRoute, NewQuestion, QuestionLease, Settlement } from "./work/inbox/index.js";
 
 export interface Storytree {
-  openProject(name: string): Promise<Library>;
+  openProject(name: string, options?: OpenOptions): Promise<Library>;
   listProjects(): Promise<string[]>;
+  projectIdentities(): Promise<Record<string, string>>;
   snapshot(name: string): Promise<ProjectSnapshot>;
+  restore(name: string, snapshot: ProjectSnapshot): Promise<void>;
+  dropProject(name: string): Promise<void>;
   ownDatabase(name: string, options?: OwnDatabaseOptions): Promise<Pool>;
   close(): Promise<void>;
 }
@@ -78,42 +132,13 @@ export interface Storytree {
 export async function connect(options: ConnectOptions): Promise<Storytree> {
   const server = await connectServer(options);
   return {
-    async openProject(name) {
-      const { records, work, flight, knowledge, close } = await server.openProject(name);
-      return {
-        name,
-        addStory: (story, options) => work.addStory(story, options),
-        addCapability: (capability, options) => work.addCapability(capability, options),
-        projectTree: () => work.projectTree(),
-        get: (id) => records.get(id),
-        list: (kind) => records.list(kind),
-        history: (filter) => records.history(filter),
-        recordDecision: (decision, options) => knowledge.recordDecision(decision, options),
-        defineTerm: (definition, options) => knowledge.defineTerm(definition, options),
-        decision: (id) => knowledge.decision(id),
-        frontCovers: (nodeId) => knowledge.frontCovers(nodeId),
-        editNote: (id, fields, options) => knowledge.editNote(id, fields, options),
-        writeKnowledge: (kind, fields, options) => knowledge.writeKnowledge(kind, fields, options),
-        search: (query) => knowledge.search(query),
-        createArc: (arc, options) => flight.createArc(arc, options),
-        addIncrement: (increment, options) => flight.addIncrement(increment, options),
-        raiseQuestion: (question, options) => flight.raiseQuestion(question, options),
-        settleQuestion: (id, settlement, options) => flight.settleQuestion(id, settlement, options),
-        editQuestion: (id, fields, options) => flight.editQuestion(id, fields, options),
-        arcViews: (at) => flight.arcViews(at),
-        lapsedQuestions: (at) => flight.lapsedQuestions(at),
-        retire: (id, reason, options) => records.retire(id, reason, options),
-        inOneWrite: (work, options) => records.inOneWrite(work, options?.signal),
-        changesSince: async (cursor) => {
-          const entries = await records.history({ since: cursor });
-          return { changes: entries.map(({ seq, recordId, type, action, record }) => ({ seq, recordId, type, action, record })), cursor: entries.at(-1)?.seq ?? cursor };
-        },
-        close,
-      };
-    },
+    openProject: async (name, open = {}) => libraryOf(await server.openProject(name, open), open.kinds),
     listProjects: () => server.listProjects(),
+    projectIdentities: () => server.projectIdentities(),
     snapshot: (name) => server.snapshot(name),
-    ownDatabase: (name, options) => server.ownDatabase(name, options),
+    restore: (name, snapshot) => server.restore(name, snapshot),
+    dropProject: (name) => server.dropProject(name),
+    ownDatabase: (name, own) => server.ownDatabase(name, own),
     close: () => server.close(),
   };
 }

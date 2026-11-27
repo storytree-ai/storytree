@@ -48,6 +48,7 @@ export interface OwnDatabaseOptions {
 export interface Storytree {
   openProject(name: string, options?: OpenOptions): Promise<Project>;
   listProjects(): Promise<string[]>;
+  projectIdentities(): Promise<Record<string, string>>;
   snapshot(name: string): Promise<ProjectSnapshot>;
   restore(name: string, snapshot: ProjectSnapshot): Promise<void>;
   dropProject(name: string): Promise<void>;
@@ -80,6 +81,39 @@ function standingOf(declaredIn: readonly (string | undefined)[] | undefined, pro
     if (!standing.merged) return standing;
   }
   return { merged: true };
+}
+
+const APPLIED = "storytree_applied";
+
+async function setUpOwn(pool: Pool, tables: readonly string[]): Promise<void> {
+  const unapplied = async (ask: Pick<Pool, "query">): Promise<string[]> => {
+    const { rows } = await ask.query<{ there: boolean }>("SELECT to_regclass($1) IS NOT NULL AS there", [APPLIED]);
+    if (!rows[0]!.there) return [...tables];
+    const done = new Set((await ask.query<{ statement: string }>(`SELECT statement FROM ${APPLIED}`)).rows.map((row) => row.statement));
+    return tables.filter((statement) => !done.has(statement));
+  };
+  if ((await unapplied(pool)).length === 0) return;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    try {
+      await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.own-database'))");
+      const left = await unapplied(client);
+      if (left.length > 0) {
+        await client.query(`CREATE TABLE IF NOT EXISTS ${APPLIED} (statement text PRIMARY KEY, at timestamptz NOT NULL DEFAULT clock_timestamp())`);
+        for (const statement of left) {
+          await client.query(statement);
+          await client.query(`INSERT INTO ${APPLIED} (statement) VALUES ($1) ON CONFLICT DO NOTHING`, [statement]);
+        }
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
+  } finally {
+    client.release();
+  }
 }
 
 export async function connect(options: ConnectOptions, seams: Seams = {}): Promise<Storytree> {
@@ -171,6 +205,7 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
       flight,
       health: new HealthRecord(records, work, flight),
       lineage: new ProjectLineage(pool, name),
+      factory,
       reach: (other) => circle!.reach(other),
       reachAll: () => circle!.reachAll(),
       async close() {
@@ -200,9 +235,34 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
       }
     });
 
+  const owned = new Map<string, Promise<Pool>>();
+
+  const ownPool = (name: string): Promise<Pool> => {
+    let held = owned.get(name);
+    if (held === undefined) {
+      held = (async () => {
+        await exists(name, true);
+        return poolFor(name);
+      })();
+      owned.set(name, held);
+      held.catch(() => owned.delete(name));
+    }
+    return held;
+  };
+
   return {
     openProject,
     listProjects,
+
+    async projectIdentities() {
+      const names = await listProjects();
+      const { rows } = await ask<{ datname: string; identity: string }>("SELECT datname, oid::text AS identity FROM pg_database WHERE datname = ANY($1)", [names.map(databaseOf)]);
+      const identities = new Map(rows.map((row) => [row.datname, row.identity]));
+      return Object.fromEntries(names.flatMap((name) => {
+        const identity = identities.get(databaseOf(name));
+        return identity === undefined ? [] : [[name, identity]];
+      }));
+    },
 
     snapshot: (name) =>
       track(async () => {
@@ -248,26 +308,21 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
 
     ownDatabase: (name, own = {}) =>
       track(async () => {
-        await exists(name, true);
-        const pool = poolFor(name);
-        try {
-          const tables = own.tables ?? [];
-          if (tables.length === 0) return pool;
-          const standing = shared ? standingOf(own.declaredIn, probe) : { merged: true as const };
-          if (standing.merged) {
-            for (const statement of tables) await pool.query(statement);
-            return pool;
-          }
-          const { rows } = await pool.query<{ n: number }>("SELECT count(*)::int AS n FROM pg_tables WHERE schemaname = current_schema()");
-          if (rows[0]!.n === 0) {
-            throw new ConnectionError("config", `The database "${name}" has no tables yet, and the code declaring them is not merged, so a shared library sets none up: ${standing.why}`);
-          }
-          warnOnce(`own:${name}`, `storytree: the database "${name}" is not given this code's table statements, which are not merged: ${standing.why}`);
+        if (name.startsWith("storytree_")) throw new RangeError(`"${name}" is a project's database, which is never handed out as a connection's own`);
+        const pool = await ownPool(name);
+        const tables = own.tables ?? [];
+        if (tables.length === 0) return pool;
+        const standing = shared ? standingOf(own.declaredIn, probe) : { merged: true as const };
+        if (standing.merged) {
+          await setUpOwn(pool, tables);
           return pool;
-        } catch (error) {
-          await end(pool);
-          throw error;
         }
+        const { rows } = await pool.query<{ n: number }>("SELECT count(*)::int AS n FROM pg_tables WHERE schemaname = current_schema()");
+        if (rows[0]!.n === 0) {
+          throw new ConnectionError("config", `The database "${name}" has no tables yet, and the code declaring them is not merged, so a shared library sets none up: ${standing.why}`);
+        }
+        warnOnce(`own:${name}`, `storytree: the database "${name}" is not given this code's table statements, which are not merged: ${standing.why}`);
+        return pool;
       }),
 
     close() {

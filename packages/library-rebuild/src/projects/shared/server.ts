@@ -10,6 +10,12 @@ import { cannotCreateDatabases, ConnectionError, quoted, sqlState } from "./conn
 import { processReaderName, readerName, tally } from "./reads.js";
 
 export const CONNECT_TIMEOUT_MS = 10_000;
+
+export function explainConnectTimeout(error: unknown, connectTimeoutMs: number = CONNECT_TIMEOUT_MS): unknown {
+  if (error instanceof ConnectionError || !(error instanceof Error)) return error;
+  if (!/timeout exceeded when trying to connect|timeout expired/i.test(error.message)) return error;
+  return new ConnectionError("timeout", `The library did not answer within ${connectTimeoutMs / 1000} seconds.`, error);
+}
 const WAIT_MS = 30_000;
 const IDLE_WRITER_MS = 10_000;
 const TRY_LOCK = `${WRITE_LOCK.replace("pg_advisory_xact_lock", "pg_try_advisory_xact_lock")} AS got`;

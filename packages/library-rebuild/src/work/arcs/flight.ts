@@ -19,6 +19,7 @@ import {
   renewQuestion,
   retireQuestion,
   retireUnheld,
+  RetireRefusedError,
   scoreQuestion,
   settleQuestion,
   type NewQuestion,
@@ -509,7 +510,13 @@ export class WorkInFlight {
   }
 
   async retire(id: string, reason: string, options: WriteOptions = {}): Promise<void> {
-    await retireUnheld(this.#records, id, reason, options);
+    await this.#records.inOneWrite(async () => {
+      if ((await liveOf(this.#records, "capability", id)) !== null) {
+        const dependents = await this.#work.dependents(id);
+        if (dependents.length > 0) throw new RetireRefusedError(id, dependents, "dependsOn");
+      }
+      await retireUnheld(this.#records, id, reason, options);
+    }, options.signal);
   }
 
   async createArc(arc: NewArc, options: WriteOptions & { readonly id?: string } = {}): Promise<SchemaRecord<"arc">> {

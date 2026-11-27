@@ -1,7 +1,7 @@
 // Capability 5 · Health record
 export { HEALTH_KINDS } from "./kinds.js";
 export { HealthRecord } from "./record.js";
-export { capabilityStatus, capabilityWhy, NOT_VERIFIED, wordAndWhy } from "./word.js";
+export { capabilityStatus, capabilityWhy, heldBack, NOT_VERIFIED, wordAndWhy } from "./word.js";
 export type {
   AnnotatedCapability,
   AnnotatedContract,

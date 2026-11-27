@@ -1,7 +1,7 @@
 // Capability 2 · Library transactions
 export { MemoryTransactions } from "./memory.js";
 export { NumberTakenError } from "./number-taken.js";
-export { PgBackend, PgTransactions, STORE_TABLES, WRITE_LOCK } from "./pg.js";
+export { PgBackend, PgTransactions, SEED_CONNECTION, STORE_TABLES, WRITE_LOCK } from "./pg.js";
 export {
   LaterWriterError,
   project,

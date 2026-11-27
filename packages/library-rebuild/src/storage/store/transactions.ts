@@ -132,6 +132,7 @@ export interface Writer extends Reader {
   put(record: RecordEnvelope): Promise<void>;
   remove(id: string): Promise<void>;
   append(entry: NewEntry): Promise<void>;
+  lock?(id: string): Promise<RecordEnvelope | null>;
   getAll?(ids: readonly string[]): Promise<RecordEnvelope[]>;
   putAll?(records: readonly RecordEnvelope[], entries: readonly NewEntry[]): Promise<void>;
 }
@@ -185,7 +186,7 @@ export class Store implements Transactions {
 
   async edit(input: EditInput): Promise<RecordEnvelope | null> {
     return await this.#write(async (writer) => {
-      const stored = await writer.get(input.id);
+      const stored = await (writer.lock === undefined ? writer.get(input.id) : writer.lock(input.id));
       if (stored === null) return null;
       const current = input.upgrade === undefined ? stored : input.upgrade(stored);
       const fields: Record<string, unknown> = { ...current.fields, ...input.fields };
@@ -200,10 +201,10 @@ export class Store implements Transactions {
 
   async retire(input: RetireInput): Promise<void> {
     await this.#write(async (writer) => {
-      const stored = await writer.get(input.id);
+      const stored = await (writer.lock === undefined ? writer.get(input.id) : writer.lock(input.id));
       if (stored === null) return;
-      await writer.remove(input.id);
       await writer.append(entry("retired", stored, input, input.reason));
+      await writer.remove(input.id);
     }, input.signal);
   }
 

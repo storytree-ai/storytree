@@ -5,6 +5,12 @@ import { Store, type Backend, type HistoryEntry, type HistoryFilter, type ListFi
 
 export const WRITE_LOCK = "SELECT pg_advisory_xact_lock(hashtext('storytree.record-writes'))";
 
+export const SEED_CONNECTION = "storytree-seed";
+
+function writtenAt(entry: NewEntry): string | null {
+  return entry.action === "retired" ? null : entry.record.updatedAt;
+}
+
 export const STORE_TABLES = [
   `CREATE TABLE IF NOT EXISTS record (
     id text PRIMARY KEY,
@@ -96,6 +102,10 @@ export class PgBackend implements Backend {
         const { rows } = await db.query<RecordRow>("SELECT * FROM record WHERE id = $1", [id]);
         return rows[0] === undefined ? null : envelope(rows[0]);
       },
+      lock: async (id) => {
+        const { rows } = await db.query<RecordRow>("SELECT * FROM record WHERE id = $1 FOR UPDATE", [id]);
+        return rows[0] === undefined ? null : envelope(rows[0]);
+      },
       list: async (types, filter) => this.#list(db, types, filter),
       history: async (filter) => this.#history(db, filter),
       put: async (record) => {
@@ -121,7 +131,7 @@ export class PgBackend implements Backend {
   async #putAll(db: Queryable, records: readonly RecordEnvelope[], entries: readonly NewEntry[]): Promise<void> {
     const marks = await this.#hasMarks(db);
     const rows = records.map((record) => ({ id: record.id, type: record.type, version: record.version, fields: record.fields, created_at: record.createdAt, updated_at: record.updatedAt }));
-    const events = entries.map((entry) => ({ record_id: entry.recordId, type: entry.type, action: entry.action, record: entry.record, reason: entry.reason ?? null, actor: entry.actor ?? null, outside_read: entry.outsideRead ?? null }));
+    const events = entries.map((entry) => ({ record_id: entry.recordId, type: entry.type, action: entry.action, record: entry.record, reason: entry.reason ?? null, actor: entry.actor ?? null, outside_read: entry.outsideRead ?? null, at: writtenAt(entry) }));
     await db.query(
       `WITH saved AS (
          INSERT INTO record (id, type, version, fields, created_at, updated_at)
@@ -130,22 +140,22 @@ export class PgBackend implements Backend {
          ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type, version = EXCLUDED.version, fields = EXCLUDED.fields,
            created_at = EXCLUDED.created_at, updated_at = EXCLUDED.updated_at
        )
-       INSERT INTO record_event (record_id, type, action, record, reason, actor${marks ? ", outside_read" : ""})
-       SELECT e->>'record_id', e->>'type', e->>'action', e->'record', e->>'reason', e->>'actor'${marks ? ", NULLIF(e->'outside_read', 'null'::jsonb)" : ""}
+       INSERT INTO record_event (record_id, type, action, record, reason, actor, at${marks ? ", outside_read" : ""})
+       SELECT e->>'record_id', e->>'type', e->>'action', e->'record', e->>'reason', e->>'actor', coalesce((e->>'at')::timestamptz, clock_timestamp())${marks ? ", NULLIF(e->'outside_read', 'null'::jsonb)" : ""}
        FROM jsonb_array_elements($2::jsonb) WITH ORDINALITY AS u(e, n) ORDER BY n`,
       [JSON.stringify(rows), JSON.stringify(events)],
     );
   }
 
   async #append(db: Queryable, entry: NewEntry): Promise<void> {
-    const values = [entry.recordId, entry.type, entry.action, JSON.stringify(entry.record), entry.reason ?? null, entry.actor ?? null];
+    const values = [entry.recordId, entry.type, entry.action, JSON.stringify(entry.record), entry.reason ?? null, entry.actor ?? null, writtenAt(entry)];
     if (await this.#hasMarks(db)) {
       await db.query(
-        "INSERT INTO record_event (record_id, type, action, record, reason, actor, outside_read) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        "INSERT INTO record_event (record_id, type, action, record, reason, actor, at, outside_read) VALUES ($1, $2, $3, $4, $5, $6, coalesce($7::timestamptz, clock_timestamp()), $8)",
         [...values, entry.outsideRead === undefined ? null : JSON.stringify(entry.outsideRead)],
       );
     } else {
-      await db.query("INSERT INTO record_event (record_id, type, action, record, reason, actor) VALUES ($1, $2, $3, $4, $5, $6)", values);
+      await db.query("INSERT INTO record_event (record_id, type, action, record, reason, actor, at) VALUES ($1, $2, $3, $4, $5, $6, coalesce($7::timestamptz, clock_timestamp()))", values);
     }
   }
 

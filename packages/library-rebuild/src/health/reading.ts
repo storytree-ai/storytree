@@ -42,7 +42,8 @@ export async function readHealth(records: SchemaRecords): Promise<Reading> {
   for (const [id, entry] of last) {
     if (entry.action === "retired") continue;
     const fields = records.current(entry.record).fields as HealthFields;
-    maps[sideOf(id) ?? fields.column].set(fields.node, { id, fields, at: entry.at });
+    const map: Map<string, Stored> | undefined = maps[sideOf(id) ?? fields.column];
+    map?.set(fields.node, { id, fields, at: entry.at });
   }
   return { ...maps, entries, checked: maps.verified.size > 0 || maps.observed.size > 0 };
 }

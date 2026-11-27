@@ -1,5 +1,5 @@
 // Capability 5 · Health record
-import type { AnnotatedCapability, CapabilityStatus, CapabilityWhy, HealthColumn, HealthReason, HealthState } from "./types.js";
+import type { AnnotatedCapability, CapabilityStatus, CapabilityWhy, HealthColumn, HealthReason, HealthState, HealthWorkItem } from "./types.js";
 
 export const NOT_VERIFIED = "storytree does not check this project's tests yet";
 export const ACCEPTANCE = "agentic-user-acceptance-testing";
@@ -62,6 +62,13 @@ export function wordAndWhy(capability: Pick<AnnotatedCapability, "status" | "why
   if (why === undefined) return capability.status;
   const reason = why.inside === undefined ? why.reason : `failing inside ${why.inside.map(({ title }) => title).join(", ")}`;
   return `${capability.status} — ${reason}, ${why.mover === "agent" ? "the agent's" : "the owner's"} to move`;
+}
+
+export function heldBack(items: readonly HealthWorkItem[]): string | undefined {
+  const held = items.filter(({ waits }) => waits !== undefined);
+  if (held.length === 0) return undefined;
+  const runs = held.map(({ title, waits }) => `${title} (waiting on ${waits!.note ?? waits!.by ?? "a run"} since ${waits!.since})`);
+  return `${held.length} ${held.length === 1 ? "capability is" : "capabilities are"} held back, waiting on a run that will record them: ${runs.join("; ")}.`;
 }
 
 function allPassing(states: readonly HealthState[]): boolean {

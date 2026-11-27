@@ -7,5 +7,5 @@ export type { Project } from "./project.js";
 export { ProjectRecords, type InheritedRecords, type SystemSwitches } from "./records.js";
 export { PROJECT_SCHEMA } from "./schema.js";
 export { schemaMerged, type SchemaStanding } from "./schema-merged.js";
-export { RestoreRefusedError, type ProjectSnapshot, type SnapshotEvent, type SnapshotRecord } from "./snapshot.js";
+export { RestoreRefusedError, type ProjectSnapshot, type SnapshotEvent, type SnapshotMedia, type SnapshotRecord } from "./snapshot.js";
 export { connect, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Seams, type Storytree } from "./storytree.js";

@@ -291,7 +291,7 @@ export class HealthRecord {
 }
 
 function actorOf(options: HealthOptions): { actor?: string } {
-  const actor = options.by ?? options.actor;
+  const actor = options.actor ?? options.by;
   return actor === undefined ? {} : { actor };
 }
 

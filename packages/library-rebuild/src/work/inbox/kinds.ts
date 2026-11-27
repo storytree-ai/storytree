@@ -16,6 +16,10 @@ const prep = z.object({
   }
 });
 
+const box = z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() }).strict();
+
+export const FEEDBACK_ROUTES = ["increment", "question", "closed"] as const;
+
 export const INBOX_KINDS = {
   question: z.object({
     arc: z.string(),
@@ -59,4 +63,45 @@ export const INBOX_KINDS = {
     by: z.string(),
     heardAt: z.string().optional(),
   }).strict(),
+  feedback: z.object({
+    text: z.string().min(1),
+    surface: z.string().min(1),
+    story: z.string().optional(),
+    selection: z.string().optional(),
+    project: z.string().optional(),
+    version: z.string(),
+    window: z.object({ width: z.number(), height: z.number() }).strict(),
+    theme: z.enum(["light", "dark"]),
+    at: z.string(),
+    anchor: z.object({
+      selector: z.string(),
+      tag: z.string(),
+      role: z.string().optional(),
+      name: z.string().optional(),
+      text: z.string().optional(),
+      marks: z.array(z.string()),
+      components: z.array(z.string()),
+      box,
+      styles: z.record(z.string(), z.string()),
+      html: z.string().max(2048),
+      drawn: z.object({
+        kind: z.enum(["capability", "gate", "island"]),
+        story: z.string(),
+        capability: z.string().optional(),
+        between: z.tuple([z.string(), z.string()]).optional(),
+        name: z.string(),
+        box,
+      }).strict().optional(),
+    }).strict().optional(),
+    status: z.enum(["new", "routed"]),
+    screenshot: z.boolean(),
+    crop: z.boolean().optional(),
+    route: z.enum(FEEDBACK_ROUTES).optional(),
+    routedTo: z.string().min(1).optional(),
+    routeReason: z.string().min(1).optional(),
+  }).strict().superRefine((fields, context) => {
+    if (fields.status !== "routed") return;
+    if (fields.route === undefined) context.addIssue({ code: "custom", path: ["route"], message: "a routed note carries its route" });
+    if (fields.routeReason === undefined) context.addIssue({ code: "custom", path: ["routeReason"], message: "a routed note carries its reason" });
+  }),
 };

@@ -21,6 +21,7 @@ export interface Project {
   readonly flight: WorkInFlight;
   readonly health: HealthRecord;
   readonly lineage: ProjectLineage;
+  readonly factory: Project | undefined;
   reach(name: string): Promise<Project>;
   reachAll(): Promise<Reached<Project>[]>;
   close(): Promise<void>;

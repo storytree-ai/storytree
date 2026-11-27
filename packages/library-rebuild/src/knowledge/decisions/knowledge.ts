@@ -150,7 +150,7 @@ export class Knowledge extends Notes {
     if (!Number.isSafeInteger(floor) || floor <= 0) throw new RangeError(`the decision number floor is a positive safe integer, not ${floor}`);
     const unset = async (): Promise<void> => {
       const set = await this.#floor();
-      if (set !== undefined) throw new Error(`the decision number floor is already set, at ${set}: it is set once`);
+      if (set !== undefined) throw new Error(`the decision number floor is already set to ${set}: it is set once`);
     };
     await unset();
     if (options.apply !== true) return floor;

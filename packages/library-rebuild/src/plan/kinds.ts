@@ -6,6 +6,12 @@ const why = z.string().min(1);
 const guardrails = z.array(z.object({ check: z.string().min(1), trigger: z.enum(["change", "release"]) }).strict());
 const planned = z.enum(["story", "capability", "contract", "edge"]);
 
+export const STORE_LINK_DIRECTIONS = ["read", "write", "both", "unknown"] as const;
+
+export const CONTRACT_PROOFS = ["test-criterion", "agentic-user-acceptance-testing", "observability-as-proof"] as const;
+
+export const PIN_ICONS = ["store", "cache", "queue", "api", "auth", "config", "job", "events", "search", "logging", "flag"] as const;
+
 export const PLAN_PENDING_CHANGE = z.union([
   z.object({ record: z.string(), type: planned, base: z.number().int(), before: z.record(z.string(), z.unknown()), after: z.record(z.string(), z.unknown()) }).strict(),
   z.object({ record: z.string(), type: planned, base: z.number().int(), retire: z.string() }).strict(),
@@ -22,6 +28,17 @@ export const PLAN_KINDS = {
     at: z.iso.datetime(),
     repository: z.string().min(1),
     before: z.string().min(1).nullable(),
+  }).strict(),
+  pin: z.object({
+    anchor: z.union([
+      z.object({ capability: z.string().min(1), part: z.string().min(1).optional(), name: z.string().min(1).optional() }).strict(),
+      z.object({ store: z.string().min(1), table: z.string().min(1).optional() }).strict(),
+    ]),
+    icon: z.enum(PIN_ICONS),
+    label: z.string().min(1).max(40),
+    evidence: z.string().min(1),
+    commit: z.string().regex(/^[0-9a-f]{7,40}$/),
+    at: z.iso.datetime(),
   }).strict(),
   story: z.object({
     title: z.string().min(1),
@@ -55,7 +72,7 @@ export const PLAN_KINDS = {
     storeLinks: z.array(z.object({
       store: z.string().min(1),
       table: z.string().min(1),
-      direction: z.enum(["unknown", "read", "write", "both"]),
+      direction: z.enum(STORE_LINK_DIRECTIONS),
       cites: z.array(z.string().regex(/:\d+$/)).min(1),
     }).strict()).optional(),
     guardrails: guardrails.optional(),
@@ -72,8 +89,8 @@ export const PLAN_KINDS = {
     description: z.string().optional(),
     provedBy: z.array(z.string().min(1)).min(1).optional(),
     proof: z.union([
-      z.object({ by: z.enum(["test-criterion", "agentic-user-acceptance-testing"]), reason: why }).strict(),
-      z.object({ by: z.literal("observability-as-proof"), reason: why, freshness: z.string().regex(/^[1-9]\d*[hd]$/), watcher: why }).strict(),
+      z.object({ by: z.enum([CONTRACT_PROOFS[0], CONTRACT_PROOFS[1]]), reason: why }).strict(),
+      z.object({ by: z.literal(CONTRACT_PROOFS[2]), reason: why, freshness: z.string().regex(/^[1-9]\d*[hd]$/), watcher: why }).strict(),
     ]).optional(),
   }).strict().superRefine((fields, context) => {
     if (fields.capability !== undefined && fields.edge !== undefined) {

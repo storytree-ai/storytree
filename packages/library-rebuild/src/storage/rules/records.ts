@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 
 import { z } from "zod";
 
-import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, SaveInput, Transactions } from "../store/index.js";
+import type { HistoryEntry, HistoryFilter, ListFilter, RecordEnvelope, RevertedWrite, SaveInput, Transactions } from "../store/index.js";
 import { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError, type FieldProblem } from "./errors.js";
 import { LIBRARY_SCHEMA, type FieldsOf, type LibrarySchema, type RecordType } from "./schema.js";
 
@@ -144,6 +144,16 @@ export class SchemaRecords {
 
   async retire(id: string, reason: string, options: WriteOptions = {}): Promise<void> {
     await this.#transactions.retire({ id, reason, ...writing(options), ...(await this.#mark(await this.#typeOf(id, options), options)) });
+  }
+
+  async revert(id: string, to: number, read: number, options: WriteOptions & { readonly reason?: string } = {}): Promise<SchemaRecord> {
+    const validate = (candidate: RecordEnvelope) => this.check(candidate.type as RecordType, candidate.fields);
+    return this.current(await this.#transactions.revert({ id, to, read, ...writing(options), ...(options.reason === undefined ? {} : { reason: options.reason }), validate }));
+  }
+
+  async revertWrites(of: string, options: WriteOptions & { readonly reason?: string } = {}): Promise<RevertedWrite[]> {
+    const validate = (candidate: RecordEnvelope) => this.check(candidate.type as RecordType, candidate.fields);
+    return await this.#transactions.revertWrites({ of, ...writing(options), ...(options.reason === undefined ? {} : { reason: options.reason }), validate });
   }
 
   async history(filter?: HistoryFilter): Promise<HistoryEntry[]> {

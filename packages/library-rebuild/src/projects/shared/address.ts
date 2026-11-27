@@ -107,6 +107,7 @@ export function addressServer(address: string, connectTimeoutMs = CONNECT_TIMEOU
 }
 
 export function serverOf(options: ConnectOptions): Server {
+  if (options.address !== undefined && options.url !== undefined) throw new ConnectionError("config", "A library is reached by a url or by an address, not both: give one.");
   return options.address === undefined
     ? localServer(new URL(options.url), options.connectTimeoutMs, options)
     : addressServer(options.address, options.connectTimeoutMs, options);

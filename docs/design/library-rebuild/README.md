@@ -115,7 +115,7 @@ decisions and inbox; front door after every domain; commands after the front doo
    per slice, the gate table's line, and any cold-rule slip. Then release your claims. `storytree measures`
    reads each closed increment's tokens; integration sums them as the arm's cost.
 
-Run every `storytree` command from the main checkout (`/home/mickh/code/storytree03`) or through the MCP tools,
+Run every `storytree` command from the main checkout or through the MCP tools,
 never from the held worktree after integration has swapped the library.
 
 ## Integration (increment_51b5a7285aa4, last)

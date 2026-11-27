@@ -62,18 +62,19 @@ export interface QuestionLease {
   readonly lapsesAt?: string;
 }
 
+const RETIRE_REFUSALS = {
+  heldOn: { kind: "question", why: "hold on it (take it off their heldOn first, or settle it instead)" },
+  dependsOn: { kind: "capability", why: "depend on it (take it off their dependsOn first)" },
+  frontCoverOf: { kind: "capability", why: "name it as their frontCoverOf (edit each decision's frontCoverOf to the capability or story that took the work first)" },
+} as const;
+
 export class RetireRefusedError extends Error {
   readonly id: string;
   readonly heldBy: readonly string[];
 
-  constructor(id: string, heldBy: readonly string[], field: "heldOn" | "dependsOn" = "heldOn") {
-    super(
-      `${field === "heldOn" ? "question" : "capability"} ${JSON.stringify(id)} cannot be retired: ` +
-        `${heldBy.map((held) => JSON.stringify(held)).join(", ")} ` +
-        (field === "heldOn"
-          ? "hold on it (take it off their heldOn first, or settle it instead)"
-          : "depend on it (take it off their dependsOn first)"),
-    );
+  constructor(id: string, heldBy: readonly string[], field: keyof typeof RETIRE_REFUSALS = "heldOn") {
+    const { kind, why } = RETIRE_REFUSALS[field];
+    super(`${kind} ${JSON.stringify(id)} cannot be retired: ${heldBy.map((held) => JSON.stringify(held)).join(", ")} ${why}`);
     this.name = "RetireRefusedError";
     this.id = id;
     this.heldBy = [...heldBy];

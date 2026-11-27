@@ -1,0 +1,242 @@
+// Capability 28 · Shared library
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { createServer, type Server, type Socket } from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { test } from "node:test";
+import { TLSSocket } from "node:tls";
+import { fileURLToPath } from "node:url";
+
+import { removeTemp } from "@storytree/test-waits";
+
+import { saveKey } from "@storytree/keys";
+
+import { addressServer } from "./address.js";
+import { ConnectionError } from "./connection-error.js";
+
+const TLS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "testing", "tls");
+const SECRET = "synthetic-remote-secret";
+const SSL_REQUEST = 80877103;
+
+type Certificate = "library" | "elsewhere" | "impostor" | "self-signed-library" | "self-signed-elsewhere";
+
+interface Peer {
+  readonly tls?: Certificate;
+  readonly then: "cleartext" | "let-in";
+}
+
+async function peer(behaviour: Peer): Promise<{ port: number; received: () => string; close: () => Promise<void> }> {
+  const chunks: Buffer[] = [];
+  const sockets = new Set<Socket>();
+  const server: Server = createServer((raw) => {
+    sockets.add(raw);
+    raw.on("error", () => {});
+    raw.once("data", (first) => {
+      chunks.push(first);
+      if (first.length >= 8 && first.readInt32BE(4) === SSL_REQUEST) {
+        if (behaviour.tls === undefined) {
+          raw.write("N");
+          raw.once("data", (startup) => { chunks.push(startup); answer(raw); });
+          return;
+        }
+        raw.write("S");
+        const secure = new TLSSocket(raw, {
+          isServer: true,
+          cert: readFileSync(path.join(TLS, `${behaviour.tls}.crt`)),
+          key: readFileSync(path.join(TLS, `${behaviour.tls}.key`)),
+        });
+        secure.on("error", () => {});
+        secure.once("data", (startup) => { chunks.push(startup); answer(secure); });
+        return;
+      }
+      answer(raw);
+    });
+  });
+  function answer(socket: Socket): void {
+    socket.on("data", (chunk) => chunks.push(chunk));
+    if (behaviour.then === "cleartext") {
+      socket.write(message("R", int32(3)));
+    } else {
+      socket.write(Buffer.concat([message("R", int32(0)), message("Z", Buffer.from("I"))]));
+    }
+  }
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as { port: number };
+  return {
+    port,
+    received: () => Buffer.concat(chunks).toString("latin1"),
+    close: async () => {
+      for (const socket of sockets) socket.destroy();
+      await new Promise((resolve) => server.close(resolve));
+    },
+  };
+}
+
+function int32(value: number): Buffer {
+  const buffer = Buffer.alloc(4);
+  buffer.writeInt32BE(value);
+  return buffer;
+}
+
+function message(type: string, body: Buffer): Buffer {
+  return Buffer.concat([Buffer.from(type), int32(body.length + 4), body]);
+}
+
+function home(): string {
+  const made = mkdtempSync(path.join(tmpdir(), "storytree-address-tls-"));
+  process.env.STORYTREE_HOME = made;
+  delete process.env.PGPASSWORD;
+  saveKey("postgres", SECRET, { home: made });
+  return made;
+}
+
+const PINNED = pinning(path.join(TLS, "trusted-ca.crt"));
+
+function pinning(file: string): string {
+  return `sslrootcert=${encodeURIComponent(file)}`;
+}
+
+async function connectBoth(behaviour: Peer, query = PINNED): Promise<{ admin: unknown; project: unknown; received: string }> {
+  const keys = home();
+  const listening = await peer(behaviour);
+  const address = `postgres://someone@library.test:5432/postgres${query === "" ? "" : `?${query}`}`;
+  const server = addressServer(address, 5_000, {}, { host: "127.0.0.1", port: listening.port });
+  const attempt = async (pool: { connect(): Promise<{ release(): void }> }) => {
+    try {
+      (await pool.connect()).release();
+      return "connected";
+    } catch (error) {
+      return server.explain(error);
+    }
+  };
+  try {
+    const admin = await attempt(server.admin);
+    const project = await attempt(server.pool("storytree_project"));
+    return { admin, project, received: listening.received() };
+  } finally {
+    await Promise.allSettled([server.admin.end()]);
+    server.close();
+    await listening.close();
+    await removeTemp(keys);
+  }
+}
+
+function assertRefused(outcome: unknown, problem: string, pattern: RegExp): void {
+  assert.ok(outcome instanceof ConnectionError, `expected a refusal, got ${String(outcome)}`);
+  assert.equal(outcome.problem, problem);
+  assert.match(outcome.message, pattern);
+  assert.ok(!outcome.message.includes(SECRET), outcome.message);
+}
+
+test("28.22 a remote address that answers without TLS is refused before the password is sent, on the admin and project pools", async () => {
+  const { admin, project, received } = await connectBoth({ then: "cleartext" }, "");
+  assert.ok(!received.includes(SECRET), "the peer received the password");
+  assertRefused(admin, "untrusted-server", /TLS/);
+  assertRefused(project, "untrusted-server", /TLS/);
+});
+
+test("28.22 a remote address whose certificate no trusted authority signed is refused before the password is sent", async () => {
+  const { admin, project, received } = await connectBoth({ tls: "impostor", then: "cleartext" });
+  assert.ok(!received.includes(SECRET), "the peer received the password");
+  assertRefused(admin, "untrusted-server", /certificate/);
+  assertRefused(project, "untrusted-server", /certificate/);
+});
+
+test("28.22 a remote address whose trusted certificate names another host is refused before the password is sent", async () => {
+  const { admin, project, received } = await connectBoth({ tls: "elsewhere", then: "cleartext" });
+  assert.ok(!received.includes(SECRET), "the peer received the password");
+  assertRefused(admin, "untrusted-server", /library\.test/);
+  assertRefused(project, "untrusted-server", /library\.test/);
+});
+
+test("28.22 a remote address presenting the pinned certificate for its name connects, on the admin and project pools", async () => {
+  const { admin, project } = await connectBoth({ tls: "library", then: "let-in" });
+  assert.equal(admin, "connected");
+  assert.equal(project, "connected");
+});
+
+test("28.22 a remote address presenting exactly a certificate its sslrootcert holds, though no authority signed it, connects, on the admin and project pools", async () => {
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-address-tls-pins-"));
+  const pins = path.join(folder, "pins.crt");
+  writeFileSync(pins, [readFileSync(path.join(TLS, "trusted-ca.crt"), "utf8"), readFileSync(path.join(TLS, "self-signed-library.crt"), "utf8")].join(""));
+  try {
+    const { admin, project } = await connectBoth({ tls: "self-signed-library", then: "let-in" }, pinning(pins));
+    assert.equal(admin, "connected");
+    assert.equal(project, "connected");
+  } finally {
+    await removeTemp(folder);
+  }
+});
+
+test("28.22 a remote address presenting exactly the certificate its sslrootcert holds, but naming another host, is refused before the password is sent", async () => {
+  const { admin, project, received } = await connectBoth({ tls: "self-signed-elsewhere", then: "cleartext" }, pinning(path.join(TLS, "self-signed-elsewhere.crt")));
+  assert.ok(!received.includes(SECRET), "the peer received the password");
+  assertRefused(admin, "untrusted-server", /library\.test/);
+  assertRefused(project, "untrusted-server", /library\.test/);
+});
+
+test("28.22 a remote address that proves itself but asks for the password in plain text is refused before the password is sent", async () => {
+  const { admin, project, received } = await connectBoth({ tls: "library", then: "cleartext" });
+  assert.ok(!received.includes(SECRET), "the peer received the password");
+  assertRefused(admin, "untrusted-server", /plain text/);
+  assertRefused(project, "untrusted-server", /plain text/);
+});
+
+test("28.22 an address asking for a weaker check, or overriding the host it dials, is refused before reaching any server", async () => {
+  const keys = home();
+  try {
+    for (const query of ["sslmode=disable", "sslmode=require", "sslmode=no-verify", "ssl=true", "sslcert=client.crt", "host=elsewhere.test", "port=6543"]) {
+      assert.throws(
+        () => addressServer(`postgres://someone@library.test:5432/postgres?${query}`),
+        (error: unknown) => {
+          assert.ok(error instanceof ConnectionError, String(error));
+          assert.equal(error.problem, "config", query);
+          return true;
+        },
+        query,
+      );
+    }
+  } finally {
+    await removeTemp(keys);
+  }
+});
+
+const UNDER_ELECTRON = "STORYTREE_TLS_TEST_UNDER_ELECTRON";
+
+function electronBinary(): string | Error {
+  try {
+    return createRequire(import.meta.url)("electron") as string;
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error));
+  }
+}
+
+const electron = process.env[UNDER_ELECTRON] === undefined ? electronBinary() : undefined;
+const skip = process.env[UNDER_ELECTRON] !== undefined
+  ? "other: this run is the one under Electron, which does not start another"
+  : electron instanceof Error && process.env.CI === undefined ? `other: Electron is not installed here (${electron.message.split("\n")[0]})` : false;
+
+test("28.22 every check in this file holds under the desktop app's runtime, Electron, whose TLS is not Node's", { skip, timeout: 150_000 }, async () => {
+  assert.ok(typeof electron === "string", `Electron is not installed: ${String(electron)}`);
+  const { NODE_TEST_CONTEXT: _parent, NODE_OPTIONS: options, ...env } = process.env;
+  const kept = (options ?? "").split(/\s+/).filter((flag) => flag !== "" && !/^--use-(openssl|bundled)-ca$/.test(flag));
+  if (kept.length > 0) env.NODE_OPTIONS = kept.join(" ");
+  const run = await new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve, reject) => {
+    const child = spawn(electron, ["--import", "tsx", "--test", "--test-reporter=spec", fileURLToPath(import.meta.url)], {
+      cwd: fileURLToPath(new URL("../../..", import.meta.url)),
+      timeout: 120_000,
+      env: { ...env, ELECTRON_RUN_AS_NODE: "1", [UNDER_ELECTRON]: "1" },
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => (stdout += chunk));
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => (stderr += chunk));
+    child.once("error", reject);
+    child.once("close", (status) => resolve({ status, stdout, stderr }));
+  });
+  assert.equal(run.status, 0, `under Electron:\n${run.stdout}\n${run.stderr}`);
+  assert.match(run.stdout, /pass [1-9]/);
+});

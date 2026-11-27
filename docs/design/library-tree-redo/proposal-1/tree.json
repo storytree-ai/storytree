@@ -323,16 +323,16 @@
       "title": "Opening a project",
       "parent": "r1-projects",
       "files": [
-        "packages/library/src/project/storytree.ts",
-        "packages/library/src/project/names.ts",
-        "packages/library/src/project/record-cache.ts",
-        "packages/library/src/project/schema.ts",
-        "packages/library/src/project/schema-merged.ts",
-        "packages/library/src/project/snapshot.ts",
-        "packages/library/src/project/factory.ts",
-        "packages/library/src/project/switches.ts"
+        "packages/library/src/project/open/storytree.ts",
+        "packages/library/src/project/open/names.ts",
+        "packages/library/src/project/open/record-cache.ts",
+        "packages/library/src/project/open/schema.ts",
+        "packages/library/src/project/open/schema-merged.ts",
+        "packages/library/src/project/open/snapshot.ts",
+        "packages/library/src/project/open/factory.ts",
+        "packages/library/src/project/open/switches.ts"
       ],
-      "entry": "packages/library/src/project/storytree.ts",
+      "entry": "packages/library/src/project/open/storytree.ts",
       "was": [
         1,
         29
@@ -341,18 +341,18 @@
     },
     {
       "id": "r1-proj-shared",
-      "title": "Reaching a shared library",
+      "title": "Shared library",
       "parent": "r1-projects",
       "files": [
-        "packages/library/src/project/address.ts",
-        "packages/library/src/project/websocket.ts",
-        "packages/library/src/project/server.ts",
-        "packages/library/src/project/reads.ts",
-        "packages/library/src/project/connection-error.ts",
-        "packages/library/src/project/outside-writer.ts",
-        "packages/library/src/project/where.ts"
+        "packages/library/src/project/shared/address.ts",
+        "packages/library/src/project/shared/websocket.ts",
+        "packages/library/src/project/shared/server.ts",
+        "packages/library/src/project/shared/reads.ts",
+        "packages/library/src/project/shared/connection-error.ts",
+        "packages/library/src/project/shared/outside-writer.ts",
+        "packages/library/src/project/shared/where.ts"
       ],
-      "entry": "packages/library/src/project/address.ts",
+      "entry": "packages/library/src/project/shared/address.ts",
       "was": [
         15,
         28,

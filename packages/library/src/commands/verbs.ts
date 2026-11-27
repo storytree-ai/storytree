@@ -4,8 +4,8 @@ import { verb as protocolVerb, type VerbContext as ProtocolContext, type Verb as
 
 export { consumersOf, fieldValue, judgedByLines, mounted, VerbRefusal } from "../verbs/verb.js";
 export type { Absent, Consumer, DoorWords, InputOf, Step, VerbAnswer, VerbInput, VerbInputs, VerbPlace, VerbValue } from "../verbs/verb.js";
-export { WHERE_INPUTS, whereOf, writtenLibrary } from "../project/where.js";
-export type { WhereNamed } from "../project/where.js";
+export { WHERE_INPUTS, whereOf, writtenLibrary } from "../project/shared/where.js";
+export type { WhereNamed } from "../project/shared/where.js";
 
 export type VerbContext = ProtocolContext<Library, Pick<Storytree, "ownDatabase">>;
 

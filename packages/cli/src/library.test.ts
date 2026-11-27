@@ -678,6 +678,34 @@ test("3.23 `library edit <capability> --parent <id>` and `--parent none`, run by
   });
 });
 
+test("3.23 · `library edit <capability> --title <title> --parent <id> --increment <increment>`, run by a session holding that increment on a branch, is refused with nothing written, saying to give --parent alone and the other fields in an edit of their own, or the whole edit with --live", async () => {
+  await inWorld(command, async (world) => {
+    const { library, claims, receipts, parentOf } = await shopWithCart(world);
+    const arc = await library.createArc({ title: "Launch the shop", intent: "Sell", endState: "Shoppers buy" });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Cart lines", objective: "Nest receipts", body: "Red then green" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const as = { CLAUDE_CODE_SESSION_ID: "caller" };
+      assert.equal((await claim({ log, library, project: world.project, session: "caller", harness: "claude-code", branch: "claude/cart-lines" }, increment.id, "driving the cart lines")).ok, true);
+      const title = ((await library.get(receipts.id))?.fields as { title?: string }).title;
+      const history = await library.history({ id: receipts.id });
+
+      const refused = await world.run(["library", "edit", receipts.id, "--title", "Kept receipts", "--parent", claims.id, "--increment", increment.id], as);
+      const said = `${refused.stderr}${refused.stdout}`;
+      assert.notEqual(refused.code, 0, said);
+      assert.match(said, /--parent/, `it says to give the parent alone: ${said}`);
+      assert.match(said, /title/, `it names the field that would wait: ${said}`);
+      assert.match(said, /--live/, `or the whole edit with --live: ${said}`);
+      assert.equal(((await library.get(receipts.id))?.fields as { title?: string }).title, title, "the title is unchanged");
+      assert.equal(await parentOf(receipts.id), undefined, "the capability is not nested");
+      assert.deepEqual(await library.history({ id: receipts.id }), history, "nothing was written to it");
+      assert.deepEqual(((await library.get(increment.id))?.fields as { pending?: unknown[] }).pending ?? [], [], "nothing waits on the increment");
+    } finally {
+      await log.close();
+    }
+  });
+});
+
 test("3.23 · `library edit <capability> --parent <id>` run in a git worktree reads that worktree's branch: a parent whose folder with its own entry file is committed on the branch, not on main, takes the nest there, though main refuses it", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

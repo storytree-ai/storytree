@@ -149,3 +149,57 @@ test("10.65 · Given another live session claims a capability, directly or on it
   assert.ok(own !== null && "edited" in own, `the holder's own move is applied: ${JSON.stringify(own)}`);
   assert.deepEqual(await placeOf(), { capability: form.id, edge: undefined });
 });
+
+test("10.67 · a capability edit giving its parent beside another field, from a session holding an increment claimed on a branch, to a capability it did not plan, not given live, is refused with nothing written, saying to give the parent alone (live at once) and the other fields in an edit of their own (pending on the increment), or the whole edit live; the parent alone goes live, and so does the edit given live, from a session holding none, or to a capability the increment planned", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const receipts = await library.addCapability({ story: story.id, title: "Receipts" });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Nest receipts", body: "Red then green" });
+  await library.advanceIncrement(increment.id, "active");
+  const claims = [{ session: "lane", increment: increment.id, since: "2026-11-27T00:00:00.000Z", branch: "claude/address-form" }];
+  const writer = { actor: "session:lane", levels: ["packages/sign-up/src/form"] };
+  const read = async (id: string): Promise<{ title?: string; parent?: string } | undefined> => (await library.get(id))?.fields as { title?: string; parent?: string } | undefined;
+  const pending = async (): Promise<unknown> => ((await library.get(increment.id))?.fields as { pending?: unknown[] } | undefined)?.pending ?? [];
+
+  const before = await library.get(receipts.id);
+  const refused = await editPlanRecord(library, claims, "lane", { type: "capability", id: receipts.id, fields: { title: "Kept receipts", parent: form.id }, nests: true }, writer);
+  assert.ok(refused !== null && "refused" in refused, `a parent beside a title from the branch's session is refused: ${JSON.stringify(refused)}`);
+  assert.ok(refused.refused.includes("parent") && refused.refused.includes("title"), `it names the parent and the field that would wait: ${refused.refused}`);
+  assert.ok(refused.refused.includes(increment.id), `it names the increment the other fields would wait on: ${refused.refused}`);
+  assert.match(refused.refused, /live/, `it says the parent goes live alone, or the whole edit is given live: ${refused.refused}`);
+  assert.deepEqual(await library.get(receipts.id), before, "the live capability is unchanged");
+  assert.deepEqual(await pending(), [], "nothing waits on the increment");
+
+  const alone = await editPlanRecord(library, claims, "lane", { type: "capability", id: receipts.id, fields: { parent: form.id }, nests: true }, writer);
+  assert.ok(alone !== null && "edited" in alone, `the parent alone is applied live: ${JSON.stringify(alone)}`);
+  assert.deepEqual([(await read(receipts.id))?.title, (await read(receipts.id))?.parent], [(before?.fields as { title?: string } | undefined)?.title, form.id], "nested under form, its title untouched");
+  assert.deepEqual(await pending(), [], "the parent alone waits on nothing");
+
+  const given = await editPlanRecord(library, claims, "lane", { type: "capability", id: receipts.id, fields: { title: "Kept receipts", parent: form.id }, nests: true, live: true }, writer);
+  assert.ok(given !== null && "edited" in given, `the whole edit given live is applied: ${JSON.stringify(given)}`);
+  assert.equal((await read(receipts.id))?.title, "Kept receipts");
+
+  const tax = await library.addCapability({ story: story.id, title: "Tax" });
+  const free = await editPlanRecord(library, [], "other-lane", { type: "capability", id: tax.id, fields: { title: "Taxes", parent: form.id }, nests: true }, { ...writer, actor: "session:other-lane" });
+  assert.ok(free !== null && "edited" in free, `from a session holding no increment it is applied live: ${JSON.stringify(free)}`);
+  assert.equal((await read(tax.id))?.title, "Taxes");
+  assert.equal((await read(tax.id))?.parent, form.id);
+
+  const own = await library.addCapability({ story: story.id, title: "Confirmation link" });
+  const planned = await editPlanRecord(library, claims, "lane", { type: "capability", id: own.id, fields: { title: "Confirmation mail", parent: form.id }, nests: true }, writer);
+  assert.ok(planned !== null && "edited" in planned, `to a capability the increment planned it is applied live: ${JSON.stringify(planned)}`);
+  assert.equal((await read(own.id))?.title, "Confirmation mail");
+  assert.equal((await read(own.id))?.parent, form.id);
+  assert.deepEqual(await pending(), [], "nothing waits on the increment");
+});

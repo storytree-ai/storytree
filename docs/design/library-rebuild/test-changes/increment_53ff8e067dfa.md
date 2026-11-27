@@ -46,3 +46,10 @@ unchanged, and every file's tests are in their frozen order.
    lane carried, green before, now fail to load with the file until `ADR_FAMILY` and `LIBRARY_FAMILIES` exist.
 7. Export keys the builder adds for these entries (`packages/library/package.json`'s, targets in the new tree):
    `./verbs` → `./src/commands/kit/index.ts`, `./commands` → `./src/commands/index.ts`.
+8. A gap of the frozen oracle the test review found (review 1, test slice, hit 4939), left as it is because this arm
+   copies tests and adds none: contract 17.39 (contract_a530455d1108, `library new <kind>` given `--arc` or
+   `--increment` for a kind with no such field writes it in that arc's or increment's library with no such field
+   stored, while a kind that has the field still stores it) has no frozen test (`oracle-01600d97.json` holds no 17.39,
+   and no `17.39 ·` title is in `packages/library/src`), and it is not in `spec/17.txt`, which ends at 17.38: it was
+   written on 2026-11-26 at 13:57, after the snapshot. The code reaching it (`commands/kit/where.ts`) is covered only
+   by the frozen tests that drive where a write goes; 17.39's own case is unobserved here.

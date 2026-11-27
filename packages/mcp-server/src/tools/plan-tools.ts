@@ -219,7 +219,7 @@ export function registerPlanTools(define: Define): void {
       }
       const drawn = await drawnBy(call, tree.stories.find((story) => story.capabilities.some((part) => part.id === from))?.id);
       if (drawn !== undefined) return { text: `Not planned: storytree draws ${drawn.said} links from its code's imports, so a link is there exactly when one capability's files import another's.`, refused: true };
-      const edge = await library.addEdge({ from, to, ...optional({ description: about }) }, writer);
+      const edge = await library.addEdge({ from, to, ...optional({ description: about }) }, { ...writer, pending: await heldPending(library, await claimsOf(call), call.caller.session) });
       return { text: `Planned edge ${edge.id}: ${from} depends on ${to}. Plan its contracts with plan_contract and edge ${edge.id}.`, data: { id: edge.id } };
     },
     { writes: true },

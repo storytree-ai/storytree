@@ -266,7 +266,7 @@ const create = verb({
     const refused = target === undefined ? undefined : await refuseHeldPlanWrite(context.library, await context.claims(), context.session, target);
     if (refused !== undefined) throw new VerbRefusal(refused);
     const numbers = kind === "contract" && typeof fields.capability === "string" ? await context.testedNumbers(fields.capability) : undefined;
-    const pending = kind === "capability" ? { pending: await heldPending(context.library, await context.claims(), context.session) } : {};
+    const pending = kind === "capability" || kind === "edge" ? { pending: await heldPending(context.library, await context.claims(), context.session) } : {};
     const options = numbers === undefined ? { ...context.writer!, ...pending } : { ...context.writer!, testedNumbers: [...numbers.tested] };
     const written = await withIdLists(fields, (fields) => write(context.library, fields, options));
     const untested = numbers?.untested ?? [];

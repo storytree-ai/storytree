@@ -61,14 +61,18 @@ export function wordAndWhy(capability: Pick<AnnotatedCapability, "status" | "why
   const why = capability.why;
   if (why === undefined) return capability.status;
   const reason = why.inside === undefined ? why.reason : `failing inside ${why.inside.map(({ title }) => title).join(", ")}`;
-  return `${capability.status} — ${reason}, ${why.mover === "agent" ? "the agent's" : "the owner's"} to move`;
+  const carrying = why.contracts.flatMap((id) => {
+    const own = capability.contracts.find((contract) => contract.id === id);
+    return own === undefined ? [] : [/^(\d+\.\d+) · /.exec(own.title)?.[1] ?? own.id];
+  });
+  return `${capability.status} — ${reason}, ${why.mover === "agent" ? "the agent's" : "the owner's"} to move${carrying.length === 0 ? "" : `: ${carrying.join(", ")}`}`;
 }
 
 export function heldBack(items: readonly HealthWorkItem[]): string | undefined {
   const held = items.filter(({ waits }) => waits !== undefined);
   if (held.length === 0) return undefined;
   const runs = held.map(({ title, waits }) => `${title} (waiting on ${waits!.note ?? waits!.by ?? "a run"} since ${waits!.since})`);
-  return `${held.length} ${held.length === 1 ? "capability is" : "capabilities are"} held back, waiting on a run that will record them: ${runs.join("; ")}.`;
+  return `${held.length} held back, waiting on a run that will record ${held.length === 1 ? "it" : "them"}: ${runs.join("; ")}.`;
 }
 
 function allPassing(states: readonly HealthState[]): boolean {

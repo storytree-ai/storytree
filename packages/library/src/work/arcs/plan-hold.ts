@@ -45,7 +45,7 @@ export async function holdPlanChange(library: PlanEditors, claims: readonly Plan
 }
 
 export function heldSaid(increment: string): string {
-  return `held as a pending change on ${increment} until its branch merges; the live plan is unchanged until then.`;
+  return `held as a change pending on increment ${increment} until its branch merges; the live plan is unchanged until then.`;
 }
 
 export async function heldPending(library: PlanEditors, claims: readonly PlanClaim[], session: string): Promise<readonly PendingPlanChange[]> {
@@ -98,5 +98,5 @@ async function capabilityOf(library: Pick<SchemaRecords, "get">, id: string): Pr
 }
 
 function claimedSaid(holder: string, capability: string): string {
-  return `${capability} is claimed by ${holder}, a live session: wait on its claim (set_wait with on: ${capability}), which clears the moment its holder releases it`;
+  return `This write is on capability ${capability}, and live session ${holder} holds it: wait on its claim (set_wait with on: ${capability}), which clears the moment its holder releases it`;
 }

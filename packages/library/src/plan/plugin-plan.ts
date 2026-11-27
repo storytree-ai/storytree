@@ -91,8 +91,8 @@ export async function importPluginPlan(records: SchemaRecords, plugin: string, p
   if (story === undefined) {
     story = await records.create("story", present(storyFields) as FieldsOf<"story">, writing);
     result.added.push(story.id);
-  } else if (await sync(story, storyFields, inVersions((version) => ({ ...version.story, plugin })))) {
-    result.edited.push(story.id);
+  } else {
+    result[(await sync(story, storyFields, inVersions((version) => ({ ...version.story, plugin })))) ? "edited" : "kept"].push(story.id);
   }
   const home = story.id;
 

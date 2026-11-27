@@ -2,7 +2,7 @@
 import { isDeepStrictEqual } from "node:util";
 
 import { WorkModel, type ProjectTree } from "../../plan/index.js";
-import { liveOf, MissingReferenceError, referTo, SchemaError, type FieldsOf, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../storage/rules/index.js";
+import { liveOf, MissingReferenceError, NewerSchemaError, referTo, SchemaError, type FieldsOf, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../storage/rules/index.js";
 import {
   checkQuestion,
   editQuestion,
@@ -195,7 +195,7 @@ export function listedSaid(other: OpenListing): string {
 }
 
 export function listedNotice(other: OpenListing): string {
-  return `Another open increment shares its capabilities: ${listedSaid(other)}`;
+  return `${other.capabilities.join(", ")} ${other.capabilities.length === 1 ? "is" : "are"} also listed by ${other.increment} ("${other.title}", on arc ${other.arc}), and your edit is saved`;
 }
 
 export class WorkInFlight {
@@ -277,7 +277,11 @@ export class WorkInFlight {
     const escape = landed && increment.fields.escape === undefined ? "none" : increment.fields.escape;
     const reason = !landed && pending.length > 0 ? droppedSaid(pending.length) : undefined;
     const closed = (await this.#records.edit(id, { status: "closed", outcome: outcomeOf(close, undefined), pending: undefined, escape }, { ...options, ...(reason === undefined ? {} : { reason }) })) as SchemaRecord<"increment">;
-    await this.#afterClose(closed, undefined, options);
+    try {
+      await this.#afterClose(closed, undefined, options);
+    } catch (error) {
+      if (!(error instanceof NewerSchemaError)) throw error;
+    }
     return closed;
   }
 

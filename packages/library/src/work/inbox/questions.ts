@@ -218,13 +218,15 @@ export async function prepQuestion(records: SchemaRecords, id: string, prep: Pre
 export async function questionDeviation(records: SchemaRecords, since: Date): Promise<QuestionDeviation> {
   const settled = (await records.list("question", { where: { lifecycle: "settled" } })).filter(({ fields }) => Date.parse(fields.settledAt ?? "") >= since.getTime());
   const confidence = new Map((await records.list("prediction")).map(({ fields }) => [fields.question, fields.confidence]));
-  const bands = BANDS.map((band) => {
-    const asked = settled.filter(({ id }) => (confidence.get(id) ?? "none") === band);
+  const scored = settled.filter(({ fields }) => fields.score !== undefined);
+  const bands = BANDS.flatMap((band): DeviationBand[] => {
+    const asked = scored.filter(({ id }) => (confidence.get(id) ?? "none") === band);
+    if (asked.length === 0) return [];
     const recommendation = tally(asked.flatMap(({ fields }) => (declined(fields.recommendation) ? [] : [fields.score?.recommendation])));
-    if (band === "none") return { band, questions: asked.length, recommendation };
-    return { band, questions: asked.length, prediction: tally(asked.map(({ fields }) => fields.score?.prediction)), recommendation };
+    if (band === "none") return [{ band, questions: asked.length, recommendation }];
+    return [{ band, questions: asked.length, prediction: tally(asked.map(({ fields }) => fields.score?.prediction)), recommendation }];
   });
-  return { settled: settled.length, unscored: settled.filter(({ fields }) => fields.score === undefined).length, bands };
+  return { settled: settled.length, unscored: settled.length - scored.length, bands };
 }
 
 export async function settleQuestion(records: SchemaRecords, id: string, settlement: Settlement, options: WriteOptions = {}): Promise<SettledQuestion | null> {

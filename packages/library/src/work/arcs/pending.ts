@@ -129,7 +129,7 @@ export async function dropPending(records: SchemaRecords, id: string, record: st
     if (increment.fields.status === "closed") throw new RangeError(`${id} is closed: its pending changes were applied or dropped when it closed`);
     const pending = increment.fields.pending ?? [];
     const change = pending.find((one) => one.record === record);
-    if (change === undefined) throw new RangeError(`${id} holds no pending change to ${record}`);
+    if (change === undefined) throw new RangeError(`${id} holds no pending change to "${record}"`);
     const left = pending.filter((one) => one !== change);
     return (await records.edit(id, { pending: left.length === 0 ? undefined : left }, { ...writer(options), reason: `dropped the pending change to ${change.type} ${record}: ${reason}` })) as SchemaRecord<"increment">;
   }, options.signal);

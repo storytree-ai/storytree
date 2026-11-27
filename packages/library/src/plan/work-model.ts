@@ -15,7 +15,7 @@ import {
 } from "../storage/rules/index.js";
 import type { PendingPlanChange } from "./kinds.js";
 import { capabilityNumber, contractNumber, separated, unnumbered } from "./numbers.js";
-import type { PrCutover } from "./pr-cutover.js";
+import { historyOf, type PrCutover } from "./pr-cutover.js";
 import { importPluginPlan, type ImportedPluginPlan, type PluginImportOptions, type PluginPlan } from "./plugin-plan.js";
 import {
   contractsOfStory,
@@ -254,7 +254,7 @@ export class WorkModel {
         const bare = unnumbered(given ?? current.fields.title);
         const renumber = moving && prefix !== undefined && (own === undefined || (given === undefined && fields.capability !== undefined && own.capability !== prefix));
         if (renumber) title = `${prefix}.${nextContract(plan, story, prefix, id, options.testedNumbers)} · ${bare}`;
-        else title = own === undefined ? bare : `${own.capability}.${own.contract} · ${bare}`;
+        else title = own === undefined || (given !== undefined && fields.edge === undefined) ? bare : `${own.capability}.${own.contract} · ${bare}`;
       }
       if (title !== current.fields.title || moving) refuseTakenContract(plan, story, title, id);
       const changes = Object.fromEntries([...new Set([...Object.keys(current.fields), ...Object.keys(fields)])].map((key) => [key, key === "title" ? title : (fields as Fields)[key]]));
@@ -268,7 +268,7 @@ export class WorkModel {
       const from = await referTo(this.#records, "from", edge.from, "capability");
       const to = await referTo(this.#records, "to", edge.to, "capability");
       await this.#refusePlugin("edge", "from", from.id, [from.fields.story]);
-      if (from.fields.story !== to.fields.story) refuse("edge", "to", `${to.id} is another story's capability: an edge joins two capabilities of one story`);
+      if (from.fields.story !== to.fields.story) refuse("edge", "to", `${to.id} is another story's capability: a link between stories is a dependsOn, and an edge joins two capabilities of one story`);
       if (from.id === to.id) refuse("edge", "to", `an edge joins two capabilities, never one to itself`);
       const plan = await readPlan(this.#records);
       if (edgesFrom(plan, from.id).some((other) => other.fields.to === to.id)) refuse("edge", "to", `the story already has an edge from ${from.id} to ${to.id}`);
@@ -341,7 +341,10 @@ export class WorkModel {
   async setPrCutover(fields: Partial<PrCutover>, options: WriteOptions = {}): Promise<SchemaRecord<"prCutover">> {
     return await this.#write(options, async () => {
       const held = (await this.#records.list("prCutover"))[0];
-      if (held === undefined) return await this.#records.create("prCutover", present(fields) as PrCutover, writing(options));
+      if (held === undefined) {
+        const first = fields.before === undefined && fields.repository !== undefined ? { ...fields, before: historyOf(fields.repository) } : fields;
+        return await this.#records.create("prCutover", present(first) as PrCutover, writing(options));
+      }
       return (await this.#records.edit(held.id, fields, writing(options))) as SchemaRecord<"prCutover">;
     });
   }

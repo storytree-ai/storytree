@@ -26,7 +26,8 @@ export function isUnreachable(error: unknown): boolean {
 }
 
 export function saysUnreachable(error: unknown): boolean {
-  return error instanceof Error && error.message.includes(LIBRARY_UNREACHABLE);
+  const text = typeof error === "string" ? error : error instanceof Error ? error.message : "";
+  return text.includes(LIBRARY_UNREACHABLE);
 }
 
 export interface OutageSaidOnce {

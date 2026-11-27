@@ -281,7 +281,7 @@ export class Store implements Transactions {
 
 async function saveOne(writer: Writer, input: SaveInput): Promise<RecordEnvelope> {
   const stored = await writer.get(input.id);
-  if (stored !== null && input.onlyIfNew === true) throw new RangeError(`${input.id} already exists, so nothing was written`);
+  if (input.onlyIfNew === true && (stored !== null || (await writer.history({ id: input.id })).length > 0)) throw new RangeError(`${input.id} has been written before, so nothing was written`);
   const record = recordOf(input, stored ?? undefined, new Date().toISOString());
   await writer.put(record);
   await writer.append(entry(stored === null ? "created" : "updated", record, input, undefined));

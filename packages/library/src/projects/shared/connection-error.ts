@@ -2,7 +2,7 @@
 export type ConnectionProblem = "config" | "database-user" | "create-database" | "project-owner" | "timeout" | "no-password" | "password" | "unreachable" | "untrusted-server" | "access";
 
 export class ConnectionError extends Error {
-  override readonly name = "ConnectionError";
+  override name = "ConnectionError";
   readonly problem: ConnectionProblem;
 
   constructor(problem: ConnectionProblem, message: string, cause?: unknown) {
@@ -57,6 +57,10 @@ export function outageSaidOnce(say: (line: string, error?: unknown) => void): Ou
 export function sqlState(error: unknown): string | undefined {
   const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
   return typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) ? code : undefined;
+}
+
+export function isInsufficientPrivilege(error: unknown): boolean {
+  return sqlState(error) === "42501";
 }
 
 export function quoted(name: string): string {

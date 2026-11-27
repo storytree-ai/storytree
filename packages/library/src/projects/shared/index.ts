@@ -4,6 +4,7 @@ export {
   cannotCreateDatabases,
   cannotSetUpProject,
   ConnectionError,
+  isInsufficientPrivilege,
   isUnreachable,
   LIBRARY_UNREACHABLE,
   outageSaidOnce,

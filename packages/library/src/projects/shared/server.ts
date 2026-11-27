@@ -1,13 +1,12 @@
 // Capability 28 · Shared server
 import { hostname } from "node:os";
-import type { Duplex } from "node:stream";
 import type { TLSSocket } from "node:tls";
 
 import pg, { type Pool, type PoolClient } from "pg";
 
 import { WRITE_LOCK } from "../../storage/store/index.js";
-import { cannotCreateDatabases, ConnectionError, quoted, sqlState } from "./connection-error.js";
-import { processReaderName, readerName, tally } from "./reads.js";
+import { cannotCreateDatabases, ConnectionError, isInsufficientPrivilege, quoted, sqlState } from "./connection-error.js";
+import { countReads, lastWordsOf, processReaderName } from "./reads.js";
 
 export const CONNECT_TIMEOUT_MS = 10_000;
 
@@ -89,7 +88,6 @@ export function localRefusal(where: string, secret: boolean): (method: Method) =
 function clientFor(dialling: Dialling, options: ServerOptions, owner: boolean): new (config?: pg.ClientConfig) => pg.Client {
   const waitMs = options.waitMs ?? WAIT_MS;
   return class extends Base {
-    #reader = readerName();
     #refused = false;
     #scram = false;
 
@@ -102,17 +100,8 @@ function clientFor(dialling: Dialling, options: ServerOptions, owner: boolean): 
         idle_in_transaction_session_timeout: IDLE_WRITER_MS,
         ...(options.statementTimeoutMs === undefined ? {} : { statement_timeout: options.statementTimeoutMs }),
       });
-      const raw = this.connection.stream as Duplex & { bytesRead?: number };
-      let seen = 0;
-      const charge = (): void => {
-        const total = raw.bytesRead ?? seen;
-        tally(this.#reader, total - seen, 0);
-        seen = total;
-      };
-      raw.on("data", charge).on("close", charge);
       this.connection.once("sslconnect", () => {
         const secured = this.connection.stream as TLSSocket;
-        secured.on("data", charge);
         secured.once("secureConnect", () => {
           const refused = dialling.secure?.(secured);
           if (refused !== undefined) secured.destroy(refused);
@@ -121,12 +110,11 @@ function clientFor(dialling: Dialling, options: ServerOptions, owner: boolean): 
       const query = this.query.bind(this) as (...args: unknown[]) => unknown;
       let acting: Promise<unknown> | undefined;
       this.query = ((...args: unknown[]) => {
-        this.#reader = readerName();
-        tally(this.#reader, 0, 1);
         if (owner) acting ??= (query(ACT_AS_OWNER) as Promise<unknown>).then(() => undefined, () => undefined);
         const run = () => args.length === 1 && args[0] === WRITE_LOCK ? this.#lock(query) : query(...args);
         return acting === undefined ? run() : acting.then(run);
       }) as pg.Client["query"];
+      countReads(this);
     }
 
     async #lock(query: (...args: unknown[]) => unknown): Promise<unknown> {
@@ -223,7 +211,8 @@ export function serve(dialling: Dialling, options: ServerOptions): Server {
     const end = pool.end.bind(pool) as (...args: unknown[]) => Promise<void>;
     pool.end = ((...args: unknown[]) => {
       pools.delete(pool);
-      return end(...args);
+      const last = lastWordsOf(pool);
+      return last === undefined ? end(...args) : last().then(() => end(...args), () => end(...args));
     }) as Pool["end"];
     pools.add(pool);
     return pool;
@@ -267,7 +256,7 @@ export async function createDatabase(admin: Pool, database: string): Promise<voi
     return;
   } catch (error) {
     if (made(error)) return;
-    if (sqlState(error) !== "42501") throw error;
+    if (!isInsufficientPrivilege(error)) throw error;
     refused = error;
   }
   const client = await admin.connect();

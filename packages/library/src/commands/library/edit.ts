@@ -3,13 +3,12 @@ import type { Library } from "../../index.js";
 import { editDecision } from "../../knowledge/decisions/index.js";
 import { NOTE_TYPES } from "../../knowledge/notes/index.js";
 import { titleOf } from "../../knowledge/search/index.js";
-import { ANCHOR_ID, bareSaid } from "../../plan/index.js";
+import { ANCHOR_ID, bareSaid, historyOf, PR_CUTOVER_ID } from "../../plan/index.js";
 import { editPlanRecord, heldSaid, type PlanRecordType } from "../../work/arcs/index.js";
 import type { LibraryVerbContext } from "../context.js";
 import { refuseStaleEdit, refusing, verb, VerbRefusal, type VerbAnswer } from "../kit/index.js";
 import { givenFields } from "./fields.js";
 
-const CUTOVER_ID = "pr-cutover";
 const PLAN_TYPES: readonly string[] = ["story", "capability", "contract", "edge", "arc", "increment"];
 
 type Stored = NonNullable<Awaited<ReturnType<Library["get"]>>>;
@@ -36,7 +35,7 @@ async function cutoverEdit(context: LibraryVerbContext, given: Readonly<Record<s
   const at = given["at"] ?? held?.at;
   const repository = given["repository"] ?? held?.repository;
   if (at === undefined || repository === undefined) throw new VerbRefusal("The repository cut-over needs --at <time> and --repository <owner/name>; nothing was written", { misuse: true });
-  const before = given["before"] === "none" ? null : (given["before"] ?? (held === undefined ? `${repository}-history` : held.before));
+  const before = given["before"] === "none" ? null : (given["before"] ?? (held === undefined ? historyOf(repository) : held.before));
   await refusing(() => context.library.setPrCutover({ at, repository, before }, context.writer));
   const earlier = before === null ? "in a deleted repository" : `${before}'s`;
   return { text: `Wrote the repository cut-over: pull requests before ${at} are ${earlier}; later ones are ${repository}'s.` };
@@ -80,7 +79,7 @@ export const EDIT = verb({
     const given = input["<fields>"];
     const removed = input.remove ?? [];
     if (id === ANCHOR_ID) return await anchorEdit(context, given);
-    if (id === CUTOVER_ID) return await cutoverEdit(context, given);
+    if (id === PR_CUTOVER_ID) return await cutoverEdit(context, given);
     const record = await context.library.get(id);
     if (record === null) throw new VerbRefusal(`no record ${id} in this project`);
     const fields = givenFields(record.type, given);

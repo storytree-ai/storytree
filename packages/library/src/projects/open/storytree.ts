@@ -14,7 +14,7 @@ import { PgBackend, PgTransactions, Store } from "../../storage/store/index.js";
 import { FactoryCircle } from "./circle.js";
 import { WorkModel } from "../../plan/index.js";
 import { WorkInFlight } from "../../work/arcs/index.js";
-import { ConnectionError, createDatabase, serverOf, sqlState, type ConnectOptions } from "../shared/index.js";
+import { ConnectionError, createDatabase, isInsufficientPrivilege, serverOf, type ConnectOptions } from "../shared/index.js";
 import { linkOf, ProjectLineage } from "./lineage.js";
 import { checkName, databaseOf, ProjectGoneError } from "./names.js";
 import type { Project } from "./project.js";
@@ -297,7 +297,7 @@ export async function connect(options: ConnectOptions, seams: Seams = {}): Promi
             await ask(statement);
             return;
           } catch (error) {
-            if (sqlState(error) === "42501" && statement.endsWith("(FORCE)")) statement = `DROP DATABASE IF EXISTS ${quoted(database)}`;
+            if (isInsufficientPrivilege(error) && statement.endsWith("(FORCE)")) statement = `DROP DATABASE IF EXISTS ${quoted(database)}`;
             else throw error;
           }
         }

@@ -3,6 +3,10 @@ import type { FieldsOf } from "../storage/rules/index.js";
 
 export type PrCutover = FieldsOf<"prCutover">;
 
+export const PR_CUTOVER_ID = "pr-cutover";
+
+export const historyOf = (repository: string): string => `${repository}-history`;
+
 interface Pull {
   readonly number: string;
   readonly repository?: string;

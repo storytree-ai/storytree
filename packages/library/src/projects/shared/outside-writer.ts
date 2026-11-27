@@ -22,7 +22,7 @@ function list(kinds: readonly string[]): string {
   return `ARRAY[${kinds.map((kind) => `'${kind.replaceAll("'", "''")}'`).join(", ")}]::text[]`;
 }
 
-function fenceSql({ role, kinds, update = false, reads = [] }: OutsideWriter): string {
+export function outsideWriterSql({ role, kinds, update = false, reads = [] }: OutsideWriter): string {
   const who = quoted(role);
   const own = list(kinds);
   const policy = (name: string, table: string, rule?: string) => {
@@ -63,7 +63,7 @@ export async function fenceOutsideWriter(client: ClientBase, writer: OutsideWrit
     await client.query(`SET LOCAL ROLE ${quoted(owner)}`).catch((error: unknown) => {
       throw new Error(`${account} may not act as ${owner}, the role that owns this project's database: fence it as an account that may.`, { cause: error });
     });
-    await client.query(fenceSql(writer));
+    await client.query(outsideWriterSql(writer));
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");

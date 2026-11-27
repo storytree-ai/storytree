@@ -6,7 +6,7 @@ export { CONTRACT_DEFINITION, CONTRACT_PLACEMENT, LONG_CONTRACT_TITLE, planGuida
 export { CONTRACT_PROOFS, PIN_ICONS, PLAN_KINDS, PLAN_PENDING_CHANGE, STORE_LINK_DIRECTIONS, type PendingPlanChange } from "./kinds.js";
 export { recordPin, type PinNote } from "./pin.js";
 export type { ImportedPluginPlan, PluginImportOptions, PluginPlan, PluginPlanCapability, PluginPlanHeld } from "./plugin-plan.js";
-export { beforeCutover, pullRepository, pullSaid, type PrCutover } from "./pr-cutover.js";
+export { beforeCutover, historyOf, PR_CUTOVER_ID, pullRepository, pullSaid, type PrCutover } from "./pr-cutover.js";
 export {
   ANCHOR_ID,
   anchorGaps,

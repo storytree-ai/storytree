@@ -1,4 +1,4 @@
-// Capability 27 · Fixed data questions
+// Capability 27 · Saved queries
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { test, type TestContext } from "node:test";

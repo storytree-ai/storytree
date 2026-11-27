@@ -1,4 +1,4 @@
-// Capability 7 · Library API
+// Capability 7 · Front door
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";

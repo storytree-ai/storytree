@@ -6,6 +6,10 @@ export type Reached<P> =
   | { readonly project: string; readonly opened: P; readonly unopened?: undefined }
   | { readonly project: string; readonly opened?: undefined; readonly unopened: string };
 
+export class OutsideCircleError extends Error {
+  override readonly name = "OutsideCircleError";
+}
+
 export interface CircleMember {
   readonly name: string;
   readonly lineage: { factory(): Promise<FactoryLink> };
@@ -27,9 +31,9 @@ export class FactoryCircle<P extends CircleMember> {
   async reach(name: string): Promise<P> {
     if (name === this.#project.name) return this.#project;
     const factory = await this.#factory();
-    if (factory === undefined) throw new Error(`"${this.#project.name}" names no factory, so it reaches no other project`);
+    if (factory === undefined) throw new OutsideCircleError(`"${this.#project.name}" names no factory, so it reaches no other project`);
     const opened = await this.#member(name, factory);
-    if (opened === undefined) throw new Error(`"${name}" is not in the circle of the factory "${factory}" that "${this.#project.name}" belongs to`);
+    if (opened === undefined) throw new OutsideCircleError(`"${name}" is not in the circle of the factory "${factory}" that "${this.#project.name}" belongs to`);
     return opened;
   }
 

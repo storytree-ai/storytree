@@ -1344,6 +1344,35 @@ test("9.9 edit_plan and retire_from_plan, under an increment's claim, hold a cha
   });
 });
 
+test("library 4.62 · plan_edge, under an increment's claim holding a pending retire of an edge, plans that edge's reverse, leaving the retired edge live; the reverse of an edge with no retire pending is refused as a loop", async () => {
+  await withProject(async ({ folder, library }) => {
+    git(folder, "init", "-b", "claude/reverse-link");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc, story, capability } = await planned(agent);
+      const link = idOf(await agent.call("plan_capability", { story, title: "Confirmation link", ...FOUNDED }));
+      const welcome = idOf(await agent.call("plan_capability", { story, title: "Welcome email", ...FOUNDED }));
+      const edge = idOf(await agent.call("plan_edge", { from: link, to: capability }));
+      assert.equal((await agent.call("plan_edge", { from: welcome, to: capability })).isError, false);
+      const increment = idOf(await agent.call("park_increment", { arc, title: "Form reads the link", objective: "Reverse the link", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment, reason: "reversing the link" })).isError, false);
+      const unlinked = await agent.call("retire_from_plan", { id: edge, reason: "the form depends on the link instead" });
+      assert.match(unlinked.text, new RegExp(`pending on increment ${increment}`));
+
+      const reversed = await agent.call("plan_edge", { from: capability, to: link });
+      assert.equal(reversed.isError, false, reversed.text);
+      assert.match(reversed.text, new RegExp(`^Planned edge edge_[0-9a-f]+: ${capability} depends on ${link}\\.`));
+      assert.deepEqual((await library.get(idOf(reversed)))?.fields, { from: capability, to: link });
+      assert.deepEqual((await library.get(edge))?.fields, { from: link, to: capability }, "the retired edge is still live until the branch merges");
+
+      const looped = await agent.call("plan_edge", { from: capability, to: welcome });
+      assert.equal(looped.isError, true, looped.text);
+      assert.match(looped.text, new RegExp(`dependency loop between capabilities: ${capability} → ${welcome} → ${capability}`));
+      const edges = (await library.projectTree()).stories.flatMap((node) => node.edges ?? []);
+      assert.deepEqual(edges.filter(({ from }) => from === capability).map(({ to }) => to), [link], "the refused edge is not written");
+    });
+  });
+});
+
 test("9.9 edit_plan with project <another>, under an increment's claim in that project's library on a branch, holds a change to a record planned before it as a pending change on that increment, leaving the live record alone, called from a folder whose project is not that one (ADR-0966 D1, ADR-1348 D3)", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     const productName = uniqueProjectName();

@@ -348,6 +348,34 @@ for (const backend of [memory, postgres]) {
     assert.equal((await transactions.history()).length, raceStart.length + 1, "one edit was written, and only one");
   });
 
+  contract("4.62", "an edge planned while the pending changes retire its reverse edge is written, the reverse edge left live; a loop through an edge not retired is refused, with nothing written", async ({ work, transactions }) => {
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const a = await work.addCapability({ title: "A", story: story.id });
+    const b = await work.addCapability({ title: "B", story: story.id });
+    const ab = await work.addEdge({ from: a.id, to: b.id });
+    const retireAb = [{ record: ab.id, type: "edge" as const, base: 0, retire: "B depends on A instead" }];
+
+    await assert.rejects(work.addEdge({ from: b.id, to: a.id }), dependencyLoop([b.id, a.id, b.id]), "with no pending retire, B → A closes a loop");
+    const ba = await work.addEdge({ from: b.id, to: a.id }, { pending: retireAb });
+    assert.deepEqual((await transactions.get(ba.id))?.fields, { from: b.id, to: a.id }, "B → A is written");
+    assert.deepEqual(await work.dependsOn(b.id), [a.id]);
+    assert.deepEqual(await work.dependsOn(a.id), [b.id], "the retire is only pending: A → B stays live");
+
+    const p = await work.addCapability({ title: "P", story: story.id });
+    const q = await work.addCapability({ title: "Q", story: story.id });
+    const r = await work.addCapability({ title: "R", story: story.id });
+    const pq = await work.addEdge({ from: p.id, to: q.id });
+    await work.addEdge({ from: p.id, to: r.id });
+    await work.addEdge({ from: r.id, to: q.id });
+    const retirePq = [{ record: pq.id, type: "edge" as const, base: 0, retire: "Q depends on P instead" }];
+    const editPq = [{ record: pq.id, type: "edge" as const, base: 0, before: {}, after: { description: "Reads Q's answer" } }];
+    const before = await transactions.history();
+    await assert.rejects(work.addEdge({ from: q.id, to: p.id }, { pending: retirePq }), dependencyLoop([q.id, p.id, r.id, q.id]), "Q → P → R → Q is a loop the retire of P → Q leaves");
+    await assert.rejects(work.addEdge({ from: q.id, to: p.id }, { pending: retireAb }), dependencyLoop([q.id, p.id, q.id]), "another edge's retire leaves P → Q live");
+    await assert.rejects(work.addEdge({ from: q.id, to: p.id }, { pending: [...editPq, ...retireAb] }), dependencyLoop([q.id, p.id, q.id]), "a pending edit of P → Q is no retire");
+    assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
+  });
+
   contract("4.6", "a capability is born proposed; the agent switches the flag off, and back on, with its writer in history; one written before the flag reads proposed", async ({ work, records, transactions }) => {
     const story = await work.addStory({ title: "Visitor can sign up" });
     const capability = await work.addCapability({ title: "Email form", story: story.id });

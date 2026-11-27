@@ -164,7 +164,7 @@ export async function scorecardAt({ folder, library, story, proposal }: { readon
   const paths = [...Object.keys(planned.ownerOf), ...planned.unplaced];
   const [files, history] = await Promise.all([
     Promise.all(paths.map(async (file) => ({ path: file, text: await readFile(path.join(folder, file), "utf8").catch(() => "") }))),
-    commitOf(folder, undefined).then((commit) => readCoChange(folder, commit)),
+    commitOf(folder, "HEAD").then((commit) => readCoChange(folder, commit)),
   ]);
   return scorecardOf({ tree, units: history.kept, imports: importsOf(files), exports: exportsOf(files), outside, ...(proposed === undefined ? {} : { refactor: proposed }) });
 }

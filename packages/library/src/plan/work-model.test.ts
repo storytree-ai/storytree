@@ -365,14 +365,15 @@ for (const backend of [memory, postgres]) {
     const q = await work.addCapability({ title: "Q", story: story.id });
     const r = await work.addCapability({ title: "R", story: story.id });
     const pq = await work.addEdge({ from: p.id, to: q.id });
-    await work.addEdge({ from: p.id, to: r.id });
+    const pr = await work.addEdge({ from: p.id, to: r.id });
     await work.addEdge({ from: r.id, to: q.id });
     const retirePq = [{ record: pq.id, type: "edge" as const, base: 0, retire: "Q depends on P instead" }];
+    const retirePr = [{ record: pr.id, type: "edge" as const, base: 0, retire: "P no longer reads R" }];
     const editPq = [{ record: pq.id, type: "edge" as const, base: 0, before: {}, after: { description: "Reads Q's answer" } }];
     const before = await transactions.history();
     await assert.rejects(work.addEdge({ from: q.id, to: p.id }, { pending: retirePq }), dependencyLoop([q.id, p.id, r.id, q.id]), "Q → P → R → Q is a loop the retire of P → Q leaves");
-    await assert.rejects(work.addEdge({ from: q.id, to: p.id }, { pending: retireAb }), dependencyLoop([q.id, p.id, q.id]), "another edge's retire leaves P → Q live");
-    await assert.rejects(work.addEdge({ from: q.id, to: p.id }, { pending: [...editPq, ...retireAb] }), dependencyLoop([q.id, p.id, q.id]), "a pending edit of P → Q is no retire");
+    await assert.rejects(work.addEdge({ from: q.id, to: p.id }, { pending: retirePr }), dependencyLoop([q.id, p.id, q.id]), "another edge's retire leaves P → Q live");
+    await assert.rejects(work.addEdge({ from: q.id, to: p.id }, { pending: [...editPq, ...retirePr] }), dependencyLoop([q.id, p.id, q.id]), "a pending edit of P → Q is no retire");
     assert.deepEqual(await transactions.history(), before, "none of them wrote anything");
   });
 

@@ -581,6 +581,33 @@ test("3.14 `library edit --project <another>`, run by a session holding an incre
   });
 });
 
+test("3.14 `library edit … --increment <increment>`, run by a session holding that increment on a branch, takes the increment as where the write goes, not as a record field, and holds a change to a contract planned before it as a pending change on that increment, the live contract left alone (ADR-0966, ADR-1348 D3)", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await library.createArc({ title: "Launch", intent: "Ship sign-up", endState: "Visitors sign up" });
+    const story = await library.addStory({ title: "Sign up" });
+    const form = await library.addCapability({ story: story.id, title: "Form" });
+    const other = await library.addCapability({ story: story.id, title: "Checks" });
+    const promise = await library.addContract({ capability: form.id, title: "Accepts an address" });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Move it", body: "Red then green" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      assert.equal((await claim({ log, library, project: world.project, session: "caller", harness: "claude-code", branch: "claude/address-form" }, increment.id, "driving the address form")).ok, true);
+      const live = await library.get(promise.id);
+
+      const edited = await world.run(["library", "edit", promise.id, "--capability", other.id, "--increment", increment.id], { CLAUDE_CODE_SESSION_ID: "caller" });
+
+      assert.equal(edited.code, 0, edited.stderr);
+      assert.match(edited.stdout, new RegExp(`pending on increment ${increment.id}`), edited.stdout);
+      assert.deepEqual(await library.get(promise.id), live, "the live contract is left alone");
+      const pending = ((await library.get(increment.id))?.fields as { pending?: { record: string; after?: unknown }[] }).pending;
+      assert.deepEqual(pending?.map(({ record, after }) => [record, after]), [[promise.id, { capability: other.id }]]);
+    } finally {
+      await log.close();
+    }
+  });
+});
+
 async function shopWithCart(world: World) {
   const library = await world.library();
   const story = await library.addStory({ title: "Shop" });

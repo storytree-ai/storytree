@@ -66,7 +66,7 @@ export class RankedSearch {
   }
 
   async rank(query: string, options: RankOptions = {}): Promise<Ranked> {
-    return (await this.#rank(query, options, NOTE_KINDS)) as Ranked;
+    return (await this.#rank(query, { ...options, history: options.history ?? true }, NOTE_KINDS)) as Ranked;
   }
 
   async rankAll(query: string, options: RankOptions = {}): Promise<Ranked<Findable>> {

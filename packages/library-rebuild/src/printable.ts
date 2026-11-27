@@ -1,3 +1,4 @@
+// Capability 7 · Library API
 export const UNPRINTABLE = "�";
 
 export function printable(text: string): string {

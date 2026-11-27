@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { connect as connectLibrary, type Library } from "@storytree/library-rebuild";
+import { connect as connectLibrary, type Library } from "@storytree/library";
 
 import { Knowledge } from "../../knowledge/decisions/index.js";
 import { PgVectors } from "../../knowledge/search/index.js";

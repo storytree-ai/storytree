@@ -439,6 +439,46 @@ test("17.13 · library new capability, run by a session holding an increment, ju
   assert.equal(((await library.get(running.id))?.fields as { story: string }).story, host.id, "the live plan is unchanged");
 });
 
+test("4.62 · library new edge, run by a session holding an increment with a pending retire of an edge, writes that edge's reverse, the retired edge left live; the reverse of an edge with no retire pending is refused as a loop", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const create = LIBRARY_FAMILIES.find((one) => one.name === "library")!.verbs.find((one) => mounted(one.command) && one.command.name === "new")!;
+
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const link = await library.addCapability({ story: story.id, title: "Link" });
+  const welcome = await library.addCapability({ story: story.id, title: "Welcome" });
+  const old = await library.addEdge({ from: link.id, to: form.id });
+  await library.addEdge({ from: welcome.id, to: form.id });
+  const arc = await library.createArc({ title: "Reverse the link", intent: "The form reads the link", endState: "The form depends on the link" });
+  const increment = await library.addIncrement({ arc: arc.id, title: "Reverse it", objective: "Reverse the link", body: "Red then green" });
+  await library.advanceIncrement(increment.id, "active");
+  await library.pendChange(increment.id, { record: old.id, retire: "the form depends on the link instead" }, { actor: "session:lane" });
+  const context: LibraryVerbContext = {
+    library, project, session: "lane", folder: tmpdir(), writer: { actor: "session:lane" },
+    claims: async () => [{ session: "lane", increment: increment.id, since: "2026-11-27T00:00:00.000Z", branch: "claude/reverse-link" }],
+    testedNumbers: async () => ({ tested: [], untested: [] }),
+  };
+
+  const made = await create.act({ "<kind>": "edge", "<fields>": { from: form.id, to: link.id } }, context, WORDS);
+  const reversed = /edge (edge_[0-9a-f]{12})/.exec(made.text)?.[1];
+  assert.ok(reversed !== undefined, made.text);
+  assert.deepEqual((await library.get(reversed))?.fields, { from: form.id, to: link.id });
+  assert.deepEqual((await library.get(old.id))?.fields, { from: link.id, to: form.id }, "the retired edge is still live until the branch merges");
+  await assert.rejects(
+    create.act({ "<kind>": "edge", "<fields>": { from: form.id, to: welcome.id } }, context, WORDS),
+    (error: unknown) => error instanceof Error && error.message.includes(`dependency loop between capabilities: ${form.id} → ${welcome.id} → ${form.id}`),
+  );
+});
+
 test("17.15 · library list --where on a list field matches the records whose list holds the value, and --open keeps only open increments (proposal or active), so one call finds the open increments that name a capability; --open on another kind is refused", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();

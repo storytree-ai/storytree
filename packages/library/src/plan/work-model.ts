@@ -367,8 +367,9 @@ export class WorkModel {
     });
   }
 
-  addEdge(edge: NewEdge, options?: WriteOptions): Promise<SchemaRecord<"edge">> {
+  addEdge(edge: NewEdge, options?: CapabilityWriteOptions): Promise<SchemaRecord<"edge">> {
     return this.#serially(async () => {
+      const { pending = [], levels: _levels, ...write } = options ?? {};
       await checkReference(this.#records, "from", edge.from, "capability");
       await checkReference(this.#records, "to", edge.to, "capability");
       const from = couldBeId(edge.from) ? ((await this.#records.get(edge.from)) as SchemaRecord<"capability"> | null) : null;
@@ -380,9 +381,11 @@ export class WorkModel {
         if (from.fields.story !== to.fields.story) refuse("to", `${to.id} is another story's capability: a link between stories is a dependsOn on ${from.id}, not an edge`);
         const face = await this.#faceOf(from.id);
         if (face.includes(to.id)) refuse("to", `${from.id} already depends on ${to.id}`);
-        await this.#refuseLoop(from.id, [...face, to.id]);
+        const retired = new Set(pending.flatMap((change) => ("retire" in change ? [change.record] : [])));
+        const faces = await this.#faces(retired);
+        await this.#refuseLoop(from.id, [...(faces.get(from.id) ?? []), to.id], faces);
       }
-      return this.#records.create("edge", edge, options);
+      return this.#records.create("edge", edge, write);
     });
   }
 
@@ -704,16 +707,16 @@ export class WorkModel {
     return record?.type === "capability" ? (record as SchemaRecord<"capability">).fields.title : undefined;
   }
 
-  async #refuseLoop(id: string, dependsOn: readonly unknown[]): Promise<void> {
-    const graph = new Map<string, readonly unknown[]>(await this.#faces());
+  async #refuseLoop(id: string, dependsOn: readonly unknown[], faces?: Map<string, string[]>): Promise<void> {
+    const graph = new Map<string, readonly unknown[]>(faces ?? (await this.#faces()));
     graph.set(id, dependsOn);
     const loop = loopThrough(id, graph);
     if (loop !== undefined) throw new DependencyLoopError(loop);
   }
 
-  async #faces(): Promise<Map<string, string[]>> {
+  async #faces(retired: ReadonlySet<string> = new Set()): Promise<Map<string, string[]>> {
     const [capabilities, edges] = await Promise.all([this.#records.list("capability"), this.#records.list("edge")]);
-    return facesOf(capabilities, storyEdges(capabilities, edges));
+    return facesOf(capabilities, storyEdges(capabilities, edges.filter((edge) => !retired.has(edge.id))));
   }
 
   async #faceOf(id: string): Promise<string[]> {

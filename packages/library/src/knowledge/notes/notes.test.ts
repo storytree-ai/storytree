@@ -7,11 +7,11 @@ import { test } from "node:test";
 
 import { removeTemp } from "@storytree/test-waits";
 
-import { LIBRARY_FAMILIES, type LibraryVerbContext } from "../../commands/index.js";
+import { LIBRARY_FAMILIES, NOTE_TOOLS, type LibraryVerbContext, type NoteToolContext } from "../../commands/index.js";
 import { connect } from "../../index.js";
 import { testServerUrl, uniqueProjectName } from "../../testing/pg.js";
 import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "../../verbs/verb.js";
-import { ARTIFACT_KINDS, NOTE_TOOLS, type HeldClaim, type NoteRead, type NoteToolContext } from "../index.js";
+import { ARTIFACT_KINDS, type HeldClaim, type NoteRead } from "../index.js";
 import { narrowedSaid } from "./ranked.js";
 import { RECENT_MS, refuseStaleEdit } from "./stale-edit.js";
 

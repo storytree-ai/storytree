@@ -3,8 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { byCreation, MemoryTransactions, NumberTakenError, SchemaError, SchemaRecords, type Transactions } from "../../records/index.js";
-import { LIBRARY_SCHEMA } from "../../schema/index.js";
-import { connect } from "../../project/index.js";
+import { connect, LIBRARY_SCHEMA } from "../../project/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
 import { Knowledge, SupersessionLoopError } from "../index.js";
 

@@ -2,11 +2,10 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
 
-import { connect } from "../../project/index.js";
+import { connect, LIBRARY_SCHEMA } from "../../project/index.js";
 import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type Transactions } from "../../records/index.js";
-import { LIBRARY_SCHEMA, type KnowledgeKind } from "../../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
-import { Knowledge } from "../index.js";
+import { Knowledge, type KnowledgeKind } from "../index.js";
 
 interface Library {
   readonly knowledge: Knowledge;

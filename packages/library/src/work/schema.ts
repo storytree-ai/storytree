@@ -236,3 +236,12 @@ export const WORK_RECORD_SCHEMAS = {
     }),
   fyi: z.object({ title: nonEmpty, what: nonEmpty, at: nonEmpty, about: nonEmpty, by: nonEmpty, heardAt: nonEmpty.optional() }).strict(),
 } as const;
+
+export const WORK_SCHEMA_VERSIONS: Readonly<Record<keyof typeof WORK_RECORD_SCHEMAS, number>> = {
+  arc: 2,
+  increment: 3,
+  question: 1,
+  prediction: 1,
+  feedback: 1,
+  fyi: 1,
+};

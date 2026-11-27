@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { MemoryTransactions, SchemaRecords } from "../../records/index.js";
-import { LIBRARY_SCHEMA } from "../../schema/index.js";
+import { LIBRARY_SCHEMA } from "../../project/index.js";
 import { withCountedProject } from "../../testing/pg.js";
 import { Knowledge } from "../index.js";
 

@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { connect, NewerSchemaError, UnknownTypeError, type HistoryEntry, type HistoryFilter, type Library, type SchemaRecord } from "@storytree/library";
-import { connect as connectProject } from "../project/index.js";
+import { connect as connectProject, LIBRARY_SCHEMA } from "../project/index.js";
 import { MemoryTransactions, SchemaRecords } from "../records/index.js";
-import { LIBRARY_SCHEMA } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 
 for (const backend of ["memory", "public postgres"] as const) {

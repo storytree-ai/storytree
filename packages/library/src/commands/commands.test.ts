@@ -1,4 +1,4 @@
-// Capability 17 · The library's commands
+// Capability 17 · Commands
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

@@ -4,9 +4,8 @@ import { test } from "node:test";
 
 import { waitUntil } from "@storytree/test-waits";
 
-import { connect } from "../../project/index.js";
+import { connect, LIBRARY_SCHEMA, SCHEMA_VERSIONS } from "../../project/index.js";
 import { MemoryTransactions, MissingReferenceError, SchemaError, SchemaRecords, type RecordEnvelope, type RecordType, type Transactions } from "../../records/index.js";
-import { LIBRARY_SCHEMA, SCHEMA_VERSIONS } from "../../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../../testing/pg.js";
 import { Knowledge, type Note } from "../index.js";
 

@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { LIBRARY_SCHEMA } from "../schema/index.js";
+import { LIBRARY_SCHEMA } from "../project/index.js";
 import { MemoryTransactions, SchemaError, SchemaRecords } from "./index.js";
 
 test("36.1 · through the Storage entry, a story saved in the in-memory store with the library schema reads back the same from the store and the rules, and a story whose title is a number is refused as a schema error naming title, writing no record and no history entry", async () => {

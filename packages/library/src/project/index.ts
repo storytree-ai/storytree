@@ -12,4 +12,6 @@ export { RestoreRefusedError } from "./open/snapshot.js";
 export { CONNECT_TIMEOUT_MS, explainConnectTimeout } from "./shared/server.js";
 export type { ProjectSnapshot, SnapshotEmbedding, SnapshotEvent, SnapshotMedia, SnapshotRecord } from "./open/snapshot.js";
 export { connect } from "./open/storytree.js";
+export { LIBRARY_SCHEMA, pluginSchema, RECORD_SCHEMAS, SCHEMA_VERSIONS } from "./open/record-schemas.js";
+export { UPGRADES } from "./open/upgrades.js";
 export type { ConnectOptions, OpenOptions, OwnDatabaseOptions, Project, Storytree } from "./open/storytree.js";

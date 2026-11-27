@@ -104,3 +104,13 @@ export const PLAN_RECORD_SCHEMAS = {
     })
     .strict(),
 } as const;
+
+export const PLAN_SCHEMA_VERSIONS: Readonly<Record<keyof typeof PLAN_RECORD_SCHEMAS, number>> = {
+  story: 1,
+  capability: 2,
+  contract: 1,
+  edge: 1,
+  anchor: 1,
+  prCutover: 1,
+  pin: 1,
+};

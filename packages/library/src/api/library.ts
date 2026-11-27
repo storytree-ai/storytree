@@ -1,10 +1,9 @@
-// Capability 7 · Library API
+// Capability 7 · Front door
 import type { AnnotatedTree, ChangedOnMain, HealthWorkItem, NamedOnMain, PluginOnMain } from "../health/index.js";
-import { connect as connectServer, InheritedRecords, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Reached, type Storytree as Server } from "../project/index.js";
+import { connect as connectServer, InheritedRecords, SCHEMA_VERSIONS, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Reached, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
-import { DataQuestions } from "../data/data-questions.js";
+import { DataQuestions } from "./data-questions.js";
 import { couldBeId, type FieldEdit, type FieldsOf, type HistoryEntry, isPluginKind, type RecordEnvelope, type RecordType, type SchemaRecord, UnknownTypeError, type WriteOptions } from "../records/index.js";
-import { SCHEMA_VERSIONS } from "../schema/index.js";
 import { createHash, randomUUID } from "node:crypto";
 
 import type { SurveyOptions, WorkSurvey } from "../work/index.js";

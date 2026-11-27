@@ -5,9 +5,8 @@ import { isDeepStrictEqual } from "node:util";
 
 import { z } from "zod";
 
-import { connect } from "../../project/index.js";
+import { connect, LIBRARY_SCHEMA, pluginSchema, RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../../project/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../../testing/pg.js";
-import { LIBRARY_SCHEMA, pluginSchema, RECORD_SCHEMAS, SCHEMA_VERSIONS } from "../../schema/index.js";
 import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../store/index.js";
 import {
   MissingUpgradeError,

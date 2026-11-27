@@ -78,3 +78,8 @@ export const DECISION_RECORD_SCHEMAS = {
       }
     }),
 } as const;
+
+export const DECISION_SCHEMA_VERSIONS: Readonly<Record<keyof typeof DECISION_RECORD_SCHEMAS, number>> = {
+  decision: 2,
+  decisionNumbering: 1,
+};

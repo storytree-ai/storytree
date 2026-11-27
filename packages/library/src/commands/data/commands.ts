@@ -1,7 +1,6 @@
-// Capability 27 · Fixed data questions
-import type { Library } from "../index.js";
-import { ANSWER_ROWS, type TitleHit } from "./data-questions.js";
-import { verb, VerbRefusal, type VerbContext } from "../verbs/verb.js";
+// Capability 27 · Saved queries
+import { ANSWER_ROWS, type Library, type TitleHit } from "../../api/index.js";
+import { verb, VerbRefusal, type VerbContext } from "../../verbs/verb.js";
 
 type LibraryContext = VerbContext<Library>;
 

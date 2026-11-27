@@ -182,16 +182,7 @@ async function pluginListing(pool: Pool, plugin: string): Promise<PluginRecords>
 
 export function libraryOf(project: Project, kinds: readonly PluginRecordKind[] = []): Library {
   const { records, work, flight, health, knowledge, lineage, transactions, pool } = project;
-  const opened = new WeakMap<Project, Library>();
-  const wrap = (other: Project): Library => {
-    if (other === project) return library;
-    let held = opened.get(other);
-    if (held === undefined) {
-      held = libraryOf(other, kinds);
-      opened.set(other, held);
-    }
-    return held;
-  };
+  const wrap = (other: Project): Library => (other === project ? library : libraryOf(other, kinds));
   const declared = new Set(kinds.map(({ kind }) => kind));
   const later = Object.fromEntries(LATER.map((name) => [name, async () => {
     throw new Error(`${name} is not built in this library yet`);

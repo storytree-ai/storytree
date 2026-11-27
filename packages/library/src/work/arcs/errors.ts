@@ -2,7 +2,7 @@
 export type IncrementStatus = "proposal" | "active" | "closed";
 
 export class WaitLoopError extends Error {
-  override readonly name = "WaitLoopError";
+  override name = "WaitLoopError";
   readonly path: readonly string[];
 
   constructor(path: readonly string[]) {
@@ -12,7 +12,7 @@ export class WaitLoopError extends Error {
 }
 
 export class LifecycleError extends Error {
-  override readonly name = "LifecycleError";
+  override name = "LifecycleError";
   readonly id: string;
   readonly from: IncrementStatus;
   readonly to: IncrementStatus;

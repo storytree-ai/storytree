@@ -1,6 +1,6 @@
 // Capability 14 · Ranked search
 export type { KnowledgeKind, Note, NoteType } from "../search/index.js";
-export { Knowledge, type NewDecision, type NewDefinition, type NewKnowledge, type NoteEdit } from "./knowledge.js";
+export { Knowledge, type NewDecision, type NewDefinition, type NewKnowledge, type NoteEdit, type NoteEditOptions } from "./knowledge.js";
 export { ARTIFACT_KINDS, LinkLoopError, NOTE_TYPES, referenceEdgesOf, type ArtifactKind } from "./links.js";
 export { convertMemories } from "./memories.js";
 export { matches, relatedOf, type Related, type RelatedHit, type RelatedOptions } from "./related.js";

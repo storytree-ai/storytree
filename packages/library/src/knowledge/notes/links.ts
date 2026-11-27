@@ -26,7 +26,7 @@ export const ARTIFACT_KINDS: Readonly<Record<KnowledgeKind, ArtifactKind>> = {
 export const NOTE_TYPES: readonly string[] = ["decision", "definition", ...Object.keys(ARTIFACT_KINDS)];
 
 export class LinkLoopError extends Error {
-  override readonly name = "LinkLoopError";
+  override name = "LinkLoopError";
   readonly path: readonly string[];
 
   constructor(path: readonly string[]) {

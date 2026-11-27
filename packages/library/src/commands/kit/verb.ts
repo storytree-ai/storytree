@@ -82,7 +82,7 @@ export interface VerbAnswer {
 }
 
 export class VerbRefusal extends Error {
-  override readonly name = "VerbRefusal";
+  override name = "VerbRefusal";
   readonly misuse: boolean;
   readonly next: readonly NextStep[];
 

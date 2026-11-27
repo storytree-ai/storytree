@@ -1,9 +1,9 @@
 // Capability 13 · Decision log
 import { createHash } from "node:crypto";
 
-import { Knowledge as Notes, type Note, type NoteEdit } from "../notes/index.js";
+import { Knowledge as Notes, type Note, type NoteEdit, type NoteEditOptions } from "../notes/index.js";
 import type { Ranking } from "../search/index.js";
-import { checkReferences, findLoop, liveOf, SchemaError, type EditOptions, type FieldsOf, type Reference, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../storage/rules/index.js";
+import { checkReferences, findLoop, liveOf, SchemaError, type FieldsOf, type Reference, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../storage/rules/index.js";
 import { NumberTakenError } from "../../storage/store/index.js";
 import { archivedLinksOf, linkBacklog, linkChanges, pruneLink, restoreLink, type ArchivedDecisionLink, type DecisionLinkBacklog, type DecisionLinkChanges, type DecisionLinkSpan } from "./links.js";
 import { adr, fullRecordNumber, heldNumbers, mentionsFullRecord, renumbered, STORYTREE, switchedOn, type DecisionNumberPlan } from "./numbering.js";
@@ -26,7 +26,7 @@ type Fields = Record<string, unknown>;
 type Decision = SchemaRecord<"decision">;
 
 export class SupersessionLoopError extends Error {
-  override readonly name = "SupersessionLoopError";
+  override name = "SupersessionLoopError";
   readonly path: readonly string[];
 
   constructor(path: readonly string[]) {
@@ -111,7 +111,7 @@ export class Knowledge extends Notes {
     }, options.signal);
   }
 
-  override async editNote(id: string, fields: NoteEdit, options: EditOptions = {}): Promise<Note | null> {
+  override async editNote(id: string, fields: NoteEdit, options: NoteEditOptions = {}): Promise<Note | null> {
     const current = await liveOf(this.#records, "decision", id);
     if (current !== null) {
       if (Object.hasOwn(fields, "number")) {

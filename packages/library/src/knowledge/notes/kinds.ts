@@ -108,6 +108,9 @@ export const NOTE_KINDS = {
     reinforcedBy: z.array(z.object({ branch: z.string(), date: z.string(), evidence: z.string() }).strict()).optional(),
     dischargedBy: z.string().optional(),
     increment: z.string().optional(),
+    from: z.object({ project: z.string(), increment: z.string().optional() }).strict().optional(),
+    lease: z.object({ holder: z.string(), until: z.string() }).strict().optional(),
+    lookup: z.union([z.literal("none"), z.object({ shown: z.array(z.string()), noneMatch: z.boolean() }).strict()]).optional(),
   }).strict(),
   resteer: z.object({
     ...artifact,

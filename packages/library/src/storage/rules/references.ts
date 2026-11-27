@@ -4,7 +4,7 @@ import { unstorable } from "./records.js";
 import type { RecordType } from "./schema.js";
 
 export class MissingReferenceError extends Error {
-  override readonly name = "MissingReferenceError";
+  override name = "MissingReferenceError";
   readonly field: string;
   readonly id: string;
   readonly expected: string;
@@ -21,7 +21,7 @@ export class MissingReferenceError extends Error {
 }
 
 export class DependencyLoopError extends Error {
-  override readonly name = "DependencyLoopError";
+  override name = "DependencyLoopError";
   readonly path: readonly string[];
 
   constructor(path: readonly string[]) {

@@ -68,7 +68,7 @@ export interface QuestionLease {
 }
 
 export class RetireRefusedError extends Error {
-  override readonly name = "RetireRefusedError";
+  override name = "RetireRefusedError";
   readonly id: string;
   readonly heldBy: readonly string[];
 

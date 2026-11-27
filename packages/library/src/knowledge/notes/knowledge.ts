@@ -2,7 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
-import { checkReferences, SchemaError, type EditOptions, type FieldsOf, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../storage/rules/index.js";
+import { checkReferences, SchemaError, type FieldsOf, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../../storage/rules/index.js";
 import {
   defaultEmbedder,
   findPhrase,
@@ -30,6 +30,8 @@ export type NoteEdit = {
 }[NoteType];
 
 type Fields = Record<string, unknown>;
+
+export type NoteEditOptions = WriteOptions & { readonly checkCurrent?: (note: Note) => void };
 
 const READING = ["story", "base", "reads", "unit", "better", "howRead", "machine", "runs"];
 const JUDGEMENT = ["route", "routeReason", "dischargedBy"];
@@ -93,7 +95,7 @@ export class Knowledge {
     return (await this.#create(kind, { ...(links === undefined ? {} : { links }), ...fields }, options, current)) as SchemaRecord<K>;
   }
 
-  async editNote(id: string, fields: NoteEdit, options: EditOptions = {}): Promise<Note | null> {
+  async editNote(id: string, fields: NoteEdit, options: NoteEditOptions = {}): Promise<Note | null> {
     const current = await this.#note(id);
     if (current === null) return null;
     const stored = current.fields as Fields;
@@ -119,7 +121,7 @@ export class Knowledge {
       ...options,
       checkCurrent: (now) => {
         if (now.updatedAt !== current.updatedAt) throw new Error(`${id} was written while it was being edited: read it again and edit it then`);
-        options.checkCurrent?.(now);
+        options.checkCurrent?.(now as Note);
       },
     })) as Note | null;
   }

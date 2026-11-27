@@ -10,7 +10,7 @@ export interface FieldProblem {
 }
 
 export class SchemaError extends Error {
-  override readonly name = "SchemaError";
+  override name = "SchemaError";
   readonly type: string;
   readonly fields: readonly string[];
   readonly lists: readonly string[];
@@ -24,7 +24,7 @@ export class SchemaError extends Error {
 }
 
 export class UnknownTypeError extends Error {
-  override readonly name = "UnknownTypeError";
+  override name = "UnknownTypeError";
   readonly type: string;
   readonly id: string | undefined;
 
@@ -39,7 +39,7 @@ const here = typeof import.meta.url === "string" ? fileURLToPath(import.meta.url
 const distance = here === undefined ? () => undefined : codeDistance(here);
 
 export class NewerSchemaError extends Error {
-  override readonly name = "NewerSchemaError";
+  override name = "NewerSchemaError";
   readonly id: string;
   readonly type: string;
   readonly version: number;
@@ -62,7 +62,7 @@ export class NewerSchemaError extends Error {
 }
 
 export class MissingUpgradeError extends Error {
-  override readonly name = "MissingUpgradeError";
+  override name = "MissingUpgradeError";
   readonly id: string;
   readonly type: string;
   readonly from: number;

@@ -4,7 +4,7 @@ import { byCreation } from "../decisions/index.js";
 import { NOTE_TYPES, relatedOf, type Note, type Related } from "../notes/index.js";
 
 export class LibrarianRefusal extends Error {
-  override readonly name = "LibrarianRefusal";
+  override name = "LibrarianRefusal";
 
   constructor(message: string) {
     super(message);

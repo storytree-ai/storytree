@@ -4,9 +4,9 @@ const RULE = "a project name is lower-case letters, digits and single hyphens, 1
 const NAME = /^(?=.{1,40}$)[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export class ProjectNameError extends Error {
-  override readonly name = "ProjectNameError";
+  override name = "ProjectNameError";
   readonly projectName: unknown;
-  readonly rule = RULE;
+  readonly rule: string = RULE;
 
   constructor(projectName: unknown) {
     super(`${JSON.stringify(projectName) ?? String(projectName)} is not a project name: ${RULE}`);
@@ -20,7 +20,7 @@ export function checkName(name: unknown): string {
 }
 
 export class ProjectGoneError extends Error {
-  override readonly name = "ProjectGoneError";
+  override name = "ProjectGoneError";
   readonly project: string;
 
   constructor(project: string) {

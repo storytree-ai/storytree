@@ -46,7 +46,7 @@ export interface ProjectSnapshot {
 }
 
 export class RestoreRefusedError extends Error {
-  override readonly name = "RestoreRefusedError";
+  override name = "RestoreRefusedError";
   readonly project: string;
 
   constructor(project: string) {

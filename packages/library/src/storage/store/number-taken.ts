@@ -1,6 +1,6 @@
 // Capability 13 · Decision log
 export class NumberTakenError extends Error {
-  override readonly name = "NumberTakenError";
+  override name = "NumberTakenError";
   readonly type: string;
   readonly field: string;
   readonly number: number;

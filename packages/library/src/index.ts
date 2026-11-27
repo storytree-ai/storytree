@@ -2,7 +2,7 @@
 import type { Pool } from "pg";
 
 import { libraryOf, type Library } from "./library.js";
-import type { FieldsOf } from "./storage/rules/index.js";
+import type { FieldsOf, NewLine } from "./storage/rules/index.js";
 import { connect as connectServer, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type ProjectSnapshot } from "./projects/open/index.js";
 
 export { NOT_VERIFIED, heldBack, wordAndWhy } from "./health/index.js";
@@ -131,7 +131,7 @@ export type {
 } from "./work/arcs/index.js";
 export type { FeedbackNote, FeedbackRoute, NewQuestion, QuestionLease, Settlement } from "./work/inbox/index.js";
 
-export type Agent = FieldsOf<"agent">;
+export type Agent = Extract<NewLine, { kind: "tool-requested" }>["agent"];
 
 export type PendingChange = NonNullable<FieldsOf<"increment">["pending"]>[number];
 

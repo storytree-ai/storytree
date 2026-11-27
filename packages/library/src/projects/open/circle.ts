@@ -7,7 +7,7 @@ export type Reached<P> =
   | { readonly project: string; readonly opened?: undefined; readonly unopened: string };
 
 export class OutsideCircleError extends Error {
-  override readonly name = "OutsideCircleError";
+  override name = "OutsideCircleError";
 }
 
 export interface CircleMember {

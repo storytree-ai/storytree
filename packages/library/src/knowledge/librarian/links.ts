@@ -1,8 +1,8 @@
-// Capability 21 · Links
-import type { Note, Related } from "../../knowledge/index.js";
+// Capability 35 · The librarian
+import type { Note, Related } from "../index.js";
 import type { SchemaRecord, WriteOptions } from "../../records/index.js";
 
-import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Reference, type LibrarianLibrary } from "../notes.js";
+import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Reference, type LibrarianLibrary } from "./notes.js";
 
 const UNLINKED = { friction: "friction", resteer: "a re-steer" } as const;
 

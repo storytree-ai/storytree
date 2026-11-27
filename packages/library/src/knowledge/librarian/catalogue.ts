@@ -1,8 +1,8 @@
-// Capability 23 · Catalogue
-import type { Note } from "../../knowledge/index.js";
+// Capability 35 · The librarian
+import type { Note } from "../index.js";
 import type { WriteOptions } from "../../records/index.js";
 
-import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Reference, type LibrarianLibrary } from "../notes.js";
+import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Reference, type LibrarianLibrary } from "./notes.js";
 
 export interface NewNote {
   readonly note: Note;

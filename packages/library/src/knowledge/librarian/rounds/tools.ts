@@ -4,10 +4,10 @@ import path from "node:path";
 
 import { z } from "zod";
 
-import { retire } from "../catalogue/index.js";
-import { annotate, correct, supersede } from "../../knowledge/index.js";
-import { claudeCodeMemoryFolder, graduate, park } from "../graduation/index.js";
-import { link } from "../links/index.js";
+import { retire } from "../catalogue.js";
+import { annotate, correct, supersede } from "../../index.js";
+import { claudeCodeMemoryFolder, graduate, park } from "../graduation.js";
+import { link } from "../links.js";
 import type { ToolCall, ToolExtension, ToolHost } from "./host.js";
 import { roundDue, worklist, worklistView } from "./rounds.js";
 

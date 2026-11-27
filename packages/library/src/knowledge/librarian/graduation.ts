@@ -1,12 +1,12 @@
-// Capability 24 · Graduation
+// Capability 35 · The librarian
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import type { Note } from "../../knowledge/index.js";
+import type { Note } from "../index.js";
 import type { WriteOptions } from "../../records/index.js";
 
-import { allNotes, LibrarianRefusal, type LibrarianLibrary } from "../notes.js";
+import { allNotes, LibrarianRefusal, type LibrarianLibrary } from "./notes.js";
 
 export type GraduationKind = "principle" | "process" | "definition";
 

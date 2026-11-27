@@ -1,10 +1,10 @@
 // Capability 26 · Rounds
-import type { Related } from "../../knowledge/index.js";
-import type { SchemaRecord } from "../../records/index.js";
+import type { Related } from "../../index.js";
+import type { SchemaRecord } from "../../../records/index.js";
 
-import { markedWrites, newNotes, type MarkedWrite, type NewNote } from "../catalogue/index.js";
-import { memoryWorklist, processGaps, type MemoryItem, type ProcessGaps } from "../graduation/index.js";
-import { brokenEdges, relatedUnlinked, unrestedDecisions, type BrokenEdge } from "../links/index.js";
+import { markedWrites, newNotes, type MarkedWrite, type NewNote } from "../catalogue.js";
+import { memoryWorklist, processGaps, type MemoryItem, type ProcessGaps } from "../graduation.js";
+import { brokenEdges, relatedUnlinked, unrestedDecisions, type BrokenEdge } from "../links.js";
 import { allNotes, type LibrarianLibrary } from "../notes.js";
 
 export const CURATED: readonly string[] = ["decision", "question", "principle", "guardrail", "pattern", "process", "definition", "agent"];

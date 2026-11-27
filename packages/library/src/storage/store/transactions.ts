@@ -41,6 +41,7 @@ export interface SaveInput extends Writing {
   readonly fields: Record<string, unknown>;
   readonly version?: number;
   readonly validate?: Validate;
+  readonly onlyIfNew?: boolean;
 }
 
 export interface EditInput extends Writing {
@@ -143,7 +144,7 @@ export interface Backend {
 }
 
 export class LaterWriterError extends Error {
-  override readonly name = "LaterWriterError";
+  override name = "LaterWriterError";
 }
 
 const ACTIONS: readonly string[] = ["created", "updated", "retired"];
@@ -280,6 +281,7 @@ export class Store implements Transactions {
 
 async function saveOne(writer: Writer, input: SaveInput): Promise<RecordEnvelope> {
   const stored = await writer.get(input.id);
+  if (stored !== null && input.onlyIfNew === true) throw new RangeError(`${input.id} already exists, so nothing was written`);
   const record = recordOf(input, stored ?? undefined, new Date().toISOString());
   await writer.put(record);
   await writer.append(entry(stored === null ? "created" : "updated", record, input, undefined));

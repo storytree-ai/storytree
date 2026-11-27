@@ -519,7 +519,7 @@ export class WorkInFlight {
     }, options.signal);
   }
 
-  async createArc(arc: NewArc, options: WriteOptions & { readonly id?: string } = {}): Promise<SchemaRecord<"arc">> {
+  async createArc(arc: NewArc, options: WriteOptions & { readonly id?: string; readonly onlyIfNew?: boolean } = {}): Promise<SchemaRecord<"arc">> {
     this.#records.check("arc", arc as Record<string, unknown>);
     await this.#refuseStories(arc.stories);
     return await this.#records.create("arc", arc, options);

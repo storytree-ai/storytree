@@ -23,6 +23,7 @@ export interface WriteOptions {
 
 export interface CreateOptions extends WriteOptions {
   readonly id?: string;
+  readonly onlyIfNew?: boolean;
 }
 
 export type EditOptions = WriteOptions & { readonly reason?: string; readonly checkCurrent?: (record: SchemaRecord) => void };
@@ -53,7 +54,7 @@ export class SchemaRecords {
     const shaped = fields as Record<string, unknown>;
     this.check(type, shaped);
     const id = options.id ?? `${type}_${randomBytes(6).toString("hex")}`;
-    return { id, type, version: this.#schema.versions[type]!, fields: shaped, ...writing(options), ...(await this.#mark(type, options)) };
+    return { id, type, version: this.#schema.versions[type]!, fields: shaped, ...writing(options), ...(options.onlyIfNew === true ? { onlyIfNew: true } : {}), ...(await this.#mark(type, options)) };
   }
 
   async #mark(type: string | undefined, options: WriteOptions): Promise<Pick<SaveInput, "outsideRead">> {

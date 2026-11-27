@@ -55,3 +55,12 @@ and every file's tests are in their frozen order.
    changed or copied.
 10. `pnpm lint`'s package-boundaries check names `printable.test.ts`'s `@storytree/library-rebuild/printable` while
     the package has no `./printable` export key; the import is the frozen one re-pointed, and the key is the builder's.
+11. Gaps of the frozen oracle the test review found (review 1, test slice), left as they are because this arm copies
+    tests and adds none: the 7.29 test creates its records already in id order, so `naming`'s sort into id order
+    (`byId` in `library.ts`) is not observed (hit 4919); the 1.7 slow-link restore test asserts a measured wall-clock
+    duration, as frozen (hit 4918).
+12. Not built by the front door, though 7.3 names them on the Library: `writtenBy`, `moveNarrowsToClauses`,
+    `supersessionPairs`, `decisionLinkBacklog`, `decisionLinkChanges`, `archivedLinks`, `pruneLink`, `restoreLink`,
+    `counts`, `latestChanges`, `findByTitle`, `decisionNumbered`. Each rejects "not built in this library yet" (the
+    `LATER` list in `library.ts`); their tests (`decisions/adr.test.ts`, `data/data-questions.test.ts`) are the commands
+    increment's (increment_53ff8e067dfa), which builds them and replaces the placeholders.

@@ -1,9 +1,10 @@
 // Capability 17 · The library's commands
 import { recordDecision } from "../../knowledge/decisions/index.js";
 import { ARTIFACT_KINDS, type KnowledgeKind } from "../../knowledge/notes/index.js";
-import { filedOnSaid } from "../../plan/index.js";
+import { NOTE_REFUSALS } from "../../knowledge/notes/kinds.js";
+import { CONTRACT_DEFINITION, filedOnSaid, LONG_CONTRACT_TITLE } from "../../plan/index.js";
 import type { SchemaRecord } from "../../storage/rules/index.js";
-import { heldPending, refuseHeldPlanWrite } from "../../work/arcs/index.js";
+import { heldPending, heldSaid, holdPlanChange, refuseHeldPlanWrite } from "../../work/arcs/index.js";
 import type { LibraryVerbContext } from "../context.js";
 import { refusing, verb, VerbRefusal, type VerbAnswer } from "../kit/index.js";
 import { givenFields } from "./fields.js";
@@ -16,7 +17,7 @@ async function refuseClaimed(context: LibraryVerbContext, target: unknown): Prom
   if (refused !== undefined) throw new VerbRefusal(refused);
 }
 
-async function written(context: LibraryVerbContext, kind: string, fields: Record<string, unknown>): Promise<SchemaRecord> {
+async function written(context: LibraryVerbContext, kind: string, fields: Record<string, unknown>, tested: readonly string[] = []): Promise<SchemaRecord> {
   const { library, writer = {} } = context;
   if (kind === "decision") {
     if (fields["status"] === "accepted" && fields["authority"] === undefined) {
@@ -31,10 +32,23 @@ async function written(context: LibraryVerbContext, kind: string, fields: Record
   if (kind === "edge") return await library.addEdge(fields as never, writer);
   if (kind === "contract") {
     for (const target of [fields["capability"], fields["edge"]]) await refuseClaimed(context, target);
-    return await library.addContract(fields as never, writer);
+    return await library.addContract(fields as never, { ...writer, testedNumbers: tested });
   }
   if (kind.includes(".")) return await library.createPluginRecord(kind, fields, writer);
+  if (Object.hasOwn(NOTE_REFUSALS, kind)) throw new VerbRefusal(`library new does not write a ${kind}: ${NOTE_REFUSALS[kind]}; nothing was written`);
   throw new VerbRefusal(`library new writes a note, a decision, a story, capability, contract or edge, or a plugin's record, not a ${kind}`, { misuse: true });
+}
+
+function contractSaid(record: SchemaRecord, owner: string | undefined, untested: readonly string[]): string {
+  if (record.type !== "contract") return "";
+  const one = untested.length === 1;
+  const open = owner === undefined || untested.length === 0
+    ? ""
+    : ` ${untested.length} other ${one ? "contract" : "contracts"} of this capability ${one ? "has" : "have"} no test yet. If this one repeats ${one ? "it" : "any of them"}, retire it and build that one (list ${one ? "it" : "them"} with \`storytree map --select cap:${owner} --down 1 --kind contract --show\`).`;
+  const long = record.fields.title.length > LONG_CONTRACT_TITLE
+    ? ` Its title runs past ${LONG_CONTRACT_TITLE} characters, which often means more than one contract: ${CONTRACT_DEFINITION} Split it with \`storytree library edit\` and \`storytree library new contract\` if so.`
+    : "";
+  return open + long;
 }
 
 export const NEW = verb({
@@ -49,10 +63,13 @@ export const NEW = verb({
     const kind = input["<kind>"];
     const captured = CAPTURED[kind]?.captured;
     if (captured !== undefined) throw new VerbRefusal(`A ${kind} is captured with \`${captured.command}\` (the ${captured.tool} tool), which files it with its evidence; library new writes none, so nothing was written.`, { misuse: true });
-    const record = await refusing(() => written(context, kind, givenFields(kind, input["<fields>"])));
+    const fields = givenFields(kind, input["<fields>"]);
+    const owner = kind === "contract" && typeof fields["capability"] === "string" ? fields["capability"] : undefined;
+    const numbers = owner === undefined ? undefined : await context.testedNumbers(owner);
+    const record = await refusing(() => written(context, kind, fields, numbers?.tested));
     const cover = record.type === "decision" ? record.fields.frontCoverOf : undefined;
     const filed = cover === undefined ? "" : `\n${await filedOnSaid(context.library, cover, "`storytree library edit`")}`;
-    return { text: `Wrote ${record.type} ${record.id}.${filed}`, data: { id: record.id } };
+    return { text: `Wrote ${record.type} ${record.id}.${filed}${contractSaid(record, owner, numbers?.untested ?? [])}`, data: { id: record.id } };
   },
 });
 
@@ -87,7 +104,12 @@ export const RETIRE = verb({
     const record = await context.library.get(id);
     if (record === null) throw new VerbRefusal(`no record ${id} in this project`);
     if (record.type === "contract") await refuseClaimed(context, id);
+    if (["story", "capability", "contract", "edge"].includes(record.type)) {
+      const claims = await context.claims();
+      const held = await refusing(() => holdPlanChange(context.library, claims, context.session, { record: id, retire: reason }, context.writer ?? {}));
+      if (held !== undefined) return { text: `Retiring ${record.type} ${id} is ${heldSaid(held)}`, data: { id }, next: [{ command: `library read ${held}`, why: "see the change it holds" }] };
+    }
     await refusing(() => context.library.retire(id, reason, context.writer));
-    return { text: `Retired ${record.type} ${id}.`, data: { id } };
+    return { text: `Retired ${id} (${record.type}).`, data: { id } };
   },
 });

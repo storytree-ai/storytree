@@ -45,15 +45,20 @@ async function planEdit(context: LibraryVerbContext, record: Stored, fields: Rec
   const { library, session } = context;
   const leaves = record.type === "contract" && fields["edge"] !== undefined ? record.fields.capability : undefined;
   const claims = await context.claims();
-  const done = await refusing(() => editPlanRecord(library, claims, session, { type: record.type as PlanRecordType, id: record.id, fields, live }, context.writer ?? {}));
+  const nesting = record.type === "capability" && typeof fields["parent"] === "string" ? fields["parent"] : undefined;
+  const story = String(fields["story"] ?? (record.fields as { readonly story?: string }).story);
+  const edit = nesting === "none" ? { ...fields, parent: undefined } : fields;
+  const levels = nesting === undefined || nesting === "none" ? {} : { levels: (await context.levelsBehind?.(story, nesting)) ?? [] };
+  const done = await refusing(() => editPlanRecord(library, claims, session, { type: record.type as PlanRecordType, id: record.id, fields: edit, live: live || nesting !== undefined }, { ...context.writer, ...levels }));
   if (done === null) throw new VerbRefusal(`no ${record.type} ${record.id} in the plan any more`);
   if ("refused" in done) throw new VerbRefusal(done.refused);
   if ("held" in done) {
     const way = `If ${done.held} will have no branch to merge, drop the change (storytree arc increment drop-pending ${done.held} ${record.id}) and run this edit again with --live.`;
-    return { text: `Your change to ${record.type} ${JSON.stringify(titleOf(record))} (${record.id}) is ${heldSaid(done.held)} ${way}` };
+    return { text: `Your change to ${record.type} ${JSON.stringify(titleOf(record))} (${record.id}) is ${heldSaid(done.held)} ${way}`, next: [{ command: `library read ${done.held}`, why: "see the change it holds" }] };
   }
   const bare = await bareSaid(library, leaves, `library new contract --capability ${leaves} --title <title>`);
-  return { text: `${editedSaid(record.type, record.id, Object.keys(fields), [])}${bare}` };
+  const nested = nesting === undefined ? "" : nesting === "none" ? " Its parent was cleared in the live plan at once." : " Its parent went to the live plan at once, since the levels behind it were read from the code as it stands now.";
+  return { text: `${editedSaid(record.type, record.id, Object.keys(fields), [])}${bare}${nested}` };
 }
 
 async function noteEdit(context: LibraryVerbContext, record: Stored, fields: Record<string, unknown>, removed: readonly string[], read: string | undefined): Promise<string> {

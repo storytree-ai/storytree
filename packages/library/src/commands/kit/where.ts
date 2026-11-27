@@ -83,7 +83,7 @@ export async function writtenLibrary(library: Library, given: WhereNamed): Promi
   const { project, arc, increment } = whereOf({ ...given });
   const held: Held[] = [...(arc === undefined ? [] : [["arc", arc] as const]), ...(increment === undefined ? [] : [["increment", increment] as const])];
   if (project === undefined && held.length === 0) {
-    throw new VerbRefusal(`This write names where it goes: give project (this folder's is ${JSON.stringify(library.name)}), or the arc or the increment it is about.`, { misuse: true });
+    throw new VerbRefusal(`A write names where it goes: give project (this folder's is ${JSON.stringify(library.name)}), or the arc or the increment it is about.`, { misuse: true });
   }
   const there = project === undefined ? await holding(library, held[0]!) : await projectLibrary(library, project);
   for (const one of held) {

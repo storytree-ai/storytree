@@ -19,8 +19,8 @@ const TYPES: Readonly<Record<string, string>> = {
 };
 
 export const mediaGuidance: readonly string[] = [
-  "Keep a picture or file beside the record it shows with media attach (attach_media): an approved look's screenshots beside its decision, a run's log beside its friction.",
-  "A record's media is listed with media list (list_media) and saved back exactly with media get (fetch_media); a file is at most 10 MB.",
+  "Keep a picture or file beside the record it shows with `attach_media` (media attach): an approved look's screenshots beside its decision, a run's log beside its friction.",
+  "A record's media is listed with `list_media` (media list) and saved back exactly with `fetch_media` (media get); a file is at most 10 MB.",
 ];
 
 function entrySaid({ type, size, sha256 }: MediaEntry): string {

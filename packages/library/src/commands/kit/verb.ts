@@ -93,6 +93,19 @@ export class VerbRefusal extends Error {
   }
 }
 
+const JOINED_IDS = /^[a-z][A-Za-z]*_[0-9a-f]{12}(?:\s+[a-z][A-Za-z]*_[0-9a-f]{12})+$/;
+
+export function commaIds(text: string, name: string): string[] {
+  const ids = text.split(",").map((one) => one.trim()).filter((one) => one !== "");
+  if (ids.some((id) => JOINED_IDS.test(id))) {
+    throw new VerbRefusal(
+      `--${name} contains whitespace inside an id. PowerShell may have converted an unquoted comma list to an array and joined it with spaces. Retry with the whole comma-separated list quoted, for example --${name} "id1,id2" (replace id1 and id2 with your intended ids). No ids were guessed or split on whitespace; nothing was written.`,
+      { misuse: true },
+    );
+  }
+  return ids;
+}
+
 export interface Absent {
   readonly absent: string;
   readonly twin?: string;

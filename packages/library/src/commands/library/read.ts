@@ -48,7 +48,7 @@ export const READ = verb({
     if (field !== undefined) {
       if (records.length !== 1) throw new VerbRefusal("--field reads one field of one record: give one id", { misuse: true });
       const [record] = records as [Stored];
-      if (!fieldsHeld(record).includes(field)) throw new VerbRefusal(`${record.id} has no field ${JSON.stringify(field)}: its fields are ${fieldsHeld(record).join(", ")}`, { misuse: true });
+      if (!fieldsHeld(record).includes(field)) throw new VerbRefusal(`${record.id} has no field ${JSON.stringify(field)}: its fields are ${fieldsHeld(record).join(", ")}`);
       const value = valueSaid(await fieldOf(library, record, field));
       if (out === undefined) return { text: value, raw: true };
       const file = path.resolve(context.folder, out);
@@ -88,13 +88,17 @@ export const LINKS = verb({
 });
 
 export const RELATED = verb({
-  command: { family: "library", name: "related", summary: "the notes that share words with a note but do not link to it", usage: "library related <id>" },
+  command: { family: "library", name: "related", summary: "the notes most like a note, saying which a link already joins", usage: "library related <id> [--unlinked]" },
   tool: { absent: "search_notes finds notes on the tool door", twin: "search_notes" },
-  inputs: { id: { kind: "text", word: 0, describe: "The note to find related notes for" } },
-  async act({ id }, context: LibraryVerbContext): Promise<VerbAnswer> {
-    const related = await context.library.related(id);
-    if (related === null) throw new VerbRefusal(`no note ${id} in this project`);
-    if (related.hits.length === 0) return { text: `No note shares words with ${id}.` };
-    return { text: [`${related.hits.length} notes share words with ${id}:`, ...related.hits.map(({ id: hit, type, title, linked }) => `  ${hit}  [${type}]  ${title}${linked ? "  (linked)" : ""}`)].join("\n") };
+  inputs: {
+    id: { kind: "text", word: 0, describe: "The note to find related notes for" },
+    unlinked: { kind: "switch", describe: "Only the notes no link joins to it" },
+  },
+  async act({ id, unlinked }, context: LibraryVerbContext): Promise<VerbAnswer> {
+    const related = await context.library.related(id, unlinked ? { unlinked: true } : {});
+    if (related === null) throw new VerbRefusal(`no artifact ${id} in this project`);
+    const counted = `${related.scanned} ranked, ${related.linkedCount} already linked`;
+    if (related.hits.length === 0) return { text: `No ${unlinked ? "unlinked " : ""}note shares words with ${id} (${counted}).` };
+    return { text: [`${related.hits.length} ${unlinked ? "unlinked " : ""}notes share words with ${id} (${counted}):`, ...related.hits.map(({ id: hit, type, title, linkVia }) => `  ${hit}  [${type}]  ${title}${linkVia.length > 0 ? `  (linked via ${linkVia.join(", ")})` : ""}`)].join("\n") };
   },
 });

@@ -1,13 +1,14 @@
 // Capability 13 · Decision log
 import { refusing, verb, VerbRefusal, type VerbAnswer, type VerbContext, type VerbFamily } from "../../commands/kit/index.js";
-import { PULL, PUSH } from "./adr-file.js";
+import { commaIds } from "../../commands/kit/verb.js";
+import { decisionCalled, PULL, PUSH } from "./adr-file.js";
 import { BACKLOG, CHANGES, MOVE_NARROWS, PAIRS, PRUNE, PRUNED, RESTORE } from "./adr-links.js";
 import { recordDecision } from "./door.js";
 import type { NewDecision } from "./knowledge.js";
 import { adr } from "./numbering.js";
 
-function listed(text: string | undefined): string[] {
-  return (text ?? "").split(",").map((one) => one.trim()).filter((one) => one !== "");
+function listed(text: string | undefined, name: string): string[] {
+  return commaIds(text ?? "", name);
 }
 
 function justifications(why: readonly string[]): Record<string, string> {
@@ -16,6 +17,13 @@ function justifications(why: readonly string[]): Record<string, string> {
     if (at <= 0) throw new VerbRefusal(`--why takes <target>=<justification>, not ${JSON.stringify(one)}; nothing was written`, { misuse: true });
     return [one.slice(0, at).trim(), one.slice(at + 1).trim()];
   }));
+}
+
+function numberOf(text: string | undefined): number | undefined {
+  if (text === undefined) return undefined;
+  const number = Number(text.trim());
+  if (!/^[1-9]\d*$/.test(text.trim()) || !Number.isSafeInteger(number)) throw new VerbRefusal(`--number is a whole number above 0, not ${JSON.stringify(text)}; nothing was written`);
+  return number;
 }
 
 interface Stamp {
@@ -52,7 +60,7 @@ const NEW = verb({
     title: { kind: "text", describe: "The decision, in a line" },
     text: { kind: "text", describe: "Its text" },
     status: { kind: "text", describe: "accepted: a decision waiting on the owner is an open question instead" },
-    number: { kind: "count", optional: true, describe: "Its number, when it is not the next" },
+    number: { kind: "text", optional: true, describe: "Its number, when it is not the next" },
     decided: { kind: "text", optional: true, describe: "The day it was decided, YYYY-MM-DD" },
     basis: { kind: "text", optional: true, describe: "Who decided it: owner-directed, owner-ratified, agent-derived (the default), agent-flipped or brought-across" },
     "owner-said": { kind: "text", optional: true, describe: "The owner's own words, for an owner basis" },
@@ -66,8 +74,9 @@ const NEW = verb({
   },
   writes: true,
   async act(input, context: VerbContext): Promise<VerbAnswer> {
-    const supersedes = listed(input.supersedes);
-    const links = listed(input.links);
+    const number = numberOf(input.number);
+    const supersedes = listed(input.supersedes, "supersedes");
+    const links = listed(input.links, "links");
     const why = justifications(input.why ?? []);
     const authority = authorityOf(input, context.session);
     await refuseUnjustified(context, [...links, ...supersedes], why);
@@ -76,7 +85,7 @@ const NEW = verb({
       title: input.title,
       text: input.text,
       status: input.status,
-      ...(input.number === undefined ? {} : { number: input.number }),
+      ...(number === undefined ? {} : { number }),
       ...(input.decided === undefined ? {} : { decided: input.decided }),
       ...(links.length === 0 ? {} : { links }),
       ...(supersedes.length === 0 ? {} : { supersedes }),
@@ -86,8 +95,8 @@ const NEW = verb({
       authority,
     } as NewDecision;
     const record = await refusing(() => recordDecision(context.library, decision, context.writer));
-    const number = record.fields.number === undefined ? "" : `${adr(record.fields.number)} `;
-    return { text: `Recorded ${number}${record.id}: ${record.fields.title}.`, data: { id: record.id } };
+    const numbered = record.fields.number === undefined ? "" : `${adr(record.fields.number)} `;
+    return { text: `Recorded ${numbered}${record.id}: ${record.fields.title}.`, data: { id: record.id } };
   },
 });
 
@@ -109,9 +118,25 @@ const LIST = verb({
   },
 });
 
+const COMPOSE = verb({
+  command: { family: "adr", name: "compose", summary: "give a decision its one composed statement", usage: "adr compose <decision> --statement <text>" },
+  tool: { absent: "a decision's statement is composed on the command line" },
+  inputs: {
+    decision: { kind: "text", word: 0, describe: "The decision: its id, number or ADR number" },
+    statement: { kind: "text", describe: "The statement, in a sentence or two" },
+  },
+  writes: true,
+  async act({ decision, statement }, context: VerbContext): Promise<VerbAnswer> {
+    const { record } = await decisionCalled(context.library, decision);
+    await refusing(() => context.library.composeStatement(record.id, statement, context.writer));
+    return { text: `Composed ${record.fields.number === undefined ? record.id : adr(record.fields.number)}'s statement.`, data: { id: record.id } };
+  },
+});
+
 export const ADR_FAMILY: VerbFamily = {
   name: "adr",
-  summary: "the decision log: new, pull, push, list, move-narrows, pairs, backlog, changes, prune, pruned, restore",
+  summary: "the decision log: new, pull, push, compose, list, move-narrows, pairs, backlog, changes, prune, pruned, restore",
   order: 4,
-  verbs: [NEW, PULL, PUSH, LIST, MOVE_NARROWS, PAIRS, BACKLOG, CHANGES, PRUNE, PRUNED, RESTORE],
+  verbs: [NEW, PULL, PUSH, COMPOSE, LIST, MOVE_NARROWS, PAIRS, BACKLOG, CHANGES, PRUNE, PRUNED, RESTORE],
+  guesses: { read: "adr pull <decision>", show: "adr pull <decision>", get: "adr pull <decision>", open: "adr pull <decision>" },
 };

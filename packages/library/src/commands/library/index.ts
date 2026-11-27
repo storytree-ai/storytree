@@ -13,4 +13,5 @@ export const LIBRARY_FAMILY: VerbFamily<LibraryVerbContext> = {
   summary: "search, read, write, edit, refile, retire, list and revert the library's records",
   order: 1,
   verbs: [SEARCH, PHRASE, EXACT, LINKS, RELATED, NEW, READ, EDIT, REFILE, RETIRE, LIST, HISTORY, REVERT, UNDO, MOVE_TO_EDGES, COUNT, CHANGES, FIND],
+  guesses: { show: "library read <id>", get: "library read <id>", open: "library read <id>", cat: "library read <id>" },
 };

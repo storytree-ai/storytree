@@ -26,9 +26,9 @@ function whereOf(clause: string): (fields: Readonly<Record<string, unknown>>) =>
 
 function entryLines({ seq, at, action, type, recordId, actor, reason, outsideRead, record }: HistoryEntry, fields: boolean): string[] {
   return [
-    `${seq}  ${at}  ${action}  ${type} ${recordId}  by ${actor ?? "a writer who gave no name"}${reason === undefined ? "" : `: ${reason}`}`,
+    `${seq}  ${at}  ${action}  ${type} ${recordId}  ${actor === undefined ? "writer not recorded" : `by ${actor}`}${reason === undefined ? "" : `: ${reason}`}`,
     ...(outsideRead === undefined || outsideRead.length === 0 ? [] : [`    read outside text first: ${outsideRead.join("; ")}`]),
-    ...(fields ? [`    ${JSON.stringify(record.fields)}`] : []),
+    ...(fields ? [`    fields: ${JSON.stringify(record.fields)}`] : []),
   ];
 }
 
@@ -52,7 +52,7 @@ export const LIST = verb({
     all: { kind: "switch", describe: "List every one" },
     open: { kind: "switch", describe: "Keep only open increments, proposed or active" },
   },
-  async act({ kind, where, open }, context: LibraryVerbContext): Promise<VerbAnswer> {
+  async act({ kind, where, open, all }, context: LibraryVerbContext): Promise<VerbAnswer> {
     const dormant = await dormantSaid(context, [kind]);
     if (dormant.length > 0) return { text: dormant.join("\n") };
     if (open && kind !== "increment") throw new VerbRefusal(`--open keeps the open increments, so it lists increments, not ${kind} records`, { misuse: true });
@@ -61,8 +61,13 @@ export const LIST = verb({
       const held = fields as Readonly<Record<string, unknown>>;
       return matches.every((match) => match(held)) && (!open || held["status"] !== "closed");
     });
-    if (records.length === 0) return { text: `No ${kind} records.` };
-    return { text: [`${records.length} ${kind} ${records.length === 1 ? "record" : "records"}:`, ...records.map((record) => `  ${record.id}  ${titleOf(record)}`)].join("\n") };
+    const settled = kind === "friction" && !all && !where.some((clause) => clause.startsWith("state="))
+      ? records.filter(({ fields }) => ["resolved", "dismissed"].includes(String((fields as { readonly state?: unknown }).state)))
+      : [];
+    const shown = records.filter((record) => !settled.includes(record));
+    const leftOut = settled.length === 0 ? [] : [`${settled.length} settled (resolved or dismissed) left out; --all lists them.`];
+    if (shown.length === 0) return { text: [`No ${kind} records.`, ...leftOut].join("\n") };
+    return { text: [`${shown.length} ${kind} records:`, ...shown.map((record) => `  ${record.id}  ${titleOf(record)}`), ...leftOut].join("\n") };
   },
 });
 

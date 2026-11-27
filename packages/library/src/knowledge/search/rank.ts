@@ -92,7 +92,7 @@ export class RankedSearch {
       });
       return {
         by: "words",
-        why: `ranked by words, not meaning: the embedding model is not to hand (${(error as Error).message})`,
+        why: `ranked by words: ${(error as Error).message}`,
         hits: ordered(matches.map((candidate) => ({ candidate, score: 0 }))).slice(0, limit).map(({ candidate }) => hit(candidate)),
       };
     }

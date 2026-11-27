@@ -10,9 +10,29 @@ export function valueSaid(value: unknown): string {
   return typeof value === "string" ? value : JSON.stringify(value);
 }
 
+interface Pending {
+  readonly record: string;
+  readonly type: string;
+  readonly before?: Readonly<Record<string, unknown>>;
+  readonly after?: Readonly<Record<string, unknown>>;
+  readonly retire?: string;
+}
+
+function pendingSaid(changes: readonly Pending[]): string {
+  const said = (value: unknown): string => (value === undefined || value === null ? "(none)" : typeof value === "string" ? value : JSON.stringify(value));
+  return [
+    `pending: ${changes.length} ${changes.length === 1 ? "change" : "changes"}`,
+    ...changes.flatMap(({ record, type, before = {}, after = {}, retire }) => [
+      `  ${record} (${type})`,
+      ...(retire === undefined ? Object.entries(after).map(([field, value]) => `    ${field}: ${said(before[field])} -> ${said(value)}`) : [`    retire: ${retire}`]),
+    ]),
+  ].join("\n");
+}
+
 export function wholeRecord(record: Stored): string {
   const dormant = record.dormant === true ? "  dormant: its plugin is not mounted on this computer" : "";
-  const fields = Object.entries(record.fields as Record<string, unknown>).map(([field, value]) => `${field}: ${valueSaid(value)}`);
+  const fields = Object.entries(record.fields as Record<string, unknown>).map(([field, value]) =>
+    record.type === "increment" && field === "pending" && Array.isArray(value) ? pendingSaid(value as Pending[]) : `${field}: ${valueSaid(value)}`);
   return [`${record.id}  [${record.type}]  schema ${record.version}${dormant}`, ...fields].join("\n");
 }
 

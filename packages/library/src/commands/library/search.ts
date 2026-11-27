@@ -32,8 +32,13 @@ async function refuseDormant(context: LibraryVerbContext, kinds: readonly string
   if (said.length > 0) throw new VerbRefusal(said.join("\n"));
 }
 
+function kindSaid(note: { readonly type: string; readonly fields: object }): string {
+  const state = note.type === "friction" ? (note.fields as { readonly state?: string }).state : undefined;
+  return state === undefined ? note.type : `${note.type}: ${state}`;
+}
+
 export const SEARCH = verb({
-  command: { family: "library", name: "search", summary: "rank the library's records by meaning", usage: "library search <words> … [--limit <n>] [--history] [--kind <kind> …] [--project <project|all> …]" },
+  command: { family: "library", name: "search", summary: "rank the library's records by meaning", usage: "library search <words…> [--limit <n>] [--history] [--kind <kind> …] [--project <project|all> …]" },
   tool: { absent: "search_notes is the search on the tool door", twin: "search_notes" },
   inputs: {
     words: { kind: "text", word: 0, many: true, describe: "What to search for" },
@@ -48,18 +53,21 @@ export const SEARCH = verb({
     const query = words.join(" ");
     const across = project !== undefined && project.length > 0;
     const sections: string[] = [];
+    let first: string | undefined;
     for (const reached of await librariesNamed(context.library, project)) {
       if (reached.opened === undefined) {
         sections.push(unopenedSaid(reached.project, reached.unopened));
         continue;
       }
-      const ranked = await refusing(() => reached.opened.rankAll(query, { limit: count, history, ...(kinds === undefined ? {} : { kinds }) }));
-      const lines = ranked.hits.map(({ note, narrowedBy }) => `${note.id}  [${note.type}]  ${titleOf(note)}${narrowedSaid(narrowedBy ?? [])}`);
-      const said = [...(ranked.why === undefined ? [] : [ranked.why]), ...(lines.length === 0 ? [`Nothing matches ${JSON.stringify(query)}.`] : lines)].join("\n");
+      const ranked = await refusing(() => reached.opened.rankAll(query, { limit: count, ...(history ? { history: true } : {}), ...(kinds === undefined ? {} : { kinds }) }));
+      first ??= ranked.hits[0]?.note.id;
+      const lines = ranked.hits.map(({ note, score, narrowedBy }) => `  ${score === undefined || ranked.by === "words" ? "" : `${score.toFixed(2)}  `}${note.id}  [${kindSaid(note)}]  ${titleOf(note)}${narrowedSaid(narrowedBy ?? [])}`);
+      const heading = ranked.why ?? `closest in meaning to ${JSON.stringify(query)}:`;
+      const said = lines.length === 0 ? [...(ranked.why === undefined ? [] : [ranked.why]), `Nothing matches ${JSON.stringify(query)}.`].join("\n") : [heading, ...lines].join("\n");
       sections.push(across ? `project ${reached.project}:\n${said}` : said);
     }
     const dormant = await dormantSaid(context);
-    return { text: [sections.join("\n\n"), ...dormant].join("\n") };
+    return { text: [sections.join("\n\n"), ...dormant].join("\n"), ...(first === undefined ? {} : { next: [{ command: `library read ${first}`, why: "read the best hit whole" }] }) };
   },
 });
 

@@ -43,7 +43,8 @@ async function pulled(library: Library, view: DecisionView): Promise<string> {
     ...(view.supersededBy.length === 0 ? [] : [line("superseded-by", view.supersededBy)]),
     ...(view.supersededInPart.length === 0 ? [] : [line("superseded-in-part", view.supersededInPart)]),
     ...(linking.length === 0 ? [] : [line("linked-from", linking)]),
-    ...READ_ONLY.filter((key) => fields[key] !== undefined).map((key) => line(key, fields[key])),
+    ...READ_ONLY.filter((key) => fields[key] !== undefined && key !== "composed").map((key) => line(key, fields[key])),
+    ...(view.composed === undefined ? [] : [line("composed", view.composed.statement), ...(view.composed.stale ? [line("composed-reads", "stale: the decision's text changed after it was composed")] : [])]),
   ];
   return [FENCE, ...editable(fields).map(([key, value]) => line(key, value)), READ_ONLY_MARK, ...readOnly, FENCE, "", `# ${record.fields.title}`, "", `${record.fields.text}\n`].join("\n");
 }

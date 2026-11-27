@@ -15,7 +15,12 @@ Changes beyond re-pointed imports made at the swap, for the blind reviewer. No t
    fields all survive, `edit` of a missing, prefix or retired id returns null, `get` of odd ids (a NUL byte among
    them) returns null, a read outside an `inOneWrite` work sees none of its writes before they commit, and a
    batch that replaces a record or is refused leaves history as the contract says. Two of them were red on the
-   rebuild (2.24 on the in-memory store, 2.5 on Postgres) and the builder fixed the code.
+   rebuild (2.24 on the in-memory store, 2.5 on Postgres) and the builder fixed the code. A second round adds, for
+   2.24, a nested work's write undone when the outer throws, a caught refusal leaving the work's other writes
+   committed and an outside write landing after all of the work's; for 2.25 the empty and a 1,000-record batch; for
+   2.1 eight racing saves of one id.
+4. One new test, not in the oracle: `storage/store/memory.test.ts` "2.12 [memory] `from` keeps a retirement made at
+   or after it…", on mocked timers, added to kill a mutation survivor in `memory.ts` the review found.
 
 Cold-rule note: the test reviewer of this increment read the old `transactions/behaviour-suite.ts` (old non-test
 source by the brief's definition) from origin/main and the merge-base to compare assertion counts. Its hits were

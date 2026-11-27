@@ -231,7 +231,7 @@ export class WorkInFlight {
     for (const wait of increment.waits ?? []) await this.#blocker("increment", wait.on);
     if (outcome === undefined && (increment.capabilities ?? []).length > 0) await this.#refuseListed(increment.capabilities!, increment.waits ?? []);
     const created = await this.#records.create("increment", fields as FieldsOf<"increment">, options);
-    if (outcome !== undefined) await this.#afterClose(created, undefined, options);
+    if (outcome !== undefined) await this.#afterClose(created, undefined, options, true, true);
     return created;
   }
 
@@ -708,12 +708,12 @@ export class WorkInFlight {
     }
   }
 
-  async #afterClose(increment: SchemaRecord<"increment">, unlanded: string | undefined, options: WriteOptions, telling = true): Promise<void> {
+  async #afterClose(increment: SchemaRecord<"increment">, unlanded: string | undefined, options: WriteOptions, telling = true, born = false): Promise<void> {
     const outcome = increment.fields.outcome!;
     if (unlanded !== undefined) await this.#reopen(increment, (fields) => fields["dischargedBy"] === unlanded, options);
     else if (outcome.disposition === "landed") {
       const stamp = stampOf(outcome, increment.id);
-      for (const id of increment.fields.remedies ?? []) {
+      for (const id of born ? [] : (increment.fields.remedies ?? [])) {
         const friction = await liveOf(this.#records, "friction", id);
         if (friction !== null && friction.fields.dischargedBy === undefined) await this.#records.edit(id, { state: "resolved", dischargedBy: stamp }, writer(options));
       }

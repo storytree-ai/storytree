@@ -23,20 +23,26 @@ export async function dropTestDatabases(databases: Iterable<string>, server?: Qu
     for (const name of names) await drop(server, name);
     return;
   }
-  const client = await connect(testAdminUrl());
+  const { client, lost } = await connect(testAdminUrl());
   try {
     for (const name of names) await drop(client, name);
+  } catch (error) {
+    throw lost() ?? error;
   } finally {
     await client.end();
   }
 }
 
-async function connect(url: string): Promise<pg.Client> {
+async function connect(url: string): Promise<{ client: pg.Client; lost: () => Error | undefined }> {
   for (let tries = 1, pause = 50; ; tries++, pause *= 2) {
     const client = new pg.Client({ connectionString: url });
+    let lost: Error | undefined;
+    client.on("error", (error) => {
+      lost ??= error;
+    });
     try {
       await client.connect();
-      return client;
+      return { client, lost: () => lost };
     } catch (error) {
       await client.end().catch(() => {});
       const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;

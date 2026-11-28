@@ -76,10 +76,16 @@ export async function dropTestProjects(projects: Iterable<string>): Promise<void
 
 export async function databasesOnTestServer(): Promise<string[]> {
   const client = new pg.Client({ connectionString: testServerUrl() });
+  let lost: Error | undefined;
+  client.on("error", (error) => {
+    lost ??= error;
+  });
   await client.connect();
   try {
     const { rows } = await client.query<{ datname: string }>("SELECT datname FROM pg_database");
     return rows.map((row) => row.datname);
+  } catch (error) {
+    throw lost ?? error;
   } finally {
     await client.end();
   }

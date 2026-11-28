@@ -63,12 +63,8 @@ export function sweepLeftovers({ tmp = tmpdir(), now = Date.now(), log = () => {
     const goneRun = run !== null;
     swept.stopped.push(...stopServersUnder(at, { keep: (server) => !goneRun && ownerAlive(server.dataDir), log }));
     if (!goneRun && (serversUnder(at).length > 0 || now - modified(at) < SWEEP_AGE_MS)) continue;
-    try {
-      removeFolder(at);
-      swept.removed.push(at);
-    } catch (error) {
-      log(`could not remove ${at}: ${error.message}`);
-    }
+    void removeWhenFree(at, { log });
+    if (!existsSync(at)) swept.removed.push(at);
   }
   if (swept.stopped.length > 0) log(`stopped ${swept.stopped.length} Postgres server(s) a gone run left running in ${tmp}`);
   if (swept.removed.length > 0) log(`removed ${swept.removed.length} scratch folder(s) a gone or old run left in ${tmp}`);

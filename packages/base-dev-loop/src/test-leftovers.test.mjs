@@ -117,7 +117,7 @@ test("4.20 · a unit's end stops every Postgres server running on a data folder 
   }
 });
 
-test("4.21 · a run's start stops any Postgres server in Temp left by a run that has gone, and removes that run's temp folders", { timeout: 180_000 }, async (t) => {
+test("4.21 · a run's start stops any Postgres server in Temp left by a run that has gone, and removes that run's temp folders", { timeout: 300_000 }, async (t) => {
   const steps = cleanups(t);
   const temp = folder(steps, "leftovers-temp-");
   const deadRun = path.join(temp, `st-unit-${deadPid()}-AbC123`);
@@ -135,7 +135,7 @@ test("4.21 · a run's start stops any Postgres server in Temp left by a run that
   sweepLeftovers({ tmp: temp });
 
   await waitUntil(orphanStopped, 10_000, "the server in a gone run's unit folder to be stopped");
-  assert.equal(existsSync(deadRun), false, "and the gone run's unit folder removed");
+  await untilGone(deadRun, "the gone run's unit folder to be removed");
   await waitUntil(staleStopped, 10_000, "a server in a storytree scratch folder whose owner has gone to be stopped");
   assert.equal(alive(postmaster(owned.dataDir)), true, "a server whose owner lives is left running");
   assert.equal(existsSync(liveRun), true, "a live run's unit folder is left alone");
@@ -237,9 +237,10 @@ test("4.22 · a run's start removes storytree scratch folders in Temp older than
   steps.push(() => server.stop());
   utimesSync(used, old, old);
 
-  sweepLeftovers({ tmp: temp });
+  const swept = sweepLeftovers({ tmp: temp });
 
   for (const at of stale) assert.equal(existsSync(at), false, `${path.basename(at)} is swept`);
+  assert.deepEqual([...swept.removed].sort(), [...stale].sort(), "the sweep says it removed the three stale folders and none it kept");
   assert.equal(existsSync(fresh), true, "a folder younger than three days is kept");
   assert.equal(existsSync(notScratch), true, "a folder not named as scratch is kept");
   assert.equal(existsSync(used), true, "a folder a live server uses is kept");

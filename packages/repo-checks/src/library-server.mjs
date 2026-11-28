@@ -35,6 +35,13 @@ export async function libraryServer({ dataDir, owner, appOwner, start, locate, s
 
 export async function holdSeedLock(url, { log }) {
   const client = new pg.Client({ connectionString: url, application_name: SEED_CONNECTION });
+  let lost;
+  let held = false;
+  client.on("error", (error) => {
+    if (lost) return;
+    lost = error;
+    if (held) log(`the seed's writing lock was lost: ${error.message}`);
+  });
   await client.connect();
   try {
     const { rows } = await client.query("select pg_try_advisory_lock($1) as got", [SEED_LOCK]);
@@ -44,8 +51,9 @@ export async function holdSeedLock(url, { log }) {
     }
   } catch (error) {
     await client.end().catch(() => {});
-    throw error;
+    throw lost ?? error;
   }
+  held = true;
   return { release: () => client.end() };
 }
 

@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import net from "node:net";
 import { test } from "node:test";
 
+import { waitUntil } from "@storytree/test-waits";
 import pg from "pg";
 
 import { dropTestDatabases } from "./drop.js";
@@ -159,3 +160,53 @@ for (const [refusal, answer] of [
     assert.ok(connections <= 10, `a bounded number of times (${connections} connections)`);
   });
 }
+
+test("3.3 a drop whose connection the server ends while it waits to ask again is refused with the server's error, without crashing", { timeout: 60_000 }, async () => {
+  const role = testName();
+  const password = randomBytes(16).toString("hex");
+  const name = testName();
+  const admin = new pg.Client({ connectionString: adminUrl() });
+  await admin.connect();
+  const holder = new pg.Client({ connectionString: adminUrl(name) });
+  holder.on("error", () => {});
+  const before = process.env["STORYTREE_TEST_PG_ADMIN_URL"];
+  let onCrash: ((error: Error) => void) | undefined;
+  try {
+    await admin.query(`CREATE ROLE "${role}" LOGIN CREATEDB PASSWORD '${password}'`);
+    await admin.query(`CREATE DATABASE "${name}" OWNER "${role}"`);
+    await holder.connect();
+    const asRole = new URL(adminUrl());
+    [asRole.username, asRole.password] = [role, password];
+    process.env["STORYTREE_TEST_PG_ADMIN_URL"] = asRole.href;
+    const crashed = new Promise<{ crashed: Error }>((resolve) => {
+      onCrash = (error) => resolve({ crashed: error });
+      process.once("uncaughtException", onCrash);
+    });
+    const dropping = dropTestDatabases([name]).then(
+      () => ({ dropped: true }),
+      (error: unknown) => ({ refused: error as { code?: unknown; message?: unknown } }),
+    );
+    const pid = await waitUntil(async () =>
+      (await admin.query<{ pid: number }>(
+        "SELECT pid FROM pg_stat_activity WHERE usename = $1 AND state = 'idle' AND query LIKE 'DROP DATABASE%' AND query NOT LIKE '%FORCE%'",
+        [role],
+      )).rows[0]?.pid, 30_000, "the drop to wait before asking again for the database the holder still holds", {
+      clock: { now: () => performance.now(), sleep: async () => {} },
+    });
+    const { rows } = await admin.query<{ gone: boolean }>("SELECT pg_terminate_backend($1) AS gone", [pid]);
+    assert.equal(rows[0]!.gone, true, "the drop's connection was ended");
+    const outcome: { crashed?: Error; dropped?: boolean; refused?: { code?: unknown; message?: unknown } } = await Promise.race([dropping, crashed]);
+    assert.equal(outcome.crashed, undefined, `the process did not crash: ${outcome.crashed?.stack}`);
+    assert.equal(outcome.dropped, undefined, "the drop did not succeed");
+    assert.equal(outcome.refused?.code, "57P01", `it is refused with the server's terminate error, not ${String(outcome.refused?.message)}`);
+    assert.match(String(outcome.refused.message), /terminating connection due to administrator command/);
+  } finally {
+    if (onCrash !== undefined) process.removeListener("uncaughtException", onCrash);
+    if (before === undefined) delete process.env["STORYTREE_TEST_PG_ADMIN_URL"];
+    else process.env["STORYTREE_TEST_PG_ADMIN_URL"] = before;
+    await holder.end().catch(() => {});
+    await admin.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`).catch(() => {});
+    await admin.query(`DROP ROLE IF EXISTS "${role}"`).catch(() => {});
+    await admin.end();
+  }
+});

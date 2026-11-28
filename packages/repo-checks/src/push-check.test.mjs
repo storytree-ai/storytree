@@ -266,3 +266,77 @@ test("1.12 · a minified bundle (*.min.js) the push adds is still read for story
   assert.match(refusal, new RegExp(`vendor/page\\.min\\.js:1 \\(commit ${head.slice(0, 10)}\\) storytree/no-tag-strip: `));
   assert.doesNotMatch(refusal, /regexp\//);
 });
+
+const BODY = ["export const first = \"the first line of a file that moves\";", "export const second = \"the second line of a file that moves\";", "export const third = \"the third line of a file that moves\";", "export const fourth = \"the fourth line of a file that moves\";", "export const fifth = \"the fifth line of a file that moves\";"];
+const UNRELATED = "export const sixth = \"an unrelated line the move adds\";";
+
+test("1.14 · the push check reads a commit's git mv of a file already on origin against its rename source: a credential this machine holds that the file already had passes, through a pure move and a move with an unrelated edit, and a move that adds another credential is refused, naming the new path and that credential's kind only", (t) => {
+  const { home, root, git, lane, github } = machine(t);
+  mkdirSync(path.join(root, "config"));
+  writeFileSync(path.join(root, "config", "app.txt"), [...BODY, `token=${lane}`, ""].join("\n"));
+  git("add", ".");
+  git("commit", "-q", "-m", "a credential already on origin");
+  git("push", "-q", "--no-verify", "origin", "main");
+  git("checkout", "-q", "-b", "moves");
+  mkdirSync(path.join(root, "settings"));
+  git("mv", "config/app.txt", "settings/app.txt");
+  git("commit", "-q", "-m", "move");
+  const moved = git("rev-parse", "HEAD").trim();
+  const said = [];
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/moves ${moved} refs/heads/moves ${ZEROS}\n`, home, error: (line) => said.push(line) }), 0, said.join("\n"));
+
+  git("push", "-q", "--no-verify", "origin", "moves");
+  git("mv", "settings/app.txt", "settings/kept.txt");
+  writeFileSync(path.join(root, "settings", "kept.txt"), [...BODY, `token=${lane}`, UNRELATED, ""].join("\n"));
+  git("add", ".");
+  git("commit", "-q", "-m", "move and edit");
+  const edited = git("rev-parse", "HEAD").trim();
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/moves ${edited} refs/heads/moves ${moved}\n`, home, error: (line) => said.push(line) }), 0, said.join("\n"));
+
+  git("push", "-q", "--no-verify", "origin", "moves");
+  git("mv", "settings/kept.txt", "settings/signed.txt");
+  writeFileSync(path.join(root, "settings", "signed.txt"), [...BODY, `token=${lane}`, UNRELATED, `signed in with ${github}`, ""].join("\n"));
+  git("add", ".");
+  git("commit", "-q", "-m", "move and add a credential");
+  const leaky = git("rev-parse", "HEAD").trim();
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/moves ${leaky} refs/heads/moves ${edited}\n`, home, error: (line) => said.push(line) }), 1);
+  const refusal = said.join("\n");
+  assert.match(refusal, new RegExp(`settings/signed\\.txt \\(commit ${leaky.slice(0, 10)}\\) adds the value of the GitHub command line's token \\(~/\\.config/gh/hosts\\.yml\\)`));
+  assert.doesNotMatch(refusal, /storytree's lane login/, "the credential the file already had is not charged to the move");
+  assert.ok(!refusal.includes("settings/kept.txt"), refusal);
+});
+
+test("1.14 · the push check reads a commit's git mv of a code file already on origin against its rename source: a storytree/no-tag-strip replace the file already had passes, through a pure move and a move with an unrelated edit, and a move that adds a second replace is refused by storytree/no-tag-strip, naming the new path, the added line and the commit", (t) => {
+  const { home, root, git } = machine(t);
+  const strip = "export const plain = (html: string): string => html.replace(/<[^>]+>/g, \"\");";
+  mkdirSync(path.join(root, "src"));
+  writeFileSync(path.join(root, "src", "view.ts"), [...BODY, strip, ""].join("\n"));
+  git("add", ".");
+  git("commit", "-q", "-m", "a replace already on origin");
+  git("push", "-q", "--no-verify", "origin", "main");
+  git("checkout", "-q", "-b", "moves");
+  git("mv", "src/view.ts", "src/page.ts");
+  git("commit", "-q", "-m", "move");
+  const moved = git("rev-parse", "HEAD").trim();
+  const said = [];
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/moves ${moved} refs/heads/moves ${ZEROS}\n`, home, sources: [], error: (line) => said.push(line) }), 0, said.join("\n"));
+
+  git("push", "-q", "--no-verify", "origin", "moves");
+  git("mv", "src/page.ts", "src/shown.ts");
+  writeFileSync(path.join(root, "src", "shown.ts"), [...BODY, strip, UNRELATED, ""].join("\n"));
+  git("add", ".");
+  git("commit", "-q", "-m", "move and edit");
+  const edited = git("rev-parse", "HEAD").trim();
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/moves ${edited} refs/heads/moves ${moved}\n`, home, sources: [], error: (line) => said.push(line) }), 0, said.join("\n"));
+
+  git("push", "-q", "--no-verify", "origin", "moves");
+  git("mv", "src/shown.ts", "src/kept.ts");
+  writeFileSync(path.join(root, "src", "kept.ts"), [...BODY, strip, UNRELATED, "export const bare = (html: string): string => html.replace(/<[^>]+>/g, \"\");", ""].join("\n"));
+  git("add", ".");
+  git("commit", "-q", "-m", "move and add a replace");
+  const added = git("rev-parse", "HEAD").trim();
+  assert.equal(checkPush({ root, remote: "origin", stdin: `refs/heads/moves ${added} refs/heads/moves ${edited}\n`, home, sources: [], error: (line) => said.push(line) }), 1);
+  const refusal = said.join("\n");
+  assert.match(refusal, new RegExp(`src/kept\\.ts:8 \\(commit ${added.slice(0, 10)}\\) storytree/no-tag-strip: `));
+  assert.ok(!refusal.includes("src/shown.ts"), refusal);
+});

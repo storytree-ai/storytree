@@ -1,5 +1,6 @@
 // Capability 8 · Storytree's own test and gate entries.
 import anchoredProcessMatch from "./anchored-process-match.mjs";
+import diffFollowsRenames from "./diff-follows-renames.mjs";
 import ghNumberNamesRepo from "./gh-number-names-repo.mjs";
 import gitEndOfOptions from "./git-end-of-options.mjs";
 import hostPlatformUnderGiven from "./host-platform-under-given.mjs";
@@ -43,5 +44,6 @@ export default {
     "host-platform-under-given": hostPlatformUnderGiven,
     "one-form-command-line": oneFormCommandLine,
     "gh-number-names-repo": ghNumberNamesRepo,
+    "diff-follows-renames": diffFollowsRenames,
   },
 };

@@ -101,13 +101,15 @@ export function pushProblems({ root, remote, updates, secrets }) {
       seen.add(commit);
       const others = git(["rev-list", "--parents", "-n", "1", commit]).trim().split(" ").slice(2);
       const blobAt = (parent, file) => spawnSync("git", ["rev-parse", "--verify", "-q", `${parent}:${file}`], { cwd: root, encoding: "utf8" }).stdout.trim();
-      const raw = git(["diff-tree", "-r", "-z", "--root", "-m", "--first-parent", "--no-renames", "--no-commit-id", "--diff-filter=AM", commit]).split("\0");
-      for (let at = 0; at + 1 < raw.length; at += 2) {
-        const [, , before, after] = raw[at].split(" ");
-        const file = raw[at + 1];
+      const raw = git(["diff-tree", "-r", "-z", "--root", "-m", "--first-parent", "-M", "--no-commit-id", "--diff-filter=AMR", commit]).split("\0");
+      for (let at = 0; at + 1 < raw.length; ) {
+        const [, , before, after, status] = raw[at].split(" ");
+        const paths = raw.slice(at + 1, at + (status.startsWith("R") ? 3 : 2));
+        at += 1 + paths.length;
+        const file = paths.at(-1);
         const added = textsAt(after);
         if (added.length === 0) continue;
-        const priors = [textsAt(before), ...others.map((parent) => textsAt(blobAt(parent, file) || ZEROS))];
+        const priors = [textsAt(before), ...others.flatMap((parent) => [...new Set(paths)].map((name) => textsAt(blobAt(parent, name) || ZEROS)))];
         const most = (count) => Math.max(...priors.map(count));
         const kinds = new Set(secrets.filter(({ value }) => occurrences(added, value) > most((prior) => occurrences(prior, value))).map(({ what }) => what));
         for (const what of kinds) problems.push(`${file} (commit ${commit.slice(0, 10)}) adds the value of ${what}`);

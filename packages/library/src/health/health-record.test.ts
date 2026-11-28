@@ -481,6 +481,18 @@ for (const backend of [memory, postgres]) {
     assert.equal("ci" in (await health.health(sibling.id)), false, "CI never read it: none");
   });
 
+  contract("5.27", "a verified entry read from CI keeps its copy as the record health_<contract>_ci, beside the contract's plain verified record health_<contract>_verified", async ({ health, work, transactions }) => {
+    const { contract } = await smallPlan(work);
+    await health.recordVerified(contract.id, "failing", { by: "the project's CI", source: "ci" });
+    await later();
+    await health.recordVerified(contract.id, "passing", { by: "storytree test run", source: "local" });
+    const stored = await healthRecordsOf(transactions, contract.id);
+    assert.deepEqual(stored.map(({ id, fields }) => ({ id, state: fields.state, by: fields.by })).toSorted((a, b) => (a.id < b.id ? -1 : 1)), [
+      { id: `health_${contract.id}_ci`, state: "failing", by: "the project's CI" },
+      { id: `health_${contract.id}_verified`, state: "passing", by: "storytree test run" },
+    ]);
+  });
+
   contract("5.29", "recordVerifiedAll writes in one write each verdict that tells nothing, as recordVerified would, leaves each that would tell for recordVerified, and refuses them all for one that names no live contract", async ({ health, work, records, transactions }) => {
     const { capability, contract, sibling } = await smallPlan(work);
     const failing = await work.addContract({ title: "Refuses a blank email", capability: capability.id });
@@ -644,6 +656,29 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(health.recordObserved(sibling.id, "passing", { machine: "mint", evidence: "seen" }), /is not proved by observability as proof/, "a reading for a contract another proof proves is refused");
   });
 
+  contract("5.31", "a live reading the library already holds as health_<contract>_observed is the contract's verified state while fresh; a test run's verdict goes to health_<contract>_verified beside it, leaving it untouched and out of the history, and the next reading updates that same record", async ({ health, work, records, transactions }) => {
+    const { contract } = await smallPlan(work);
+    await work.editContract(contract.id, { proof: OBSERVED });
+    const observedId = `health_${contract.id}_observed`;
+    const held = await records.create("health", { node: contract.id, column: "verified", state: "passing", by: OBSERVED.watcher, note: "12 lines read back in order, taken on mint", source: "local" }, { id: observedId });
+    const heldAt = (await records.history({ id: observedId })).at(-1)!.at;
+    const fresh = new Date(Date.parse(heldAt) + 3_600_000);
+    const asHeld = { state: "passing", by: OBSERVED.watcher, at: heldAt, note: "12 lines read back in order, taken on mint", source: "local" };
+    assert.deepEqual((await health.health(contract.id, { now: fresh })).verified, asHeld, "the held reading is the verified state");
+
+    await later();
+    await health.recordVerified(contract.id, "passing", { by: "storytree test run", source: "local" });
+    assert.deepEqual((await health.health(contract.id, { now: fresh })).verified, asHeld, "a test run's pass does not stand in for the held reading");
+    assert.deepEqual((await records.get(observedId))?.fields, held.fields, "the held reading is not written over");
+    assert.deepEqual((await healthRecordsOf(transactions, contract.id)).map(({ id }) => id).toSorted(), [observedId, `health_${contract.id}_verified`].toSorted(), "the test run's verdict is its own record");
+    assert.deepEqual((await health.healthHistory(contract.id)).map(({ by }) => by), ["storytree test run"], "the history holds the test run's verdict, not the live reading");
+
+    await later();
+    const failed = await health.recordObserved(contract.id, "failing", { machine: "laptop", evidence: "the box's lines did not reach the laptop" });
+    assert.deepEqual((await healthRecordsOf(transactions, contract.id)).map(({ id }) => id).toSorted(), [observedId, `health_${contract.id}_verified`].toSorted(), "the next reading is written to the held record");
+    assert.deepEqual((await health.health(contract.id)).verified, { state: "failing", by: OBSERVED.watcher, at: failed.at, note: "the box's lines did not reach the laptop, taken on laptop", source: "local" });
+  });
+
   contract("5.32", "for a contract proved by observability a test run's skip or pass does not stand in for its live reading, a test's fail still fails it, and with no reading its reason is no live reading", async ({ health, work }) => {
     const { capability, contract, sibling } = await smallPlan(work);
     await work.setProposed(capability.id, false);
@@ -699,6 +734,18 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await health.worklist()).map(({ capability, why, waits }) => ({ capability, reason: why.reason, waits })), [
       { capability: page.id, reason: "failing", waits: undefined },
     ], "the run recorded them: the healthy one is off the list, the failing one offered");
+  });
+
+  contract("5.11", "a pending mark is written as the record health_<contract>_pending, beside the contract's plain verified record health_<contract>_verified", async ({ health, work, transactions }) => {
+    const { contract } = await smallPlan(work);
+    await health.recordVerified(contract.id, "passing", { by: "an earlier run" });
+    await later();
+    await health.markVerifiedPending(contract.id, { by: "storytree test run on CI", note: "Own health run at commit abc123 in progress" });
+    const stored = await healthRecordsOf(transactions, contract.id);
+    assert.deepEqual(stored.map(({ id, fields }) => ({ id, state: fields.state, by: fields.by })).toSorted((a, b) => (a.id < b.id ? -1 : 1)), [
+      { id: `health_${contract.id}_pending`, state: "not-checked", by: "storytree test run on CI" },
+      { id: `health_${contract.id}_verified`, state: "passing", by: "an earlier run" },
+    ]);
   });
   contract("5.12", "a capability whose story's code changed on main after its contracts carrying its reason were last verified waits on that commit's run; once they are verified after it, or the time is up, it is offered by what is recorded", async ({ health, work }) => {
     const story = await work.addStory({ title: "Visitor can sign up" });

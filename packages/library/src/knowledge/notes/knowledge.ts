@@ -120,8 +120,8 @@ export class Knowledge {
     return (await this.#records.edit(id, edit as NoteEdit, {
       ...options,
       checkCurrent: (now) => {
-        if (now.updatedAt !== current.updatedAt) throw new Error(`${id} was written while it was being edited: read it again and edit it then`);
         options.checkCurrent?.(now as Note);
+        if (now.updatedAt !== current.updatedAt) throw new Error(`${id} was written while it was being edited: read it again and edit it then`);
       },
     })) as Note | null;
   }

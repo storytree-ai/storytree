@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 
+import { SEED_CONNECTION } from "@storytree/library";
 import { DataDirInUseError } from "@storytree/local-postgres";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import pg from "pg";
 
 import { holdSeedLock, libraryServer } from "./library-server.mjs";
 
@@ -101,4 +105,86 @@ test("7.13 two seeds never write at once: the second waits for the first's writi
     await lock.release();
   }
   assert.equal(secondHas, true, "once the first lets go, the second has it");
+});
+
+async function seedLockDatabase(t) {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`");
+  const database = `storytree_t-${randomBytes(4).toString("hex")}`;
+  const admin = new pg.Client({ connectionString: url });
+  admin.on("error", () => {});
+  await admin.connect();
+  t.after(async () => {
+    await admin.end();
+    await dropTestDatabases([database]);
+  });
+  await admin.query(`CREATE DATABASE "${database}"`);
+  const address = new URL(url);
+  address.pathname = `/${database}`;
+  const seedBackends = async () =>
+    (await admin.query("select pid from pg_stat_activity where datname = $1 and application_name = $2 order by pid", [database, SEED_CONNECTION])).rows.map(({ pid }) => pid);
+  const terminate = async (pids) => {
+    for (const pid of pids) {
+      const { rows } = await admin.query("select pg_terminate_backend($1) as gone", [pid]);
+      assert.equal(rows[0].gone, true, `backend ${pid} was terminated`);
+    }
+  };
+  return { url: address.href, seedBackends, terminate };
+}
+
+function crashOr(promise) {
+  let onCrash;
+  const crashed = new Promise((resolve) => {
+    onCrash = (error) => resolve({ crashed: error });
+    process.once("uncaughtException", onCrash);
+  });
+  return Promise.race([promise, crashed]).finally(() => process.removeListener("uncaughtException", onCrash));
+}
+
+test("7.13 a seed whose writing lock's connection the server ends is told the lock was lost, without crashing, and still releases", { timeout: 60_000 }, async (t) => {
+  const { url, seedBackends, terminate } = await seedLockDatabase(t);
+  let toldLost;
+  const lost = new Promise((resolve) => {
+    toldLost = resolve;
+  });
+  const lock = await holdSeedLock(url, {
+    log: (line) => {
+      if (/lost/.test(line)) toldLost({ line });
+    },
+  });
+  const backends = await seedBackends();
+  assert.equal(backends.length, 1, "the held lock is the one seed connection on this database");
+  await terminate(backends);
+  const outcome = await crashOr(lost);
+  assert.equal(outcome.crashed, undefined, `the process did not crash: ${outcome.crashed?.stack}`);
+  assert.match(outcome.line, /writing lock.*lost|lost.*writing lock/i, "the seed is told its writing lock was lost");
+  await lock.release();
+});
+
+test("7.13 a seed waiting for the writing lock whose connection the server ends is refused with the server's error, without crashing", { timeout: 60_000 }, async (t) => {
+  const { url, seedBackends, terminate } = await seedLockDatabase(t);
+  const first = await holdSeedLock(url, { log: () => {} });
+  t.after(() => first.release());
+  const [holder] = await seedBackends();
+  let saidWaiting;
+  const waiting = new Promise((resolve) => {
+    saidWaiting = resolve;
+  });
+  const second = holdSeedLock(url, {
+    log: (line) => {
+      if (/waiting/.test(line)) saidWaiting();
+    },
+  }).then(
+    () => ({ held: true }),
+    (error) => ({ refused: error }),
+  );
+  await waiting;
+  const waiter = (await seedBackends()).filter((pid) => pid !== holder);
+  assert.equal(waiter.length, 1, "the waiting seed is the one other seed connection on this database");
+  await terminate(waiter);
+  const outcome = await crashOr(second);
+  assert.equal(outcome.crashed, undefined, `the process did not crash: ${outcome.crashed?.stack}`);
+  assert.equal(outcome.held, undefined, "the waiting seed did not get the lock");
+  assert.equal(outcome.refused?.code, "57P01", `it is refused with the server's terminate error, not ${outcome.refused?.message}`);
+  assert.match(outcome.refused.message, /terminating connection due to administrator command/);
 });

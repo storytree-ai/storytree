@@ -237,9 +237,10 @@ test("4.22 · a run's start removes storytree scratch folders in Temp older than
   steps.push(() => server.stop());
   utimesSync(used, old, old);
 
-  sweepLeftovers({ tmp: temp });
+  const swept = sweepLeftovers({ tmp: temp });
 
   for (const at of stale) assert.equal(existsSync(at), false, `${path.basename(at)} is swept`);
+  assert.deepEqual([...swept.removed].sort(), [...stale].sort(), "the sweep says it removed the three stale folders and none it kept");
   assert.equal(existsSync(fresh), true, "a folder younger than three days is kept");
   assert.equal(existsSync(notScratch), true, "a folder not named as scratch is kept");
   assert.equal(existsSync(used), true, "a folder a live server uses is kept");

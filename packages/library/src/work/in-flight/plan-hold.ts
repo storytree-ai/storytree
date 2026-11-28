@@ -4,7 +4,7 @@ import type { PendingChange, PlanChange } from "./pending-changes.js";
 import type { WorkInFlight } from "./work-in-flight.js";
 import type { WorkModel } from "../../plan/index.js";
 
-export type PlanEditors = Pick<SchemaRecords, "get">
+export type PlanEditors = Pick<SchemaRecords, "get" | "history">
   & Pick<WorkModel, "editStory" | "editCapability" | "editContract" | "editEdge">
   & Pick<WorkInFlight, "editArc" | "editIncrement" | "pendChange">;
 
@@ -92,11 +92,26 @@ export async function heldPending(library: PlanEditors, claims: readonly PlanCla
   return record?.type === "increment" ? ((record.fields as { pending?: PendingChange[] }).pending ?? []) : [];
 }
 
+async function plannedBy(library: Pick<SchemaRecords, "history">, increment: string, record: string): Promise<boolean> {
+  const [created] = await library.history({ id: record, oldest: 1 });
+  const started = (await library.history({ id: increment })).find((entry) => entry.record.fields["status"] === "active");
+  return created !== undefined && started !== undefined && created.seq > started.seq;
+}
+
+async function refuseSplitNest(library: PlanEditors, claims: readonly PlanClaim[], session: string, id: string, fields: Record<string, unknown>): Promise<string | undefined> {
+  const others = Object.keys(fields).filter((field) => field !== "parent");
+  if (others.length === 0) return undefined;
+  const increment = heldIncrement(claims, session);
+  if (increment === undefined || (await plannedBy(library, increment, id))) return undefined;
+  const parent = typeof fields["parent"] === "string" ? `parent ${fields["parent"]}` : "parent (cleared)";
+  return `Refused, nothing written: the ${parent} of capability ${id} goes to the live plan at once, but its ${others.join(", ")} would wait on increment ${increment} until its branch merges, so one edit cannot carry both. Give --parent alone (applied to the live plan at once), the ${others.join(", ")} in an edit of their own (pending on ${increment}), or the whole edit with --live.`;
+}
+
 export async function editPlanRecord(
   library: PlanEditors,
   claims: readonly PlanClaim[],
   session: string,
-  { type, id, fields, live = false }: { readonly type: PlanRecordType; readonly id: string; readonly fields: Record<string, unknown>; readonly live?: boolean },
+  { type, id, fields, live = false, nests = false }: { readonly type: PlanRecordType; readonly id: string; readonly fields: Record<string, unknown>; readonly live?: boolean; readonly nests?: boolean },
   writer: WriteOptions,
 ): Promise<PlanEdit | null> {
   if (type === "contract") {
@@ -106,7 +121,11 @@ export async function editPlanRecord(
       if (refused !== undefined) return { refused };
     }
   }
-  if (PLAN_TYPES.has(type) && !live) {
+  if (nests && !live) {
+    const refused = await refuseSplitNest(library, claims, session, id, fields);
+    if (refused !== undefined) return { refused };
+  }
+  if (PLAN_TYPES.has(type) && !live && !nests) {
     const held = await holdPlanChange(library, claims, session, { record: id, fields }, writer);
     if (held !== undefined) return { held };
   }

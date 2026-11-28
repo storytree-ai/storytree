@@ -690,3 +690,81 @@ test("5.16 · a node's fan-in counts each other story whose files import into it
     imports: [{ from: "D", to: "C", types: [] }],
   }], "D is imported by C and two other stories, the first through two files; C by D alone");
 });
+
+interface DeepModules {
+  readonly nodes: readonly { readonly id: string; readonly entry: string | null; readonly exported: number; readonly entryLines: number; readonly behindLines: number }[];
+  readonly summary: { readonly nodes: number; readonly withEntry: number; readonly exported: number; readonly entryLines: number; readonly behindLines: number };
+}
+
+type Lines = ReadonlyMap<string, number>;
+
+const deepModulesOf = (input: Parameters<typeof scorecardOf>[0] & { lines?: Lines }): DeepModules | undefined =>
+  ((scorecardOf as (input: Parameters<typeof scorecardOf>[0] & { lines?: Lines }) => Scorecard)(input).readings as Scorecard["readings"] & { deepModules?: DeepModules }).deepModules;
+
+const DEEP_MODULES_TREE: Tree = {
+  nodes: [
+    { id: "S", title: "Store" },
+    { id: "K", title: "Keys", parent: "S" },
+    { id: "V", title: "Values", parent: "S", entry: at("v/api.ts") },
+    { id: "N", title: "Names", parent: "S" },
+  ],
+  ownerOf: Object.fromEntries(([
+    ["s.ts", "S"], ["k/index.ts", "K"], ["k/keys.ts", "K"], ["k/deep/index.ts", "K"], ["v/api.ts", "V"], ["v/impl.ts", "V"], ["v/index.ts", "V"], ["n/plain.ts", "N"],
+  ] as [string, string][]).map(([file, id]) => [at(file), id])),
+  unplaced: [at("u.ts")],
+};
+
+const DEEP_MODULES_LINES: Lines = new Map(([
+  ["s.ts", 30], ["k/index.ts", 4], ["k/keys.ts", 120], ["k/deep/index.ts", 7], ["v/api.ts", 9], ["v/impl.ts", 210], ["v/index.ts", 3], ["n/plain.ts", 45], ["u.ts", 500],
+] as [string, number][]).map(([file, lines]) => [at(file), lines]));
+
+const DEEP_MODULES_EXPORTS = new Map<string, readonly string[]>(([
+  ["s.ts", ["store"]], ["k/index.ts", ["key", "other"]], ["k/keys.ts", ["key", "other"]], ["k/deep/index.ts", ["deep"]],
+  ["v/api.ts", ["make", "Value", "version", "label"]], ["v/impl.ts", ["make", "Value", "secret", "default"]], ["v/index.ts", ["version"]], ["n/plain.ts", ["plain"]], ["u.ts", ["loose"]],
+] as [string, string[]][]).map(([file, names]) => [at(file), names]));
+
+test("5.17 · every node, imported or not, reads its entry (a proposed node's entry, else its shallowest index file, else none), that entry's exported names and code lines, and the code lines of every other file under it, its nested nodes' files included", () => {
+  const read = deepModulesOf({ tree: DEEP_MODULES_TREE, units: [], imports: [], exports: DEEP_MODULES_EXPORTS, lines: DEEP_MODULES_LINES });
+  assert.ok(read !== undefined, "a deep modules reading");
+  assert.deepEqual(read.nodes, [
+    { id: "S", entry: at("k/index.ts"), exported: 2, entryLines: 4, behindLines: 424 },
+    { id: "K", entry: at("k/index.ts"), exported: 2, entryLines: 4, behindLines: 127 },
+    { id: "V", entry: at("v/api.ts"), exported: 4, entryLines: 9, behindLines: 213 },
+    { id: "N", entry: null, exported: 0, entryLines: 0, behindLines: 45 },
+  ], "Store's entry is the shallowest index under it (k/index.ts over the deeper k/deep/index.ts, and over v/index.ts by name) with every other file of its children behind it: 30 + 120 + 7 + 9 + 210 + 3 + 45; Values' declared api.ts wins over its index.ts; Names has no index and reads none");
+});
+
+test("5.17 · the tree's summary counts the nodes with an entry, and each distinct entry file's exported names and code lines once, against the code lines of every placed file that is no node's entry, unplaced files left out", () => {
+  const read = deepModulesOf({ tree: DEEP_MODULES_TREE, units: [], imports: [], exports: DEEP_MODULES_EXPORTS, lines: DEEP_MODULES_LINES });
+  assert.ok(read !== undefined, "a deep modules reading");
+  assert.deepEqual(read.summary, { nodes: 4, withEntry: 3, exported: 6, entryLines: 13, behindLines: 415 }, "Store and Keys share k/index.ts, counted once with v/api.ts: 2 + 4 names, 4 + 9 lines; behind them s.ts, keys.ts, deep/index.ts, impl.ts, v/index.ts and plain.ts, 30 + 120 + 7 + 210 + 3 + 45, not the unplaced u.ts's 500");
+});
+
+test("5.17 · a proposed split's new part, a file with no lines given, reads no lines as an entry or behind one, while its exported names are the names the split gives it, and the split file, gone from the tree, counts nowhere", () => {
+  const tree: Tree = {
+    nodes: [
+      { id: "U", title: "Users" },
+      { id: "P", title: "Pages", entry: at("pages/types.ts") },
+      { id: "Q", title: "Queues" },
+    ],
+    ownerOf: { [at("use.ts")]: "U", [at("pages/types.ts")]: "P", [at("queues/types.ts")]: "Q" },
+    unplaced: [],
+  };
+  const read = deepModulesOf({
+    tree,
+    units: [],
+    imports: [{ from: at("use.ts"), to: at("types.ts"), used: ["Page", "Queue"], types: ["Page", "Queue"] }],
+    exports: new Map([[at("use.ts"), []], [at("types.ts"), ["Page", "makePage", "Queue"]]]),
+    refactor: { splits: [{ file: at("types.ts"), into: { [at("pages/types.ts")]: ["Page", "makePage"], [at("queues/types.ts")]: ["Queue"] } }] },
+    lines: new Map([[at("use.ts"), 20], [at("types.ts"), 80]]),
+  });
+  assert.ok(read !== undefined, "a deep modules reading");
+  assert.deepEqual(read, {
+    nodes: [
+      { id: "U", entry: null, exported: 0, entryLines: 0, behindLines: 20 },
+      { id: "P", entry: at("pages/types.ts"), exported: 2, entryLines: 0, behindLines: 0 },
+      { id: "Q", entry: null, exported: 0, entryLines: 0, behindLines: 0 },
+    ],
+    summary: { nodes: 3, withEntry: 1, exported: 2, entryLines: 0, behindLines: 20 },
+  });
+});

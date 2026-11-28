@@ -5,7 +5,7 @@ import { test } from "node:test";
 import type { SourceText } from "./index.js";
 import { scorecardOf, scorecardText } from "./scorecard.js";
 import { planTreeOf, proposedTreeOf, type Tree } from "./tree.js";
-import { importsOf } from "./tree-structure.js";
+import { exportsOf, importsOf } from "./tree-structure.js";
 
 const SOURCE = "packages/p/src";
 const at = (file: string) => `${SOURCE}/${file}`;
@@ -75,4 +75,26 @@ test("5.16 · the printed scorecard's inverted line reads none when no edge in a
   const inverted = lineOf(readingsOf(scorecardText(scorecardOf({ tree: TREE, units: [], imports: importsOf(FILES) }))), /^ {2}inverted\b/);
   assert.match(inverted, /\bnone\b/, "First page and Second page, in a cycle, are each imported by the other alone");
   assert.doesNotMatch(inverted, /fan-in/);
+});
+
+test("5.17 · the printed scorecard's deep modules line, under Readings before Guidance, explains the reading with the tree's summary, then reads one line per node in tree order: its entry or none, the entry's exported names and code lines against the code lines behind it", () => {
+  const lines = new Map([[at("sh/index.ts"), 3], [at("p1/index.ts"), 12], [at("p1/more.ts"), 340], [at("p2/two.ts"), 58]]);
+  const card = (scorecardOf as (input: Parameters<typeof scorecardOf>[0] & { lines?: ReadonlyMap<string, number> }) => ReturnType<typeof scorecardOf>)({ tree: TREE, units: [], imports: importsOf(FILES), exports: exportsOf(FILES), lines });
+  const readings = readingsOf(scorecardText(card)).split("\n");
+  const where = readings.findIndex((line) => /^ {2}deep modules\b/.test(line));
+  assert.ok(where > 0, `a deep modules line among the readings:\n${readings.join("\n")}`);
+  const head = readings[where]!;
+  assert.match(head, /entry/i, "it says each node's entry is read");
+  assert.match(head, /exported names/i);
+  assert.match(head, /behind/i);
+  assert.match(head, /\b3 of 4 nodes\b/, "Shared bits, Pages and First page have an entry; Second page has none");
+  assert.match(head, /\b2 exported names\b/, "sh/index.ts's bit and p1/index.ts's front, Pages' and First page's shared entry counted once");
+  assert.match(head, /\b15 lines\b/, "3 + 12");
+  assert.match(head, /\b398 lines\b/, "p1/more.ts's 340 and p2/two.ts's 58");
+  assert.deepEqual(readings.slice(where + 1, where + 5), [
+    `    1 · Shared bits: entry ${at("sh/index.ts")}, 1 exported name, 3 lines against 0 lines behind it`,
+    `    2 · Pages: entry ${at("p1/index.ts")}, 1 exported name, 12 lines against 398 lines behind it`,
+    `    First page: entry ${at("p1/index.ts")}, 1 exported name, 12 lines against 340 lines behind it`,
+    "    Second page: entry none, 0 exported names, 0 lines against 58 lines behind it",
+  ]);
 });

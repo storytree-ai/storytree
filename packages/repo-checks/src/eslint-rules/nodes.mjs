@@ -9,6 +9,24 @@ export function repoFile(context) {
 
 export const unchained = (node) => node?.type === "ChainExpression" ? node.expression : node;
 
+function calleeName(node) {
+  const callee = unchained(node);
+  if (callee.type === "Identifier") return callee.name;
+  return callee.type === "MemberExpression" && !callee.computed ? callee.property.name : "";
+}
+
+export function gitArgumentLists(call) {
+  const args = call.arguments;
+  if (literal(args[0]) === "git") return args.slice(1).filter((arg) => arg.type === "ArrayExpression").map((arg) => arg.elements);
+  if (!/git/i.test(calleeName(call.callee))) return [];
+  const lists = [args];
+  for (const arg of args) {
+    if (arg.type === "ArrayExpression") lists.push(arg.elements);
+    if (arg.type === "ConditionalExpression") for (const branch of [arg.consequent, arg.alternate]) if (branch.type === "ArrayExpression") lists.push(branch.elements);
+  }
+  return lists;
+}
+
 export function children(node) {
   const out = [];
   for (const [key, value] of Object.entries(node)) {

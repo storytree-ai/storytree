@@ -1,27 +1,11 @@
 // Capability 8 · Storytree's own test and gate entries.
-import { literal, unchained } from "./nodes.mjs";
+import { gitArgumentLists, literal } from "./nodes.mjs";
 
 const REMOTE_SUBCOMMANDS = new Set(["clone", "fetch", "pull", "ls-remote", "push"]);
 const VALUE_OPTIONS = new Set(["--depth", "-b", "--branch", "-o", "--origin", "--filter", "-j", "--jobs", "--shallow-since", "--shallow-exclude", "--deepen", "--reference", "--separate-git-dir", "--template", "--server-option"]);
 
-function calleeName(node) {
-  const callee = unchained(node);
-  if (callee.type === "Identifier") return callee.name;
-  return callee.type === "MemberExpression" && !callee.computed ? callee.property.name : "";
-}
-
 function unendedGitArguments(call) {
-  const args = call.arguments;
-  let lists;
-  if (literal(args[0]) === "git") lists = args.slice(1).filter((arg) => arg.type === "ArrayExpression").map((arg) => arg.elements);
-  else if (/git/i.test(calleeName(call.callee))) {
-    lists = [args];
-    for (const arg of args) {
-      if (arg.type === "ArrayExpression") lists.push(arg.elements);
-      if (arg.type === "ConditionalExpression") for (const branch of [arg.consequent, arg.alternate]) if (branch.type === "ArrayExpression") lists.push(branch.elements);
-    }
-  } else return [];
-  return lists.map(unended).filter((subcommand) => subcommand !== undefined);
+  return gitArgumentLists(call).map(unended).filter((subcommand) => subcommand !== undefined);
 }
 
 function unended(list) {

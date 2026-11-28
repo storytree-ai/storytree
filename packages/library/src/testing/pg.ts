@@ -72,9 +72,15 @@ async function withClient<T>(
   const url = new URL(role === undefined ? testAdminUrl() : testRoleUrl(role));
   if (database !== undefined) url.pathname = `/${encodeURIComponent(database)}`;
   const client = new pg.Client({ connectionString: url.href });
+  let lost: Error | undefined;
+  client.on("error", (error) => {
+    lost ??= error;
+  });
   await client.connect();
   try {
     return await fn(client);
+  } catch (error) {
+    throw lost ?? error;
   } finally {
     await client.end();
   }

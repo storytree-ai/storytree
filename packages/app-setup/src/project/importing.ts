@@ -303,14 +303,21 @@ function redrawnLines({ redrawn }: Imported): string[] {
 
 function changedBetween(folder: string, from: string, to: string): FileChanges | undefined {
   if (from === to) return { added: [], changed: [], removed: [] };
-  const run = spawnSync("git", ["-C", folder, "diff", "--name-status", "--no-renames", "-z", from, to], { encoding: "utf8", env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } });
+  const run = spawnSync("git", ["-C", folder, "diff", "--name-status", "-M", "-z", from, to], { encoding: "utf8", env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } });
   if (run.status !== 0) return undefined;
   const changes = { added: [] as string[], changed: [] as string[], removed: [] as string[] };
   const fields = run.stdout.split("\0");
-  for (let at = 0; at + 1 < fields.length; at += 2) {
+  for (let at = 0; at + 1 < fields.length;) {
     const status = fields[at]!;
+    if (status.startsWith("R") || status.startsWith("C")) {
+      if (status.startsWith("R")) changes.removed.push(fields[at + 1]!);
+      changes.added.push(fields[at + 2]!);
+      at += 3;
+      continue;
+    }
     const file = fields[at + 1]!;
     (status === "A" ? changes.added : status === "D" ? changes.removed : changes.changed).push(file);
+    at += 2;
   }
   return { added: changes.added.sort(), changed: changes.changed.sort(), removed: changes.removed.sort() };
 }

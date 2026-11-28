@@ -188,7 +188,7 @@ test("12.7 · the refusal of a folder with no package to import names the langua
   });
 });
 
-test("12.4 importing again says the commit recorded before and now and the files added, changed and removed between them, and redraws each imported story whose code it reads by the rule, naming each capability added and retired", async () => {
+test("12.4 importing again says the commit recorded before and now and the files added, changed and removed between them, a file moved unchanged read as removed at its old path and added at its new, and redraws each imported story whose code it reads by the rule, naming each capability added and retired", async () => {
   await withProject(async ({ dir, home, storytree, library }) => {
     const shop = path.join(dir, "shop");
     write(shop, { "package.json": { name: "shop" }, "src/a.ts": "export const a = 1;\n", "src/b.ts": "export const b = 1;\n", "src/ui/menu.ts": "export const menu = 1;\n" });
@@ -235,6 +235,15 @@ test("12.4 importing again says the commit recorded before and now and the files
     assert.equal(await library.get(bee.id), null, "a capability whose code is gone retires");
     assert.equal(await library.get(menu.id), null);
     assert.deepEqual((await library.list("capability")).filter((capability) => capability.fields.story === story!.id).map(({ fields }) => fields.covers).sort(), [["src/a.ts"], ["src/c.ts"]], "the story is drawn as its code now stands");
+
+    mkdirSync(path.join(shop, "src/moved"));
+    git(shop, "mv", "src/c.ts", "src/moved/c.ts");
+    git(shop, "commit", "-qm", "three");
+    const three = git(shop, "rev-parse", "HEAD").trim();
+    const moved = await importProject({ folder: shop, library, storytree, storytreeHome: home });
+    assert.deepEqual(moved.before, { commit: two });
+    assert.equal(moved.commit, three);
+    assert.deepEqual(moved.changes, { added: ["src/moved/c.ts"], changed: [], removed: ["src/c.ts"] }, "a file moved unchanged reads as removed at its old path and added at its new");
 
     await recordImport(storytree, { project: library.name, machine: machineOf(home).id, machineName: machineOf(home).name, folder: shop, repository: "https://github.com/shop/shop.git", commit: "0".repeat(40) });
     const unknown = await importProject({ folder: shop, library, storytree, storytreeHome: home });

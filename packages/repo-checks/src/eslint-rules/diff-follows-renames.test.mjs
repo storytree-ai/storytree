@@ -11,14 +11,19 @@ const code = (line) => line.replaceAll("#", "$").replaceAll("'", "`");
 const IMPORT = `import { execFile, execFileSync, spawn, spawnSync } from "node:child_process";\n`;
 const refused = (line) => ({ code: IMPORT + code(line), errors: [{ messageId: "unfollowed", line: 2 }] });
 
-test("8.38 · storytree/diff-follows-renames refuses a git call reading added lines or added files without following renames (escape_3bdd35178213's diff -U0 --no-renames, push-check's diff-tree --no-renames --diff-filter=AM, a --cached --name-only --no-renames --diff-filter=AM, --no-renames beside --unified=0, -p or --patch, and diff-tree, diff-index or diff-files with -p or an A filter and no -M, through git(root, ...), git([...]), runGit, ops.git, execFileSync, spawnSync, execFile and spawn), its message naming escape_3bdd35178213 and -M; a --name-only, --name-status or status --no-renames read with no A filter, a D or M filter, -M, -M50% or --find-renames, a porcelain diff -U0, a plumbing --name-only with no A filter, a string holding such a call and a non-git callee pass", () => {
+test("8.38 · storytree/diff-follows-renames refuses a git call reading added lines, added files or each file's status or counts without following renames (escape_3bdd35178213's diff -U0 --no-renames, push-check's diff-tree --no-renames --diff-filter=AM, the factory pull's git(\"diff\", \"--name-status\", \"--no-renames\", from, to), a diff --name-status, --numstat or --raw --no-renames, code-measures' log --numstat --no-renames churn read, a log --name-status or -p --no-renames, a --cached --name-only --no-renames --diff-filter=AM, --no-renames beside --unified=0, -p or --patch, and diff-tree, diff-index or diff-files with -p, --name-status or an A filter and no -M, through git(root, ...), git(...), git([...]), runGit, ops.git, execFileSync, spawnSync, execFile and spawn), its message naming escape_3bdd35178213 and -M; a --name-only or status --no-renames read, a --name-status --no-renames --diff-filter=D, a D or M filter, -M, -M50% or --find-renames on diff or log, a porcelain diff or log with no --no-renames, a plumbing --name-only with no A filter, a string holding such a call and a non-git callee pass", () => {
   assert.match(rule?.meta?.messages?.unfollowed ?? "", /escape_3bdd35178213/);
   assert.match(rule.meta.messages.unfollowed, /(?<![\w-])-M\b/, "names the fix: follow renames with -M");
 
   new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } }).run("diff-follows-renames", rule, {
     valid: [
       String.raw`export const scoped = (git: (args: string[]) => string, mergeBase: string) => git(["diff", "--name-only", "--no-renames", "-z", mergeBase]);`,
-      String.raw`export const status = (folder: string, from: string, to: string) => spawnSync("git", ["-C", folder, "diff", "--name-status", "--no-renames", "-z", from, to]);`,
+      String.raw`export const kept = (git: (args: string[]) => string, base: string) => git(["diff", "--name-status", "--no-renames", "--diff-filter=D", "-z", base]);`,
+      String.raw`export const churn = (git: (folder: string, args: string[]) => Promise<string>, folder: string, since: string, sha: string) => git(folder, ["log", "--numstat", "-M", "--format=", '--since=#{since}', sha, "--", "packages"]);`,
+      String.raw`export const history = (git: (args: string[]) => string, commit: string) => git(["log", "--first-parent", "-M", "--name-status", "--format=%H", commit]);`,
+      String.raw`export const porcelainLog = (git: (args: string[]) => string, commit: string) => git(["log", "--name-status", "--format=%H", commit]);`,
+      String.raw`export const statusFollowed = (git: (args: string[]) => string, from: string, to: string) => git(["diff", "--name-status", "-M", "-z", from, to]);`,
+      String.raw`export const statusPorcelain = (git: (args: string[]) => string, from: string, to: string) => git(["diff", "--name-status", "-z", from, to]);`,
       String.raw`export const dirty = (git: (args: string[]) => string) => git(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"]);`,
       String.raw`export const lines = (git: (...args: string[]) => string, root: string, base: string) => git(root, "diff", "-U0", "-M", "--no-color", base);`,
       String.raw`export const porcelain = (runGit: (...args: string[]) => string, root: string, base: string) => runGit(root, "diff", "-U0", "--no-color", base);`,
@@ -43,6 +48,14 @@ test("8.38 · storytree/diff-follows-renames refuses a git call reading added li
       refused(String.raw`export const created = (git: (args: string[]) => string, commit: string) => git(["diff-tree", "-r", "--diff-filter=A", commit]);`),
       refused(String.raw`export const index = () => execFile("git", ["diff-index", "--cached", "-p", "HEAD"]);`),
       refused(String.raw`export const files = () => spawn("git", ["diff-files", "-p"]);`),
+      refused(String.raw`export const pulled = (git: (...args: string[]) => string, from: string, to: string) => git("diff", "--name-status", "--no-renames", from, to);`),
+      refused(String.raw`export const status = (folder: string, from: string, to: string) => spawnSync("git", ["-C", folder, "diff", "--name-status", "--no-renames", "-z", from, to]);`),
+      refused(String.raw`export const counts = (git: (args: string[]) => string, base: string) => git(["diff", "--numstat", "--no-renames", base]);`),
+      refused(String.raw`export const churn = (git: (folder: string, args: string[]) => Promise<string>, folder: string, since: string, sha: string) => git(folder, ["log", "--numstat", "--no-renames", "--format=", '--since=#{since}', sha, "--", "packages"]);`),
+      refused(String.raw`export const history = (git: (args: string[]) => string, commit: string) => git(["log", "--name-status", "--no-renames", "--format=%H", commit]);`),
+      refused(String.raw`export const patches = (git: (args: string[]) => string, commit: string) => git(["log", "-p", "--no-renames", commit]);`),
+      refused(String.raw`export const treeStatus = (git: (args: string[]) => string, commit: string) => git(["diff-tree", "-r", "--name-status", commit]);`),
+      refused(String.raw`export const raw = (git: (args: string[]) => string, base: string) => git(["diff", "--raw", "--no-renames", base]);`),
     ],
   });
 });

@@ -166,6 +166,10 @@ test("3.3 a drop whose connection the server ends while it waits to ask again is
   const password = randomBytes(16).toString("hex");
   const name = testName();
   const admin = new pg.Client({ connectionString: adminUrl() });
+  let adminLost: Error | undefined;
+  admin.on("error", (error) => {
+    adminLost ??= error;
+  });
   await admin.connect();
   const holder = new pg.Client({ connectionString: adminUrl(name) });
   holder.on("error", () => {});
@@ -200,6 +204,7 @@ test("3.3 a drop whose connection the server ends while it waits to ask again is
     assert.equal(outcome.dropped, undefined, "the drop did not succeed");
     assert.equal(outcome.refused?.code, "57P01", `it is refused with the server's terminate error, not ${String(outcome.refused?.message)}`);
     assert.match(String(outcome.refused.message), /terminating connection due to administrator command/);
+    assert.equal(adminLost, undefined, `the test's own connection was not the one ended: ${adminLost?.message}`);
   } finally {
     if (onCrash !== undefined) process.removeListener("uncaughtException", onCrash);
     if (before === undefined) delete process.env["STORYTREE_TEST_PG_ADMIN_URL"];

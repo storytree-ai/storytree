@@ -7,15 +7,15 @@ import { OBSERVED } from "./word.js";
 export type HealthFields = FieldsOf<"health">;
 type ContractProof = NonNullable<FieldsOf<"contract">["proof"]>;
 
-const SIDES = { ci: "health_ci_", pending: "health_pending_", observed: "health_observed_" } as const;
+const SIDES = { ci: "_ci", pending: "_pending", observed: "_observed" } as const;
 type Side = keyof typeof SIDES;
 
 export function sideId(side: Side, node: string): string {
-  return `${SIDES[side]}${node}`;
+  return `health_${node}${SIDES[side]}`;
 }
 
 export function sideOf(id: string): Side | undefined {
-  return (Object.keys(SIDES) as Side[]).find((side) => id.startsWith(SIDES[side]));
+  return (Object.keys(SIDES) as Side[]).find((side) => id.startsWith("health_") && id.endsWith(SIDES[side]));
 }
 
 export interface Stored {

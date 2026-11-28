@@ -10,7 +10,11 @@ const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
 const NUMBERED = /^\d+\.\d+/;
 const INERT = /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1|(?=\/)(?<=(?:^|=>|[(,=:[!&|?{};+\-*%~^]|\breturn|\btypeof|\bcase)[ \t]*)\/(?:\\.|\[(?:\\.|[^\]\\\r\n])*\]|[^/\\\r\n[])+\/[a-z]*/gm;
 const CALLED = /\b(?:test|it)(?:\.only)?\s*\(\s*$/;
+const WRAPPER = /(?<![\w$.])(?:(?:const|let|var)\s+([\w$]+)\s*=\s*(?:async\s*)?|function\s+([\w$]+)\s*)\(/g;
+const BODY = /\s*(?::[^={]*)?(?:=>\s*)?\{/y;
 const COOKED = { n: "\n", t: "\t", r: "\r", b: "\b", f: "\f", v: "\v", 0: "\0" };
+
+const escaped = (value) => value.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&");
 
 function cooked(value) {
   return value.replace(/\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|.)/g, (_, escape) =>
@@ -27,15 +31,66 @@ function closeOf(code, from) {
   return code.length;
 }
 
+function split(code, from, to) {
+  const pieces = [];
+  let start = from;
+  for (let at = from; at < to; at += 1) {
+    if (code[at] === "(" || code[at] === "[" || code[at] === "{") at = closeOf(code, at + 1);
+    else if (code[at] === ",") {
+      pieces.push([start, at]);
+      start = at + 1;
+    }
+  }
+  return [...pieces, [start, to]];
+}
+
+function wrapped(text, code, strings) {
+  const wrappers = [];
+  for (const match of code.matchAll(WRAPPER)) {
+    const open = match.index + match[0].length - 1;
+    const close = closeOf(code, open + 1);
+    BODY.lastIndex = close + 1;
+    const body = BODY.exec(code);
+    if (body === null) continue;
+    const params = split(code, open + 1, close).map(([from, to]) => /^\s*(?:\.\.\.)?([\w$]+)/.exec(code.slice(from, to))?.[1]);
+    wrappers.push({ name: match[1] ?? match[2], params, from: body.index + body[0].length, to: closeOf(code, body.index + body[0].length) });
+  }
+  const titled = new Map();
+  for (const { at: start, value, template } of strings) {
+    if (!template || !value.includes("${") || !CALLED.test(code.slice(Math.max(0, start - 40), start))) continue;
+    const wrapper = wrappers.filter(({ from, to }) => from <= start && start < to).at(-1);
+    if (wrapper !== undefined) titled.set(wrapper.name, { params: wrapper.params, parts: value.split(/\$\{([^{}]*)\}/) });
+  }
+  return [...titled].flatMap(([name, { params, parts }]) => [...code.matchAll(new RegExp(`(?<![\\w$.])${escaped(name)}\\s*\\(`, "g"))]
+    .filter(({ index }) => !/\bfunction\s+$/.test(code.slice(Math.max(0, index - 20), index)))
+    .map(({ index, 0: call }) => {
+      const close = closeOf(code, index + call.length);
+      const args = split(code, index + call.length, close);
+      const values = args.map(([from, to]) => {
+        const string = strings.find(({ at, end }) => from <= at && end <= to);
+        return string === undefined || text.slice(from, to).trim() !== text.slice(string.at, string.end) || (string.template && string.value.includes("${")) ? undefined : cooked(string.value);
+      });
+      let test = "";
+      let pattern = "";
+      parts.forEach((part, slot) => {
+        const value = slot % 2 === 0 ? cooked(part) : values[params.indexOf(part.trim())];
+        test += value ?? `\${${part}}`;
+        pattern += value === undefined ? ".*" : escaped(value);
+      });
+      return { line: text.slice(0, index).split("\n").length, test, pattern, body: text.slice(args[0][1], close).replace(/\s+/g, " ").trim() };
+    }));
+}
+
 function titlesIn(text) {
   const strings = [];
   const code = text.replace(INERT, (token, quote, at) => {
     if (quote !== undefined) strings.push({ at, end: at + token.length, value: token.slice(1, -1), template: quote === "`" });
     return token.replace(/[^\r\n]/g, " ");
   });
-  return strings
+  return [...strings
     .filter(({ at, value, template }) => CALLED.test(code.slice(Math.max(0, at - 40), at)) && !(template && value.includes("${")))
-    .map(({ at, end, value }) => ({ line: text.slice(0, at).split("\n").length, test: cooked(value), body: text.slice(end, closeOf(code, end)).replace(/\s+/g, " ").trim() }));
+    .map(({ at, end, value }) => ({ line: text.slice(0, at).split("\n").length, test: cooked(value), pattern: escaped(cooked(value)), body: text.slice(end, closeOf(code, end)).replace(/\s+/g, " ").trim() })),
+  ...wrapped(text, code, strings)];
 }
 
 export function newTests(diff, { readFile, readBlob }) {
@@ -95,12 +150,12 @@ export function newTests(diff, { readFile, readBlob }) {
       if (left === 0) return true;
       moved.set(body, left - 1);
       return false;
-    }).map(({ line, test }) => ({ file, line, test }));
+    }).map(({ line, test, pattern }) => ({ file, line, test, pattern }));
   });
 }
 
 export function namePattern(tests) {
-  return `^(?:${[...new Set(tests.map(({ test }) => test.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&")))].join("|")})$`;
+  return `^(?:${[...new Set(tests.map(({ test, pattern }) => pattern ?? escaped(test)))].join("|")})$`;
 }
 
 export function changeNewTests(root, base = "origin/main") {
@@ -134,7 +189,7 @@ export function repeatTests({ root, tests, times = TIMES, entry, env = process.e
     print(`repeat ${round} of ${times}: ${run.status === 0 ? "passed" : "FAILED"} in ${((Date.now() - started) / 1000).toFixed(1)} s`);
     if (run.status === 0) continue;
     const seen = reds(root).slice(before);
-    const named = tests.filter(({ file, test }) => seen.some((red) => red.file === file && (red.test === test || red.test?.endsWith(` › ${test}`))));
+    const named = tests.filter(({ file, test, pattern }) => seen.some((red) => red.file === file && new RegExp(`(?:^| › )(?:${pattern ?? escaped(test)})$`).test(red.test ?? "")));
     if (named.length > 0) for (const { file, test } of named) count(`${file}\0${test}`);
     else for (const file of files) count(`${file}\0`);
   }

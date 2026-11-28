@@ -33,6 +33,20 @@ function write(dir, files) {
   }
 }
 
+const ENTRY = `import { appendFileSync, mkdirSync } from "node:fs";
+import { run } from "node:test";
+const args = process.argv.slice(2);
+const pattern = args.find((arg) => arg.startsWith("--test-name-pattern="));
+const stream = run({ files: args.filter((arg) => !arg.startsWith("--")), testNamePatterns: pattern ? [new RegExp(pattern.slice(20))] : undefined });
+mkdirSync(".pgtest", { recursive: true });
+for await (const event of stream) {
+  if (event.type === "test:fail" && event.data.details.type !== "suite") {
+    process.exitCode = 1;
+    appendFileSync(".pgtest/red-runs.jsonl", JSON.stringify({ file: "a.test.mjs", test: event.data.name }) + "\\n");
+  }
+}
+`;
+
 test("6.1 · the tests a change adds are its numbered tests whose titles open on added lines, less one reworded in its file, moved or renumbered, or written in a string", (t) => {
   const { dir, git } = repository(t, {
     "a.test.mjs": `import { test } from "node:test";\ntest("1.1 · old", () => { kept(); });\ntest("1.3 · reworded", () => { before(); });\n`,
@@ -62,19 +76,7 @@ test("6.1 · the tests a change adds are its numbered tests whose titles open on
 
 test("6.2 · each new test runs five times through the test entry, old tests never; a failure among the repeats fails the run naming it flaky, and no new test runs nothing", (t) => {
   const { dir, git } = repository(t, { "a.test.mjs": `import { test } from "node:test";\ntest("1.1 · old", () => { throw new Error("an old test ran"); });\n` });
-  writeFileSync(path.join(dir, "entry.mjs"), `import { appendFileSync, mkdirSync } from "node:fs";
-import { run } from "node:test";
-const args = process.argv.slice(2);
-const pattern = args.find((arg) => arg.startsWith("--test-name-pattern="));
-const stream = run({ files: args.filter((arg) => !arg.startsWith("--")), testNamePatterns: pattern ? [new RegExp(pattern.slice(20))] : undefined });
-mkdirSync(".pgtest", { recursive: true });
-for await (const event of stream) {
-  if (event.type === "test:fail" && event.data.details.type !== "suite") {
-    process.exitCode = 1;
-    appendFileSync(".pgtest/red-runs.jsonl", JSON.stringify({ file: "a.test.mjs", test: event.data.name }) + "\\n");
-  }
-}
-`);
+  writeFileSync(path.join(dir, "entry.mjs"), ENTRY);
   const lines = [];
   const { NODE_TEST_CONTEXT, ...env } = process.env;
   const repeat = () => repeatTests({ root: dir, tests: changeNewTests(dir), entry: [path.join(dir, "entry.mjs")], env, print: (line) => lines.push(line) });
@@ -105,4 +107,47 @@ test("1.2 · new (flaky)", () => {
   assert.equal(repeatTests({ root: dir, tests: changeNewTests(dir), times: 2, entry: [path.join(dir, "dies.mjs")], env, print: (line) => lines.push(line) }), 1);
   assert.deepEqual(lines.filter((line) => line.startsWith("flaky:")),
     ["flaky: a.test.mjs failed 2 of 2 repeats. A new test that does not pass every time is weak: investigate it (ADR-1352), never file it as friction."]);
+});
+
+test("6.3 · a numbered test titled through a local wrapper over two backends is found from the wrapper's added call and not its older one, both its variants run every repeat, and one variant's red repeat names it flaky", (t) => {
+  const wrapped = (calls) => [
+    'import { readFileSync, writeFileSync } from "node:fs";',
+    'import { test } from "node:test";',
+    'const memory = { label: "memory" };',
+    'const postgres = { label: "postgres" };',
+    "for (const backend of [memory, postgres]) {",
+    "  const contract = (number, title, body) => {",
+    "    test(`${number} [${backend.label}] ${title}`, body);",
+    "  };",
+    '  contract("4.1", "old through the wrapper", () => { throw new Error("an old test ran"); });',
+    ...calls,
+    "}",
+    "",
+  ].join("\n");
+  const { dir, git } = repository(t, { "a.test.mjs": wrapped([]) });
+  writeFileSync(path.join(dir, "entry.mjs"), ENTRY);
+  write(dir, { "a.test.mjs": wrapped([
+    '  contract("4.2", "new through the wrapper", () => {',
+    '    const counter = "runs-" + backend.label + ".txt";',
+    "    let runs = 0;",
+    '    try { runs = Number(readFileSync(counter, "utf8")); } catch {}',
+    "    writeFileSync(counter, String(runs + 1));",
+    '    if (backend === postgres && runs + 1 === 2) throw new Error("the postgres variant fails on its second run");',
+    "  });",
+  ]) });
+  git("add", "a.test.mjs");
+
+  const found = changeNewTests(dir);
+  assert.deepEqual(found.map(({ file }) => file), ["a.test.mjs"], JSON.stringify(found));
+  assert.ok(found[0].test.startsWith("4.2 ") && found[0].test.endsWith(" new through the wrapper"), found[0].test);
+
+  const lines = [];
+  const { NODE_TEST_CONTEXT, ...env } = process.env;
+  assert.equal(repeatTests({ root: dir, tests: found, entry: [path.join(dir, "entry.mjs")], env, print: (line) => lines.push(line) }), 1, lines.join("\n"));
+  assert.equal(readFileSync(path.join(dir, "runs-memory.txt"), "utf8"), "5");
+  assert.equal(readFileSync(path.join(dir, "runs-postgres.txt"), "utf8"), "5");
+  const flaky = lines.filter((line) => line.startsWith("flaky:"));
+  assert.equal(flaky.length, 1, lines.join("\n"));
+  assert.match(flaky[0], /^flaky: a\.test\.mjs › 4\.2 .*new through the wrapper failed 1 of 5 repeats\. /);
+  assert.ok(!readFileSync(path.join(dir, ".pgtest", "red-runs.jsonl"), "utf8").includes("4.1"));
 });

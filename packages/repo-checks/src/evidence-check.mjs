@@ -31,7 +31,7 @@ export function checkEvidence({ root, log = console.log, error = console.error }
 export function checkStaged({ root, log = console.log, error = console.error }) {
   let files;
   try {
-    files = execFileSync("git", ["diff", "--cached", "--name-only", "--no-renames", "--diff-filter=AM", "-z"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).split("\0").filter(Boolean);
+    files = execFileSync("git", ["diff", "--cached", "--name-only", "-M", "--diff-filter=AMR", "-z"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).split("\0").filter(Boolean);
   } catch (failure) {
     error(`commit check: the staged changes could not be read (${String(failure.stderr ?? failure.message).trim().split("\n")[0]})`);
     return 1;

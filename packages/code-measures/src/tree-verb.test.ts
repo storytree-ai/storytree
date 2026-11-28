@@ -47,7 +47,7 @@ test("5.9 · the scorecard's guidance leads are merge-or-nest for a pair at lift
     ["merge-or-nest", ["A", "C"], 2],
     ["no-change-family", "Q", 1],
   ], "Alpha–Gamma at lift 2 across Pages and Queues; Alpha–Beta at lift 2 sit in one group; Beta–Epsilon at 1.8 is under 2; Queues' Gamma–Delta average 1; Pages' Alpha–Beta average 2");
-  assert.deepEqual(Object.keys(card.readings).sort(), ["boundaries", "cycleGate", "cycles", "depths", "entries", "grouping", "inversions", "meetDepths", "nodes", "pairs", "reuse", "splitCandidates", "technicalNames", "unplaced"], "every measured reading on the card, the leads apart from them");
+  assert.deepEqual(Object.keys(card.readings).sort(), ["boundaries", "cycleGate", "cycles", "deepModules", "depths", "entries", "grouping", "inversions", "meetDepths", "nodes", "pairs", "reuse", "splitCandidates", "technicalNames", "unplaced"], "every measured reading on the card, the leads apart from them");
 });
 
 test("5.9 · the printed scorecard puts the readings first and the leads under a Guidance heading after them, each naming its nodes by title, with no verdict", () => {

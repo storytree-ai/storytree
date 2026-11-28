@@ -47,7 +47,7 @@ test("5.9 · the scorecard's guidance leads are merge-or-nest for a pair at lift
     ["merge-or-nest", ["A", "C"], 2],
     ["no-change-family", "Q", 1],
   ], "Alpha–Gamma at lift 2 across Pages and Queues; Alpha–Beta at lift 2 sit in one group; Beta–Epsilon at 1.8 is under 2; Queues' Gamma–Delta average 1; Pages' Alpha–Beta average 2");
-  assert.deepEqual(Object.keys(card.readings).sort(), ["boundaries", "cycleGate", "cycles", "depths", "entries", "grouping", "inversions", "meetDepths", "nodes", "pairs", "reuse", "splitCandidates", "technicalNames", "unplaced"], "every measured reading on the card, the leads apart from them");
+  assert.deepEqual(Object.keys(card.readings).sort(), ["boundaries", "cycleGate", "cycles", "deepModules", "depths", "entries", "grouping", "inversions", "meetDepths", "nodes", "pairs", "reuse", "splitCandidates", "technicalNames", "unplaced"], "every measured reading on the card, the leads apart from them");
 });
 
 test("5.9 · the printed scorecard puts the readings first and the leads under a Guidance heading after them, each naming its nodes by title, with no verdict", () => {
@@ -329,5 +329,38 @@ test("5.2 · storytree code-measures tree <story> --tree <file> on a checkout be
     const context: VerbContext = { folder, project: library.name, session: "s", library };
     const card = JSON.parse((await tree.act({ story: "Tree fixture", tree: proposal, json: true }, context, WORDS)).text) as Scorecard & { readings: { pairs: { a: string; b: string; support: number }[] } };
     assert.deepEqual(card.readings.pairs.map(({ a, b, support }) => [[a, b].sort(), support]), [[["A", "C"], 5]], "HEAD's ten merges pair Alpha with Gamma five times; origin/main's five later merges pairing Alpha with Epsilon are not on HEAD's history");
+  });
+});
+
+interface DeepModules {
+  readonly nodes: readonly { readonly id: string; readonly entry: string | null; readonly exported: number; readonly entryLines: number; readonly behindLines: number }[];
+  readonly summary: { readonly nodes: number; readonly withEntry: number; readonly exported: number; readonly entryLines: number; readonly behindLines: number };
+}
+
+test("5.17 · storytree code-measures tree <story> --tree <file> reads each node's deep modules from the checkout's files' code lines, a split's new part, with no text at the commit, reading no lines", async (t) => {
+  const tree = treeVerb();
+  const folder = checkout(t, SPLIT_FILES);
+  const proposal = path.join(folder, "proposal.json");
+  const at = (file: string) => `${PACKAGE}/src/${file}`;
+  writeFileSync(proposal, JSON.stringify({
+    nodes: [
+      { id: "U", title: "Users", entry: at("use.ts"), files: [at("use.ts"), at("a.ts"), at("c.ts"), at("e.ts")] },
+      { id: "P", title: "Pages", entry: at("pages/types.ts"), files: [at("pages/types.ts")] },
+      { id: "Q", title: "Queues", files: [at("queues/types.ts")] },
+    ],
+    splits: [{ file: at("types.ts"), into: { [at("pages/types.ts")]: ["Page"], [at("queues/types.ts")]: ["Queue"] } }],
+  }));
+  await withLibrary(async (library) => {
+    await library.addStory({ title: "Tree fixture" });
+    const context: VerbContext = { folder, project: library.name, session: "s", library };
+    const card = JSON.parse((await tree.act({ story: "Tree fixture", tree: proposal, json: true }, context, WORDS)).text) as Scorecard & { readings: { deepModules?: DeepModules } };
+    assert.deepEqual(card.readings.deepModules, {
+      nodes: [
+        { id: "U", entry: at("use.ts"), exported: 1, entryLines: 2, behindLines: 3 },
+        { id: "P", entry: at("pages/types.ts"), exported: 1, entryLines: 0, behindLines: 0 },
+        { id: "Q", entry: null, exported: 0, entryLines: 0, behindLines: 0 },
+      ],
+      summary: { nodes: 3, withEntry: 2, exported: 2, entryLines: 2, behindLines: 3 },
+    }, "use.ts holds two code lines and a.ts, c.ts and e.ts one each; types.ts's two lines leave the tree with it, and its parts have no text at the commit");
   });
 });

@@ -48,6 +48,11 @@ export interface Entries {
   readonly nodes: readonly { readonly id: string; readonly entry: string | null; readonly exported: number; readonly behind: number }[];
 }
 
+export interface DeepModules {
+  readonly nodes: readonly { readonly id: string; readonly entry: string | null; readonly exported: number; readonly entryLines: number; readonly behindLines: number }[];
+  readonly summary: { readonly nodes: number; readonly withEntry: number; readonly exported: number; readonly entryLines: number; readonly behindLines: number };
+}
+
 export interface Reuse {
   readonly consumer: string;
   readonly dependency: string;
@@ -78,6 +83,7 @@ export interface TreeStructure {
   readonly meetDepths: readonly MeetDepth[];
   readonly boundaries: readonly Boundary[];
   readonly entries: Entries;
+  readonly deepModules: DeepModules;
   readonly reuse: readonly Reuse[];
   readonly splitCandidates: readonly Reuse[];
   readonly technicalNames: readonly { readonly id: string; readonly word: string }[];
@@ -233,7 +239,7 @@ function stronglyConnected(members: readonly string[], edges: ReadonlyMap<string
   return sets;
 }
 
-export function treeStructureOf(tree: Tree, imports: readonly Import[], exports?: ReadonlyMap<string, readonly string[]>, outside: readonly OutsideImport[] = []): TreeStructure {
+export function treeStructureOf(tree: Tree, imports: readonly Import[], exports?: ReadonlyMap<string, readonly string[]>, outside: readonly OutsideImport[] = [], lines: ReadonlyMap<string, number> = new Map()): TreeStructure {
   const ids = new Set(tree.nodes.map(({ id }) => id));
   const parentOf = new Map(tree.nodes.flatMap(({ id, parent }) => (parent !== undefined && ids.has(parent) ? [[id, parent] as const] : [])));
   const chainOf = (id: string): string[] => {
@@ -373,14 +379,20 @@ export function treeStructureOf(tree: Tree, imports: readonly Import[], exports?
   for (const { depth } of met) meetCounts.set(depth, (meetCounts.get(depth) ?? 0) + 1);
 
   const across = met.flatMap(({ from, to, sibling }) => (sibling === undefined ? [] : [{ from, to, sibling }]));
+  const entryOfNode = (id: string, entry: string | undefined): string | null => entry ?? filesOf(id, true).filter((file) => INDEX.test(file)).sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b))[0] ?? null;
   const entryOf = new Map<string, string | null>();
-  for (const { id, entry } of tree.nodes) {
-    if (!across.some(({ sibling }) => sibling === id)) continue;
-    const indexes = filesOf(id, true).filter((file) => INDEX.test(file)).sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b));
-    entryOf.set(id, entry ?? indexes[0] ?? null);
-  }
+  for (const { id, entry } of tree.nodes) if (across.some(({ sibling }) => sibling === id)) entryOf.set(id, entryOfNode(id, entry));
   const offenders = across.filter(({ to, sibling }) => entryOf.get(sibling) !== to);
   const through = across.length - offenders.length;
+
+  const linesIn = (files: readonly string[]): number => files.reduce((total, file) => total + (lines.get(file) ?? 0), 0);
+  const deepNodes = tree.nodes.map(({ id, entry: declared }) => {
+    const entry = entryOfNode(id, declared);
+    const entryFiles = entry === null ? [] : [entry];
+    return { id, entry, exported: namesIn(entryFiles).size, entryLines: linesIn(entryFiles), behindLines: linesIn(filesOf(id, true).filter((file) => file !== entry)) };
+  });
+  const distinctEntries = [...new Set(deepNodes.flatMap(({ entry }) => (entry === null ? [] : [entry])))];
+  const placed = Object.keys(tree.ownerOf).filter((file) => chains.has(tree.ownerOf[file]!));
 
   const used = new Map<string, { consumer: string; dependency: string; names: Set<string> }>();
   for (const { fromNode, toNode, used: names = [] } of owned) {
@@ -409,6 +421,16 @@ export function treeStructureOf(tree: Tree, imports: readonly Import[], exports?
       total: across.length,
       offenders,
       nodes: [...entryOf].map(([id, entry]) => ({ id, entry, exported: entry === null ? 0 : namesIn([entry]).size, behind: namesIn(filesOf(id, true).filter((file) => file !== entry)).size })),
+    },
+    deepModules: {
+      nodes: deepNodes,
+      summary: {
+        nodes: deepNodes.length,
+        withEntry: deepNodes.filter(({ entry }) => entry !== null).length,
+        exported: distinctEntries.reduce((total, entry) => total + namesIn([entry]).size, 0),
+        entryLines: linesIn(distinctEntries),
+        behindLines: linesIn(placed.filter((file) => !distinctEntries.includes(file))),
+      },
     },
     reuse,
     splitCandidates: reuse.filter(({ share }) => share !== null && share < SPLIT_SHARE),

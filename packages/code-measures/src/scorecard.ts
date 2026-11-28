@@ -6,7 +6,7 @@ import { VerbRefusal } from "@storytree/library/verbs";
 
 import { groupingOf, pairsOf, readCoChange, RUNS, topOf, type Grouping, type Pair } from "./co-change.js";
 import { commitOf } from "./read.js";
-import { kindOf } from "./source.js";
+import { kindOf, linesOf } from "./source.js";
 import { planTreeOf, proposedTreeOf, type ProposedNode, type Tree, type TreeNode } from "./tree.js";
 import { refactored, type Refactor, type Retarget, type Split } from "./tree-refactor.js";
 import { exportsOf, importsOf, treeStructureOf, type Import, type OutsideImport, type TreeStructure } from "./tree-structure.js";
@@ -55,9 +55,9 @@ function leadsOf(tree: Tree, pairs: readonly Pair[]): Lead[] {
   return leads;
 }
 
-export function scorecardOf({ tree, units, imports, exports, refactor, outside }: { tree: Tree; units: readonly { files: readonly string[] }[]; imports: readonly Import[]; exports?: ReadonlyMap<string, readonly string[]>; refactor?: Refactor; outside?: readonly OutsideImport[] }): Scorecard {
+export function scorecardOf({ tree, units, imports, exports, refactor, outside, lines }: { tree: Tree; units: readonly { files: readonly string[] }[]; imports: readonly Import[]; exports?: ReadonlyMap<string, readonly string[]>; refactor?: Refactor; outside?: readonly OutsideImport[]; lines?: ReadonlyMap<string, number> }): Scorecard {
   const shaped = refactor === undefined ? { imports, exports } : refactored(imports, exports, refactor);
-  const structure = treeStructureOf(tree, shaped.imports, shaped.exports, outside);
+  const structure = treeStructureOf(tree, shaped.imports, shaped.exports, outside, lines);
   const pairs = pairsOf(units, tree.ownerOf);
   return {
     nodes: tree.nodes,
@@ -74,7 +74,7 @@ export function scorecardText(card: Scorecard): string {
   const titles = new Map(card.nodes.map(({ id, title }) => [id, title]));
   const title = (id: string | null): string => (id === null ? "the top level" : titles.get(id) ?? id);
   const top = topOf(card.nodes);
-  const { nodes, cycles, inversions, cycleGate, depths, meetDepths, boundaries, entries, reuse, splitCandidates, technicalNames, pairs, grouping, unplaced } = card.readings;
+  const { nodes, cycles, inversions, cycleGate, depths, meetDepths, boundaries, entries, deepModules, reuse, splitCandidates, technicalNames, pairs, grouping, unplaced } = card.readings;
   const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? "" : "s"}`;
   const spread = (name: string, read: Grouping["mq"], shown: (value: number) => string) => `${name} ${shown(read.value)} (mean ${shown(read.mean)}, 95th percentile ${shown(read.p95)} over ${RUNS} random groupings of the same sizes)`;
   const lines = [
@@ -100,6 +100,8 @@ export function scorecardText(card: Scorecard): string {
     `  split       ${splitCandidates.length === 0 ? "no consumer imports under a quarter of a dependency's names" : `candidates, a consumer importing under a quarter of a dependency's names: ${splitCandidates.map(({ consumer, dependency, share }) => `${title(consumer)} of ${title(dependency)} (${orNone(share, percent)})`).join("; ")}`}`,
     `  technical   ${technicalNames.length === 0 ? "no top-level node named for a technical layer" : `top-level nodes named for a technical layer: ${technicalNames.map(({ id, word }) => `${title(id)} (${word})`).join(", ")}`}`,
     `  inverted    ${inversions.length === 0 ? "none: no edge in a sibling cycle runs from the more widely imported sibling" : `edges in a sibling cycle from the more widely imported sibling, by fan-in: ${inversions.map(({ parent, from, to, fanIn, imports }) => `under ${title(parent)}, ${title(from)} (fan-in ${fanIn.from}) → ${title(to)} (fan-in ${fanIn.to}) [${imports.map((one) => `${title(one.from)} → ${title(one.to)}: ${one.types.length === 0 ? "no types" : one.types.join(", ")}`).join("; ")}]`).join("; ")}`}`,
+    `  deep modules  each node's entry, its exported names and code lines against the code lines behind it: ${deepModules.summary.withEntry} of ${plural(deepModules.summary.nodes, "node")} with an entry, ${plural(deepModules.summary.exported, "exported name")} in ${plural(deepModules.summary.entryLines, "line")} against ${plural(deepModules.summary.behindLines, "line")} behind them`,
+    ...deepModules.nodes.map(({ id, entry, exported, entryLines, behindLines }) => `    ${title(id)}: entry ${entry ?? "none"}, ${plural(exported, "exported name")}, ${plural(entryLines, "line")} against ${plural(behindLines, "line")} behind it`),
     `  unplaced    ${unplaced.length === 0 ? "none" : `${unplaced.length} source file${unplaced.length === 1 ? "" : "s"} in no node:`}`,
     ...unplaced.map((file) => `    ${file}`),
     "",
@@ -166,5 +168,5 @@ export async function scorecardAt({ folder, library, story, proposal }: { readon
     Promise.all(paths.map(async (file) => ({ path: file, text: await readFile(path.join(folder, file), "utf8").catch(() => "") }))),
     commitOf(folder, "HEAD").then((commit) => readCoChange(folder, commit)),
   ]);
-  return scorecardOf({ tree, units: history.kept, imports: importsOf(files), exports: exportsOf(files), outside, ...(proposed === undefined ? {} : { refactor: proposed }) });
+  return scorecardOf({ tree, units: history.kept, imports: importsOf(files), exports: exportsOf(files), lines: new Map(files.map((file) => [file.path, linesOf(file)])), outside, ...(proposed === undefined ? {} : { refactor: proposed }) });
 }

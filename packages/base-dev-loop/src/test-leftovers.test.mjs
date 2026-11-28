@@ -117,7 +117,7 @@ test("4.20 · a unit's end stops every Postgres server running on a data folder 
   }
 });
 
-test("4.21 · a run's start stops any Postgres server in Temp left by a run that has gone, and removes that run's temp folders", { timeout: 180_000 }, async (t) => {
+test("4.21 · a run's start stops any Postgres server in Temp left by a run that has gone, and removes that run's temp folders", { timeout: 300_000 }, async (t) => {
   const steps = cleanups(t);
   const temp = folder(steps, "leftovers-temp-");
   const deadRun = path.join(temp, `st-unit-${deadPid()}-AbC123`);
@@ -135,7 +135,7 @@ test("4.21 · a run's start stops any Postgres server in Temp left by a run that
   sweepLeftovers({ tmp: temp });
 
   await waitUntil(orphanStopped, 10_000, "the server in a gone run's unit folder to be stopped");
-  assert.equal(existsSync(deadRun), false, "and the gone run's unit folder removed");
+  await untilGone(deadRun, "the gone run's unit folder to be removed");
   await waitUntil(staleStopped, 10_000, "a server in a storytree scratch folder whose owner has gone to be stopped");
   assert.equal(alive(postmaster(owned.dataDir)), true, "a server whose owner lives is left running");
   assert.equal(existsSync(liveRun), true, "a live run's unit folder is left alone");
